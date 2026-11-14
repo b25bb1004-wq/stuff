@@ -110,7 +110,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | argon |  | TODO |
 | T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
-| T59 | P4 | pigment | inflate, deflate, PNG read and write | argon | T58 | TODO |
+| T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | RUNNING |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | PASS |
 | T61 | P4 | glint | widget tree, flex layout, events, focus, themes | argon | T60 | TODO |
 | T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | hydrogen | T61 | TODO |
@@ -172,3 +172,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 00:45 T44 drillcore diff/merge RETRY 1 (hydrogen-high): vs real git, 76/1500 merge3 triples and some unified hunks differ (change-group alignment as git xdl_change_compact; conflict simplification <=3 or no-alnum gap). Check fixed: git funcname header text dropped, --no-indent-heuristic. Worker cannot run git, so git reference fixtures (800 M + 300 D, other seed) added at crates/drillcore/tests/fixtures/git_reference.txt. T57 crust executor dispatched to hydrogen 00:40.
 - 2026-11-15 00:55 T57 crust executor RETRY 1 (hydrogen): vs bash --posix 300/300 generated, all externals and binary modes pass; 5/72 fixed differ (set -e not ignored inside functions/cmd-subst run in tested contexts; set -u not enforced). Check gained 6 set -e/-u cases. T44 retry dispatched 00:48.
 - 2026-11-15 01:05 T44 drillcore diff/merge/status PASS after RETRY 1 (hydrogen-high): merge3 = git merge-file on 1500 triples (2 seeds), unified hunks = git diff --no-indent-heuristic on 300 (2 seeds), diff minimal vs LCS, repo merge scenarios; 800+300 git fixtures in-tree. Gates green.
+- 2026-11-15 01:06 T59 pigment flate+PNG brief written, dispatched to hydrogen-high (not argon: strong oracle, Python zlib + Pillow).
