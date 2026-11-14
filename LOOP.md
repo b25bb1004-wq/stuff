@@ -70,7 +70,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
 | T13 | P1 | quartz | A and C extensions, official riscv-tests as data | hydrogen | T12 | TODO |
 | T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
-| T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | hydrogen | T05 | TODO |
+| T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | RUNNING |
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
 | T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | hydrogen | T04 | TODO |
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13 | TODO |
@@ -88,7 +88,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | TODO |
 | T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | argon-high | T04 T20 D2 | TODO |
 | T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
-| T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | TODO |
+| T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | RUNNING |
 | T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | TODO |
 | T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | TODO |
 | T39 | P3 | varve | pager, write-ahead log, crash recovery | argon-high | D3 | TODO |
