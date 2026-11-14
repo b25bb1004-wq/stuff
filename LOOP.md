@@ -1,11 +1,11 @@
 # Strata loop board (the single source of truth; re-read this, not the chat)
 
 ## State
-- LEADER: Claude Fable until the operator starts Claude Opus (start prompt: docs/PLAN.md section 9)
-- heartbeat: 2026-11-14 16:13
-- phase: P1 Cores. Full plan written: docs/PLAN.md. T05 running on Hydrogen (first agy trial). T09 half done (lexer ok, parser tests missing)
+- LEADER: Claude Opus since 2026-11-14 16:15
+- heartbeat: 2026-11-14 16:21
+- phase: P1 Cores. T05 PASS (first agy trial: Hydrogen, 5 min, leader check green first time). T09 running on Hydrogen (finish corpus + fuzz).
 - stop reason: none
-- Next for the leader: (1) T05 was started on Hydrogen at 16:12; when no agy worker runs (ignore the process `agy.exe --hub`), delete a stale `.loop-local/BUSY`, then judge T05 or re-run it. (2) Flash job: write docs/SKILLS.md from `.loop-local/skills-index.tsv` (1163 installed skills, name and description) mapped to the phases of docs/PLAN.md. (3) T09, then the table order.
+- Next for the leader: judge T09 with `briefs/leader/mica_leader.rs` (copy to crates/mica/tests/leader.rs), then T04 (argon, asym_leader.rs ready), then the section 5 order. Flash job docs/SKILLS.md still owed (one worker at a time).
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
 - ONE worker at a time, through `bash tools/lane.sh <lane> <id>`. Lanes and rules: docs/PLAN.md section 2.
 
@@ -56,8 +56,8 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T06 | P1 | shale | block layer, on-disk format, mkfs, read/write path | haiku | | PASS |
 | T08 | P1 | mica | language design `docs/MICA.md` + bytecode `docs/MBC.md` | leader | | PASS |
 | T11 | P1 | geode | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | PASS |
-| T05 | P1 | geyser | fair scheduler core + simulator | hydrogen |  | RUNNING |
-| T09 | P1 | mica | finish parser, printer, corpus, fuzz (files exist: read them first) | hydrogen | T08 | RETRY |
+| T05 | P1 | geyser | fair scheduler core + simulator | hydrogen |  | PASS |
+| T09 | P1 | mica | finish parser, printer, corpus, fuzz (files exist: read them first) | hydrogen | T08 | RUNNING |
 | T04 | P1 | onyx | X25519, Ed25519 (brief written) | argon | T01 | TODO |
 | T17 | P1 | geode | interpreter, heap, mark-sweep GC, fuel, `Host` trait | argon | T11 | TODO |
 | T10 | P1 | mica | type checker, layer checker, IR | argon-high | T09 | TODO |
@@ -145,3 +145,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-14 16:30 | names | leader | n/a | PASS | every crate renamed to its Strata name (table in docs/SPEC.md); full gate green, 55 test groups
 - 2026-11-14 15:19 | T11 | haiku | 179k | PASS | gate green; opcode table read against docs/MBC.md (58 of 58 in order); leader fuzz 40 000 hostile inputs, new seed: no panic, decode then encode stable. Note: earlier log times in this file ran ahead of the clock
 - 2026-11-14 16:10 | T06 | haiku | 240k | PASS | gate green; leader shadow model 100 cases x 400 ops with remount every 40 and a leak check, plus 5000 corrupted images, fresh seeds: no mismatch, no panic. Over budget (170k). Open points for T07: TooLarge is an extent-count limit; overlapping extents across files are not detected
+- 2026-11-14 16:21 | T05 | hydrogen | 0 Claude | PASS | gate green; leader model (public API only) 400+400 cases x 600 calls incl. bad ids, bad cpus, time backwards, 2nd seed x2000: affinity, one cpu per task, work conservation, runtime sum == busy time, determinism, fairness spread <= slice, nice 0/5 ratio within 5%, class order. No panic paths found
