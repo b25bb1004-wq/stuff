@@ -97,7 +97,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
-| T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | RUNNING |
+| T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | PASS |
 | T46 | P3 | cairn | manifest, versions, dependency solver, lock file | argon |  | TODO |
 | T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | TODO |
 | T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | argon | T04 | TODO |
@@ -180,3 +180,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 01:33 T38 outcrop WebSocket/ranges/chunked brief written, dispatched to hydrogen.
 - 2026-11-15 01:43 T38 outcrop WebSocket/ranges/chunked PASS first try (hydrogen): Python client 40/40 (chunked + HTTP/1.0 streams, chunked request body, 12 range cases + HEAD, WS handshake, echo 7/16/64-bit, ping inside fragments, close echo, 10 protocol-error close codes, 4 bad handshakes), RFC 6455 vectors, 20k decode fuzz. Known design wrinkle (brief's fault): stream status applies only when no chunk was written (head sent on first chunk). T45 dispatched to hydrogen.
 - 2026-11-15 01:55 T54 slate buffer+editor+regex PASS (hydrogen-high, first try plus leader inline fix). My brief misstated Python finditer (said 'next search starts one char later'); real rule: retry at the same spot refusing only an empty match there; 534/4000 diffs, all this one rule; fixed in vm.rs (no_empty_at) + find_iter, brief corrected. Oracle check had its own bugs (script named re.py shadowed re; empty pattern hex '-'), fixed. Fresh seeds: 1 diff in 20k, a sre quirk with nullable repeat bodies under must-advance, e.g. (?:a*(?:|é)){1,3} on 'éa' gives (0,3) but {2,3} gives (0,2); accepted as known gap.
+- 2026-11-15 02:00 T45 drillcore remote (push/fetch/pull/clone over outcrop HTTP) PASS (hydrogen, first try). Leader: 3 clones converge, 8 racing pushers (losers stale/non-ff then land, linear first-parent chain), forged commit without tree -> ng missing, bad names, stale old, garbage/bad checksum -> 400, 300 fuzz bodies <500 with refs unchanged, fetch minimality 4/7 objects; fresh seed x3 stable; T43/T44 leader checks still pass.

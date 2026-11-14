@@ -10,6 +10,8 @@ mod format;
 mod id;
 mod index;
 mod merge;
+#[cfg(feature = "std")]
+pub mod remote;
 mod repo;
 mod status;
 mod store;

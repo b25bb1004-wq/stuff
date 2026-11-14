@@ -7,10 +7,11 @@ publish = false
 
 [features]
 default = ["std"]
-std = []
+std = ["dep:outcrop"]
 
 [dependencies]
 onyx = { path = "../onyx" }
+outcrop = { path = "../outcrop", optional = true }
 
 [dev-dependencies]
 assay = { path = "../assay" }
