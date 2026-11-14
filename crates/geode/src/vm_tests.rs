@@ -560,3 +560,44 @@ fn conversions_assert_trap_calls_and_host() {
         LoadError::Verify(VerifyError::EntryOutOfRange { entry: 0 })
     );
 }
+
+#[test]
+fn trap_site_records_failing_op_and_clears_on_clean_run() {
+    let m = Module {
+        consts: vec![],
+        imports: vec![],
+        funcs: vec![
+            Func {
+                name: "main".into(),
+                params: 0,
+                regs: 2,
+                code: vec![Int(0, 1), Call(1, 1, 0, 1), Ret(1)],
+            },
+            Func {
+                name: "boom".into(),
+                params: 1,
+                regs: 2,
+                code: vec![Int(1, 0), Div(0, 0, 1), Ret(0)],
+            },
+            Func {
+                name: "clean".into(),
+                params: 0,
+                regs: 1,
+                code: vec![Int(0, 7), Ret(0)],
+            },
+        ],
+        entry: 0,
+    };
+    let mut vm = Vm::new(m, &[]).unwrap();
+    assert_eq!(vm.trap_site(), None);
+    assert_eq!(
+        vm.run(&mut NoHost, Limits::default()),
+        Err(Trap::DivideByZero)
+    );
+    assert_eq!(vm.trap_site(), Some((1, 1)));
+    assert_eq!(
+        vm.call("clean", &[], &mut NoHost, Limits::default()),
+        Ok(Value::Int(7))
+    );
+    assert_eq!(vm.trap_site(), None);
+}

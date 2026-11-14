@@ -59,6 +59,7 @@ pub struct Vm {
     pub(crate) module: Module,
     pub(crate) heap: Heap,
     pub(crate) fuel_used: u64,
+    pub(crate) trap_site: Option<(u32, u32)>,
 }
 
 impl Vm {
@@ -74,12 +75,14 @@ impl Vm {
             module,
             heap: Heap::new(DEFAULT_MAX_HEAP_BYTES),
             fuel_used: 0,
+            trap_site: None,
         })
     }
 
     /// Run the module's `entry` function with no arguments.
     pub fn run(&mut self, host: &mut dyn Host, limits: Limits) -> Result<Value, Trap> {
         self.fuel_used = 0;
+        self.trap_site = None;
         self.heap.set_max_bytes(limits.max_heap_bytes);
         let entry = self.module.entry;
         let func = self
@@ -102,6 +105,7 @@ impl Vm {
         limits: Limits,
     ) -> Result<Value, Trap> {
         self.fuel_used = 0;
+        self.trap_site = None;
         self.heap.set_max_bytes(limits.max_heap_bytes);
         let (f_idx, f_def) = self
             .module
@@ -130,5 +134,10 @@ impl Vm {
     /// Fuel spent by completed instructions during the last `run` or `call`.
     pub fn fuel_used(&self) -> u64 {
         self.fuel_used
+    }
+
+    /// Function index and instruction index of the op that raised the last trap; `None` after a clean run.
+    pub fn trap_site(&self) -> Option<(u32, u32)> {
+        self.trap_site
     }
 }

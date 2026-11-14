@@ -31,6 +31,7 @@ pub(crate) fn execute(
     limits: Limits,
 ) -> Result<Value, Trap> {
     if limits.max_depth == 0 {
+        vm.trap_site = Some((entry_func, 0));
         return Err(Trap::StackOverflow);
     }
     let init_regs = vm
@@ -53,12 +54,13 @@ pub(crate) fn execute(
     });
 
     while let Some(frame) = frames.last_mut() {
-        if vm.fuel_used >= limits.fuel {
-            return Err(Trap::OutOfFuel);
-        }
         let func_idx = frame.func as usize;
         let pc = frame.pc;
         let bp = frame.bp;
+        vm.trap_site = Some((frame.func, pc as u32));
+        if vm.fuel_used >= limits.fuel {
+            return Err(Trap::OutOfFuel);
+        }
         let op = vm
             .module
             .funcs
@@ -240,6 +242,7 @@ pub(crate) fn execute(
                 if let Some(caller) = frames.last() {
                     set_reg(&mut reg_stack, caller.bp, popped.ret_reg, ret_val)?;
                 } else {
+                    vm.trap_site = None;
                     return Ok(ret_val);
                 }
             }

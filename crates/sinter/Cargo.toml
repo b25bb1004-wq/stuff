@@ -5,7 +5,13 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[[bin]]
+name = "mica"
+path = "src/main.rs"
+
 [dependencies]
+geode = { path = "../geode" }
+mica = { path = "../mica" }
 
 [dev-dependencies]
 assay = { path = "../assay" }

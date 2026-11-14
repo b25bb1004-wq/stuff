@@ -65,14 +65,14 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T17 | P1 | geode | interpreter, heap, mark-sweep GC, fuel, `Host` trait | argon | T11 | PASS |
 | T10 | P1 | mica | type checker, layer checker, IR | argon-high | T09 | PASS |
 | T19 | P1 | mica | reference interpreter for the typed IR (oracle for T18, T29, T30) | hydrogen | T10 | PASS |
-| T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 T19 | RUNNING |
+| T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 T19 | PASS |
 | T07 | P1 | shale | journal, fsck, crash injection at every write | haiku | T06 | PASS |
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
 | T13 | P1 | quartz | A and C extensions, official riscv-tests as data | hydrogen | T12 | TODO |
 | T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
-| T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | hydrogen | T04 | TODO |
+| T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | RUNNING |
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13 | TODO |
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | TODO |
 | T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | argon | T12 | TODO |
@@ -89,7 +89,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | argon-high | T04 T20 D2 | TODO |
 | T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
-| T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | TODO |
+| T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | RUNNING |
 | T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | TODO |
 | T39 | P3 | varve | pager, write-ahead log, crash recovery | argon-high | D3 | TODO |
 | T40 | P3 | varve | B+tree with range scans | hydrogen | T39 | TODO |
@@ -161,3 +161,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 2026-11-14 18:37 | T18 | gemini argon | gemini quota | NO OUTPUT | lane granted mica commands (first crates/ path in the brief was crates/mica); brief title now names crates/sinter; re-run 18:38
 2026-11-14 18:48 | T15 | haiku medium | 149k | PASS | geyser gate + clean-worktree workspace gate; leader_pool.rs: seeded soak 198k planned jobs exactly once with nested spawns and panics, 150 create/drop rounds with jobs still spawning, 3 concurrent waiters, stolen 2252; second seed ok; no_std build ok
 2026-11-14 18:51 | T36 | gemini hydrogen | gemini quota | PASS | outcrop gate + clean-worktree workspace gate; leader_http.rs: CL+TE and duplicate/odd CL smuggling, chunk overflow, limits before bytes arrive, keep-alive, pipelining, split at every byte, 4000-case mutation fuzz (939 accepted, round trip)
+- 2026-11-14 23:40 T18 sinter PASS (hydrogen). Leader check: corpus + 6 unseen programs + 9 trap spans vs oracle, binary run/test; my check had a wrong line (3: vs 4:3). geode gained Vm::trap_site (additive). Workspace gate PASS in clean worktree.

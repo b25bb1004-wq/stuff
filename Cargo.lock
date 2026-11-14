@@ -81,6 +81,7 @@ name = "outcrop"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "geyser",
 ]
 
 [[package]]
@@ -123,6 +124,8 @@ name = "sinter"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "geode",
+ "mica",
 ]
 
 [[package]]
