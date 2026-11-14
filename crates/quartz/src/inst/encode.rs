@@ -124,5 +124,16 @@ pub fn encode(inst: Inst) -> u32 {
         Inst::Divuw { rd, rs1, rs2 } => r_fmt(0x3b, 5, 0x01, rd, rs1, rs2),
         Inst::Remw { rd, rs1, rs2 } => r_fmt(0x3b, 6, 0x01, rd, rs1, rs2),
         Inst::Remuw { rd, rs1, rs2 } => r_fmt(0x3b, 7, 0x01, rd, rs1, rs2),
+        Inst::FenceI => i_fmt(0x0f, 1, 0, 0, 0),
+        Inst::Csrrw { rd, rs1, csr } => i_fmt(0x73, 1, rd, rs1, i64::from(csr)),
+        Inst::Csrrs { rd, rs1, csr } => i_fmt(0x73, 2, rd, rs1, i64::from(csr)),
+        Inst::Csrrc { rd, rs1, csr } => i_fmt(0x73, 3, rd, rs1, i64::from(csr)),
+        Inst::Csrrwi { rd, uimm, csr } => i_fmt(0x73, 5, rd, uimm & 31, i64::from(csr)),
+        Inst::Csrrsi { rd, uimm, csr } => i_fmt(0x73, 6, rd, uimm & 31, i64::from(csr)),
+        Inst::Csrrci { rd, uimm, csr } => i_fmt(0x73, 7, rd, uimm & 31, i64::from(csr)),
+        Inst::Mret => 0x3020_0073,
+        Inst::Sret => 0x1020_0073,
+        Inst::Wfi => 0x1050_0073,
+        Inst::SfenceVma { rs1, rs2 } => r_fmt(0x73, 0, 0x09, 0, rs1, rs2),
     }
 }

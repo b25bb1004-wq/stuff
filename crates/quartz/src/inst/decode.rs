@@ -90,12 +90,40 @@ pub fn decode(w: u32) -> Option<Inst> {
         0x33 => op_reg(rd, rs1, rs2, f3, f7),
         0x1b => op_imm32(w, rd, rs1, f3, f7),
         0x3b => op_reg32(rd, rs1, rs2, f3, f7),
-        0x0f if f3 == 0 => Some(Inst::Fence),
-        0x73 => match w {
-            0x0000_0073 => Some(Inst::Ecall),
-            0x0010_0073 => Some(Inst::Ebreak),
+        0x0f => match f3 {
+            0 => Some(Inst::Fence),
+            1 => Some(Inst::FenceI),
             _ => None,
         },
+        0x73 => system(w, rd, rs1, f3),
+        _ => None,
+    }
+}
+
+/// SYSTEM opcode: environment calls, privileged instructions and CSR access.
+fn system(w: u32, rd: u8, rs1: u8, f3: u32) -> Option<Inst> {
+    let csr = (w >> 20) as u16;
+    let uimm = rs1;
+    match f3 {
+        0 => match w {
+            0x0000_0073 => Some(Inst::Ecall),
+            0x0010_0073 => Some(Inst::Ebreak),
+            0x1020_0073 => Some(Inst::Sret),
+            0x3020_0073 => Some(Inst::Mret),
+            0x1050_0073 => Some(Inst::Wfi),
+            // SFENCE.VMA: funct7 0001001, rd and funct3 zero; rs1 and rs2 are operands.
+            _ if w & 0xfe00_7fff == 0x1200_0073 => Some(Inst::SfenceVma {
+                rs1,
+                rs2: ((w >> 20) & 0x1f) as u8,
+            }),
+            _ => None,
+        },
+        1 => Some(Inst::Csrrw { rd, rs1, csr }),
+        2 => Some(Inst::Csrrs { rd, rs1, csr }),
+        3 => Some(Inst::Csrrc { rd, rs1, csr }),
+        5 => Some(Inst::Csrrwi { rd, uimm, csr }),
+        6 => Some(Inst::Csrrsi { rd, uimm, csr }),
+        7 => Some(Inst::Csrrci { rd, uimm, csr }),
         _ => None,
     }
 }

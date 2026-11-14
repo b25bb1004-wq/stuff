@@ -2,10 +2,10 @@
 
 ## State
 - LEADER: Claude Opus since 2026-11-14 16:15
-- heartbeat: 2026-11-14 17:40
-- phase: P1 Cores. T04, T05, T07, T09 PASS. T17 running on Argon. Briefs ready: T10, T12, T19.
+- heartbeat: 2026-11-14 17:12
+- phase: P1 Cores. T04, T05, T07, T09, T12, T17 PASS. T10 running on Argon-high. Briefs ready: T19 (after T10).
 - stop reason: none
-- Next for the leader: judge T04 (copy briefs/leader/asym_leader.rs to crates/onyx/tests/); Gemini lane next: T17 (argon). Then T10 brief (needs the mica AST), T07, T12. Flash job docs/SKILLS.md still owed.
+- Next for the leader: judge T10 when Argon-high returns (write the T10 reject corpus check first); Haiku lane next: T16 or T15. Then T19, T18, T13. Flash job docs/SKILLS.md still owed. Log times before 17:05 were corrected to commit times on 2026-11-14 17:12.
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
 - At most one Gemini worker (through `bash tools/lane.sh <lane> <id>`) plus one Claude Haiku worker, on different crates. Lanes and rules: docs/PLAN.md section 2.
 
@@ -33,7 +33,7 @@ top to bottom, and deployable.
   sessions. It cannot finish inside one usage window.
 - One worker at a time (operator rule 2026-11-14). Retries 2 per task. Gemini lanes use no Claude tokens.
 - Operator 2026-11-14 16:25: Haiku (medium) is a normal lane for the Claude leader, not only a fallback. Operator 16:35: one Haiku worker may run beside one Gemini worker, on different crates. Budgets: 170k (Haiku), 250k (Sonnet).
-- Spent so far: 1504k Claude worker tokens (leader tokens not counted).
+- Spent so far: 1760k Claude worker tokens (leader tokens not counted).
 
 ## Workers checked on 2026-11-14
 | Worker | Status |
@@ -60,11 +60,11 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T09 | P1 | mica | finish parser, printer, corpus, fuzz (files exist: read them first) | hydrogen | T08 | PASS |
 | T04 | P1 | onyx | X25519, Ed25519 (brief written) | haiku | T01 | PASS |
 | T17 | P1 | geode | interpreter, heap, mark-sweep GC, fuel, `Host` trait | argon | T11 | PASS |
-| T10 | P1 | mica | type checker, layer checker, IR | argon-high | T09 | TODO |
+| T10 | P1 | mica | type checker, layer checker, IR | argon-high | T09 | RUNNING |
 | T19 | P1 | mica | reference interpreter for the typed IR (oracle for T18, T29, T30) | hydrogen | T10 | TODO |
 | T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 T19 | TODO |
 | T07 | P1 | shale | journal, fsck, crash injection at every write | haiku | T06 | PASS |
-| T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | RUNNING |
+| T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
 | T13 | P1 | quartz | A and C extensions, official riscv-tests as data | hydrogen | T12 | TODO |
 | T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | hydrogen | T02 | TODO |
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | hydrogen | T05 | TODO |
@@ -147,7 +147,8 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-14 15:19 | T11 | haiku | 179k | PASS | gate green; opcode table read against docs/MBC.md (58 of 58 in order); leader fuzz 40 000 hostile inputs, new seed: no panic, decode then encode stable. Note: earlier log times in this file ran ahead of the clock
 - 2026-11-14 16:10 | T06 | haiku | 240k | PASS | gate green; leader shadow model 100 cases x 400 ops with remount every 40 and a leak check, plus 5000 corrupted images, fresh seeds: no mismatch, no panic. Over budget (170k). Open points for T07: TooLarge is an extent-count limit; overlapping extents across files are not detected
 - 2026-11-14 16:21 | T05 | hydrogen | 0 Claude | PASS | gate green; leader model (public API only) 400+400 cases x 600 calls incl. bad ids, bad cpus, time backwards, 2nd seed x2000: affinity, one cpu per task, work conservation, runtime sum == busy time, determinism, fairness spread <= slice, nice 0/5 ratio within 5%, class order. No panic paths found
-- 2026-11-14 16:45 | T09 | hydrogen | 0 Claude | PASS | gate green, 44 tests, 20-program corpus; leader check (6 programs from the reference, 15 rejects, fuzz 3x4000 + 2nd seed 3x20000, 20k-deep nesting) green; nesting limit holds at about 199. Worker edited 3 test expectations; each matches docs/MICA.md (lowercase const, rule b, `;;`). Workspace gate run in a clean worktree because Haiku was editing onyx
-- 2026-11-14 17:00 | T04 | haiku | 186k | PASS | gate green, 43 tests; leader Python `cryptography` vectors (X25519 + Ed25519) all match; RFC 7748 and RFC 8032 tests 1-3 exact; scalar mul and ladder branch-free (masked select, cswap). RFC 8032 TEST 1024 not added (worker could not reproduce the message); Python vectors cover long messages
-- 2026-11-14 17:20 | T07 | haiku | 114k | PASS | gate green, 31 tests; leader crash check with its own crash device (power cut after every block write, remount + fsck): 12 + 60 cases x 40 ops on two seeds, every tree is the state before or after the op in progress, fsck clean. Journal overflow refused with TooLarge before any write. Free blocks are written home directly (safe: bitmap goes through the journal)
-- 2026-11-14 17:40 | T17 | argon | 0 Claude | PASS | gate green, 47 tests; leader VM check (exact fuel at every limit, fib, 200k-object GC churn in 1 MiB, retained objects give OutOfMemory, 300k-deep list under GC, depth limits, every trap, ParseInt edge cases, host + missing import, fuzz 3000 + 20000 on two seeds with determinism) green; leader generator bug (underflow) fixed in the leader file, not the VM
+- 2026-11-14 16:31 | T09 | hydrogen | 0 Claude | PASS | gate green, 44 tests, 20-program corpus; leader check (6 programs from the reference, 15 rejects, fuzz 3x4000 + 2nd seed 3x20000, 20k-deep nesting) green; nesting limit holds at about 199. Worker edited 3 test expectations; each matches docs/MICA.md (lowercase const, rule b, `;;`). Workspace gate run in a clean worktree because Haiku was editing onyx
+- 2026-11-14 16:34 | T04 | haiku | 186k | PASS | gate green, 43 tests; leader Python `cryptography` vectors (X25519 + Ed25519) all match; RFC 7748 and RFC 8032 tests 1-3 exact; scalar mul and ladder branch-free (masked select, cswap). RFC 8032 TEST 1024 not added (worker could not reproduce the message); Python vectors cover long messages
+- 2026-11-14 16:49 | T07 | haiku | 114k | PASS | gate green, 31 tests; leader crash check with its own crash device (power cut after every block write, remount + fsck): 12 + 60 cases x 40 ops on two seeds, every tree is the state before or after the op in progress, fsck clean. Journal overflow refused with TooLarge before any write. Free blocks are written home directly (safe: bitmap goes through the journal)
+- 2026-11-14 17:02 | T17 | argon | 0 Claude | PASS | gate green, 47 tests; leader VM check (exact fuel at every limit, fib, 200k-object GC churn in 1 MiB, retained objects give OutOfMemory, 300k-deep list under GC, depth limits, every trap, ParseInt edge cases, host + missing import, fuzz 3000 + 20000 on two seeds with determinism) green; leader generator bug (underflow) fixed in the leader file, not the VM
+- 2026-11-14 17:12 | T12 | haiku | 256k | PASS | gate green, 85 tests; leader check: 171 Zicsr/privileged words assembled by LLVM (rustc global_asm) decode and encode exactly; an LLVM-assembled privilege program on `tick`: mret to U, U ecall to M, delegated U ecall to S, S ecall to M (MPP=1), Sv39 gigapages built by the test (load and store through U page, sepc and mtval virtual, S load of U page without SUM faults to M), wfi then MTI with mepc after wfi, hardware A/D exact (D clear on the page never stored to). WARL choices listed in reports/T12.md, all legal. Leader lesson: a worktree gate sharing CARGO_TARGET_DIR left a stale quartz rlib in the main tree; the gate now uses its own target dir

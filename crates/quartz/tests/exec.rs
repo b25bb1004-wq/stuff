@@ -766,7 +766,8 @@ fn store_then_load_round_trips_at_every_width() {
         ];
         let shift = 64 - 8 * (1u32 << idx);
         let mask = u64::MAX >> shift;
-        let addr = 0x1000 + r.range(0, 0xff8);
+        // Misaligned accesses trap (T12), so keep the address a multiple of the width.
+        let addr = 0x1000 + (r.range(0, 0xff8) & !((1u64 << idx) - 1));
         let v = r.u64();
         for (load, expect) in [
             (signed[idx], (((v & mask) << shift) as i64 >> shift) as u64),
@@ -797,7 +798,7 @@ fn bus_faults_map_to_traps() {
             imm: 0,
         }],
     );
-    cpu.x[2] = 0x1000 - 4;
-    assert_eq!(cpu.step(&mut ram), Err(Trap::LoadFault(0x1000 - 4)));
+    cpu.x[2] = 0x1000;
+    assert_eq!(cpu.step(&mut ram), Err(Trap::LoadFault(0x1000)));
     assert_eq!(ram.read(0x2000, 8), Err(Fault::Unmapped(0x2000)));
 }

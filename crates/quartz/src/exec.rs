@@ -1,11 +1,49 @@
 //! Fetch, decode and execute one instruction. Effects are computed first and committed last,
 //! so a trap leaves the cpu exactly as it was.
 use crate::bus::Bus;
+use crate::csr::{MIE, MPIE, MPP, MPRV, SIE, SPIE, SPP, TSR, TVM, TW};
 use crate::inst::{decode, Inst};
-use crate::{Cpu, Trap};
+use crate::{Access, Cpu, Mode, Trap};
 
-/// Next pc and an optional register write, produced before anything is committed.
-type Outcome = Result<(u64, Option<(u8, u64)>), Trap>;
+/// Everything one instruction changes, produced before anything is committed.
+struct Effect {
+    pc: u64,
+    rd: Option<(u8, u64)>,
+    csr: Option<(u16, u64)>,
+    mode: Option<Mode>,
+    wfi: bool,
+}
+
+impl Effect {
+    /// Continue at `pc` with no other change.
+    fn at(pc: u64) -> Effect {
+        Effect {
+            pc,
+            rd: None,
+            csr: None,
+            mode: None,
+            wfi: false,
+        }
+    }
+
+    /// Continue at `pc` after writing `value` to `rd`.
+    fn wb(pc: u64, rd: u8, value: u64) -> Effect {
+        Effect {
+            rd: Some((rd, value)),
+            ..Effect::at(pc)
+        }
+    }
+}
+
+type Outcome = Result<Effect, Trap>;
+
+/// How a CSR instruction combines the old value with its source.
+#[derive(Clone, Copy)]
+enum Op {
+    Replace,
+    Set,
+    Clear,
+}
 
 /// Sign or zero extend the low `size` bytes of `raw`.
 fn extend(raw: u64, size: u8, signed: bool) -> u64 {
@@ -17,12 +55,6 @@ fn extend(raw: u64, size: u8, signed: bool) -> u64 {
     }
 }
 
-/// Jump to `target` and write the link value; the target must be a multiple of 4.
-fn jump(target: u64, link: u64, rd: u8) -> Outcome {
-    check_pc(target)?;
-    Ok((target, Some((rd, link))))
-}
-
 /// Fail with `FetchMisaligned` unless `target` is a multiple of 4.
 fn check_pc(target: u64) -> Result<(), Trap> {
     if target & 3 != 0 {
@@ -32,30 +64,55 @@ fn check_pc(target: u64) -> Result<(), Trap> {
     }
 }
 
+/// Jump to `target` and write the link value; the target must be a multiple of 4.
+fn jump(target: u64, link: u64, rd: u8) -> Outcome {
+    check_pc(target)?;
+    Ok(Effect::wb(target, rd, link))
+}
+
 /// Conditional branch: fall through, or jump to `pc + imm` when `taken`.
 fn branch(pc: u64, taken: bool, imm: i64) -> Outcome {
     if !taken {
-        return Ok((pc.wrapping_add(4), None));
+        return Ok(Effect::at(pc.wrapping_add(4)));
     }
     let target = pc.wrapping_add(imm as u64);
     check_pc(target)?;
-    Ok((target, None))
+    Ok(Effect::at(target))
 }
 
 impl Cpu {
-    /// Execute the instruction at `pc`. On `Err`, pc, registers and `instret` are unchanged.
-    pub fn step(&mut self, bus: &mut impl Bus) -> Result<(), Trap> {
+    /// Execute one instruction and commit it. Returns true if it was WFI.
+    pub(crate) fn step_inner(&mut self, bus: &mut impl Bus) -> Result<bool, Trap> {
         let pc = self.pc;
         check_pc(pc)?;
-        let word = bus.read(pc, 4).map_err(|_| Trap::FetchFault(pc))? as u32;
+        let word = self.fetch(bus, pc)?;
         let inst = decode(word).ok_or(Trap::IllegalInstruction(word))?;
-        let (next, write) = self.execute(inst, pc, bus)?;
-        if let Some((rd, value)) = write {
+        let eff = self.execute(inst, word, bus)?;
+        if let Some((rd, value)) = eff.rd {
             self.set(rd, value);
         }
-        self.pc = next;
+        if let Some((addr, value)) = eff.csr {
+            self.csr_write(addr, value);
+        }
+        if let Some(mode) = eff.mode {
+            self.mode = mode;
+        }
+        self.pc = eff.pc;
         self.instret = self.instret.wrapping_add(1);
-        Ok(())
+        self.csr.mcycle = self.csr.mcycle.wrapping_add(1);
+        Ok(eff.wfi)
+    }
+
+    /// Execute the instruction at `pc`. On `Err`, pc, registers and CSRs are unchanged.
+    pub fn step(&mut self, bus: &mut impl Bus) -> Result<(), Trap> {
+        self.step_inner(bus).map(|_| ())
+    }
+
+    /// Fetch the 32-bit instruction word at virtual address `pc`.
+    fn fetch(&self, bus: &mut impl Bus, pc: u64) -> Result<u32, Trap> {
+        let pa = self.translate_with(bus, pc, Access::Fetch)?;
+        let word = bus.read(pa, 4).map_err(|_| Trap::FetchFault(pc))?;
+        Ok(word as u32)
     }
 
     /// Write register `rd`; writes to `x0` are discarded.
@@ -69,8 +126,10 @@ impl Cpu {
     }
 
     /// Compute the effect of `inst` without changing any state.
-    fn execute(&self, inst: Inst, pc: u64, bus: &mut impl Bus) -> Outcome {
+    fn execute(&self, inst: Inst, word: u32, bus: &mut impl Bus) -> Outcome {
+        let pc = self.pc;
         let next = pc.wrapping_add(4);
+        let illegal = Trap::IllegalInstruction(word);
         match inst {
             Inst::Jal { rd, imm } => jump(pc.wrapping_add(imm as u64), next, rd),
             Inst::Jalr { rd, rs1, imm } => {
@@ -86,27 +145,149 @@ impl Cpu {
             }
             Inst::Bltu { rs1, rs2, imm } => branch(pc, self.reg(rs1) < self.reg(rs2), imm),
             Inst::Bgeu { rs1, rs2, imm } => branch(pc, self.reg(rs1) >= self.reg(rs2), imm),
-            Inst::Lb { rd, rs1, imm } => Ok((next, Some((rd, self.load(bus, rs1, imm, 1, true)?)))),
-            Inst::Lh { rd, rs1, imm } => Ok((next, Some((rd, self.load(bus, rs1, imm, 2, true)?)))),
-            Inst::Lw { rd, rs1, imm } => Ok((next, Some((rd, self.load(bus, rs1, imm, 4, true)?)))),
-            Inst::Ld { rd, rs1, imm } => Ok((next, Some((rd, self.load(bus, rs1, imm, 8, true)?)))),
+            Inst::Lb { rd, rs1, imm } => {
+                Ok(Effect::wb(next, rd, self.load(bus, rs1, imm, 1, true)?))
+            }
+            Inst::Lh { rd, rs1, imm } => {
+                Ok(Effect::wb(next, rd, self.load(bus, rs1, imm, 2, true)?))
+            }
+            Inst::Lw { rd, rs1, imm } => {
+                Ok(Effect::wb(next, rd, self.load(bus, rs1, imm, 4, true)?))
+            }
+            Inst::Ld { rd, rs1, imm } => {
+                Ok(Effect::wb(next, rd, self.load(bus, rs1, imm, 8, true)?))
+            }
             Inst::Lbu { rd, rs1, imm } => {
-                Ok((next, Some((rd, self.load(bus, rs1, imm, 1, false)?))))
+                Ok(Effect::wb(next, rd, self.load(bus, rs1, imm, 1, false)?))
             }
             Inst::Lhu { rd, rs1, imm } => {
-                Ok((next, Some((rd, self.load(bus, rs1, imm, 2, false)?))))
+                Ok(Effect::wb(next, rd, self.load(bus, rs1, imm, 2, false)?))
             }
             Inst::Lwu { rd, rs1, imm } => {
-                Ok((next, Some((rd, self.load(bus, rs1, imm, 4, false)?))))
+                Ok(Effect::wb(next, rd, self.load(bus, rs1, imm, 4, false)?))
             }
-            Inst::Sb { rs1, rs2, imm } => self.store(bus, rs1, rs2, imm, 1).map(|()| (next, None)),
-            Inst::Sh { rs1, rs2, imm } => self.store(bus, rs1, rs2, imm, 2).map(|()| (next, None)),
-            Inst::Sw { rs1, rs2, imm } => self.store(bus, rs1, rs2, imm, 4).map(|()| (next, None)),
-            Inst::Sd { rs1, rs2, imm } => self.store(bus, rs1, rs2, imm, 8).map(|()| (next, None)),
+            Inst::Sb { rs1, rs2, imm } => {
+                self.store(bus, rs1, rs2, imm, 1).map(|()| Effect::at(next))
+            }
+            Inst::Sh { rs1, rs2, imm } => {
+                self.store(bus, rs1, rs2, imm, 2).map(|()| Effect::at(next))
+            }
+            Inst::Sw { rs1, rs2, imm } => {
+                self.store(bus, rs1, rs2, imm, 4).map(|()| Effect::at(next))
+            }
+            Inst::Sd { rs1, rs2, imm } => {
+                self.store(bus, rs1, rs2, imm, 8).map(|()| Effect::at(next))
+            }
             Inst::Ecall => Err(Trap::Ecall),
             Inst::Ebreak => Err(Trap::Ebreak),
-            _ => Ok((next, self.alu(inst, pc))),
+            Inst::Fence | Inst::FenceI => Ok(Effect::at(next)),
+            Inst::Csrrw { rd, rs1, csr } => {
+                self.csr_op(word, rd, csr, self.reg(rs1), Op::Replace, true)
+            }
+            Inst::Csrrs { rd, rs1, csr } => {
+                self.csr_op(word, rd, csr, self.reg(rs1), Op::Set, rs1 != 0)
+            }
+            Inst::Csrrc { rd, rs1, csr } => {
+                self.csr_op(word, rd, csr, self.reg(rs1), Op::Clear, rs1 != 0)
+            }
+            Inst::Csrrwi { rd, uimm, csr } => {
+                self.csr_op(word, rd, csr, u64::from(uimm & 31), Op::Replace, true)
+            }
+            Inst::Csrrsi { rd, uimm, csr } => {
+                self.csr_op(word, rd, csr, u64::from(uimm & 31), Op::Set, uimm & 31 != 0)
+            }
+            Inst::Csrrci { rd, uimm, csr } => self.csr_op(
+                word,
+                rd,
+                csr,
+                u64::from(uimm & 31),
+                Op::Clear,
+                uimm & 31 != 0,
+            ),
+            Inst::Mret => self.mret(word),
+            Inst::Sret => self.sret(word),
+            Inst::Wfi => {
+                let trapped = self.mode == Mode::User
+                    || (self.mode == Mode::Supervisor && (self.csr.mstatus & TW) != 0);
+                if trapped {
+                    return Err(illegal);
+                }
+                Ok(Effect {
+                    wfi: true,
+                    ..Effect::at(next)
+                })
+            }
+            Inst::SfenceVma { .. } => {
+                let trapped = self.mode == Mode::User
+                    || (self.mode == Mode::Supervisor && (self.csr.mstatus & TVM) != 0);
+                if trapped {
+                    return Err(illegal);
+                }
+                Ok(Effect::at(next))
+            }
+            _ => Ok(Effect {
+                rd: self.alu(inst, pc),
+                ..Effect::at(next)
+            }),
         }
+    }
+
+    /// CSR read-modify-write. The write happens only when `writes` is set (CSRRW always, the
+    /// set and clear forms only with a non-zero source field).
+    fn csr_op(&self, word: u32, rd: u8, csr: u16, src: u64, op: Op, writes: bool) -> Outcome {
+        let illegal = Trap::IllegalInstruction(word);
+        if !self.csr_allowed(csr, writes) {
+            return Err(illegal);
+        }
+        let old = self.csr_read(csr).ok_or(illegal)?;
+        let new = match op {
+            Op::Replace => src,
+            Op::Set => old | src,
+            Op::Clear => old & !src,
+        };
+        Ok(Effect {
+            rd: Some((rd, old)),
+            csr: writes.then_some((csr, new)),
+            ..Effect::at(self.pc.wrapping_add(4))
+        })
+    }
+
+    /// MRET: return to MPP, with MIE taken from MPIE; pc goes to mepc.
+    fn mret(&self, word: u32) -> Outcome {
+        if self.mode != Mode::Machine {
+            return Err(Trap::IllegalInstruction(word));
+        }
+        let st = self.csr.mstatus;
+        let to = Mode::from_field(st >> 11);
+        let mut new = (st & !(MIE | MPIE | MPP)) | ((st & MPIE) >> 4) | MPIE;
+        if to != Mode::Machine {
+            new &= !MPRV;
+        }
+        Ok(Effect {
+            mode: Some(to),
+            csr: Some((0x300, new)),
+            ..Effect::at(self.csr.mepc)
+        })
+    }
+
+    /// SRET: return to SPP, with SIE taken from SPIE; pc goes to sepc.
+    fn sret(&self, word: u32) -> Outcome {
+        let st = self.csr.mstatus;
+        let trapped = self.mode == Mode::User || (self.mode == Mode::Supervisor && (st & TSR) != 0);
+        if trapped {
+            return Err(Trap::IllegalInstruction(word));
+        }
+        let to = if st & SPP != 0 {
+            Mode::Supervisor
+        } else {
+            Mode::User
+        };
+        let new = (st & !(SIE | SPIE | SPP)) | ((st & SPIE) >> 4) | SPIE;
+        Ok(Effect {
+            mode: Some(to),
+            csr: Some((0x300, new)),
+            ..Effect::at(self.csr.sepc)
+        })
     }
 
     /// Load `size` bytes from `rs1 + imm`, extended to 64 bits.
@@ -119,14 +300,35 @@ impl Cpu {
         signed: bool,
     ) -> Result<u64, Trap> {
         let addr = self.reg(rs1).wrapping_add(imm as u64);
-        let raw = bus.read(addr, size).map_err(|_| Trap::LoadFault(addr))?;
+        if addr & (u64::from(size) - 1) != 0 {
+            return Err(Trap::LoadMisaligned(addr));
+        }
+        let pa = self.translate_with(bus, addr, Access::Load)?;
+        let raw = bus.read(pa, size).map_err(|_| Trap::LoadFault(addr))?;
         Ok(extend(raw, size, signed))
     }
 
     /// Store the low `size` bytes of `rs2` at `rs1 + imm`.
     fn store(&self, bus: &mut impl Bus, rs1: u8, rs2: u8, imm: i64, size: u8) -> Result<(), Trap> {
         let addr = self.reg(rs1).wrapping_add(imm as u64);
-        bus.write(addr, size, self.reg(rs2))
+        if addr & (u64::from(size) - 1) != 0 {
+            return Err(Trap::StoreMisaligned(addr));
+        }
+        let pa = self.translate_with(bus, addr, Access::Store)?;
+        bus.write(pa, size, self.reg(rs2))
             .map_err(|_| Trap::StoreFault(addr))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+    use super::extend;
+
+    #[test]
+    fn extend_signs_and_zeroes() {
+        assert_eq!(extend(0x80, 1, true), u64::MAX - 0x7f);
+        assert_eq!(extend(0x80, 1, false), 0x80);
+        assert_eq!(extend(0xffff_ffff, 4, true), u64::MAX);
     }
 }

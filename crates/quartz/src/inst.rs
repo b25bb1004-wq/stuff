@@ -1,11 +1,12 @@
-//! RV64IM instructions: the typed form the decoder produces and the encoder consumes.
+//! RV64IM, Zicsr, Zifencei and the privileged instructions: the typed form the decoder produces
+//! and the encoder consumes.
 mod decode;
 mod encode;
 
 pub use decode::decode;
 pub use encode::encode;
 
-/// One unprivileged RV64IM instruction.
+/// One RV64IM instruction, with the Zicsr and privileged instructions.
 ///
 /// `rd`, `rs1` and `rs2` are register numbers (0..=31). `imm` is the sign-extended immediate.
 /// For LUI and AUIPC it is the value already shifted left by 12. For the shift-immediate forms
@@ -143,4 +144,26 @@ pub enum Inst {
     Remw { rd: u8, rs1: u8, rs2: u8 },
     /// REMUW: 32-bit unsigned remainder, sign-extended.
     Remuw { rd: u8, rs1: u8, rs2: u8 },
+    /// FENCE.I: instruction stream fence, a no-op in this emulator.
+    FenceI,
+    /// CSRRW: atomic read and write of a CSR.
+    Csrrw { rd: u8, rs1: u8, csr: u16 },
+    /// CSRRS: atomic read and set bits of a CSR.
+    Csrrs { rd: u8, rs1: u8, csr: u16 },
+    /// CSRRC: atomic read and clear bits of a CSR.
+    Csrrc { rd: u8, rs1: u8, csr: u16 },
+    /// CSRRWI: CSRRW with a five-bit zero-extended immediate.
+    Csrrwi { rd: u8, uimm: u8, csr: u16 },
+    /// CSRRSI: CSRRS with a five-bit zero-extended immediate.
+    Csrrsi { rd: u8, uimm: u8, csr: u16 },
+    /// CSRRCI: CSRRC with a five-bit zero-extended immediate.
+    Csrrci { rd: u8, uimm: u8, csr: u16 },
+    /// MRET: return from a machine-mode trap.
+    Mret,
+    /// SRET: return from a supervisor-mode trap.
+    Sret,
+    /// WFI: wait for interrupt.
+    Wfi,
+    /// SFENCE.VMA: supervisor memory-management fence, a no-op here (no TLB).
+    SfenceVma { rs1: u8, rs2: u8 },
 }
