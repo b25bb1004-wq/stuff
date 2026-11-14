@@ -72,7 +72,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
-| T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | RUNNING |
+| T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | PASS |
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13 | TODO |
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | TODO |
 | T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | argon | T12 | TODO |
@@ -162,3 +162,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 2026-11-14 18:48 | T15 | haiku medium | 149k | PASS | geyser gate + clean-worktree workspace gate; leader_pool.rs: seeded soak 198k planned jobs exactly once with nested spawns and panics, 150 create/drop rounds with jobs still spawning, 3 concurrent waiters, stolen 2252; second seed ok; no_std build ok
 2026-11-14 18:51 | T36 | gemini hydrogen | gemini quota | PASS | outcrop gate + clean-worktree workspace gate; leader_http.rs: CL+TE and duplicate/odd CL smuggling, chunk overflow, limits before bytes arrive, keep-alive, pipelining, split at every byte, 4000-case mutation fuzz (939 accepted, round trip)
 - 2026-11-14 23:40 T18 sinter PASS (hydrogen). Leader check: corpus + 6 unseen programs + 9 trap spans vs oracle, binary run/test; my check had a wrong line (3: vs 4:3). geode gained Vm::trap_site (additive). Workspace gate PASS in clean worktree.
+- 2026-11-14 23:44 T20 onyx PASS (haiku, ~121k tokens). Leader check: RFC 8439 A.1 #1 + differential vs chacha20::xor, split reads, bias at n=3*2^62, box rebuilt byte for byte from spec, tamper/truncate/weak keys. Lesson again: write `.is_multiple_of()` in leader checks.
