@@ -90,7 +90,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
 | T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
-| T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | TODO |
+| T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | RUNNING |
 | T39 | P3 | varve | pager, write-ahead log, crash recovery | argon-high | D3 | TODO |
 | T40 | P3 | varve | B+tree with range scans | hydrogen | T39 | TODO |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
@@ -177,3 +177,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 01:26 T59 pigment flate+PNG PASS (hydrogen-high, first try plus a one-line leader fix: palette depth-8 mask `1u8 << 8` overflow, 24/280 PNGs panicked). Oracle Python zlib + Pillow: 480 zlib streams (all levels/strategies/windows) inflated, our deflate L0-9 + zlib inflated by zlib, level 6 within 10% of zlib, 240 hand-encoded PNGs (all types/depths/filters/Adam7/tRNS/split IDAT) + 40 Pillow PNGs pixel-exact, Pillow reads ours, mutation fuzz no panics; fresh seeds too. Note: this leader test needs python + Pillow on PATH (matters for T82 CI).
 - 2026-11-15 01:30 T37 outcrop server PASS (hydrogen; agy hit its deadline because the worker's own gate hung). Leader found and fixed inline: rejected 503 socket closed with the request unread gives RST on Windows (client never sees 503; the test then panicked and Server drop deadlocked on the held handler); now FIN + bounded 20 ms drain. Load tests trimmed (leader 48x50, worker 2k): 14.4k + 10k connections per run exhausted Windows ephemeral ports (TIME_WAIT). Leader check (mixed keep-alive load, traversal, error statuses, slow clients, stop under load) green; suite green 3 runs in a row.
 - 2026-11-15 01:32 T54 slate brief written, dispatched to hydrogen-high (not argon: Python re is a full oracle).
+- 2026-11-15 01:33 T38 outcrop WebSocket/ranges/chunked brief written, dispatched to hydrogen.
