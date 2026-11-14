@@ -1,0 +1,39 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/testkit",
+    "crates/crypto",
+    "crates/mem",
+    "crates/sched",
+    "crates/fs",
+    "crates/cpu",
+    "crates/asm",
+    "crates/vm",
+    "crates/mica",
+    "crates/micac",
+    "crates/net",
+    "crates/httpd",
+    "crates/db",
+    "crates/vcs",
+    "crates/pkg",
+    "crates/chain",
+    "crates/sh",
+    "crates/edit",
+    "crates/gfx",
+    "crates/gui",
+    "crates/wm",
+    "crates/browser",
+    "crates/engine",
+    "crates/cage",
+]
+
+[workspace.lints.rust]
+missing_docs = "warn"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+panic = "abort"
