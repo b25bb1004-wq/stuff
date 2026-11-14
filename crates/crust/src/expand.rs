@@ -255,6 +255,11 @@ fn expand_param(
             }
             if let Some(val) = lookup_param(&p.name, env) {
                 st.push_str(&val, in_double, splittable);
+            } else if env.nounset() {
+                return Err(ExpandError::Unset(
+                    p.name.clone(),
+                    String::from("unbound variable"),
+                ));
             }
             Ok(())
         }
@@ -262,9 +267,18 @@ fn expand_param(
             let len = if p.name == "@" || p.name == "*" {
                 env.positional().len()
             } else {
-                lookup_param(&p.name, env)
-                    .map(|s| s.chars().count())
-                    .unwrap_or(0)
+                match lookup_param(&p.name, env) {
+                    Some(s) => s.chars().count(),
+                    None => {
+                        if env.nounset() {
+                            return Err(ExpandError::Unset(
+                                p.name.clone(),
+                                String::from("unbound variable"),
+                            ));
+                        }
+                        0
+                    }
+                }
             };
             st.push_str(&len.to_string(), in_double, splittable);
             Ok(())
@@ -352,14 +366,36 @@ fn expand_param(
             Ok(())
         }
         ParamOp::TrimPrefix(longest, w) => {
-            let val = lookup_param(&p.name, env).unwrap_or_default();
+            let val = match lookup_param(&p.name, env) {
+                Some(v) => v,
+                None => {
+                    if env.nounset() && p.name != "@" && p.name != "*" {
+                        return Err(ExpandError::Unset(
+                            p.name.clone(),
+                            String::from("unbound variable"),
+                        ));
+                    }
+                    String::new()
+                }
+            };
             let pat = expand_to_glob_pattern(w, env, st.depth)?;
             let trimmed = trim_prefix(&val, &pat, *longest);
             st.push_str(trimmed, in_double, splittable);
             Ok(())
         }
         ParamOp::TrimSuffix(longest, w) => {
-            let val = lookup_param(&p.name, env).unwrap_or_default();
+            let val = match lookup_param(&p.name, env) {
+                Some(v) => v,
+                None => {
+                    if env.nounset() && p.name != "@" && p.name != "*" {
+                        return Err(ExpandError::Unset(
+                            p.name.clone(),
+                            String::from("unbound variable"),
+                        ));
+                    }
+                    String::new()
+                }
+            };
             let pat = expand_to_glob_pattern(w, env, st.depth)?;
             let trimmed = trim_suffix(&val, &pat, *longest);
             st.push_str(trimmed, in_double, splittable);

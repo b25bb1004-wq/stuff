@@ -5,6 +5,14 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[features]
+default = ["std"]
+std = []
+
+[[bin]]
+name = "crust"
+required-features = ["std"]
+
 [dependencies]
 
 [dev-dependencies]

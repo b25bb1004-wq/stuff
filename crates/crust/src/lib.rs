@@ -4,12 +4,14 @@
 
 extern crate alloc;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "std"))]
 extern crate std;
 
 mod arith;
 pub mod ast;
 mod compound;
+#[cfg(feature = "std")]
+pub mod exec;
 mod expand;
 mod glob;
 mod heredoc;

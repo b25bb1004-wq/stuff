@@ -43,6 +43,10 @@ pub trait Env {
     fn home(&self, user: &str) -> Option<String>;
     /// List directory entry names (without `.` or `..`) in any order.
     fn list_dir(&self, dir: &str) -> Vec<String>;
+    /// Return whether `set -u` (nounset) is active.
+    fn nounset(&self) -> bool {
+        false
+    }
 }
 
 /// Check if `name` is a valid POSIX shell identifier (`[A-Za-z_][A-Za-z0-9_]*`).
