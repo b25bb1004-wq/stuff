@@ -2,8 +2,8 @@
 
 ## State
 - LEADER: Claude Fable
-- heartbeat: 2026-11-14 16:00
-- phase: P1 Cores, round 1 running
+- heartbeat: 2026-11-14 16:30
+- phase: P1 Cores, round 1 done (3 of 3 PASS), round 2 starting
 - stop reason: none
 - Stand-in: Gemini Argon. Open this folder in Antigravity, choose Argon, say
   "You are the stand-in leader. Follow AGENTS.md." (The agy command is not installed on this PC
@@ -33,7 +33,7 @@ top to bottom, and deployable.
   sessions. It cannot finish inside one usage window.
 - Round budget (this session): 2.0M worker tokens. Concurrency 3. Retries 2 per task.
 - Per task: 150k (Haiku), 250k (Sonnet).
-- Spent so far: 327k.
+- Spent so far: 529k.
 
 ## Workers checked on 2026-11-14
 | Worker | Status |
@@ -49,30 +49,33 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 
 | id | phase | crate | what | worker | needs | status |
 |---|---|---|---|---|---|---|
-| T00 | P0 | testkit, tools | workspace, gate, test kit, loop files | leader | | PASS |
-| T01 | P1 | crypto | SHA-2, HMAC, HKDF, ChaCha20-Poly1305 | haiku | | PASS |
-| T02 | P1 | mem | buddy + slab allocator, GlobalAlloc | haiku | | PASS |
-| T03 | P1 | cpu | RV64IM decode, encode, execute | haiku | | RUNNING |
-| T04 | P1 | crypto | X25519 + Ed25519 (RFC 7748, RFC 8032 vectors) | sonnet | T01 | TODO |
-| T05 | P1 | sched | fair scheduler core + simulator tests | haiku | | TODO |
-| T06 | P1 | fs | block layer, on-disk format, mkfs, read/write path | haiku | | TODO |
-| T07 | P1 | fs | journal, fsck, crash-injection tests | haiku | T06 | TODO |
+| T00 | P0 | assay, tools | workspace, gate, test kit, loop files | leader | | PASS |
+| T01 | P1 | onyx | SHA-2, HMAC, HKDF, ChaCha20-Poly1305 | haiku | | PASS |
+| T02 | P1 | quarry | buddy + slab allocator, GlobalAlloc | haiku | | PASS |
+| T03 | P1 | quartz | RV64IM decode, encode, execute | haiku | | PASS |
+| T04 | P1 | onyx | X25519 + Ed25519 (RFC 7748, RFC 8032 vectors) | sonnet | T01 | TODO |
+| T05 | P1 | geyser | fair scheduler core + simulator tests | haiku | | TODO |
+| T06 | P1 | shale | block layer, on-disk format, mkfs, read/write path | haiku | | TODO |
+| T07 | P1 | shale | journal, fsck, crash-injection tests | haiku | T06 | TODO |
 | T08 | P1 | mica | language design `docs/MICA.md` + bytecode `docs/MBC.md` | leader | | PASS |
 | T09 | P1 | mica | lexer + parser + AST | haiku | T08 | TODO |
 | T10 | P1 | mica | type checker + IR | sonnet | T09 | TODO |
-| T11 | P1 | vm | bytecode, interpreter, garbage collector | haiku | T08 | TODO |
-| T12 | P1 | cpu | Zicsr, M/S/U modes, traps, Sv39 paging | sonnet | T03 | TODO |
-| T13 | P1 | cpu | A + C extensions, official RISC-V tests | haiku | T12 | TODO |
-| T14 | P1 | crypto | `strand`: our own cipher, design doc + statistical tests (experimental label) | leader + haiku | T01 | TODO |
-| T15 | P1 | sched | work-stealing thread pool | haiku | T05 | TODO |
-| T16 | P2 | mem | const constructor for a static global allocator; `check()` also counts live slots; alignments above one page | haiku | T02 | TODO |
+| T11 | P1 | geode | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | TODO |
+| T17 | P1 | geode | interpreter, heap, garbage collector, fuel | haiku | T11 | TODO |
+| T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | sonnet | T03 | TODO |
+| T13 | P1 | quartz | A + C extensions, official RISC-V tests | haiku | T12 | TODO |
+| T14 | P1 | onyx | `strand`: our own cipher, design doc + statistical tests (experimental label) | leader + haiku | T01 | TODO |
+| T15 | P1 | geyser | work-stealing thread pool | haiku | T05 | TODO |
+| T16 | P2 | quarry | const constructor for a static global allocator; `check()` also counts live slots; alignments above one page | haiku | T02 | TODO |
 
 Later phases get their task rows when P1 is green (see the build order in `docs/SPEC.md`):
-P2 asm, micac, cpu devices, akern, os, hv. P3 net, httpd, db, vcs, pkg, chain, cage, sh, edit.
-P4 gfx, gui, wm, browser, engine. P5 web front, IDE, containers, load tests. P6 hardening.
+P2 chisel, sinter, quartz devices, flint, mantle, bedrock. P3 tremor, outcrop, varve, drillcore,
+cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 web front, IDE, containers, load tests. P6 hardening.
 
 ## Round log (append only: date time | task | worker | tokens | verdict | note)
 - 2026-11-14 14:56 | T00 | leader | n/a | PASS | scaffold gate green, 24 crates, test kit 3 tests
 - 2026-11-14 15:35 | T08 | leader | n/a | PASS | MICA.md and MBC.md written; T09 and T11 unblocked
 - 2026-11-14 15:45 | T01 | haiku | 157k | PASS | gate green; 41 leader vectors from Python hashlib + cryptography all match (SHA-256/512, HMAC, HKDF, AEAD); Poly1305 read, branch-free
 - 2026-11-14 16:00 | T02 | haiku | 170k | PASS | gate green; leader shadow model (public API only) 400 cases x 3000 ops in release, seed 991177: no overlap, no corruption, no leak, full merge. Gaps moved to T16
+- 2026-11-14 16:25 | T03 | haiku | 202k | PASS | gate green; 499 instructions assembled by LLVM 19 all decode and re-encode identically; official RISC-V tests come in T13
+- 2026-11-14 16:30 | names | leader | n/a | PASS | every crate renamed to its Strata name (table in docs/SPEC.md); full gate green, 55 test groups

@@ -3,166 +3,166 @@
 version = 4
 
 [[package]]
-name = "strata-asm"
+name = "assay"
+version = "0.1.0"
+
+[[package]]
+name = "cairn"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-browser"
+name = "chisel"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-cage"
+name = "crust"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-chain"
+name = "drillcore"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-cpu"
+name = "facet"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-crypto"
+name = "geode"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-db"
+name = "geyser"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-edit"
+name = "glint"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-engine"
+name = "mica"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-fs"
+name = "onyx"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-gfx"
+name = "outcrop"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-gui"
+name = "pigment"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-httpd"
+name = "quarry"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-mem"
+name = "quartz"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-mica"
+name = "seam"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-micac"
+name = "shale"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-net"
+name = "sinter"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-pkg"
+name = "slate"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-sched"
+name = "spelunk"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-sh"
+name = "tectonic"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-testkit"
-version = "0.1.0"
-
-[[package]]
-name = "strata-vcs"
+name = "tremor"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-vm"
+name = "varve"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]
 
 [[package]]
-name = "strata-wm"
+name = "vug"
 version = "0.1.0"
 dependencies = [
- "strata-testkit",
+ "assay",
 ]

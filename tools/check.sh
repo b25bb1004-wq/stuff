@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ -n "${1:-}" ]; then
-  SEL="-p strata-$1"; FMT="-p strata-$1"
+  SEL="-p $1"; FMT="-p $1"
   export CARGO_TARGET_DIR="target/w-$1"   # own build dir so parallel workers do not block each other
 else
   SEL="--workspace"; FMT="--all"

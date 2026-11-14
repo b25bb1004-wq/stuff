@@ -2,8 +2,8 @@
 
 1. Touch only the files your brief lists. Never edit the root `Cargo.toml`, `tools/`, `docs/`,
    `LOOP.md`, other crates or other briefs. No git commands.
-2. Zero external crates. Standard library only. `strata-testkit` (already a dev-dependency) gives
-   you `Rng`, `forall`, `hex`, `to_hex` for tests. Read `crates/testkit/src/lib.rs` if needed.
+2. Zero external crates. Standard library only. `assay` (already a dev-dependency) gives
+   you `Rng`, `forall`, `hex`, `to_hex` for tests. Read `crates/assay/src/lib.rs` if needed.
 3. Keep the public API exactly as the brief states it. Other crates are being written against it
    right now. Extra private helpers are fine; extra public items need a reason in your report.
 4. Library code must not panic on any input: no `unwrap`, `expect`, indexing that can go out of
@@ -17,7 +17,7 @@
    vectors where they exist, and property tests with `forall`. Do not invent test vectors from
    memory if you are unsure of them; say so in the report and the leader will supply them.
 8. Your gate is `bash tools/check.sh <crate>` run from the repository root. It must end with
-   `CHECK PASS <crate>`. Run it, fix, repeat. Use `cargo fmt -p strata-<crate>` to format.
+   `CHECK PASS <crate>`. Run it, fix, repeat. Use `cargo fmt -p <crate>` to format.
 9. Do not read other crates, do not load skills, do not browse the web, do not start
    sub-agents. Stay inside your token budget; if you are running out, stop adding features,
    make what exists pass the gate, and list what is missing.
