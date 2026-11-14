@@ -78,8 +78,6 @@ fn one_case(rng: &mut Rng) {
     assert!(!p.is_null(), "free memory did not merge back");
     // SAFETY: just allocated with this layout.
     unsafe { heap.dealloc(p, big) };
-    drop(heap);
-    drop(arena);
 }
 
 #[test]
