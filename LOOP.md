@@ -119,7 +119,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T65 | P4 | spelunk | HTML and CSS parsers | hydrogen |  | TODO |
 | T66 | P4 | spelunk | cascade, block and inline layout, flex subset | argon-high | T65 T60 | TODO |
 | T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
-| T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | RUNNING |
+| T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | PASS |
 | T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | argon | T68 T58 | TODO |
 | T70 | P4 | tectonic | audio mixer, scenes, Mica scripting, one original small game | hydrogen | T69 T18 | TODO |
 | T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Quartz + Mantle on a canvas, Mica playground | argon | T28 T18 | TODO |
@@ -164,3 +164,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-14 23:40 T18 sinter PASS (hydrogen). Leader check: corpus + 6 unseen programs + 9 trap spans vs oracle, binary run/test; my check had a wrong line (3: vs 4:3). geode gained Vm::trap_site (additive). Workspace gate PASS in clean worktree.
 - 2026-11-14 23:44 T20 onyx PASS (haiku, ~121k tokens). Leader check: RFC 8439 A.1 #1 + differential vs chacha20::xor, split reads, bias at n=3*2^62, box rebuilt byte for byte from spec, tamper/truncate/weak keys. Lesson again: write `.is_multiple_of()` in leader checks.
 - 2026-11-14 23:56 T58 pigment PASS (haiku, ~176k tokens). Leader check: over vs formula (300k random + full alpha grid), Bresenham nearest-pixel rule on 3000 lines, single blending, 300 random convex polygons (area, winding, interior), clip fuzz with i32 extremes. ESCALATE fixed inline: 1 pixel off by 1 alpha when winding reversed; polygon now normalises orientation first. My check had 3 bugs (no clamp in reference, centre outside polygon, clippy approx TAU). Brief bug: alpha-0 rule vs formula conflict, worker chose the rule.
+- 2026-11-15 00:07 T68 tectonic PASS (haiku, ~193k tokens). Leader check first try: mul/div vs i128 over 200k, sqrt exhaustive to 2^22 + sweep, sin/cos/atan2 bounds, PCG reference, determinism with permuted insertion order, stale handles, clock. No floats in src.
