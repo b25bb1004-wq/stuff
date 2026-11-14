@@ -105,7 +105,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
 | T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
-| T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | RETRY |
+| T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
 | T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | TODO |
 | T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | argon |  | TODO |
 | T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
@@ -166,3 +166,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-14 23:56 T58 pigment PASS (haiku, ~176k tokens). Leader check: over vs formula (300k random + full alpha grid), Bresenham nearest-pixel rule on 3000 lines, single blending, 300 random convex polygons (area, winding, interior), clip fuzz with i32 extremes. ESCALATE fixed inline: 1 pixel off by 1 alpha when winding reversed; polygon now normalises orientation first. My check had 3 bugs (no clamp in reference, centre outside polygon, clippy approx TAU). Brief bug: alpha-0 rule vs formula conflict, worker chose the rule.
 - 2026-11-15 00:07 T68 tectonic PASS (haiku, ~193k tokens). Leader check first try: mul/div vs i128 over 200k, sqrt exhaustive to 2^22 + sweep, sin/cos/atan2 bounds, PCG reference, determinism with permuted insertion order, stale handles, clock. No floats in src.
 - 2026-11-15 00:09 T53 crust RETRY 1 (hydrogen-high): parser shapes pass; bash differential 36/461 differ, all non-whitespace IFS (literal text split, empty $@ fields dropped, edge delimiter), plus backslash at EOF dropped. Same lane, check left in tree.
+- 2026-11-15 00:17 T53 crust PASS after RETRY 1 (hydrogen-high). bash differential 461/461; fresh seed 1260/1261 (the one miss is my Env: absolute glob /* lists the Windows root while `bash` here is WSL). Note: `bash` on PATH for cargo tests is WSL bash.
