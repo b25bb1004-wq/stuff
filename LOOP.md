@@ -1,13 +1,12 @@
 # Strata loop board (the single source of truth; re-read this, not the chat)
 
 ## State
-- LEADER: Claude Fable
-- heartbeat: 2026-11-14 16:10
-- phase: P1 Cores, round 2: T11 PASS, T06 PASS, T09 stopped half way by the Claude usage limit (lexer done, parser tests left; resume agent a81440dc6ef9b6a74)
+- LEADER: Claude Fable until the operator starts Claude Opus (start prompt: docs/PLAN.md section 9)
+- heartbeat: 2026-11-14 16:35
+- phase: P1 Cores. Full plan written: docs/PLAN.md. T05 running on Hydrogen (first agy trial). T09 half done (lexer ok, parser tests missing)
 - stop reason: none
-- Stand-in: Gemini Argon. Open this folder in Antigravity, choose Argon, say
-  "You are the stand-in leader. Follow AGENTS.md." (The agy command is not installed on this PC
-  and the Mac is offline, so takeover is one manual step for now.)
+- Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
+- ONE worker at a time, through `bash tools/lane.sh <lane> <id>`. Lanes and rules: docs/PLAN.md section 2.
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
@@ -31,16 +30,16 @@ top to bottom, and deployable.
 ## Budget
 - Whole programme, honest estimate: 150 to 250 worker tasks, 25M to 40M worker tokens, many
   sessions. It cannot finish inside one usage window.
-- Round budget (this session): 2.0M worker tokens. Concurrency 3. Retries 2 per task.
-- Per task: 150k (Haiku), 250k (Sonnet).
+- One worker at a time (operator rule 2026-11-14). Retries 2 per task. Gemini lanes use no Claude tokens.
+- Claude fallback only after a Gemini lane failed the same check twice: 150k (Haiku), 250k (Sonnet).
 - Spent so far: 948k Claude worker tokens (leader tokens not counted).
 
 ## Workers checked on 2026-11-14
 | Worker | Status |
 |---|---|
-| Claude Haiku / Sonnet subagents | available |
+| Claude Haiku / Sonnet subagents | fallback only, one at a time |
 | Nemotron Ultra (WSL `~/faith/tools/nv.py`) | PONG ok; bulk text only |
-| agy / Argon | NOT reachable from here: Mac offline 19 days, no agy command on the PC |
+| agy (Argon, Hydrogen, Flash, Orchestrator) | answers from this PC since 2026-11-14 15:40; `tools/lane.sh` |
 | Qwen coder via NVIDIA API | dead (HTTP 410 / 404) |
 | Qwen local (llama-server in WSL) | binary present, not started; text labour only, needs the GPU |
 
@@ -53,20 +52,84 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T01 | P1 | onyx | SHA-2, HMAC, HKDF, ChaCha20-Poly1305 | haiku | | PASS |
 | T02 | P1 | quarry | buddy + slab allocator, GlobalAlloc | haiku | | PASS |
 | T03 | P1 | quartz | RV64IM decode, encode, execute | haiku | | PASS |
-| T04 | P1 | onyx | X25519 + Ed25519 (RFC 7748, RFC 8032 vectors) | sonnet | T01 | TODO |
-| T05 | P1 | geyser | fair scheduler core + simulator tests | haiku | | TODO |
 | T06 | P1 | shale | block layer, on-disk format, mkfs, read/write path | haiku | | PASS |
-| T07 | P1 | shale | journal, fsck, crash-injection tests | haiku | T06 | TODO |
 | T08 | P1 | mica | language design `docs/MICA.md` + bytecode `docs/MBC.md` | leader | | PASS |
-| T09 | P1 | mica | lexer + parser + AST | haiku | T08 | RETRY |
-| T10 | P1 | mica | type checker + IR | sonnet | T09 | TODO |
 | T11 | P1 | geode | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | PASS |
-| T17 | P1 | geode | interpreter, heap, garbage collector, fuel | haiku | T11 | TODO |
-| T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | sonnet | T03 | TODO |
-| T13 | P1 | quartz | A + C extensions, official RISC-V tests | haiku | T12 | TODO |
-| T14 | P1 | onyx | `strand`: our own cipher, design doc + statistical tests (experimental label) | leader + haiku | T01 | TODO |
-| T15 | P1 | geyser | work-stealing thread pool | haiku | T05 | TODO |
-| T16 | P2 | quarry | const constructor for a static global allocator; `check()` also counts live slots; alignments above one page | haiku | T02 | TODO |
+| T05 | P1 | geyser | fair scheduler core + simulator | hydrogen |  | RUNNING |
+| T09 | P1 | mica | finish parser, printer, corpus, fuzz (files exist: read them first) | hydrogen | T08 | RETRY |
+| T04 | P1 | onyx | X25519, Ed25519 (brief written) | argon | T01 | TODO |
+| T17 | P1 | geode | interpreter, heap, mark-sweep GC, fuel, `Host` trait | argon | T11 | TODO |
+| T10 | P1 | mica | type checker, layer checker, IR | argon-high | T09 | TODO |
+| T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 | TODO |
+| T07 | P1 | shale | journal, fsck, crash injection at every write | argon | T06 | TODO |
+| T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | argon-high | T03 | TODO |
+| T13 | P1 | quartz | A and C extensions, official riscv-tests as data | hydrogen | T12 | TODO |
+| T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | hydrogen | T02 | TODO |
+| T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | hydrogen | T05 | TODO |
+| T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
+| T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | hydrogen | T04 | TODO |
+| T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13 | TODO |
+| T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | TODO |
+| T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | argon | T12 | TODO |
+| T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | argon | T22 T23 | TODO |
+| T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 | TODO |
+| T26 | P2 | mantle | processes, user mode, syscalls, scheduler (geyser), ELF loading | argon-high | T25 T05 | TODO |
+| T27 | P2 | mantle | block driver, shale mounted, file syscalls | argon | T26 T07 | TODO |
+| T28 | P2 | mantle | userland: init, shell (crust), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
+| T29 | P2 | sinter | Mica IR to RV64 code, linear-scan registers, ELF out | argon-high | T10 T22 | TODO |
+| T30 | P2 | sinter | constant folding, dead code, copy propagation | hydrogen | T29 | TODO |
+| T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13 | TODO |
+| T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
+| T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | TODO |
+| T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | argon-high | T04 T20 D2 | TODO |
+| T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
+| T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | TODO |
+| T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | TODO |
+| T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | TODO |
+| T39 | P3 | varve | pager, write-ahead log, crash recovery | argon-high | D3 | TODO |
+| T40 | P3 | varve | B+tree with range scans | hydrogen | T39 | TODO |
+| T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
+| T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
+| T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | TODO |
+| T44 | P3 | drillcore | diff (Myers), 3-way merge, status | argon | T43 | TODO |
+| T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | TODO |
+| T46 | P3 | cairn | manifest, versions, dependency solver, lock file | argon |  | TODO |
+| T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | TODO |
+| T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | argon | T04 | TODO |
+| T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | TODO |
+| T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
+| T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
+| T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
+| T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen |  | TODO |
+| T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | TODO |
+| T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | argon |  | TODO |
+| T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
+| T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | hydrogen |  | TODO |
+| T59 | P4 | pigment | inflate, deflate, PNG read and write | argon | T58 | TODO |
+| T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | TODO |
+| T61 | P4 | glint | widget tree, flex layout, events, focus, themes | argon | T60 | TODO |
+| T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | hydrogen | T61 | TODO |
+| T63 | P4 | facet | compositor: windows, tiling and floating, damage, input, animated moves | argon | T62 | TODO |
+| T64 | P4 | facet | client protocol + apps: terminal (crust), editor (slate), files | hydrogen | T63 T57 T55 | TODO |
+| T65 | P4 | spelunk | HTML and CSS parsers | hydrogen |  | TODO |
+| T66 | P4 | spelunk | cascade, block and inline layout, flex subset | argon-high | T65 T60 | TODO |
+| T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
+| T68 | P4 | tectonic | entity system, fixed time step, maths | hydrogen |  | TODO |
+| T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | argon | T68 T58 | TODO |
+| T70 | P4 | tectonic | audio mixer, scenes, Mica scripting, one original small game | hydrogen | T69 T18 | TODO |
+| T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Quartz + Mantle on a canvas, Mica playground | argon | T28 T18 | TODO |
+| T72 | P5 | lapidary | IDE shell: editor, file tree, terminal, run, test | claude | T71 T55 | TODO |
+| T73 | P5 | lapidary | language service: errors, hover, go to definition, format | hydrogen | T10 T72 | TODO |
+| T74 | P5 | lapidary | debugger for Geode: breakpoints, step, inspect | hydrogen | T17 T72 | TODO |
+| T75 | P5 | site | the Strata site: 25 systems, each with a live demo, scroll-driven motion | claude | T71 | TODO |
+| T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
+| T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen | T42 T50 T47 | TODO |
+| T78 | P6 | bench | load tools and numbers for outcrop, varve, tremor, seam in `docs/BENCH.md` | hydrogen | T77 | TODO |
+| T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
+| T80 | P6 | review | security review of every crate, one report each | argon | all | TODO |
+| T81 | P6 | docs | README and runnable example per system, architecture book | flash | all | TODO |
+| T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | TODO |
+| T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
 
 Later phases get their task rows when P1 is green (see the build order in `docs/SPEC.md`):
 P2 chisel, sinter, quartz devices, flint, mantle, bedrock. P3 tremor, outcrop, varve, drillcore,

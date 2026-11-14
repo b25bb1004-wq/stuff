@@ -1,14 +1,18 @@
 # Strata: rules for every agent, and how to lead when the leader is away
 
-Read this file, then `LOOP.md`. Read `docs/SPEC.md` only if you are the leader.
+Read this file, then `LOOP.md`. Leaders also read `docs/PLAN.md` (the complete plan).
 
-## Who does what
-- **Leader**: Claude Fable. Plans, writes briefs, judges results, integrates. Writes no feature
-  code except small integration fixes.
-- **Stand-in leader**: Gemini Argon (Antigravity). Takes over only when `LOOP.md` shows the
-  leader stopped (see "Taking over" below).
-- **Workers**: Claude Haiku at medium effort by default; Claude Sonnet for tasks marked `sonnet`
-  in `LOOP.md`; Nemotron for bulk text (docs drafts, test-vector tables); agy for second reviews.
+## Who does what (operator rules, 2026-11-14; details in docs/PLAN.md section 2)
+- **Architect**: Claude Fable. Wrote `docs/PLAN.md` and the designs. Not used for steering.
+- **Leader**: Claude Opus in Claude Code. Writes briefs, judges results, integrates, commits.
+  Writes no feature code except small integration fixes.
+- **Co-leader and stand-in**: Gemini Orchestrator (Argon) through `agy`. Leads when Claude is
+  out of tokens (see "Taking over"), otherwise does second reviews.
+- **Workers**: Gemini Hydrogen by default, Gemini Argon for hard tasks, Gemini Flash for
+  text, all through `bash tools/lane.sh <lane> <id>`. Claude Haiku or Sonnet only after a
+  Gemini lane failed the same check twice.
+- **One worker at a time.** `tools/lane.sh` holds a lock. Exactly one leader at a time: the
+  name in the State block of `LOOP.md`.
 - **Operator (Arnav)**: owns keys, publishing (making anything public), deleting files, and money.
 
 ## Worker rules
@@ -16,7 +20,7 @@ Follow `briefs/_RULES.md`. One brief, one crate, one short report.
 
 ## Leader protocol (the loop)
 1. Open `LOOP.md`. The task table is the single source of truth. Do not trust chat history.
-2. Pick tasks with status `TODO` whose `needs` are all `PASS`. Dispatch at most 3 at once.
+2. Pick tasks with status `TODO` whose `needs` are all `PASS`. Dispatch ONE at a time with `bash tools/lane.sh <lane> <id>`; the order and lanes are in `docs/PLAN.md` section 5.
    Write a brief in `briefs/<id>.md` first if one does not exist (copy the shape of T01).
 3. When a worker reports, do not believe the report. Run `bash tools/check.sh <crate>` yourself,
    then the task's extra check named in the brief, then read the diff.
