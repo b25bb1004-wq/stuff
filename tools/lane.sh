@@ -28,7 +28,7 @@ mkdir -p .loop-local
 # At most two workers, never two on one crate (operator rule, 2026-11-14 18:45; was one at a time).
 LOCK=".loop-local/BUSY.$CRATE"
 if [ -e "$LOCK" ]; then echo "a worker is already on $CRATE: $(cat "$LOCK")"; exit 3; fi
-N=$(ls .loop-local/BUSY.* .loop-local/BUSY 2>/dev/null | wc -l)
+N=$( (ls .loop-local/BUSY* 2>/dev/null || true) | wc -l)
 if [ "$N" -ge 2 ]; then echo "two workers already running: $(cat .loop-local/BUSY* | tr '
 ' ';')"; exit 3; fi
 echo "$ID on $1 since $(date '+%Y-%m-%d %H:%M')" > "$LOCK"
