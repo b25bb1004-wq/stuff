@@ -1,0 +1,34 @@
+fn control(n: int, xs: [int]) -> int {
+    var acc = 0
+    if n < 0 {
+        return 0
+    } else if n == 0 {
+        acc = 1
+    } else {
+        acc = n
+    }
+    if acc > 10 {
+        acc = 10
+    }
+    var i = 0
+    while i < acc {
+        i = i + 1
+        if i == 2 {
+            continue
+        }
+        if i == 8 {
+            break
+        }
+    }
+    for k in 0..5 {
+        acc = acc + k
+    }
+    for item in xs {
+        acc = acc + item
+    }
+    let inner = {
+        let tmp = acc * 2
+        tmp + 1
+    }
+    inner
+}

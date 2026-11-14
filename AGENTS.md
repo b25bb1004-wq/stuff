@@ -9,8 +9,9 @@ Read this file, then `LOOP.md`. Leaders also read `docs/PLAN.md` (the complete p
 - **Co-leader and stand-in**: Gemini Orchestrator (Argon) through `agy`. Leads when Claude is
   out of tokens (see "Taking over"), otherwise does second reviews.
 - **Workers**: Gemini Hydrogen by default, Gemini Argon for hard tasks, Gemini Flash for
-  text, all through `bash tools/lane.sh <lane> <id>`. Claude Haiku or Sonnet only after a
-  Gemini lane failed the same check twice.
+  text, all through `bash tools/lane.sh <lane> <id>`. The Claude leader may also dispatch
+  Claude Haiku (medium) directly (operator, 2026-11-14 16:25); Sonnet only after a failed retry.
+  One Haiku worker may run beside one Gemini worker, on different crates (operator, 16:35).
 - **One worker at a time.** `tools/lane.sh` holds a lock. Exactly one leader at a time: the
   name in the State block of `LOOP.md`.
 - **Operator (Arnav)**: owns keys, publishing (making anything public), deleting files, and money.

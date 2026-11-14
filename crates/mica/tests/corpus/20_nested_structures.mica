@@ -1,0 +1,19 @@
+type Pair = { a: int, b: int }
+type Opt = None | Some(int)
+
+fn complex(x: int) -> int {
+    let pairs = [Pair { a: 1, b: 2 }, Pair { a: 3, b: 4 }]
+    let tups = [(1, Some(2)), (3, None)]
+    let res = if x > 0 {
+        match tups[0].1 {
+            Some(v) => v + pairs[0].a,
+            None => 0,
+        }
+    } else {
+        {
+            let k = pairs[1].b
+            k * 2
+        }
+    }
+    res
+}

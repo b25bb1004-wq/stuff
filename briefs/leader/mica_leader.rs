@@ -109,7 +109,10 @@ fn leader_bad_programs_rejected_with_in_range_span() {
             Ok(_) => panic!("accepted invalid program:\n{src}"),
             Err(d) => d,
         };
-        assert!(d.span.start <= d.span.end && d.span.end as usize <= src.len(), "{d:?}");
+        assert!(
+            d.span.start <= d.span.end && d.span.end as usize <= src.len(),
+            "{d:?}"
+        );
         assert!(!d.message.is_empty());
     }
 }
@@ -153,7 +156,10 @@ fn leader_fuzz_never_panics() {
                 0 => {
                     v.remove(i);
                 }
-                1 => v.insert(i, *rng.pick(&['(', '}', '"', '\n', '|', '9', 'x', '\\', '\''])),
+                1 => v.insert(
+                    i,
+                    *rng.pick(&['(', '}', '"', '\n', '|', '9', 'x', '\\', '\'']),
+                ),
                 _ => v[i] = *rng.pick(&['{', ')', ',', '=', ' ', 'A', '-']),
             }
         }
@@ -167,7 +173,11 @@ fn leader_fuzz_never_panics() {
 #[test]
 fn leader_deep_nesting_is_a_diag() {
     for (open, close) in [("(", ")"), ("[", "]"), ("{", "}"), ("some(", ")")] {
-        let src = format!("fn f() {{\n  let x = {}1{}\n}}\n", open.repeat(20_000), close.repeat(20_000));
+        let src = format!(
+            "fn f() {{\n  let x = {}1{}\n}}\n",
+            open.repeat(20_000),
+            close.repeat(20_000)
+        );
         assert!(parse(&src).is_err());
     }
     let src = format!("fn f() {{\n  let x = {}1\n}}\n", "!".repeat(20_000));

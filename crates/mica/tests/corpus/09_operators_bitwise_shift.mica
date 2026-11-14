@@ -1,0 +1,6 @@
+fn bits(a: int, b: int, c: int) -> int {
+    let x = a & b | c ^ a
+    let y = (a << 3) >> 1
+    let z = a | b ^ c & (a << 1)
+    x + y + z
+}

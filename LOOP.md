@@ -2,12 +2,12 @@
 
 ## State
 - LEADER: Claude Opus since 2026-11-14 16:15
-- heartbeat: 2026-11-14 16:21
-- phase: P1 Cores. T05 PASS (first agy trial: Hydrogen, 5 min, leader check green first time). T09 running on Hydrogen (finish corpus + fuzz).
+- heartbeat: 2026-11-14 16:45
+- phase: P1 Cores. T05, T09 PASS on Hydrogen. T04 running on Haiku (beside Gemini). Briefs ready: T17, T07, T12.
 - stop reason: none
-- Next for the leader: judge T09 with `briefs/leader/mica_leader.rs` (copy to crates/mica/tests/leader.rs), then T04 (argon, asym_leader.rs ready), then the section 5 order. Flash job docs/SKILLS.md still owed (one worker at a time).
+- Next for the leader: judge T04 (copy briefs/leader/asym_leader.rs to crates/onyx/tests/); Gemini lane next: T17 (argon). Then T10 brief (needs the mica AST), T07, T12. Flash job docs/SKILLS.md still owed.
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
-- ONE worker at a time, through `bash tools/lane.sh <lane> <id>`. Lanes and rules: docs/PLAN.md section 2.
+- At most one Gemini worker (through `bash tools/lane.sh <lane> <id>`) plus one Claude Haiku worker, on different crates. Lanes and rules: docs/PLAN.md section 2.
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
@@ -32,13 +32,13 @@ top to bottom, and deployable.
 - Whole programme, honest estimate: 150 to 250 worker tasks, 25M to 40M worker tokens, many
   sessions. It cannot finish inside one usage window.
 - One worker at a time (operator rule 2026-11-14). Retries 2 per task. Gemini lanes use no Claude tokens.
-- Claude fallback only after a Gemini lane failed the same check twice: 150k (Haiku), 250k (Sonnet).
+- Operator 2026-11-14 16:25: Haiku (medium) is a normal lane for the Claude leader, not only a fallback. Operator 16:35: one Haiku worker may run beside one Gemini worker, on different crates. Budgets: 170k (Haiku), 250k (Sonnet).
 - Spent so far: 948k Claude worker tokens (leader tokens not counted).
 
 ## Workers checked on 2026-11-14
 | Worker | Status |
 |---|---|
-| Claude Haiku / Sonnet subagents | fallback only, one at a time |
+| Claude Haiku / Sonnet subagents | Haiku: normal leader lane (operator 16:25); Sonnet after a failed retry; one at a time |
 | Nemotron Ultra (WSL `~/faith/tools/nv.py`) | PONG ok; bulk text only |
 | agy (Argon, Hydrogen, Flash, Orchestrator) | answers from this PC since 2026-11-14 15:40; `tools/lane.sh` |
 | Qwen coder via NVIDIA API | dead (HTTP 410 / 404) |
@@ -57,8 +57,8 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T08 | P1 | mica | language design `docs/MICA.md` + bytecode `docs/MBC.md` | leader | | PASS |
 | T11 | P1 | geode | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | PASS |
 | T05 | P1 | geyser | fair scheduler core + simulator | hydrogen |  | PASS |
-| T09 | P1 | mica | finish parser, printer, corpus, fuzz (files exist: read them first) | hydrogen | T08 | RUNNING |
-| T04 | P1 | onyx | X25519, Ed25519 (brief written) | argon | T01 | TODO |
+| T09 | P1 | mica | finish parser, printer, corpus, fuzz (files exist: read them first) | hydrogen | T08 | PASS |
+| T04 | P1 | onyx | X25519, Ed25519 (brief written) | haiku | T01 | RUNNING |
 | T17 | P1 | geode | interpreter, heap, mark-sweep GC, fuel, `Host` trait | argon | T11 | TODO |
 | T10 | P1 | mica | type checker, layer checker, IR | argon-high | T09 | TODO |
 | T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 | TODO |
@@ -146,3 +146,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-14 15:19 | T11 | haiku | 179k | PASS | gate green; opcode table read against docs/MBC.md (58 of 58 in order); leader fuzz 40 000 hostile inputs, new seed: no panic, decode then encode stable. Note: earlier log times in this file ran ahead of the clock
 - 2026-11-14 16:10 | T06 | haiku | 240k | PASS | gate green; leader shadow model 100 cases x 400 ops with remount every 40 and a leak check, plus 5000 corrupted images, fresh seeds: no mismatch, no panic. Over budget (170k). Open points for T07: TooLarge is an extent-count limit; overlapping extents across files are not detected
 - 2026-11-14 16:21 | T05 | hydrogen | 0 Claude | PASS | gate green; leader model (public API only) 400+400 cases x 600 calls incl. bad ids, bad cpus, time backwards, 2nd seed x2000: affinity, one cpu per task, work conservation, runtime sum == busy time, determinism, fairness spread <= slice, nice 0/5 ratio within 5%, class order. No panic paths found
+- 2026-11-14 16:45 | T09 | hydrogen | 0 Claude | PASS | gate green, 44 tests, 20-program corpus; leader check (6 programs from the reference, 15 rejects, fuzz 3x4000 + 2nd seed 3x20000, 20k-deep nesting) green; nesting limit holds at about 199. Worker edited 3 test expectations; each matches docs/MICA.md (lowercase const, rule b, `;;`). Workspace gate run in a clean worktree because Haiku was editing onyx

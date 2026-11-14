@@ -1,0 +1,9 @@
+fn tuples() -> int {
+    let u: unit = ()
+    let pair = (10, "hi")
+    let triple = (1, (2, 3), true)
+    let a = pair.0
+    let b = triple.1.0
+    let c = triple.1.1
+    a + b + c
+}

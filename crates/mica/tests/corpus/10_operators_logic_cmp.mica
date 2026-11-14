@@ -1,0 +1,7 @@
+fn logic_cmp(a: int, b: int, p: bool, q: bool) -> bool {
+    let c1 = a == b || a != b
+    let c2 = a < b && a <= b
+    let c3 = a > b || a >= b
+    let c4 = !p && (p || q)
+    c1 && c2 && c3 && c4
+}

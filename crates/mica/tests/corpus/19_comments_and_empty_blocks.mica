@@ -1,0 +1,10 @@
+// Top-level comment
+fn empty() {
+    // Inside empty block
+}
+
+// Another comment
+fn commented(x: int) -> int { // after brace
+    let y = x + 1 // after stmt
+    y
+}

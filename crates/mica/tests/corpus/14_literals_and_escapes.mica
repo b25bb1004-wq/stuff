@@ -1,0 +1,18 @@
+fn literals() {
+    let dec = 1_000_000
+    let hex = 0xff_FF
+    let bin = 0b1010_0101
+    let b1 = b'a'
+    let b2 = b'\n'
+    let b3 = b'\t'
+    let b4 = b'\r'
+    let b5 = b'\0'
+    let b6 = b'\\'
+    let b7 = b'\''
+    let b8 = b'\x7f'
+    let b9 = b'\xff'
+    let s1 = "hello\n\t\r\0\\\"\x41\u{1F600}"
+    let s2 = "héllo world"
+    let t = true
+    let f = false
+}
