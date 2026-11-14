@@ -2,7 +2,7 @@
 
 ## State
 - LEADER: Claude Fable
-- heartbeat: 2026-11-14 15:45
+- heartbeat: 2026-11-14 16:00
 - phase: P1 Cores, round 1 running
 - stop reason: none
 - Stand-in: Gemini Argon. Open this folder in Antigravity, choose Argon, say
@@ -33,7 +33,7 @@ top to bottom, and deployable.
   sessions. It cannot finish inside one usage window.
 - Round budget (this session): 2.0M worker tokens. Concurrency 3. Retries 2 per task.
 - Per task: 150k (Haiku), 250k (Sonnet).
-- Spent so far: 157k.
+- Spent so far: 327k.
 
 ## Workers checked on 2026-11-14
 | Worker | Status |
@@ -51,7 +51,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 |---|---|---|---|---|---|---|
 | T00 | P0 | testkit, tools | workspace, gate, test kit, loop files | leader | | PASS |
 | T01 | P1 | crypto | SHA-2, HMAC, HKDF, ChaCha20-Poly1305 | haiku | | PASS |
-| T02 | P1 | mem | buddy + slab allocator, GlobalAlloc | haiku | | RUNNING |
+| T02 | P1 | mem | buddy + slab allocator, GlobalAlloc | haiku | | PASS |
 | T03 | P1 | cpu | RV64IM decode, encode, execute | haiku | | RUNNING |
 | T04 | P1 | crypto | X25519 + Ed25519 (RFC 7748, RFC 8032 vectors) | sonnet | T01 | TODO |
 | T05 | P1 | sched | fair scheduler core + simulator tests | haiku | | TODO |
@@ -65,6 +65,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T13 | P1 | cpu | A + C extensions, official RISC-V tests | haiku | T12 | TODO |
 | T14 | P1 | crypto | `strand`: our own cipher, design doc + statistical tests (experimental label) | leader + haiku | T01 | TODO |
 | T15 | P1 | sched | work-stealing thread pool | haiku | T05 | TODO |
+| T16 | P2 | mem | const constructor for a static global allocator; `check()` also counts live slots; alignments above one page | haiku | T02 | TODO |
 
 Later phases get their task rows when P1 is green (see the build order in `docs/SPEC.md`):
 P2 asm, micac, cpu devices, akern, os, hv. P3 net, httpd, db, vcs, pkg, chain, cage, sh, edit.
@@ -74,3 +75,4 @@ P4 gfx, gui, wm, browser, engine. P5 web front, IDE, containers, load tests. P6 
 - 2026-11-14 14:56 | T00 | leader | n/a | PASS | scaffold gate green, 24 crates, test kit 3 tests
 - 2026-11-14 15:35 | T08 | leader | n/a | PASS | MICA.md and MBC.md written; T09 and T11 unblocked
 - 2026-11-14 15:45 | T01 | haiku | 157k | PASS | gate green; 41 leader vectors from Python hashlib + cryptography all match (SHA-256/512, HMAC, HKDF, AEAD); Poly1305 read, branch-free
+- 2026-11-14 16:00 | T02 | haiku | 170k | PASS | gate green; leader shadow model (public API only) 400 cases x 3000 ops in release, seed 991177: no overlap, no corruption, no leak, full merge. Gaps moved to T16
