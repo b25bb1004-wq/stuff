@@ -96,7 +96,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
-| T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | RUNNING |
+| T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | RETRY 1 queued |
 | T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | TODO |
 | T46 | P3 | cairn | manifest, versions, dependency solver, lock file | argon |  | TODO |
 | T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | TODO |
@@ -106,7 +106,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
 | T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
-| T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | QUEUED (brief+check ready) |
+| T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | RUNNING |
 | T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | argon |  | TODO |
 | T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
@@ -169,3 +169,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 00:17 T53 crust PASS after RETRY 1 (hydrogen-high). bash differential 461/461; fresh seed 1260/1261 (the one miss is my Env: absolute glob /* lists the Windows root while `bash` here is WSL). Note: `bash` on PATH for cargo tests is WSL bash.
 - 2026-11-15 00:24 T43 drillcore PASS (hydrogen) first try: blob, tree, commit and merge-commit ids equal real git --object-format=sha256 over a 3-commit history with exec bits, unicode and dir-sort names; history, checkout, corruption. My check needed clippy::type_complexity allowed.
 - 2026-11-15 00:32 T60 pigment text PASS (hydrogen) first try: glyph rules, layout invariants over 4000 fresh cases, draw box bounds; rendered sample looked at (legible, replacement box for non-ASCII). Leader check sample now goes to CARGO_TARGET_TMPDIR (target/ is absent in the clean worktree). T44 to hydrogen-high, not argon.
+- 2026-11-15 00:45 T44 drillcore diff/merge RETRY 1 (hydrogen-high): vs real git, 76/1500 merge3 triples and some unified hunks differ (change-group alignment as git xdl_change_compact; conflict simplification <=3 or no-alnum gap). Check fixed: git funcname header text dropped, --no-indent-heuristic. Worker cannot run git, so git reference fixtures (800 M + 300 D, other seed) added at crates/drillcore/tests/fixtures/git_reference.txt. T57 crust executor dispatched to hydrogen 00:40.

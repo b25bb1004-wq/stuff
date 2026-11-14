@@ -112,8 +112,18 @@ fn leader_unified_hunks_match_git_diff() {
     let mut r = Rng::new(0x44_d1ff);
     let hunks = |t: &[u8]| -> String {
         let s = String::from_utf8_lossy(t).to_string();
+        // Hunks from the first "@@"; git's funcname text after the header is dropped.
         s.find("\n@@")
-            .map(|i| s[i + 1..].to_string())
+            .map(|i| {
+                s[i + 1..]
+                    .lines()
+                    .map(|l| match l.strip_prefix("@@") {
+                        Some(r) => format!("@@{}@@", &r[..r.find("@@").unwrap()]),
+                        None => l.to_string(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
             .unwrap_or_default()
     };
     for case in 0..300 {
@@ -129,6 +139,7 @@ fn leader_unified_hunks_match_git_diff() {
                 "diff",
                 "--no-index",
                 "--no-color",
+                "--no-indent-heuristic",
                 "-U3",
                 "a",
                 "b",
