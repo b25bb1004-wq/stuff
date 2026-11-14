@@ -55,12 +55,12 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T03 | P1 | quartz | RV64IM decode, encode, execute | haiku | | PASS |
 | T04 | P1 | onyx | X25519 + Ed25519 (RFC 7748, RFC 8032 vectors) | sonnet | T01 | TODO |
 | T05 | P1 | geyser | fair scheduler core + simulator tests | haiku | | TODO |
-| T06 | P1 | shale | block layer, on-disk format, mkfs, read/write path | haiku | | TODO |
+| T06 | P1 | shale | block layer, on-disk format, mkfs, read/write path | haiku | | RUNNING |
 | T07 | P1 | shale | journal, fsck, crash-injection tests | haiku | T06 | TODO |
 | T08 | P1 | mica | language design `docs/MICA.md` + bytecode `docs/MBC.md` | leader | | PASS |
-| T09 | P1 | mica | lexer + parser + AST | haiku | T08 | TODO |
+| T09 | P1 | mica | lexer + parser + AST | haiku | T08 | RUNNING |
 | T10 | P1 | mica | type checker + IR | sonnet | T09 | TODO |
-| T11 | P1 | geode | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | TODO |
+| T11 | P1 | geode | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | RUNNING |
 | T17 | P1 | geode | interpreter, heap, garbage collector, fuel | haiku | T11 | TODO |
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | sonnet | T03 | TODO |
 | T13 | P1 | quartz | A + C extensions, official RISC-V tests | haiku | T12 | TODO |
