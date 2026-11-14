@@ -107,7 +107,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
 | T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
 | T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | PASS |
-| T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | hydrogen-high |  | RUNNING |
+| T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | hydrogen-high |  | PASS |
 | T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | PASS |
@@ -179,3 +179,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 01:32 T54 slate brief written, dispatched to hydrogen-high (not argon: Python re is a full oracle).
 - 2026-11-15 01:33 T38 outcrop WebSocket/ranges/chunked brief written, dispatched to hydrogen.
 - 2026-11-15 01:43 T38 outcrop WebSocket/ranges/chunked PASS first try (hydrogen): Python client 40/40 (chunked + HTTP/1.0 streams, chunked request body, 12 range cases + HEAD, WS handshake, echo 7/16/64-bit, ping inside fragments, close echo, 10 protocol-error close codes, 4 bad handshakes), RFC 6455 vectors, 20k decode fuzz. Known design wrinkle (brief's fault): stream status applies only when no chunk was written (head sent on first chunk). T45 dispatched to hydrogen.
+- 2026-11-15 01:55 T54 slate buffer+editor+regex PASS (hydrogen-high, first try plus leader inline fix). My brief misstated Python finditer (said 'next search starts one char later'); real rule: retry at the same spot refusing only an empty match there; 534/4000 diffs, all this one rule; fixed in vm.rs (no_empty_at) + find_iter, brief corrected. Oracle check had its own bugs (script named re.py shadowed re; empty pattern hex '-'), fixed. Fresh seeds: 1 diff in 20k, a sre quirk with nullable repeat bodies under must-advance, e.g. (?:a*(?:|é)){1,3} on 'éa' gives (0,3) but {2,3} gives (0,2); accepted as known gap.

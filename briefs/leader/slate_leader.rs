@@ -15,7 +15,7 @@ out = []
 for line in open(sys.argv[1], encoding="utf-8").read().split("\n"):
     if not line: continue
     p, t, k = line.split("\t")
-    p = bytes.fromhex(p).decode(); t = bytes.fromhex(t).decode() if t != "-" else ""; k = int(k)
+    h = lambda s: bytes.fromhex(s).decode() if s != "-" else ""; p = h(p); t = h(t); k = int(k)
     b = lambda i: len(t[:i].encode())
     def groups(m):
         if m is None: return "none"
@@ -142,9 +142,10 @@ fn leader_regex_matches_python_re() {
         writeln!(input, "{}\t{}\t{k}", hex(p), hex(t)).unwrap();
     }
     std::fs::write(dir.join("in.txt"), input).unwrap();
-    std::fs::write(dir.join("re.py"), PY).unwrap();
+    std::fs::write(dir.join("oracle_re.py"), PY).unwrap();
     let o = Command::new("python")
-        .arg(dir.join("re.py"))
+        .arg("-I")
+        .arg(dir.join("oracle_re.py"))
         .arg(dir.join("in.txt"))
         .arg(dir.join("out.txt"))
         .output()
@@ -206,7 +207,10 @@ fn leader_regex_matches_python_re() {
         "{} of {} differ:\n{}",
         bad.len(),
         cases.len(),
-        bad[..bad.len().min(10)].join("\n")
+        bad[..bad
+            .len()
+            .min(std::env::var("T54_ALL").map_or(10, |_| 100000))]
+            .join("\n")
     );
     let t = std::time::Instant::now();
     assert!(!Regex::new("(a*)*b").unwrap().is_match(&"a".repeat(30_000)));
