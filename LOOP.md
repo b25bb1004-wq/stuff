@@ -96,7 +96,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
-| T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | RETRY 1 queued |
+| T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
 | T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | TODO |
 | T46 | P3 | cairn | manifest, versions, dependency solver, lock file | argon |  | TODO |
 | T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | TODO |
@@ -171,3 +171,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 00:32 T60 pigment text PASS (hydrogen) first try: glyph rules, layout invariants over 4000 fresh cases, draw box bounds; rendered sample looked at (legible, replacement box for non-ASCII). Leader check sample now goes to CARGO_TARGET_TMPDIR (target/ is absent in the clean worktree). T44 to hydrogen-high, not argon.
 - 2026-11-15 00:45 T44 drillcore diff/merge RETRY 1 (hydrogen-high): vs real git, 76/1500 merge3 triples and some unified hunks differ (change-group alignment as git xdl_change_compact; conflict simplification <=3 or no-alnum gap). Check fixed: git funcname header text dropped, --no-indent-heuristic. Worker cannot run git, so git reference fixtures (800 M + 300 D, other seed) added at crates/drillcore/tests/fixtures/git_reference.txt. T57 crust executor dispatched to hydrogen 00:40.
 - 2026-11-15 00:55 T57 crust executor RETRY 1 (hydrogen): vs bash --posix 300/300 generated, all externals and binary modes pass; 5/72 fixed differ (set -e not ignored inside functions/cmd-subst run in tested contexts; set -u not enforced). Check gained 6 set -e/-u cases. T44 retry dispatched 00:48.
+- 2026-11-15 01:05 T44 drillcore diff/merge/status PASS after RETRY 1 (hydrogen-high): merge3 = git merge-file on 1500 triples (2 seeds), unified hunks = git diff --no-indent-heuristic on 300 (2 seeds), diff minimal vs LCS, repo merge scenarios; 800+300 git fixtures in-tree. Gates green.
