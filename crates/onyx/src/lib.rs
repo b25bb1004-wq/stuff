@@ -8,11 +8,16 @@ extern crate alloc;
 pub mod aead;
 pub mod chacha20;
 pub mod ct;
+pub mod ed25519;
+mod edwards;
+mod field;
 pub mod hkdf;
 pub mod hmac;
 pub mod poly1305;
+mod scalar;
 pub mod sha256;
 pub mod sha512;
+pub mod x25519;
 
 /// Errors returned by the fallible functions in this crate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,4 +26,8 @@ pub enum Error {
     BadTag,
     /// An input or output had an invalid length.
     BadLength,
+    /// The X25519 result is all zero: the peer key has low order.
+    WeakKey,
+    /// The signature or the public key did not verify.
+    BadSignature,
 }
