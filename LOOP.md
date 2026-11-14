@@ -75,7 +75,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | PASS |
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13 | TODO |
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | TODO |
-| T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | argon | T12 | TODO |
+| T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | RUNNING |
 | T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | argon | T22 T23 | TODO |
 | T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 | TODO |
 | T26 | P2 | mantle | processes, user mode, syscalls, scheduler (geyser), ELF loading | argon-high | T25 T05 | TODO |
