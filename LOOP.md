@@ -86,7 +86,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T30 | P2 | sinter | constant folding, dead code, copy propagation | hydrogen | T29 | TODO |
 | T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | TODO |
 | T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
-| T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | TODO |
+| T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | RUNNING |
 | T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | argon-high | T04 T20 D2 | TODO |
 | T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
