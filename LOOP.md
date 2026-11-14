@@ -110,7 +110,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | argon |  | TODO |
 | T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
-| T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | RUNNING |
+| T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | PASS |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | PASS |
 | T61 | P4 | glint | widget tree, flex layout, events, focus, themes | argon | T60 | TODO |
 | T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | hydrogen | T61 | TODO |
@@ -174,3 +174,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 01:05 T44 drillcore diff/merge/status PASS after RETRY 1 (hydrogen-high): merge3 = git merge-file on 1500 triples (2 seeds), unified hunks = git diff --no-indent-heuristic on 300 (2 seeds), diff minimal vs LCS, repo merge scenarios; 800+300 git fixtures in-tree. Gates green.
 - 2026-11-15 01:06 T59 pigment flate+PNG brief written, queued for hydrogen-high (first dispatch refused: two workers already running, T37 + T57) (not argon: strong oracle, Python zlib + Pillow).
 - 2026-11-15 01:11 T57 crust executor PASS after RETRY 1 (hydrogen): 72 fixed + 300 generated (and 800 fresh-seed) scripts equal to bash --posix on stdout and status, 12 external/pipeline/redirect cases with crust as the external, binary -c/file/interactive. T53 gained Env::nounset (default false). Gates green.
+- 2026-11-15 01:26 T59 pigment flate+PNG PASS (hydrogen-high, first try plus a one-line leader fix: palette depth-8 mask `1u8 << 8` overflow, 24/280 PNGs panicked). Oracle Python zlib + Pillow: 480 zlib streams (all levels/strategies/windows) inflated, our deflate L0-9 + zlib inflated by zlib, level 6 within 10% of zlib, 240 hand-encoded PNGs (all types/depths/filters/Adam7/tRNS/split IDAT) + 40 Pillow PNGs pixel-exact, Pillow reads ours, mutation fuzz no panics; fresh seeds too. Note: this leader test needs python + Pillow on PATH (matters for T82 CI).
