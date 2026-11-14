@@ -3,9 +3,9 @@
 ## State
 - LEADER: Claude Opus since 2026-11-14 16:15
 - heartbeat: 2026-11-14 17:34
-- phase: P1 Cores. T04, T05, T07, T09, T10, T12, T16, T17 PASS. Briefs ready: T19.
+- phase: P1 Cores. T04, T05, T07, T09, T10, T12, T16, T17, T19 PASS.
 - stop reason: none
-- Next for the leader: Haiku lane paused (round cap reached); Gemini lane: T19 (hydrogen), then T18, T13 on Gemini lanes. T15 waits for the next round or a Gemini lane. Flash job docs/SKILLS.md still owed.
+- Next for the leader: Haiku lane paused (round cap reached); Gemini lane: T18 next (brief to write), then T13. T15 waits for the next round or a Gemini lane. Flash job docs/SKILLS.md still owed.
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
 - At most one Gemini worker (through `bash tools/lane.sh <lane> <id>`) plus one Claude Haiku worker, on different crates. Lanes and rules: docs/PLAN.md section 2.
 
@@ -62,7 +62,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T04 | P1 | onyx | X25519, Ed25519 (brief written) | haiku | T01 | PASS |
 | T17 | P1 | geode | interpreter, heap, mark-sweep GC, fuel, `Host` trait | argon | T11 | PASS |
 | T10 | P1 | mica | type checker, layer checker, IR | argon-high | T09 | PASS |
-| T19 | P1 | mica | reference interpreter for the typed IR (oracle for T18, T29, T30) | hydrogen | T10 | TODO |
+| T19 | P1 | mica | reference interpreter for the typed IR (oracle for T18, T29, T30) | hydrogen | T10 | PASS |
 | T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 T19 | TODO |
 | T07 | P1 | shale | journal, fsck, crash injection at every write | haiku | T06 | PASS |
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
@@ -155,3 +155,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-14 17:12 | T12 | haiku | 256k | PASS | gate green, 85 tests; leader check: 171 Zicsr/privileged words assembled by LLVM (rustc global_asm) decode and encode exactly; an LLVM-assembled privilege program on `tick`: mret to U, U ecall to M, delegated U ecall to S, S ecall to M (MPP=1), Sv39 gigapages built by the test (load and store through U page, sepc and mtval virtual, S load of U page without SUM faults to M), wfi then MTI with mepc after wfi, hardware A/D exact (D clear on the page never stored to). WARL choices listed in reports/T12.md, all legal. Leader lesson: a worktree gate sharing CARGO_TARGET_DIR left a stale quartz rlib in the main tree; the gate now uses its own target dir
 - 2026-11-14 17:34 | T16 | haiku | 222k | PASS | worker stopped at NOT PASS over budget (global.rs hung). Leader found the hang in the test: an assert under a live spin-lock guard on an impossible used_bytes()==0; the panic allocated through the held lock. Test fixed (assert after release), gate green. Leader check: absolute alignments up to 4 MiB on arenas at odd page and byte offsets (3078 big-align blocks, no overlap, tags intact, 4 MiB block again after full free, over-align and over-size refused), empty -> init through a static Locked, second init refused, targeted bad links and smashed page headers reported, 300 random corruptions never panic check(), quarry as #[global_allocator] under 8 threads of std collections (2.16M bytes moved), T02 shadow model in release with a new seed x10
 2026-11-14 18:24 | T10 | gemini argon-high | gemini quota | PASS | mica gate + clean-worktree workspace gate; leader check leader_check.rs (13 good, ~70 bad, layer message, IR validator); my check wrongly required parse success for `1 = 2`, fixed to count parse rejection
+2026-11-14 18:40 | T19 | gemini hydrogen | gemini quota | PASS | 4 min run; mica gate + clean-worktree workspace gate; leader check leader_eval.rs (11 hand-computed programs, 16 trap cases with spans, exact fuel bound, depth 9000 ok and unbounded = StackOverflow, props replay and big-int draws)

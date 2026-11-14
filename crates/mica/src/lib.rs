@@ -9,6 +9,7 @@ mod span;
 
 pub mod ast;
 pub mod check;
+pub mod eval;
 pub mod ir;
 pub mod lexer;
 pub mod parser;
