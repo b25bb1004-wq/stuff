@@ -1,0 +1,4 @@
+// error: 'if' without 'else' must have type 'unit'
+fn f(b: bool) {
+    if b { 1 }
+}

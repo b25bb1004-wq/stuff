@@ -1,0 +1,8 @@
+type Cell = { val: int }
+type Holder = { cells: [Cell] }
+
+fn mutate(h: Holder) {
+    var x = 0
+    x = 1
+    h.cells[0].val = x
+}

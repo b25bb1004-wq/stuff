@@ -1,0 +1,7 @@
+// error: layer 'io' is not allowed here
+fn p(s: str) uses io = extern "io.print"
+fn take(f: fn(str) -> unit) {}
+
+fn main() {
+    take(p)
+}

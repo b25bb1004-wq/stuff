@@ -1,0 +1,5 @@
+// error: equality is not supported on
+type Shape = Circle(int) | Rect(int, int)
+fn f(a: Shape, b: Shape) -> bool {
+    a == b
+}

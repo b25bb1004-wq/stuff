@@ -1,0 +1,4 @@
+// error: cannot infer type for 'none'
+fn f() {
+    let x = none
+}

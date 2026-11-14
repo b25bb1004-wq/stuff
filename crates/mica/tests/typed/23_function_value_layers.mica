@@ -1,0 +1,13 @@
+fn pure_fn(x: int) -> int {
+    x + 1
+}
+
+fn io_runner(cb: fn(int) -> int uses io, v: int) -> int uses io {
+    cb(v)
+}
+
+fn main() uses io {
+    let f: fn(int) -> int uses io = pure_fn
+    let _ = io_runner(pure_fn, 10)
+    let _ = io_runner(f, 20)
+}

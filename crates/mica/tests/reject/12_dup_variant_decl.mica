@@ -1,0 +1,3 @@
+// error: duplicate variant 'A'
+type First = A | B
+type Second = A | C

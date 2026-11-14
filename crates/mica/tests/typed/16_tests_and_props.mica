@@ -1,0 +1,17 @@
+fn double(x: int) -> int {
+    x + x
+}
+
+test "double basic" {
+    assert double(3) == 6
+    assert double(0) == 0, "zero doubles to zero"
+}
+
+prop "double is even" (x: int) where x > -1000 && x < 1000 {
+    assert double(x) % 2 == 0
+}
+
+prop "identity" (x: int, b: bool) {
+    assert x == x
+    assert b == b
+}

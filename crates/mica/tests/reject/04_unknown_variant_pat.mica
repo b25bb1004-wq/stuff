@@ -1,0 +1,8 @@
+// error: unknown variant 'Missing'
+type A = One | Two
+fn f(x: A) -> int {
+    match x {
+        Missing => 1,
+        _ => 0,
+    }
+}

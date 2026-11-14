@@ -1,0 +1,4 @@
+// error: equality is not supported on
+fn f() -> bool {
+    [1, 2] == [1, 2]
+}

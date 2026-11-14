@@ -1,0 +1,20 @@
+type Wrapper = Wrap(int)
+
+fn all_types(
+    i: int,
+    b: bool,
+    c: byte,
+    s: str,
+    u: unit,
+    w: Wrapper,
+    xs: [int],
+    nested: [[str]],
+    tup: (int, bool, byte),
+    opt: int?,
+    deep_opt: str??
+) -> Wrapper? {
+    let a: [int] = []
+    let x: int? = none
+    let y: int? = some(i)
+    some(w)
+}

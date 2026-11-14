@@ -1,0 +1,5 @@
+// error: type mismatch
+fn f() {
+    var x = 10
+    x = true
+}

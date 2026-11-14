@@ -1,0 +1,10 @@
+type Bit = Zero | One
+
+fn nested_match(x: (bool, Bit?)) -> int {
+    match x {
+        (true, none) => 1,
+        (true, some(Zero)) => 2,
+        (true, some(One)) => 3,
+        (false, _) => 4,
+    }
+}

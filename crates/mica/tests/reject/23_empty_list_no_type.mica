@@ -1,0 +1,4 @@
+// error: cannot infer type for empty list '[]'
+fn f() {
+    let xs = []
+}

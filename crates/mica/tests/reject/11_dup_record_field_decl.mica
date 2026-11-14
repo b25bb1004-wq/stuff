@@ -1,0 +1,2 @@
+// error: duplicate field 'x'
+type Point = { x: int, x: int }

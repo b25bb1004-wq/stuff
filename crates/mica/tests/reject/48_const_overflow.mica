@@ -1,0 +1,2 @@
+// error: constant arithmetic overflow
+const c: int = 9223372036854775807 + 1

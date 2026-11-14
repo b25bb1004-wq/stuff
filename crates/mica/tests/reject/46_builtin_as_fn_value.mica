@@ -1,0 +1,4 @@
+// error: built-in function 'len' cannot be used as a value
+fn f() {
+    let g = len
+}

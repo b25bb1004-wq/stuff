@@ -1,0 +1,4 @@
+// error: ordering is not supported on
+fn f() -> bool {
+    true < false
+}

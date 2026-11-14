@@ -1,0 +1,4 @@
+// error: type mismatch
+fn f() -> int {
+    let x = 1
+}

@@ -1,0 +1,4 @@
+// error: cannot assign to immutable variable 'x'
+fn f(x: int) {
+    x = 2
+}

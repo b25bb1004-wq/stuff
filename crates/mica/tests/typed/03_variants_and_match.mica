@@ -1,0 +1,36 @@
+type Tree = Leaf | Node(Tree, int, Tree)
+
+fn sum_tree(t: Tree) -> int {
+    match t {
+        Leaf => 0,
+        Node(l, v, r) => sum_tree(l) + v + sum_tree(r),
+    }
+}
+
+fn match_literals(n: int, b: byte, s: str, flag: bool, opt: int?, pair: (int, int)) -> int {
+    let a = match n {
+        0 => 10,
+        1 => 20,
+        _ => 30,
+    }
+    let c = match b {
+        b'a' => 1,
+        _ => 0,
+    }
+    let d = match s {
+        "ok" => 1,
+        _ => 0,
+    }
+    let e = match flag {
+        true => 1,
+        false => 0,
+    }
+    let f = match opt {
+        none => 0,
+        some(x) => x,
+    }
+    let g = match pair {
+        (x, y) => x + y,
+    }
+    a + c + d + e + f + g
+}

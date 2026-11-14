@@ -1,0 +1,5 @@
+// error: left side of '=' must be a 'var' name
+fn f() {
+    var t = (1, 2)
+    t.0 = 3
+}

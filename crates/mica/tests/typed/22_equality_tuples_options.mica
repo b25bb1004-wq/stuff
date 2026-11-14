@@ -1,0 +1,9 @@
+fn eq_tests(a: (int, str?), b: (int, str?)) -> bool {
+    let t1 = a == b
+    let t2 = a != b
+    let o1: int?? = some(none)
+    let o2: int?? = some(some(1))
+    let t3 = o1 == o2 || o1 != none
+    let t4 = () == () && b'a' < b'z' && "a" < "b"
+    t1 || t2 || t3 || t4
+}

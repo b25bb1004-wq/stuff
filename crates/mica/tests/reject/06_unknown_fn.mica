@@ -1,0 +1,4 @@
+// error: unknown function 'nope'
+fn f() {
+    nope(1)
+}

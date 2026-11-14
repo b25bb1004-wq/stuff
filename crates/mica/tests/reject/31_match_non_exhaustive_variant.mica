@@ -1,0 +1,8 @@
+// error: non-exhaustive 'match'
+type Color = Red | Green | Blue
+fn f(c: Color) -> int {
+    match c {
+        Red => 1,
+        Green => 2,
+    }
+}

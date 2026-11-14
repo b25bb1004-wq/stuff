@@ -1,0 +1,6 @@
+// error: duplicate binding 'x' in pattern
+fn f(p: (int, int)) -> int {
+    match p {
+        (x, x) => x,
+    }
+}

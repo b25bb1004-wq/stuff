@@ -1,0 +1,22 @@
+fn noop() {
+}
+
+fn ret_unit() -> unit {
+    return
+}
+
+fn add(a: int, b: int) -> int {
+    return a + b
+}
+
+fn apply(f: fn(int, int) -> int, x: int, y: int) -> int {
+    f(x, y)
+}
+
+fn with_effect(cb: fn(str) -> unit uses io, s: str) uses io {
+    cb(s)
+}
+
+fn curried(f: fn(int) -> fn(int) -> int) -> int {
+    f(1)(2)
+}

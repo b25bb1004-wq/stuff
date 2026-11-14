@@ -1,0 +1,2 @@
+// error: 'main' must not have parameters
+fn main(x: int) {}

@@ -1,0 +1,6 @@
+// error: layer 'io' is not allowed here: p -> print (uses io)
+fn print(s: str) uses io = extern "io.print"
+
+prop "p" (x: int) {
+    print("hi")
+}

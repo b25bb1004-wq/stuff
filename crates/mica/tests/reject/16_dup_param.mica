@@ -1,0 +1,2 @@
+// error: duplicate parameter 'x'
+fn f(x: int, x: int) {}

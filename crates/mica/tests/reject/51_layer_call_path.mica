@@ -1,0 +1,10 @@
+// error: layer 'net' is not allowed here: main -> sync -> fetch (uses net)
+fn fetch() uses net = extern "net.fetch"
+
+fn sync() uses net {
+    fetch()
+}
+
+fn main() {
+    sync()
+}

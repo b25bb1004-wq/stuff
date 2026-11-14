@@ -1,0 +1,4 @@
+// error: unknown name 'missing'
+fn f() -> int {
+    missing
+}

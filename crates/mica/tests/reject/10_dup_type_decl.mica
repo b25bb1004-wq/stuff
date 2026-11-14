@@ -1,0 +1,3 @@
+// error: duplicate type 'Point'
+type Point = { x: int }
+type Point = { y: int }

@@ -1,0 +1,13 @@
+layer audit
+
+const max_size: int = 1024 * 64
+const mask: int = 0xff & 0x0f
+
+fn print(s: str) uses io = extern "io.print"
+fn log_audit(msg: str) uses io, audit {
+    print(msg)
+}
+
+fn main() uses io, audit {
+    log_audit("start")
+}

@@ -1,0 +1,14 @@
+fn all_builtins(s: str, b: byte) -> int {
+    let bs = bytes(s)
+    let back = text(bs)
+    let n = int(b)
+    let b2 = byte(n)
+    let parsed = parse_int(str(n))
+    let m = min(max(abs(-10), 5), 20)
+    let joined = s + "!"
+    let arr = [1, 2] + [3, 4]
+    len(joined) + len(arr) + m + int(b2) + match (back, parsed) {
+        (some(_), some(v)) => v,
+        _ => 0,
+    }
+}

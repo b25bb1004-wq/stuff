@@ -1,0 +1,29 @@
+type Point = {
+    x: int,
+    y: int,
+}
+
+type Boxed = {
+    inner: Point,
+    label: str?,
+}
+
+fn move_point(p: Point, dx: int, dy: int) {
+    p.x = p.x + dx
+    p.y = p.y + dy
+}
+
+fn main() {
+    let p = Point { x: 1, y: 2, }
+    let b = Boxed { inner: p, label: some("origin") }
+    move_point(b.inner, 3, 4)
+    if (Point { x: 4, y: 6 }).x == p.x {
+        b.label = none
+    }
+    while (p.x > 10) {
+        p.x = p.x - 1
+    }
+    match (b.inner) {
+        _ => (),
+    }
+}

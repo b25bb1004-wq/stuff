@@ -1,4 +1,5 @@
-//! Mica front end: lexer, syntax tree, recursive-descent parser and canonical printer.
+//! Mica front end: lexer, syntax tree, recursive-descent parser, canonical printer,
+//! type and layer checker, and typed intermediate representation.
 #![forbid(unsafe_code)]
 #![cfg_attr(not(test), no_std)]
 
@@ -7,6 +8,8 @@ extern crate alloc;
 mod span;
 
 pub mod ast;
+pub mod check;
+pub mod ir;
 pub mod lexer;
 pub mod parser;
 pub mod print;

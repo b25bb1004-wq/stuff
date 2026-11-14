@@ -1,0 +1,4 @@
+// error: 'if' branches have different types
+fn f(b: bool) -> int {
+    if b { 1 } else { "no" }
+}

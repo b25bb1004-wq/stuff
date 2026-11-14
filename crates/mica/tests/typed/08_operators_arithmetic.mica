@@ -1,0 +1,10 @@
+fn arith(a: int, b: int) -> int {
+    let min_i = -9223372036854775808
+    let neg_min = - -9223372036854775808
+    let s1 = a + b - 1
+    let s2 = a +% b -% 1
+    let p1 = a * b / 2 % 3
+    let p2 = a *% b
+    let u = -a
+    s1 + s2 + p1 + p2 + u + (min_i +% neg_min)
+}

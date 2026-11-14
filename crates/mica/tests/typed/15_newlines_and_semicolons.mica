@@ -1,0 +1,28 @@
+const a: int = 1; const b: int = 2
+
+fn f(x: int) -> int { x + 1 }
+
+fn newlines(x: int, y: int) -> int {
+    let s1 = x +
+        y
+    let s2 = x
+        |> f()
+    let s3 = (
+        x +
+        y
+    )
+    let s4 = [
+        1,
+        2,
+    ]
+    let ok = true
+        && false
+        || true
+    let z = if ok {
+        1
+    }
+    else {
+        2
+    }
+    let a1 = 1; let a2 = 2; s1 + s2 + s3 + s4[0] + z + a1 + a2
+}

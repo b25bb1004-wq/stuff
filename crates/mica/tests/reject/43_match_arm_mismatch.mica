@@ -1,0 +1,7 @@
+// error: 'match' arm type mismatch
+fn f(b: bool) -> int {
+    match b {
+        true => 1,
+        false => "no",
+    }
+}

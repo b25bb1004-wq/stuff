@@ -1,0 +1,4 @@
+// error: 'for' loop must iterate over a range or an array
+fn f() {
+    for x in 10 {}
+}

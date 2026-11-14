@@ -1,0 +1,10 @@
+fn lists() -> int {
+    let empty: [int] = []
+    var xs = [1, 2, 3,]
+    let zeros = [0; 5]
+    xs[0] = 10
+    let sub = xs[1..3]
+    push(xs, 4)
+    let last = pop(xs)
+    len(empty) + len(zeros) + len(sub) + xs[0]
+}

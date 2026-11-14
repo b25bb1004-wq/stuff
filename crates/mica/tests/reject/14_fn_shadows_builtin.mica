@@ -1,0 +1,2 @@
+// error: 'len' conflicts with a built-in function
+fn len(x: int) -> int { x }

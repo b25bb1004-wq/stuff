@@ -1,0 +1,4 @@
+// error: type mismatch
+fn f() {
+    let _: int = b'a'
+}

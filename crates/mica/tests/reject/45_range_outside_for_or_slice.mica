@@ -1,0 +1,4 @@
+// error: ranges are only allowed in 'for' loops and slices
+fn f() {
+    let r = 0..10
+}

@@ -1,0 +1,9 @@
+// error: too many layers
+layer l01; layer l02; layer l03; layer l04; layer l05; layer l06; layer l07; layer l08
+layer l09; layer l10; layer l11; layer l12; layer l13; layer l14; layer l15; layer l16
+layer l17; layer l18; layer l19; layer l20; layer l21; layer l22; layer l23; layer l24
+layer l25; layer l26; layer l27; layer l28; layer l29; layer l30; layer l31; layer l32
+layer l33; layer l34; layer l35; layer l36; layer l37; layer l38; layer l39; layer l40
+layer l41; layer l42; layer l43; layer l44; layer l45; layer l46; layer l47; layer l48
+layer l49; layer l50; layer l51; layer l52; layer l53; layer l54; layer l55; layer l56
+layer l57; layer l58

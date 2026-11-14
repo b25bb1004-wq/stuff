@@ -1,0 +1,2 @@
+// error: duplicate parameter 'x'
+prop "p" (x: int, x: int) {}

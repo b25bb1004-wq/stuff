@@ -1,0 +1,26 @@
+type Shape = Circle(int) | Rect(int, int)
+
+fn print(s: str) uses io = extern "io.print"
+
+fn area(s: Shape) -> int {
+    match s {
+        Circle(r) => 3 * r * r,
+        Rect(w, h) => w * h,
+    }
+}
+
+fn total(shapes: [Shape]) -> int {
+    var sum = 0
+    for s in shapes { sum = sum + area(s) }
+    sum
+}
+
+fn main() uses io {
+    [Circle(2), Rect(3, 4)] |> total() |> str() |> print()
+}
+
+test "a rectangle" { assert area(Rect(3, 4)) == 12 }
+
+prop "area is never negative" (w: int, h: int) where w >= 0 && w < 1000 && h >= 0 && h < 1000 {
+    assert area(Rect(w, h)) >= 0
+}

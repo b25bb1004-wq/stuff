@@ -1,0 +1,5 @@
+// error: equality is not supported on
+type Point = { x: int, y: int }
+fn f(a: Point, b: Point) -> bool {
+    a == b
+}

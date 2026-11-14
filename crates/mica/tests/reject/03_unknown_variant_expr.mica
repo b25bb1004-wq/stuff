@@ -1,0 +1,4 @@
+// error: unknown variant 'Missing'
+fn f() {
+    let _ = Missing(1)
+}
