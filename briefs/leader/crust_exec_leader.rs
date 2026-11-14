@@ -77,6 +77,12 @@ const FIXED: &[&str] = &[
     "export A=1; echo $A; unset A; echo \"[${A-gone}]\"",
     "set -e; x=$(false; echo no) || echo subfail; echo after",
     "f() { echo \"$@\"; echo $#; }; f \"a b\" c; set -- 1 2; f \"$@\"",
+    "set -u; echo a; echo $nope; echo b",
+    "set -u; echo ${nope:-d}; f() { echo $1; }; f; echo no",
+    "set -u; echo \"$@\"; echo ok",
+    "set -e; f() { false; echo in; }; if f; then echo t; fi; ! f; echo $?",
+    "set -e; (false; echo sub) && echo and; echo end",
+    "set -e; g() { false; }; g; echo unreachable",
 ];
 
 fn gen(r: &mut Rng) -> String {
@@ -162,7 +168,10 @@ fn bash(root: &Path, scripts: &[String]) -> Vec<(String, i32)> {
     (0..scripts.len())
         .map(|i| {
             let (b, e) = (format!("@@B{i}\n"), format!("\n@@E{i} "));
-            let start = text.find(&b).unwrap_or_else(|| panic!("bash lost case {i}")) + b.len();
+            let start = text
+                .find(&b)
+                .unwrap_or_else(|| panic!("bash lost case {i}"))
+                + b.len();
             let end = start + text[start..].find(&e).unwrap();
             let st = text[end + e.len()..].lines().next().unwrap().trim();
             (text[start..end].to_string(), st.parse().unwrap())

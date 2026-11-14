@@ -106,7 +106,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
 | T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
-| T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | RUNNING |
+| T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | RETRY 1 queued |
 | T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | argon |  | TODO |
 | T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
@@ -170,3 +170,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 00:24 T43 drillcore PASS (hydrogen) first try: blob, tree, commit and merge-commit ids equal real git --object-format=sha256 over a 3-commit history with exec bits, unicode and dir-sort names; history, checkout, corruption. My check needed clippy::type_complexity allowed.
 - 2026-11-15 00:32 T60 pigment text PASS (hydrogen) first try: glyph rules, layout invariants over 4000 fresh cases, draw box bounds; rendered sample looked at (legible, replacement box for non-ASCII). Leader check sample now goes to CARGO_TARGET_TMPDIR (target/ is absent in the clean worktree). T44 to hydrogen-high, not argon.
 - 2026-11-15 00:45 T44 drillcore diff/merge RETRY 1 (hydrogen-high): vs real git, 76/1500 merge3 triples and some unified hunks differ (change-group alignment as git xdl_change_compact; conflict simplification <=3 or no-alnum gap). Check fixed: git funcname header text dropped, --no-indent-heuristic. Worker cannot run git, so git reference fixtures (800 M + 300 D, other seed) added at crates/drillcore/tests/fixtures/git_reference.txt. T57 crust executor dispatched to hydrogen 00:40.
+- 2026-11-15 00:55 T57 crust executor RETRY 1 (hydrogen): vs bash --posix 300/300 generated, all externals and binary modes pass; 5/72 fixed differ (set -e not ignored inside functions/cmd-subst run in tested contexts; set -u not enforced). Check gained 6 set -e/-u cases. T44 retry dispatched 00:48.
