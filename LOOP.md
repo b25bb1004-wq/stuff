@@ -2,7 +2,7 @@
 
 ## State
 - LEADER: Claude Fable
-- heartbeat: 2026-11-14 14:57
+- heartbeat: 2026-11-14 15:45
 - phase: P1 Cores, round 1 running
 - stop reason: none
 - Stand-in: Gemini Argon. Open this folder in Antigravity, choose Argon, say
@@ -26,14 +26,14 @@ top to bottom, and deployable.
 7. A Mica program compiles to RV64, runs in Strata OS, and gives the same output on the VM.
 8. Services have a container image, graceful shutdown and a measured load test.
 9. The web front (site + IDE) passes desktop, mobile and reduced-motion checks.
-10. No secret, key or personal data in the repository; nothing pushed without the operator.
+10. No secret, key or personal data in the repository; pushes go only to the private repo `b25bb1004-wq/stuff`.
 
 ## Budget
 - Whole programme, honest estimate: 150 to 250 worker tasks, 25M to 40M worker tokens, many
   sessions. It cannot finish inside one usage window.
 - Round budget (this session): 2.0M worker tokens. Concurrency 3. Retries 2 per task.
 - Per task: 150k (Haiku), 250k (Sonnet).
-- Spent so far: 0.
+- Spent so far: 157k.
 
 ## Workers checked on 2026-11-14
 | Worker | Status |
@@ -50,14 +50,14 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | id | phase | crate | what | worker | needs | status |
 |---|---|---|---|---|---|---|
 | T00 | P0 | testkit, tools | workspace, gate, test kit, loop files | leader | | PASS |
-| T01 | P1 | crypto | SHA-2, HMAC, HKDF, ChaCha20-Poly1305 | haiku | | RUNNING |
+| T01 | P1 | crypto | SHA-2, HMAC, HKDF, ChaCha20-Poly1305 | haiku | | PASS |
 | T02 | P1 | mem | buddy + slab allocator, GlobalAlloc | haiku | | RUNNING |
 | T03 | P1 | cpu | RV64IM decode, encode, execute | haiku | | RUNNING |
 | T04 | P1 | crypto | X25519 + Ed25519 (RFC 7748, RFC 8032 vectors) | sonnet | T01 | TODO |
 | T05 | P1 | sched | fair scheduler core + simulator tests | haiku | | TODO |
 | T06 | P1 | fs | block layer, on-disk format, mkfs, read/write path | haiku | | TODO |
 | T07 | P1 | fs | journal, fsck, crash-injection tests | haiku | T06 | TODO |
-| T08 | P1 | mica | language design doc `docs/MICA.md` | leader | | TODO |
+| T08 | P1 | mica | language design `docs/MICA.md` + bytecode `docs/MBC.md` | leader | | PASS |
 | T09 | P1 | mica | lexer + parser + AST | haiku | T08 | TODO |
 | T10 | P1 | mica | type checker + IR | sonnet | T09 | TODO |
 | T11 | P1 | vm | bytecode, interpreter, garbage collector | haiku | T08 | TODO |
@@ -72,3 +72,5 @@ P4 gfx, gui, wm, browser, engine. P5 web front, IDE, containers, load tests. P6 
 
 ## Round log (append only: date time | task | worker | tokens | verdict | note)
 - 2026-11-14 14:56 | T00 | leader | n/a | PASS | scaffold gate green, 24 crates, test kit 3 tests
+- 2026-11-14 15:35 | T08 | leader | n/a | PASS | MICA.md and MBC.md written; T09 and T11 unblocked
+- 2026-11-14 15:45 | T01 | haiku | 157k | PASS | gate green; 41 leader vectors from Python hashlib + cryptography all match (SHA-256/512, HMAC, HKDF, AEAD); Poly1305 read, branch-free

@@ -9,7 +9,7 @@ Read this file, then `LOOP.md`. Read `docs/SPEC.md` only if you are the leader.
   leader stopped (see "Taking over" below).
 - **Workers**: Claude Haiku at medium effort by default; Claude Sonnet for tasks marked `sonnet`
   in `LOOP.md`; Nemotron for bulk text (docs drafts, test-vector tables); agy for second reviews.
-- **Operator (Arnav)**: owns keys, publishing, pushing to any remote, deleting files, and money.
+- **Operator (Arnav)**: owns keys, publishing (making anything public), deleting files, and money.
 
 ## Worker rules
 Follow `briefs/_RULES.md`. One brief, one crate, one short report.
@@ -23,7 +23,9 @@ Follow `briefs/_RULES.md`. One brief, one crate, one short report.
 4. Verdict: `PASS`, `RETRY` (add one specific defect to the brief; max 2 retries), or
    `ESCALATE` (leader fixes it, or the operator decides).
 5. On PASS: `bash tools/check.sh` for the whole workspace, then
-   `git add -A && git commit -m "<id>: <what>"`. Never push.
+   `git add -A && git commit -m "<id>: <what>"`, then `git push` (origin is the private
+   GitHub repository `b25bb1004-wq/stuff`, set up by the operator on 2026-11-14). Never force
+   push, never change its visibility, never push anywhere else.
 6. Append one line to the round log in `LOOP.md` for every verdict, with the date and time.
 7. Stop rules: all tasks PASS; the round budget is spent; two rounds with no new PASS; any
    usage-limit warning; anything that needs keys, money, publishing or deleting. On stop, write
@@ -37,7 +39,7 @@ is more than 6 hours old while tasks are still `TODO` or `RUNNING`.
    as usual. Red means set it back to `TODO`.
 3. Carry on with the leader protocol above. You may do worker tasks yourself, one at a time.
 4. You may not: change `docs/SPEC.md` rules 1 to 6, weaken `tools/check.sh`, delete tests,
-   add dependencies, push, or touch anything outside this folder. If a task seems to need one
+   add dependencies, force push, or touch anything outside this folder. If a task seems to need one
    of those, mark it `ESCALATE` with the reason and move to the next.
 5. When Claude returns it reads the round log, re-runs the full gate, and resumes as leader.
 
