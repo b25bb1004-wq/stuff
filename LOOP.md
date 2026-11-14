@@ -70,7 +70,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
 | T13 | P1 | quartz | A and C extensions, official riscv-tests as data | hydrogen | T12 | TODO |
 | T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
-| T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | RUNNING |
+| T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
 | T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | hydrogen | T04 | TODO |
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13 | TODO |
@@ -159,3 +159,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 2026-11-14 18:24 | T10 | gemini argon-high | gemini quota | PASS | mica gate + clean-worktree workspace gate; leader check leader_check.rs (13 good, ~70 bad, layer message, IR validator); my check wrongly required parse success for `1 = 2`, fixed to count parse rejection
 2026-11-14 18:33 | T19 | gemini hydrogen | gemini quota | PASS | 4 min run; mica gate + clean-worktree workspace gate; leader check leader_eval.rs (11 hand-computed programs, 16 trap cases with spans, exact fuel bound, depth 9000 ok and unbounded = StackOverflow, props replay and big-int draws)
 2026-11-14 18:37 | T18 | gemini argon | gemini quota | NO OUTPUT | lane granted mica commands (first crates/ path in the brief was crates/mica); brief title now names crates/sinter; re-run 18:38
+2026-11-14 18:48 | T15 | haiku medium | 149k | PASS | geyser gate + clean-worktree workspace gate; leader_pool.rs: seeded soak 198k planned jobs exactly once with nested spawns and panics, 150 create/drop rounds with jobs still spawning, 3 concurrent waiters, stolen 2252; second seed ok; no_std build ok

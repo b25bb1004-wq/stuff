@@ -3,7 +3,11 @@
 #![forbid(unsafe_code)]
 
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
+#[cfg(feature = "std")]
+pub mod pool;
 mod scheduler;
 mod types;
 
