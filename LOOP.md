@@ -5,7 +5,7 @@
 - heartbeat: 2026-11-14 17:34
 - phase: P1 Cores. T04, T05, T07, T09, T12, T16, T17 PASS. T10 running on Argon-high. Briefs ready: T19 (after T10).
 - stop reason: none
-- Next for the leader: judge T10 when Argon-high returns (check parked in briefs/leader/mica_check_leader.rs); Haiku lane next: T15 (geyser pool). Then T19, T18, T13. Flash job docs/SKILLS.md still owed.
+- Next for the leader: judge T10 when Argon-high returns (check parked in briefs/leader/mica_check_leader.rs); Haiku lane paused (round cap reached); Gemini lane after T10: T19 (hydrogen), then T18, T13 on Gemini lanes. T15 waits for the next round or a Gemini lane. Flash job docs/SKILLS.md still owed.
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
 - At most one Gemini worker (through `bash tools/lane.sh <lane> <id>`) plus one Claude Haiku worker, on different crates. Lanes and rules: docs/PLAN.md section 2.
 
@@ -34,6 +34,7 @@ top to bottom, and deployable.
 - One worker at a time (operator rule 2026-11-14). Retries 2 per task. Gemini lanes use no Claude tokens.
 - Operator 2026-11-14 16:25: Haiku (medium) is a normal lane for the Claude leader, not only a fallback. Operator 16:35: one Haiku worker may run beside one Gemini worker, on different crates. Budgets: 170k (Haiku), 250k (Sonnet).
 - Spent so far: 1982k Claude worker tokens (leader tokens not counted).
+- 2026-11-14 17:36: the round cap of 2.0M Claude worker tokens (vault note, from the plan) is reached at 1982k. Haiku lane paused for this round; Gemini lanes (no Claude tokens) continue. Haiku tasks have cost 114k to 256k each, so budget 250k per Haiku task next round.
 
 ## Workers checked on 2026-11-14
 | Worker | Status |
