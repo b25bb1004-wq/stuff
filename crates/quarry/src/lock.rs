@@ -79,6 +79,18 @@ unsafe impl GlobalAlloc for Locked<Heap> {
     }
 }
 
+impl Locked<Heap> {
+    /// Give an empty heap its region under the lock; same result as `Heap::init`.
+    ///
+    /// # Safety
+    /// Same contract as `Heap::new`.
+    pub unsafe fn init(&self, base: *mut u8, len: usize) -> bool {
+        let mut heap = self.lock();
+        // SAFETY: the caller's promise about the region is exactly the one `Heap::init` needs.
+        unsafe { heap.init(base, len) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]

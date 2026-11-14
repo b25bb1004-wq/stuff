@@ -1,7 +1,7 @@
 //! Size-class slab heap on top of the buddy allocator.
 
 use crate::buddy::{Buddy, MAX_ORDER};
-use crate::PAGE;
+use crate::{MAX_ALIGN, PAGE};
 use core::alloc::Layout;
 use core::ptr::{self, NonNull};
 
@@ -11,6 +11,8 @@ const MIN_CLASS: usize = 16;
 const MAX_CLASS: usize = 2048;
 /// Number of slab classes: 16, 32, ..., 2048.
 const CLASSES: usize = 8;
+/// Buddy page tag of a slab page: `SLAB_TAG | (class + 1)`, never a free-block order.
+const SLAB_TAG: u8 = 0x80;
 
 /// Size-class slab heap that takes whole pages from a `Buddy`.
 ///
@@ -28,6 +30,15 @@ pub struct Heap {
 unsafe impl Send for Heap {}
 
 impl Heap {
+    /// A Heap with no memory: every non-zero-size `alloc` returns null until `init` succeeds.
+    pub const fn empty() -> Heap {
+        Heap {
+            buddy: Buddy::empty(),
+            slabs: [ptr::null_mut(); CLASSES],
+            used: 0,
+        }
+    }
+
     /// Build a heap over `base..base + len`, or `None` if the region is too small.
     ///
     /// # Safety
@@ -40,6 +51,34 @@ impl Heap {
             slabs: [ptr::null_mut(); CLASSES],
             used: 0,
         })
+    }
+
+    /// Give an empty heap its region. Returns false, and changes nothing, if it already has one or the region is too small.
+    ///
+    /// # Safety
+    /// Same contract as `Heap::new`.
+    pub unsafe fn init(&mut self, base: *mut u8, len: usize) -> bool {
+        if self.is_ready() {
+            return false;
+        }
+        // SAFETY: the caller's promise about the region is exactly the one `Buddy::new` needs.
+        match unsafe { Buddy::new(base, len) } {
+            Some(buddy) => {
+                self.buddy = buddy;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// True once the heap owns a region, after a successful `new` or `init`.
+    pub fn is_ready(&self) -> bool {
+        self.buddy.is_ready()
+    }
+
+    /// Usable bytes of the region; 0 when the heap is empty.
+    pub fn total_bytes(&self) -> usize {
+        self.buddy.total_bytes()
     }
 
     /// Allocate memory for `layout`, or return null when out of memory. Zero-size layouts get a dangling aligned pointer.
@@ -87,6 +126,7 @@ impl Heap {
     }
 
     /// Walk every free list (buddy and slabs) and verify the invariants; false if any is broken.
+    /// Safe on corrupted memory: every link is range-checked before it is read, and walks are bounded.
     pub fn check(&self) -> bool {
         if !self.buddy.check() {
             return false;
@@ -94,20 +134,36 @@ impl Heap {
         let limit = self.buddy.total_bytes() / MIN_CLASS + 1;
         for (c, &head) in self.slabs.iter().enumerate() {
             let size = class_size(c);
+            let tag = SLAB_TAG | (c as u8 + 1);
+            // Every link must name a slot of this class inside a slab page of this class.
             let mut cur = head;
             let mut steps = 0usize;
             while !cur.is_null() {
                 steps += 1;
                 let addr = cur as usize;
+                let off = addr % PAGE;
                 if steps > limit
+                    || off < size
                     || !addr.is_multiple_of(size)
-                    || addr % PAGE < size
-                    || !self.buddy.contains(cur)
+                    || self.buddy.tag_of(cur.wrapping_sub(off)) != tag
                 {
                     return false;
                 }
-                // SAFETY: `cur` passed the range and alignment checks above, so it is a free slot whose first word is a link.
+                // SAFETY: `cur` passed the checks above, so it is a free slot of this heap whose first word is a link.
                 cur = unsafe { cur.cast::<*mut u8>().read() };
+            }
+            // Each slab page: live slots plus its free slots must fill the page exactly.
+            let expected = PAGE / size - 1;
+            for i in 0..self.buddy.page_count() {
+                let page = self.buddy.page_at(i);
+                if self.buddy.tag_of(page) != tag {
+                    continue;
+                }
+                // SAFETY: `page` is a slab page of this heap inside the region, so its first word is the live count.
+                let live = unsafe { page.cast::<usize>().read() };
+                if live == 0 || live > expected || live + free_in(head, page, limit) != expected {
+                    return false;
+                }
             }
         }
         true
@@ -127,12 +183,13 @@ impl Heap {
         slot
     }
 
-    /// Take one page from the buddy and carve its slots 1.. onto class `c`'s free list.
+    /// Take one page from the buddy, tag it as a class-`c` slab page, and carve its slots 1.. onto class `c`'s free list.
     fn refill(&mut self, c: usize) -> bool {
         let Some(page) = self.buddy.alloc_pages(0) else {
             return false;
         };
         let page = page.as_ptr();
+        self.buddy.set_tag(page, SLAB_TAG | (c as u8 + 1));
         let size = class_size(c);
         // SAFETY: `page` is a fresh, page-aligned PAGE-byte block owned by this heap, so the header word and every slot `k * size` (k < PAGE / size) are in bounds and aligned to `size`.
         unsafe {
@@ -184,6 +241,20 @@ impl Heap {
     }
 }
 
+/// Count the slots on the list from `head` that lie in `page`. The list must already be validated, and `limit` bounds the walk.
+fn free_in(head: *mut u8, page: *mut u8, limit: usize) -> usize {
+    let (mut n, mut steps, mut cur) = (0usize, 0usize, head);
+    while !cur.is_null() && steps <= limit {
+        steps += 1;
+        if (cur as usize).wrapping_sub(page as usize) < PAGE {
+            n += 1;
+        }
+        // SAFETY: the list was validated by `Heap::check`, so `cur` is a readable free slot.
+        cur = unsafe { cur.cast::<*mut u8>().read() };
+    }
+    n
+}
+
 /// Slab class index for a request, or `None` if it must go to the buddy.
 fn class_of(size: usize, align: usize) -> Option<usize> {
     let need = size.max(MIN_CLASS).checked_next_power_of_two()?;
@@ -199,7 +270,7 @@ fn class_size(c: usize) -> usize {
 
 /// Buddy order that covers a large request, or `None` if it is too big or over-aligned.
 fn large_order(layout: Layout) -> Option<u32> {
-    if layout.align() > PAGE {
+    if layout.align() > MAX_ALIGN {
         return None;
     }
     let bytes = layout.size().max(layout.align());
@@ -245,7 +316,7 @@ mod tests {
         // SAFETY: zero-size blocks are ignored by dealloc, so this is a no-op.
         unsafe { heap.dealloc(p, z) };
         assert!(heap
-            .alloc(Layout::from_size_align(64, 8192).unwrap())
+            .alloc(Layout::from_size_align(64, 2 * MAX_ALIGN).unwrap())
             .is_null());
         assert_eq!(heap.used_bytes(), 0);
     }
@@ -298,5 +369,25 @@ mod tests {
             unsafe { heap.dealloc(p, max) };
             assert!(heap.check());
         });
+    }
+
+    #[test]
+    fn empty_heap_is_inert_until_init() {
+        let mut heap = Heap::empty();
+        assert!(heap.check());
+        assert!(!heap.is_ready());
+        assert_eq!(heap.total_bytes(), 0);
+        let l = Layout::from_size_align(8, 8).unwrap();
+        assert!(heap.alloc(l).is_null());
+        let mut arena = vec![0u8; 1 << 20];
+        // SAFETY: the arena outlives the heap and nothing else uses it.
+        assert!(unsafe { heap.init(arena.as_mut_ptr(), arena.len()) });
+        assert!(heap.is_ready());
+        // SAFETY: as above; a second init must fail and leave the heap alone.
+        assert!(!unsafe { heap.init(arena.as_mut_ptr(), arena.len()) });
+        let p = heap.alloc(l);
+        assert!(!p.is_null());
+        // SAFETY: `p` came from `alloc` with `l` and is freed once.
+        unsafe { heap.dealloc(p, l) };
     }
 }

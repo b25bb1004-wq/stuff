@@ -1,12 +1,16 @@
 //! Binary buddy allocator: page-granular blocks, intrusive free lists, merge on free.
 
-use crate::PAGE;
+use crate::{MAX_ALIGN, PAGE};
 use core::ptr::{self, NonNull};
 
 /// Largest block order: `2^MAX_ORDER` pages.
 pub(crate) const MAX_ORDER: usize = 10;
 /// End-of-list marker for the intrusive links.
 const NIL: u32 = u32::MAX;
+/// Pages in a largest block; block starts are aligned modulo this many pages.
+const ORIGIN_PAGES: usize = 1 << MAX_ORDER;
+
+const _: () = assert!(PAGE << MAX_ORDER == MAX_ALIGN);
 
 /// Binary buddy allocator over one caller-supplied memory region.
 pub struct Buddy {
@@ -16,6 +20,8 @@ pub struct Buddy {
     pages: usize,
     /// Leading pages that hold the order table and are never handed out.
     meta_pages: usize,
+    /// Absolute page number of `base` modulo `ORIGIN_PAGES`, so `i + skew` is a page's alignment residue.
+    skew: usize,
     /// First page index of each order's free list, or `NIL`.
     heads: [u32; MAX_ORDER + 1],
     /// Bytes currently free.
@@ -26,6 +32,18 @@ pub struct Buddy {
 unsafe impl Send for Buddy {}
 
 impl Buddy {
+    /// A Buddy with no memory: `alloc_pages` returns `None` and every size is 0.
+    pub const fn empty() -> Buddy {
+        Buddy {
+            base: ptr::null_mut(),
+            pages: 0,
+            meta_pages: 0,
+            skew: 0,
+            heads: [NIL; MAX_ORDER + 1],
+            free: 0,
+        }
+    }
+
     /// Build a buddy allocator over `base..base + len`, or `None` if no usable page remains.
     ///
     /// # Safety
@@ -53,14 +71,15 @@ impl Buddy {
             base,
             pages,
             meta_pages,
+            skew: (aligned / PAGE) % ORIGIN_PAGES,
             heads: [NIL; MAX_ORDER + 1],
             free: (pages - meta_pages) * PAGE,
         };
-        // Tile the usable pages with the largest aligned blocks, low addresses first.
+        // Tile the usable pages with the largest absolutely aligned blocks, low addresses first.
         let mut i = meta_pages;
         while i < pages {
             let mut k = MAX_ORDER;
-            while k > 0 && (!i.is_multiple_of(1 << k) || i + (1 << k) > pages) {
+            while k > 0 && (!(i + buddy.skew).is_multiple_of(1 << k) || i + (1 << k) > pages) {
                 k -= 1;
             }
             buddy.push(k, i);
@@ -69,7 +88,7 @@ impl Buddy {
         Some(buddy)
     }
 
-    /// Allocate `2^order` contiguous, page-aligned pages, or `None` if no block that large is free.
+    /// Allocate `2^order` contiguous pages, aligned to `PAGE << order` in absolute terms, or `None`.
     pub fn alloc_pages(&mut self, order: u32) -> Option<NonNull<u8>> {
         let k = order as usize;
         if k > MAX_ORDER {
@@ -92,27 +111,28 @@ impl Buddy {
     /// `ptr` must have come from `alloc_pages(order)` on this Buddy and must not be freed yet.
     pub unsafe fn free_pages(&mut self, ptr: NonNull<u8>, order: u32) {
         let k0 = order as usize;
-        if k0 > MAX_ORDER {
-            return;
-        }
         let off = (ptr.as_ptr() as usize).wrapping_sub(self.base as usize);
-        if !off.is_multiple_of(PAGE) {
+        if k0 > MAX_ORDER || !off.is_multiple_of(PAGE) {
             return;
         }
         let mut i = off / PAGE;
         let size = 1usize << k0;
-        // Reject anything that is not a whole block inside the usable pages.
+        // Reject anything that is not a whole, aligned block inside the usable pages.
         if i < self.meta_pages
             || i >= self.pages
-            || !i.is_multiple_of(size)
             || size > self.pages - i
+            || !(i + self.skew).is_multiple_of(size)
         {
             return;
         }
-        self.free += size * PAGE;
+        self.free = self.free.saturating_add(size * PAGE);
+        self.set_tbl(i, 0);
         let mut k = k0;
         while k < MAX_ORDER {
-            let b = i ^ (1 << k);
+            // The buddy's page index, or stop when it lies below the region's first page.
+            let Some(b) = ((i + self.skew) ^ (1 << k)).checked_sub(self.skew) else {
+                break;
+            };
             if self.tbl(b) as usize != k + 1 {
                 break;
             }
@@ -133,14 +153,8 @@ impl Buddy {
         (self.pages - self.meta_pages) * PAGE
     }
 
-    /// True if `p` points into a usable page of this Buddy.
-    pub(crate) fn contains(&self, p: *mut u8) -> bool {
-        let off = (p as usize).wrapping_sub(self.base as usize);
-        off < self.pages * PAGE && off / PAGE >= self.meta_pages
-    }
-
-    /// Walk every free list and verify the invariants; false if any is broken.
-    pub(crate) fn check(&self) -> bool {
+    /// Walk every free list and verify the invariants; false if any is broken. Never panics or reads outside the region, even on corrupted memory.
+    pub fn check(&self) -> bool {
         let mut sum = 0usize;
         for k in 0..=MAX_ORDER {
             let size = 1usize << k;
@@ -152,8 +166,9 @@ impl Buddy {
                 let i = cur as usize;
                 if steps > self.pages
                     || i < self.meta_pages
-                    || i + size > self.pages
-                    || !i.is_multiple_of(size)
+                    || i >= self.pages
+                    || size > self.pages - i
+                    || !(i + self.skew).is_multiple_of(size)
                     || self.tbl(i) as usize != k + 1
                     || self.word(i, 0) != prev
                 {
@@ -161,10 +176,47 @@ impl Buddy {
                 }
                 prev = cur;
                 cur = self.word(i, 4);
-                sum += size * PAGE;
+                sum = sum.saturating_add(size * PAGE);
             }
         }
         sum == self.free && self.free <= self.total_bytes()
+    }
+
+    /// True once the Buddy owns a region (after `new`, or a successful `init` on a Heap).
+    pub(crate) fn is_ready(&self) -> bool {
+        self.pages != 0
+    }
+
+    /// Number of usable pages, metadata excluded from the index space.
+    pub(crate) fn page_count(&self) -> usize {
+        self.pages
+    }
+
+    /// Address of usable page index `i`; only dereference it when `i < page_count()`.
+    pub(crate) fn page_at(&self, i: usize) -> *mut u8 {
+        self.page_ptr(i)
+    }
+
+    /// Tag of the page holding `p`: 0 outside the usable pages, otherwise the table byte.
+    pub(crate) fn tag_of(&self, p: *mut u8) -> u8 {
+        self.index_of(p).map_or(0, |i| self.tbl(i))
+    }
+
+    /// Mark the page holding `p` with `tag`; use values >= 0x80 so they never look like a free-block order.
+    pub(crate) fn set_tag(&mut self, p: *mut u8, tag: u8) {
+        if let Some(i) = self.index_of(p) {
+            self.set_tbl(i, tag);
+        }
+    }
+
+    /// Usable page index holding `p`, or `None` if `p` is outside the usable pages.
+    fn index_of(&self, p: *mut u8) -> Option<usize> {
+        let off = (p as usize).wrapping_sub(self.base as usize);
+        if off >= self.pages * PAGE {
+            return None;
+        }
+        let i = off / PAGE;
+        (i >= self.meta_pages).then_some(i)
     }
 
     fn page_ptr(&self, i: usize) -> *mut u8 {
@@ -299,6 +351,14 @@ mod tests {
     }
 
     #[test]
+    fn empty_buddy_is_inert() {
+        let mut b = Buddy::empty();
+        assert!(b.check());
+        assert_eq!(b.total_bytes(), 0);
+        assert!(b.alloc_pages(0).is_none());
+    }
+
+    #[test]
     fn random_churn_keeps_blocks_disjoint() {
         forall(100, 0xB0DD, |rng| {
             let mut arena = vec![0u8; ARENA];
@@ -308,7 +368,7 @@ mod tests {
                 if live.is_empty() || rng.chance(1, 2) {
                     let order = rng.below(MAX_ORDER + 1) as u32;
                     if let Some(p) = b.alloc_pages(order) {
-                        assert_eq!(p.as_ptr() as usize % PAGE, 0);
+                        assert_eq!(p.as_ptr() as usize % (PAGE << order), 0);
                         let (s, e) = span(p, order);
                         assert!(live.iter().all(|&(q, o)| {
                             let (qs, qe) = span(q, o);
@@ -330,5 +390,31 @@ mod tests {
             assert_eq!(b.free_bytes(), b.total_bytes());
             assert!(b.check());
         });
+    }
+
+    #[test]
+    fn corrupted_links_and_sums_are_caught() {
+        let mut arena = vec![0u8; ARENA];
+        let mut b = buddy_over(&mut arena).unwrap();
+        assert!(b.check());
+        // Free counter disagrees with the lists.
+        b.free += PAGE;
+        assert!(!b.check());
+        b.free -= PAGE;
+        // A list head whose next link points past the region.
+        let k = (1..=MAX_ORDER).find(|&k| b.heads[k] != NIL).unwrap();
+        let i = b.heads[k] as usize;
+        let next = b.word(i, 4);
+        b.set_word(i, 4, b.pages as u32 + 7);
+        assert!(!b.check());
+        // A misaligned next link inside a list of order k >= 1.
+        b.set_word(i, 4, (i + 1) as u32);
+        assert!(!b.check());
+        b.set_word(i, 4, next);
+        // The table disagrees with the list.
+        b.set_tbl(i, 0);
+        assert!(!b.check());
+        b.set_tbl(i, (k + 1) as u8);
+        assert!(b.check());
     }
 }

@@ -16,3 +16,6 @@ pub use lock::Locked;
 
 /// Page size in bytes: the smallest block the buddy allocator hands out.
 pub const PAGE: usize = 4096;
+
+/// Largest supported alignment and largest buddy block (4 MiB); bigger requests return null.
+pub const MAX_ALIGN: usize = PAGE << 10;

@@ -2,10 +2,10 @@
 
 ## State
 - LEADER: Claude Opus since 2026-11-14 16:15
-- heartbeat: 2026-11-14 17:12
-- phase: P1 Cores. T04, T05, T07, T09, T12, T17 PASS. T10 running on Argon-high. Briefs ready: T19 (after T10).
+- heartbeat: 2026-11-14 17:34
+- phase: P1 Cores. T04, T05, T07, T09, T12, T16, T17 PASS. T10 running on Argon-high. Briefs ready: T19 (after T10).
 - stop reason: none
-- Next for the leader: judge T10 when Argon-high returns (write the T10 reject corpus check first); Haiku lane next: T16 or T15. Then T19, T18, T13. Flash job docs/SKILLS.md still owed. Log times before 17:05 were corrected to commit times on 2026-11-14 17:12.
+- Next for the leader: judge T10 when Argon-high returns (check parked in briefs/leader/mica_check_leader.rs); Haiku lane next: T15 (geyser pool). Then T19, T18, T13. Flash job docs/SKILLS.md still owed.
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
 - At most one Gemini worker (through `bash tools/lane.sh <lane> <id>`) plus one Claude Haiku worker, on different crates. Lanes and rules: docs/PLAN.md section 2.
 
@@ -33,7 +33,7 @@ top to bottom, and deployable.
   sessions. It cannot finish inside one usage window.
 - One worker at a time (operator rule 2026-11-14). Retries 2 per task. Gemini lanes use no Claude tokens.
 - Operator 2026-11-14 16:25: Haiku (medium) is a normal lane for the Claude leader, not only a fallback. Operator 16:35: one Haiku worker may run beside one Gemini worker, on different crates. Budgets: 170k (Haiku), 250k (Sonnet).
-- Spent so far: 1760k Claude worker tokens (leader tokens not counted).
+- Spent so far: 1982k Claude worker tokens (leader tokens not counted).
 
 ## Workers checked on 2026-11-14
 | Worker | Status |
@@ -66,7 +66,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T07 | P1 | shale | journal, fsck, crash injection at every write | haiku | T06 | PASS |
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
 | T13 | P1 | quartz | A and C extensions, official riscv-tests as data | hydrogen | T12 | TODO |
-| T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | hydrogen | T02 | TODO |
+| T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | hydrogen | T05 | TODO |
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
 | T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | hydrogen | T04 | TODO |
@@ -152,3 +152,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-14 16:49 | T07 | haiku | 114k | PASS | gate green, 31 tests; leader crash check with its own crash device (power cut after every block write, remount + fsck): 12 + 60 cases x 40 ops on two seeds, every tree is the state before or after the op in progress, fsck clean. Journal overflow refused with TooLarge before any write. Free blocks are written home directly (safe: bitmap goes through the journal)
 - 2026-11-14 17:02 | T17 | argon | 0 Claude | PASS | gate green, 47 tests; leader VM check (exact fuel at every limit, fib, 200k-object GC churn in 1 MiB, retained objects give OutOfMemory, 300k-deep list under GC, depth limits, every trap, ParseInt edge cases, host + missing import, fuzz 3000 + 20000 on two seeds with determinism) green; leader generator bug (underflow) fixed in the leader file, not the VM
 - 2026-11-14 17:12 | T12 | haiku | 256k | PASS | gate green, 85 tests; leader check: 171 Zicsr/privileged words assembled by LLVM (rustc global_asm) decode and encode exactly; an LLVM-assembled privilege program on `tick`: mret to U, U ecall to M, delegated U ecall to S, S ecall to M (MPP=1), Sv39 gigapages built by the test (load and store through U page, sepc and mtval virtual, S load of U page without SUM faults to M), wfi then MTI with mepc after wfi, hardware A/D exact (D clear on the page never stored to). WARL choices listed in reports/T12.md, all legal. Leader lesson: a worktree gate sharing CARGO_TARGET_DIR left a stale quartz rlib in the main tree; the gate now uses its own target dir
+- 2026-11-14 17:34 | T16 | haiku | 222k | PASS | worker stopped at NOT PASS over budget (global.rs hung). Leader found the hang in the test: an assert under a live spin-lock guard on an impossible used_bytes()==0; the panic allocated through the held lock. Test fixed (assert after release), gate green. Leader check: absolute alignments up to 4 MiB on arenas at odd page and byte offsets (3078 big-align blocks, no overlap, tags intact, 4 MiB block again after full free, over-align and over-size refused), empty -> init through a static Locked, second init refused, targeted bad links and smashed page headers reported, 300 random corruptions never panic check(), quarry as #[global_allocator] under 8 threads of std collections (2.16M bytes moved), T02 shadow model in release with a new seed x10
