@@ -95,7 +95,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T40 | P3 | varve | B+tree with range scans | hydrogen | T39 | TODO |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
-| T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | TODO |
+| T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | argon | T43 | TODO |
 | T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | TODO |
 | T46 | P3 | cairn | manifest, versions, dependency solver, lock file | argon |  | TODO |
@@ -111,7 +111,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | argon | T58 | TODO |
-| T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | TODO |
+| T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | RUNNING |
 | T61 | P4 | glint | widget tree, flex layout, events, focus, themes | argon | T60 | TODO |
 | T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | hydrogen | T61 | TODO |
 | T63 | P4 | facet | compositor: windows, tiling and floating, damage, input, animated moves | argon | T62 | TODO |
@@ -167,3 +167,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 00:07 T68 tectonic PASS (haiku, ~193k tokens). Leader check first try: mul/div vs i128 over 200k, sqrt exhaustive to 2^22 + sweep, sin/cos/atan2 bounds, PCG reference, determinism with permuted insertion order, stale handles, clock. No floats in src.
 - 2026-11-15 00:09 T53 crust RETRY 1 (hydrogen-high): parser shapes pass; bash differential 36/461 differ, all non-whitespace IFS (literal text split, empty $@ fields dropped, edge delimiter), plus backslash at EOF dropped. Same lane, check left in tree.
 - 2026-11-15 00:17 T53 crust PASS after RETRY 1 (hydrogen-high). bash differential 461/461; fresh seed 1260/1261 (the one miss is my Env: absolute glob /* lists the Windows root while `bash` here is WSL). Note: `bash` on PATH for cargo tests is WSL bash.
+- 2026-11-15 00:24 T43 drillcore PASS (hydrogen) first try: blob, tree, commit and merge-commit ids equal real git --object-format=sha256 over a 3-commit history with exec bits, unicode and dir-sort names; history, checkout, corruption. My check needed clippy::type_complexity allowed.

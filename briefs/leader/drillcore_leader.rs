@@ -1,6 +1,6 @@
 //! Leader check for T43: blob, tree and commit ids equal real git's (SHA-256 object format) for
 //! the same history, including git's tree order and exec bits; history, checkout and corruption.
-#![allow(clippy::unwrap_used)]
+#![allow(clippy::unwrap_used, clippy::type_complexity)]
 use drillcore::{from_hex, to_hex, Commit, Error, Kind, MemStore, Repo, Signature, Store};
 use std::path::Path;
 use std::process::Command;
