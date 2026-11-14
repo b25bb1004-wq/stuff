@@ -100,7 +100,11 @@ fn leader_mixed_load_with_body_echo() {
                     let mut raw = String::new();
                     for j in 0..k {
                         let body = format!("t{t}i{i}j{j}");
-                        let close = if j + 1 == k { "Connection: close\r\n" } else { "" };
+                        let close = if j + 1 == k {
+                            "Connection: close\r\n"
+                        } else {
+                            ""
+                        };
                         raw += &format!(
                             "POST /echo HTTP/1.1\r\nContent-Length: {}\r\n{close}\r\n{body}",
                             body.len()
@@ -150,7 +154,10 @@ fn leader_static_traversal_never_escapes() {
 
     let get = |p: &str| one(a, &format!("GET {p} HTTP/1.1\r\nConnection: close\r\n\r\n")).unwrap();
     let idx = get("/s/");
-    assert_eq!((idx.status, idx.body.as_slice()), (200, &b"<p>home</p>"[..]));
+    assert_eq!(
+        (idx.status, idx.body.as_slice()),
+        (200, &b"<p>home</p>"[..])
+    );
     let css = get("/s/sub/a.css");
     assert_eq!(css.status, 200);
     assert!(css.header("content-type").unwrap().starts_with(b"text/css"));
@@ -200,7 +207,9 @@ fn leader_error_statuses() {
     assert_eq!(one(a, cl).unwrap().status, 413);
     let m = one(a, "DELETE /hi HTTP/1.1\r\n\r\n").unwrap();
     assert_eq!(m.status, 405);
-    assert!(m.header("allow").is_some_and(|v| v.windows(3).any(|w| w == b"GET")));
+    assert!(m
+        .header("allow")
+        .is_some_and(|v| v.windows(3).any(|w| w == b"GET")));
     assert_eq!(one(a, "GET /nope HTTP/1.1\r\n\r\n").unwrap().status, 404);
     srv.stop();
 }
