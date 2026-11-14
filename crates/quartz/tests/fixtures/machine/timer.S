@@ -28,15 +28,15 @@ idle:
     sb a0, 0(t0)
     PASS
 trap:
-    csrr t0, mcause
-    li t1, 1
-    slli t1, t1, 63
-    addi t1, t1, 7
-    bne t0, t1, fail3
+    csrr t5, mcause
+    li t6, 1
+    slli t6, t6, 63
+    addi t6, t6, 7
+    bne t5, t6, fail3
     addi s0, s0, 1
-    ld t0, 0(s3)
-    addi t0, t0, 500
-    sd t0, 0(s3)
+    ld t5, 0(s3)
+    addi t5, t5, 500
+    sd t5, 0(s3)
     mret
 fail2: FAIL 2
 fail3: FAIL 3

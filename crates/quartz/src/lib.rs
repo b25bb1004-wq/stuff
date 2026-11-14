@@ -10,6 +10,7 @@ mod bus;
 mod csr;
 mod exec;
 pub mod inst;
+pub mod machine;
 mod mmu;
 mod trap;
 
