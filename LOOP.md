@@ -119,7 +119,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T65 | P4 | spelunk | HTML and CSS parsers | hydrogen |  | TODO |
 | T66 | P4 | spelunk | cascade, block and inline layout, flex subset | argon-high | T65 T60 | TODO |
 | T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
-| T68 | P4 | tectonic | entity system, fixed time step, maths | hydrogen |  | TODO |
+| T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | RUNNING |
 | T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | argon | T68 T58 | TODO |
 | T70 | P4 | tectonic | audio mixer, scenes, Mica scripting, one original small game | hydrogen | T69 T18 | TODO |
 | T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Quartz + Mantle on a canvas, Mica playground | argon | T28 T18 | TODO |
