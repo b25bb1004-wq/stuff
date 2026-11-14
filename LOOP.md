@@ -109,7 +109,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | TODO |
 | T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | argon |  | TODO |
 | T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
-| T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | hydrogen |  | TODO |
+| T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | RUNNING |
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | argon | T58 | TODO |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | TODO |
 | T61 | P4 | glint | widget tree, flex layout, events, focus, themes | argon | T60 | TODO |
