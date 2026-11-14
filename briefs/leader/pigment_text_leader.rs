@@ -1,5 +1,5 @@
 //! Leader check for T60: glyph rules, layout invariants with a fresh seed, draw box bounds, and a
-//! rendered sample PPM for eyeballing (target/t60-sample.ppm).
+//! rendered sample PPM for eyeballing (CARGO_TARGET_TMPDIR/t60-sample.ppm).
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
 use pigment::{glyph, layout, measure, Canvas, Rgba, GLYPH_H, GLYPH_W};
@@ -149,6 +149,6 @@ fn leader_draw_box_and_sample() {
         2,
         512,
     );
-    let out = concat!(env!("CARGO_MANIFEST_DIR"), "/../../target/t60-sample.ppm");
+    let out = concat!(env!("CARGO_TARGET_TMPDIR"), "/t60-sample.ppm");
     std::fs::write(out, c.to_ppm()).unwrap();
 }
