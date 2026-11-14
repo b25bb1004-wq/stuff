@@ -1,0 +1,2500 @@
+d91e 0a712823 c.swsp t2, 176(sp) | sw t2, 176(sp)
+88ca 012008b3 c.mv a7, s2 | add a7, zero, s2
+9482 000480e7 c.jalr s1 | jalr ra, 0(s1)
+8d81 408585b3 c.sub a1, s0 | sub a1, a1, s0
+bb89 d53ff06f c.j -686 | jal zero, -686
+76b5 fffed6b7 c.lui a3, 1048557 | lui a3, 1048557
+9002 00100073 c.ebreak | ebreak
+622e 0c813203 c.ldsp tp, 200(sp) | ld tp, 200(sp)
+2b1d 007b0b1b c.addiw s6, 7 | addiw s6, s6, 7
+42c4 0046a483 c.lw s1, 4(a3) | lw s1, 4(a3)
+8909 00257513 c.andi a0, 2 | andi a0, a0, 2
+cd68 04a52e23 c.sw a0, 92(a0) | sw a0, 92(a0)
+0001 00000013 c.nop | addi zero, zero, 0
+8582 00058067 c.jr a1 | jalr zero, 0(a1)
+9d01 4085053b c.subw a0, s0 | subw a0, a0, s0
+9002 00100073 c.ebreak | ebreak
+1e3c 33810793 c.addi4spn a5, sp, 824 | addi a5, sp, 824
+8d02 000d0067 c.jr s10 | jalr zero, 0(s10)
+8d19 40e50533 c.sub a0, a4 | sub a0, a0, a4
+c722 08812623 c.swsp s0, 140(sp) | sw s0, 140(sp)
+cb4c 00b72a23 c.sw a1, 20(a4) | sw a1, 20(a4)
+6228 04063503 c.ld a0, 64(a2) | ld a0, 64(a2)
+98f6 01d888b3 c.add a7, t4 | add a7, a7, t4
+8682 00068067 c.jr a3 | jalr zero, 0(a3)
+ce2a 00a12e23 c.swsp a0, 28(sp) | sw a0, 28(sp)
+cfd2 0d412e23 c.swsp s4, 220(sp) | sw s4, 220(sp)
+82b6 00d002b3 c.mv t0, a3 | add t0, zero, a3
+8bb1 00c7f793 c.andi a5, 12 | andi a5, a5, 12
+9002 00100073 c.ebreak | ebreak
+7380 0207b403 c.ld s0, 32(a5) | ld s0, 32(a5)
+875d 41775713 c.srai a4, 23 | srai a4, a4, 23
+eb16 18513823 c.sdsp t0, 400(sp) | sd t0, 400(sp)
+637a 19813303 c.ldsp t1, 408(sp) | ld t1, 408(sp)
+8a2d 00b67613 c.andi a2, 11 | andi a2, a2, 11
+f5d4 0ad5b423 c.sd a3, 168(a1) | sd a3, 168(a1)
+6149 09010113 c.addi16sp sp, 144 | addi sp, sp, 144
+8d35 00d54533 c.xor a0, a3 | xor a0, a0, a3
+e80d 02041963 c.bnez s0, 50 | bne s0, zero, 50
+ddd9 f8058fe3 c.beqz a1, -98 | beq a1, zero, -98
+7141 e1010113 c.addi16sp sp, -496 | addi sp, sp, -496
+d77c 06f72623 c.sw a5, 108(a4) | sw a5, 108(a4)
+43d0 0047a603 c.lw a2, 4(a5) | lw a2, 4(a5)
+88b6 00d008b3 c.mv a7, a3 | add a7, zero, a3
+432a 08812303 c.lwsp t1, 136(sp) | lw t1, 136(sp)
+8f79 00e77733 c.and a4, a4 | and a4, a4, a4
+ec55 0a041e63 c.bnez s0, 188 | bne s0, zero, 188
+0001 00000013 c.nop | addi zero, zero, 0
+93b9 02e7d793 c.srli a5, 46 | srli a5, a5, 46
+d0d0 02c4a223 c.sw a2, 36(s1) | sw a2, 36(s1)
+8ff9 00e7f7b3 c.and a5, a4 | and a5, a5, a4
+0241 01020213 c.addi tp, 16 | addi tp, tp, 16
+9ea5 009686bb c.addw a3, s1 | addw a3, a3, s1
+9c95 40d484bb c.subw s1, a3 | subw s1, s1, a3
+0a89 002a8a93 c.addi s5, 2 | addi s5, s5, 2
+5f92 02412f83 c.lwsp t6, 36(sp) | lw t6, 36(sp)
+9e05 4096063b c.subw a2, s1 | subw a2, a2, s1
+7d92 12013d83 c.ldsp s11, 288(sp) | ld s11, 288(sp)
+5e8c 0386a583 c.lw a1, 56(a3) | lw a1, 56(a3)
+8e5d 00f66633 c.or a2, a5 | or a2, a2, a5
+0001 00000013 c.nop | addi zero, zero, 0
+c24e 01312223 c.swsp s3, 4(sp) | sw s3, 4(sp)
+e160 0c853023 c.sd s0, 192(a0) | sd s0, 192(a0)
+9002 00100073 c.ebreak | ebreak
+9841 ff047413 c.andi s0, -16 | andi s0, s0, -16
+c71c 00f72423 c.sw a5, 8(a4) | sw a5, 8(a4)
+e01c 00f43023 c.sd a5, 0(s0) | sd a5, 0(s0)
+8c99 40e484b3 c.sub s1, a4 | sub s1, s1, a4
+9882 000880e7 c.jalr a7 | jalr ra, 0(a7)
+20b9 00e0809b c.addiw ra, 14 | addiw ra, ra, 14
+c645 0a060463 c.beqz a2, 168 | beq a2, zero, 168
+dd1d f2050fe3 c.beqz a0, -194 | beq a0, zero, -194
+9002 00100073 c.ebreak | ebreak
+8efd 00f6f6b3 c.and a3, a5 | and a3, a3, a5
+908e 003080b3 c.add ra, gp | add ra, ra, gp
+6b12 10013b03 c.ldsp s6, 256(sp) | ld s6, 256(sp)
+8ffd 00f7f7b3 c.and a5, a5 | and a5, a5, a5
+1d06 021d1d13 c.slli s10, 33 | slli s10, s10, 33
+1ed5 ff5e8e93 c.addi t4, -11 | addi t4, t4, -11
+db00 02872823 c.sw s0, 48(a4) | sw s0, 48(a4)
+4e74 05c62683 c.lw a3, 92(a2) | lw a3, 92(a2)
+6d25 00009d37 c.lui s10, 9 | lui s10, 9
+85a9 40a5d593 c.srai a1, 10 | srai a1, a1, 10
+8df9 00e5f5b3 c.and a1, a4 | and a1, a1, a4
+0001 00000013 c.nop | addi zero, zero, 0
+9002 00100073 c.ebreak | ebreak
+8149 01255513 c.srli a0, 18 | srli a0, a0, 18
+0de2 018d9d93 c.slli s11, 24 | slli s11, s11, 24
+7695 fffe56b7 c.lui a3, 1048549 | lui a3, 1048549
+9c3d 00f4043b c.addw s0, a5 | addw s0, s0, a5
+99b9 fee5f593 c.andi a1, -18 | andi a1, a1, -18
+8c71 00c47433 c.and s0, a2 | and s0, s0, a2
+f08d f20491e3 c.bnez s1, -222 | bne s1, zero, -222
+16fc 36c10793 c.addi4spn a5, sp, 876 | addi a5, sp, 876
+9d81 408585bb c.subw a1, s0 | subw a1, a1, s0
+9d95 40d585bb c.subw a1, a3 | subw a1, a1, a3
+2c55 015c0c1b c.addiw s8, 21 | addiw s8, s8, 21
+9f81 408787bb c.subw a5, s0 | subw a5, a5, s0
+c78e 0c312623 c.swsp gp, 204(sp) | sw gp, 204(sp)
+9949 ff257513 c.andi a0, -14 | andi a0, a0, -14
+8b3d 00f77713 c.andi a4, 15 | andi a4, a4, 15
+9002 00100073 c.ebreak | ebreak
+8189 0025d593 c.srli a1, 2 | srli a1, a1, 2
+8fdd 00f7e7b3 c.or a5, a5 | or a5, a5, a5
+64f0 0c84b603 c.ld a2, 200(s1) | ld a2, 200(s1)
+55c0 02c5a403 c.lw s0, 44(a1) | lw s0, 44(a1)
+8d41 00856533 c.or a0, s0 | or a0, a0, s0
+0001 00000013 c.nop | addi zero, zero, 0
+4a36 04c12a03 c.lwsp s4, 76(sp) | lw s4, 76(sp)
+6839 0000e837 c.lui a6, 14 | lui a6, 14
+8f49 00a76733 c.or a4, a0 | or a4, a4, a0
+7171 f5010113 c.addi16sp sp, -176 | addi sp, sp, -176
+9002 00100073 c.ebreak | ebreak
+9d3d 00f5053b c.addw a0, a5 | addw a0, a0, a5
+bd1d e37ff06f c.j -458 | jal zero, -458
+9002 00100073 c.ebreak | ebreak
+50c5 ff100093 c.li ra, -15 | addi ra, zero, -15
+8d2d 00b54533 c.xor a0, a1 | xor a0, a0, a1
+7488 0284b503 c.ld a0, 40(s1) | ld a0, 40(s1)
+1d00 2b010413 c.addi4spn s0, sp, 688 | addi s0, sp, 688
+9a3d fef67613 c.andi a2, -17 | andi a2, a2, -17
+7a0d fffe3a37 c.lui s4, 1048547 | lui s4, 1048547
+8d71 00c57533 c.and a0, a2 | and a0, a0, a2
+8961 01857513 c.andi a0, 24 | andi a0, a0, 24
+d81e 02712823 c.swsp t2, 48(sp) | sw t2, 48(sp)
+e962 09813823 c.sdsp s8, 144(sp) | sd s8, 144(sp)
+f845 fa0418e3 c.bnez s0, -80 | bne s0, zero, -80
+efa2 1c813c23 c.sdsp s0, 472(sp) | sd s0, 472(sp)
+9282 000280e7 c.jalr t0 | jalr ra, 0(t0)
+d40c 02b42423 c.sw a1, 40(s0) | sw a1, 40(s0)
+151d fe750513 c.addi a0, -25 | addi a0, a0, -25
+6119 18010113 c.addi16sp sp, 384 | addi sp, sp, 384
+f5e6 0f913423 c.sdsp s9, 232(sp) | sd s9, 232(sp)
+d62c 06b62423 c.sw a1, 104(a2) | sw a1, 104(a2)
+e624 04963423 c.sd s1, 72(a2) | sd s1, 72(a2)
+fde4 0e95bc23 c.sd s1, 248(a1) | sd s1, 248(a1)
+b4e5 ae9ff06f c.j -1304 | jal zero, -1304
+8d6d 00b57533 c.and a0, a1 | and a0, a0, a1
+5ba9 fea00b93 c.li s7, -22 | addi s7, zero, -22
+52bd fef00293 c.li t0, -17 | addi t0, zero, -17
+9c3d 00f4043b c.addw s0, a5 | addw s0, s0, a5
+8d99 40e585b3 c.sub a1, a4 | sub a1, a1, a4
+8f65 00977733 c.and a4, s1 | and a4, a4, s1
+d26a 03a12223 c.swsp s10, 36(sp) | sw s10, 36(sp)
+8125 00955513 c.srli a0, 9 | srli a0, a0, 9
+0d0a 002d1d13 c.slli s10, 2 | slli s10, s10, 2
+7131 f4010113 c.addi16sp sp, -192 | addi sp, sp, -192
+1fc6 031f9f93 c.slli t6, 49 | slli t6, t6, 49
+8202 00020067 c.jr tp | jalr zero, 0(tp)
+6798 0087b703 c.ld a4, 8(a5) | ld a4, 8(a5)
+1109 fe210113 c.addi sp, -30 | addi sp, sp, -30
+0496 00549493 c.slli s1, 5 | slli s1, s1, 5
+9002 00100073 c.ebreak | ebreak
+9605 42165613 c.srai a2, 33 | srai a2, a2, 33
+8361 01875713 c.srli a4, 24 | srli a4, a4, 24
+9fa1 008787bb c.addw a5, s0 | addw a5, a5, s0
+4e2a 08812e03 c.lwsp t3, 136(sp) | lw t3, 136(sp)
+8039 00e45413 c.srli s0, 14 | srli s0, s0, 14
+d5a5 f60584e3 c.beqz a1, -152 | beq a1, zero, -152
+c2bc 04f6a023 c.sw a5, 64(a3) | sw a5, 64(a3)
+85b1 40c5d593 c.srai a1, 12 | srai a1, a1, 12
+9d19 40e5053b c.subw a0, a4 | subw a0, a0, a4
+468a 08012683 c.lwsp a3, 128(sp) | lw a3, 128(sp)
+86f1 41c6d693 c.srai a3, 28 | srai a3, a3, 28
+8e29 00a64633 c.xor a2, a0 | xor a2, a2, a0
+9c15 40d4043b c.subw s0, a3 | subw s0, s0, a3
+8d01 40850533 c.sub a0, s0 | sub a0, a0, s0
+9002 00100073 c.ebreak | ebreak
+8e02 000e0067 c.jr t3 | jalr zero, 0(t3)
+717e 1f813103 c.ldsp sp, 504(sp) | ld sp, 504(sp)
+cd52 09412c23 c.swsp s4, 152(sp) | sw s4, 152(sp)
+8ded 00b5f5b3 c.and a1, a1 | and a1, a1, a1
+ddbd f6058fe3 c.beqz a1, -130 | beq a1, zero, -130
+9e29 00a6063b c.addw a2, a0 | addw a2, a2, a0
+698e 0c013983 c.ldsp s3, 192(sp) | ld s3, 192(sp)
+a751 7840006f c.j 1924 | jal zero, 1924
+8371 01c75713 c.srli a4, 28 | srli a4, a4, 28
+8379 01e75713 c.srli a4, 30 | srli a4, a4, 30
+8dd1 00c5e5b3 c.or a1, a2 | or a1, a1, a2
+a8e1 0d80006f c.j 216 | jal zero, 216
+ddfa 0fe12c23 c.swsp t5, 248(sp) | sw t5, 248(sp)
+9d25 0095053b c.addw a0, s1 | addw a0, a0, s1
+cfb4 04d7ac23 c.sw a3, 88(a5) | sw a3, 88(a5)
+8eed 00b6f6b3 c.and a3, a1 | and a3, a3, a1
+d085 f20480e3 c.beqz s1, -224 | beq s1, zero, -224
+f85a 03613823 c.sdsp s6, 48(sp) | sd s6, 48(sp)
+9945 ff157513 c.andi a0, -15 | andi a0, a0, -15
+fd5a 0b613c23 c.sdsp s6, 184(sp) | sd s6, 184(sp)
+5aa5 fe900a93 c.li s5, -23 | addi s5, zero, -23
+3521 fe85051b c.addiw a0, -24 | addiw a0, a0, -24
+47e6 05812783 c.lwsp a5, 88(sp) | lw a5, 88(sp)
+f062 03813023 c.sdsp s8, 32(sp) | sd s8, 32(sp)
+9d25 0095053b c.addw a0, s1 | addw a0, a0, s1
+9002 00100073 c.ebreak | ebreak
+416e 0d812103 c.lwsp sp, 216(sp) | lw sp, 216(sp)
+f418 02e43423 c.sd a4, 40(s0) | sd a4, 40(s0)
+5ba4 0707a483 c.lw s1, 112(a5) | lw s1, 112(a5)
+5c92 02412c83 c.lwsp s9, 36(sp) | lw s9, 36(sp)
+9e21 0086063b c.addw a2, s0 | addw a2, a2, s0
+8602 00060067 c.jr a2 | jalr zero, 0(a2)
+fc44 0a943c23 c.sd s1, 184(s0) | sd s1, 184(s0)
+b741 f81ff06f c.j -128 | jal zero, -128
+7111 f0010113 c.addi16sp sp, -256 | addi sp, sp, -256
+9d89 40a585bb c.subw a1, a0 | subw a1, a1, a0
+8da1 0085c5b3 c.xor a1, s0 | xor a1, a1, s0
+9521 42855513 c.srai a0, 40 | srai a0, a0, 40
+7766 07813703 c.ldsp a4, 120(sp) | ld a4, 120(sp)
+9e1d 40f6063b c.subw a2, a5 | subw a2, a2, a5
+090d 00390913 c.addi s2, 3 | addi s2, s2, 3
+cae4 0496aa23 c.sw s1, 84(a3) | sw s1, 84(a3)
+5ed0 03c6a603 c.lw a2, 60(a3) | lw a2, 60(a3)
+9229 02a65613 c.srli a2, 42 | srli a2, a2, 42
+9b02 000b00e7 c.jalr s6 | jalr ra, 0(s6)
+658a 08013583 c.ldsp a1, 128(sp) | ld a1, 128(sp)
+8ec1 0086e6b3 c.or a3, s0 | or a3, a3, s0
+803d 00f45413 c.srli s0, 15 | srli s0, s0, 15
+7175 f7010113 c.addi16sp sp, -144 | addi sp, sp, -144
+9002 00100073 c.ebreak | ebreak
+9eb5 00d686bb c.addw a3, a3 | addw a3, a3, a3
+da79 fc060be3 c.beqz a2, -42 | beq a2, zero, -42
+8fbd 00f7c7b3 c.xor a5, a5 | xor a5, a5, a5
+f2d0 0ac6b023 c.sd a2, 160(a3) | sd a2, 160(a3)
+9525 42955513 c.srai a0, 41 | srai a0, a0, 41
+4e32 00c12e03 c.lwsp t3, 12(sp) | lw t3, 12(sp)
+8eb5 00d6c6b3 c.xor a3, a3 | xor a3, a3, a3
+9b85 fe17f793 c.andi a5, -31 | andi a5, a5, -31
+03ad 00b38393 c.addi t2, 11 | addi t2, t2, 11
+23a5 0093839b c.addiw t2, 9 | addiw t2, t2, 9
+91cd 0335d593 c.srli a1, 51 | srli a1, a1, 51
+9e25 0096063b c.addw a2, s1 | addw a2, a2, s1
+8e71 00c67633 c.and a2, a2 | and a2, a2, a2
+0722 00871713 c.slli a4, 8 | slli a4, a4, 8
+5439 fee00413 c.li s0, -18 | addi s0, zero, -18
+8ff1 00c7f7b3 c.and a5, a2 | and a5, a5, a2
+85ee 01b005b3 c.mv a1, s11 | add a1, zero, s11
+4954 01452683 c.lw a3, 20(a0) | lw a3, 20(a0)
+8302 00030067 c.jr t1 | jalr zero, 0(t1)
+8df9 00e5f5b3 c.and a1, a4 | and a1, a1, a4
+fe19 f0061fe3 c.bnez a2, -226 | bne a2, zero, -226
+5e0c 03862583 c.lw a1, 56(a2) | lw a1, 56(a2)
+9a1d fe767613 c.andi a2, -25 | andi a2, a2, -25
+931d 02775713 c.srli a4, 39 | srli a4, a4, 39
+4700 00872403 c.lw s0, 8(a4) | lw s0, 8(a4)
+e399 00079363 c.bnez a5, 6 | bne a5, zero, 6
+fc2c 06b43c23 c.sd a1, 120(s0) | sd a1, 120(s0)
+7825 fffe9837 c.lui a6, 1048553 | lui a6, 1048553
+9182 000180e7 c.jalr gp | jalr ra, 0(gp)
+9ad6 015a8ab3 c.add s5, s5 | add s5, s5, s5
+9fb9 00e787bb c.addw a5, a4 | addw a5, a5, a4
+8e5d 00f66633 c.or a2, a5 | or a2, a2, a5
+0001 00000013 c.nop | addi zero, zero, 0
+9f91 40c787bb c.subw a5, a2 | subw a5, a5, a2
+7158 0a053703 c.ld a4, 160(a0) | ld a4, 160(a0)
+9e21 0086063b c.addw a2, s0 | addw a2, a2, s0
+8f31 00c74733 c.xor a4, a2 | xor a4, a4, a2
+9f81 408787bb c.subw a5, s0 | subw a5, a5, s0
+8f05 40970733 c.sub a4, s1 | sub a4, a4, s1
+93f2 01c383b3 c.add t2, t3 | add t2, t2, t3
+8c25 00944433 c.xor s0, s1 | xor s0, s0, s1
+5939 fee00913 c.li s2, -18 | addi s2, zero, -18
+1ef0 37c10613 c.addi4spn a2, sp, 892 | addi a2, sp, 892
+8f21 00874733 c.xor a4, s0 | xor a4, a4, s0
+7125 e6010113 c.addi16sp sp, -416 | addi sp, sp, -416
+70ea 0b813083 c.ldsp ra, 184(sp) | ld ra, 184(sp)
+76ec 0e86b583 c.ld a1, 232(a3) | ld a1, 232(a3)
+0f72 01cf1f13 c.slli t5, 28 | slli t5, t5, 28
+6351 00014337 c.lui t1, 20 | lui t1, 20
+dba9 f40789e3 c.beqz a5, -174 | beq a5, zero, -174
+61ba 18813183 c.ldsp gp, 392(sp) | ld gp, 392(sp)
+9002 00100073 c.ebreak | ebreak
+e880 0084b823 c.sd s0, 16(s1) | sd s0, 16(s1)
+4329 00a00313 c.li t1, 10 | addi t1, zero, 10
+562a 0a812603 c.lwsp a2, 168(sp) | lw a2, 168(sp)
+8f95 40d787b3 c.sub a5, a3 | sub a5, a5, a3
+e732 18c13423 c.sdsp a2, 392(sp) | sd a2, 392(sp)
+7135 f6010113 c.addi16sp sp, -160 | addi sp, sp, -160
+8ff5 00d7f7b3 c.and a5, a3 | and a5, a5, a3
+8dc1 0085e5b3 c.or a1, s0 | or a1, a1, s0
+c8f9 0c048b63 c.beqz s1, 214 | beq s1, zero, 214
+2cad 00bc8c9b c.addiw s9, 11 | addiw s9, s9, 11
+cef6 05d12e23 c.swsp t4, 92(sp) | sw t4, 92(sp)
+7688 0286b503 c.ld a0, 40(a3) | ld a0, 40(a3)
+65b8 0485b703 c.ld a4, 72(a1) | ld a4, 72(a1)
+c7e8 04a7a623 c.sw a0, 76(a5) | sw a0, 76(a5)
+9c91 40c484bb c.subw s1, a2 | subw s1, s1, a2
+52f0 0646a603 c.lw a2, 100(a3) | lw a2, 100(a3)
+9d02 000d00e7 c.jalr s10 | jalr ra, 0(s10)
+3681 fe06869b c.addiw a3, -32 | addiw a3, a3, -32
+8db9 00e5c5b3 c.xor a1, a4 | xor a1, a1, a4
+18a9 fea88893 c.addi a7, -22 | addi a7, a7, -22
+8d79 00e57533 c.and a0, a4 | and a0, a0, a4
+79ce 0f013983 c.ldsp s3, 240(sp) | ld s3, 240(sp)
+8d75 00d57533 c.and a0, a3 | and a0, a0, a3
+4b2c 05072583 c.lw a1, 80(a4) | lw a1, 80(a4)
+0001 00000013 c.nop | addi zero, zero, 0
+89de 017009b3 c.mv s3, s7 | add s3, zero, s7
+f5b8 06e5b423 c.sd a4, 104(a1) | sd a4, 104(a1)
+0001 00000013 c.nop | addi zero, zero, 0
+9d91 40c585bb c.subw a1, a2 | subw a1, a1, a2
+0636 00d61613 c.slli a2, 13 | slli a2, a2, 13
+8fa1 0087c7b3 c.xor a5, s0 | xor a5, a5, s0
+0001 00000013 c.nop | addi zero, zero, 0
+8f01 40870733 c.sub a4, s0 | sub a4, a4, s0
+8f05 40970733 c.sub a4, s1 | sub a4, a4, s1
+9002 00100073 c.ebreak | ebreak
+9c39 00e4043b c.addw s0, a4 | addw s0, s0, a4
+ee3c 04f63c23 c.sd a5, 88(a2) | sd a5, 88(a2)
+8315 00575713 c.srli a4, 5 | srli a4, a4, 5
+fd6a 0ba13c23 c.sdsp s10, 184(sp) | sd s10, 184(sp)
+6ccc 0984b583 c.ld a1, 152(s1) | ld a1, 152(s1)
+6139 1c010113 c.addi16sp sp, 448 | addi sp, sp, 448
+677e 1d813703 c.ldsp a4, 472(sp) | ld a4, 472(sp)
+87bd 40f7d793 c.srai a5, 15 | srai a5, a5, 15
+9282 000280e7 c.jalr t0 | jalr ra, 0(t0)
+8edd 00f6e6b3 c.or a3, a5 | or a3, a3, a5
+0001 00000013 c.nop | addi zero, zero, 0
+e316 18513023 c.sdsp t0, 384(sp) | sd t0, 384(sp)
+d939 f4050be3 c.beqz a0, -170 | beq a0, zero, -170
+8ee9 00a6f6b3 c.and a3, a0 | and a3, a3, a0
+8e7d 00f67633 c.and a2, a5 | and a2, a2, a5
+9002 00100073 c.ebreak | ebreak
+74f6 17813483 c.ldsp s1, 376(sp) | ld s1, 376(sp)
+c441 08040463 c.beqz s0, 136 | beq s0, zero, 136
+8d05 40950533 c.sub a0, s1 | sub a0, a0, s1
+8219 00665613 c.srli a2, 6 | srli a2, a2, 6
+5c16 06412c03 c.lwsp s8, 100(sp) | lw s8, 100(sp)
+5eba 0ac12e83 c.lwsp t4, 172(sp) | lw t4, 172(sp)
+73fc 0e07b783 c.ld a5, 224(a5) | ld a5, 224(a5)
+0001 00000013 c.nop | addi zero, zero, 0
+0ae8 15c10513 c.addi4spn a0, sp, 348 | addi a0, sp, 348
+f8b0 06c4b823 c.sd a2, 112(s1) | sd a2, 112(s1)
+c484 0094a423 c.sw s1, 8(s1) | sw s1, 8(s1)
+9cb5 00d484bb c.addw s1, a3 | addw s1, s1, a3
+2441 0104041b c.addiw s0, 16 | addiw s0, s0, 16
+6ec4 0986b483 c.ld s1, 152(a3) | ld s1, 152(a3)
+0001 00000013 c.nop | addi zero, zero, 0
+7a6a 0b813a03 c.ldsp s4, 184(sp) | ld s4, 184(sp)
+9eb5 00d686bb c.addw a3, a3 | addw a3, a3, a3
+d468 06a42623 c.sw a0, 108(s0) | sw a0, 108(s0)
+62be 1c813283 c.ldsp t0, 456(sp) | ld t0, 456(sp)
+109a 02609093 c.slli ra, 38 | slli ra, ra, 38
+9002 00100073 c.ebreak | ebreak
+7169 ed010113 c.addi16sp sp, -304 | addi sp, sp, -304
+930d 02375713 c.srli a4, 35 | srli a4, a4, 35
+8f1d 40f70733 c.sub a4, a5 | sub a4, a4, a5
+1b0c 1b010593 c.addi4spn a1, sp, 432 | addi a1, sp, 432
+9cad 00b484bb c.addw s1, a1 | addw s1, s1, a1
+9402 000400e7 c.jalr s0 | jalr ra, 0(s0)
+9889 fe24f493 c.andi s1, -30 | andi s1, s1, -30
+9f05 4097073b c.subw a4, s1 | subw a4, a4, s1
+55aa 0a812583 c.lwsp a1, 168(sp) | lw a1, 168(sp)
+f232 12c13023 c.sdsp a2, 288(sp) | sd a2, 288(sp)
+8da5 0095c5b3 c.xor a1, s1 | xor a1, a1, s1
+9222 00820233 c.add tp, s0 | add tp, tp, s0
+b695 b65ff06f c.j -1180 | jal zero, -1180
+9002 00100073 c.ebreak | ebreak
+6524 04853483 c.ld s1, 72(a0) | ld s1, 72(a0)
+8582 00058067 c.jr a1 | jalr zero, 0(a1)
+88e5 0194f493 c.andi s1, 25 | andi s1, s1, 25
+c9b2 0cc12823 c.swsp a2, 208(sp) | sw a2, 208(sp)
+8c11 40c40433 c.sub s0, a2 | sub s0, s0, a2
+95c9 4325d593 c.srai a1, 50 | srai a1, a1, 50
+e67d 0e061763 c.bnez a2, 238 | bne a2, zero, 238
+9f02 000f00e7 c.jalr t5 | jalr ra, 0(t5)
+ef4a 19213c23 c.sdsp s2, 408(sp) | sd s2, 408(sp)
+8b09 00277713 c.andi a4, 2 | andi a4, a4, 2
+1974 0bc10693 c.addi4spn a3, sp, 188 | addi a3, sp, 188
+8982 00098067 c.jr s3 | jalr zero, 0(s3)
+8e81 408686b3 c.sub a3, s0 | sub a3, a3, s0
+5aac 0706a583 c.lw a1, 112(a3) | lw a1, 112(a3)
+6105 02010113 c.addi16sp sp, 32 | addi sp, sp, 32
+9f29 00a7073b c.addw a4, a0 | addw a4, a4, a0
+a1f5 4ec0006f c.j 1260 | jal zero, 1260
+feb4 06d6bc23 c.sd a3, 120(a3) | sd a3, 120(a3)
+8dc5 0095e5b3 c.or a1, s1 | or a1, a1, s1
+efa9 04079d63 c.bnez a5, 90 | bne a5, zero, 90
+9365 03975713 c.srli a4, 57 | srli a4, a4, 57
+5d4d ff300d13 c.li s10, -13 | addi s10, zero, -13
+d2ed fe0681e3 c.beqz a3, -30 | beq a3, zero, -30
+9d81 408585bb c.subw a1, s0 | subw a1, a1, s0
+c586 0c112423 c.swsp ra, 200(sp) | sw ra, 200(sp)
+7ec0 0b86b403 c.ld s0, 184(a3) | ld s0, 184(a3)
+1169 ffa10113 c.addi sp, -6 | addi sp, sp, -6
+808e 003000b3 c.mv ra, gp | add ra, zero, gp
+0b9d 007b8b93 c.addi s7, 7 | addi s7, s7, 7
+8e31 00c64633 c.xor a2, a2 | xor a2, a2, a2
+8c65 00947433 c.and s0, s1 | and s0, s0, s1
+9aed ffb6f693 c.andi a3, -5 | andi a3, a3, -5
+8f9d 40f787b3 c.sub a5, a5 | sub a5, a5, a5
+6b6d 0001bb37 c.lui s6, 27 | lui s6, 27
+8e6d 00b67633 c.and a2, a1 | and a2, a2, a1
+9c02 000c00e7 c.jalr s8 | jalr ra, 0(s8)
+9682 000680e7 c.jalr a3 | jalr ra, 0(a3)
+5a76 07c12a03 c.lwsp s4, 124(sp) | lw s4, 124(sp)
+1302 02031313 c.slli t1, 32 | slli t1, t1, 32
+efd1 08079e63 c.bnez a5, 156 | bne a5, zero, 156
+8999 0065f593 c.andi a1, 6 | andi a1, a1, 6
+8d02 000d0067 c.jr s10 | jalr zero, 0(s10)
+0020 00810413 c.addi4spn s0, sp, 8 | addi s0, sp, 8
+8d89 40a585b3 c.sub a1, a0 | sub a1, a1, a0
+9402 000400e7 c.jalr s0 | jalr ra, 0(s0)
+ef50 08c73c23 c.sd a2, 152(a4) | sd a2, 152(a4)
+9ea9 00a686bb c.addw a3, a0 | addw a3, a3, a0
+853d 40f55513 c.srai a0, 15 | srai a0, a0, 15
+8611 40465613 c.srai a2, 4 | srai a2, a2, 4
+9002 00100073 c.ebreak | ebreak
+8ced 00b4f4b3 c.and s1, a1 | and s1, s1, a1
+1bd4 1f410693 c.addi4spn a3, sp, 500 | addi a3, sp, 500
+f21a 12613023 c.sdsp t1, 288(sp) | sd t1, 288(sp)
+caa4 0496a823 c.sw s1, 80(a3) | sw s1, 80(a3)
+876e 01b00733 c.mv a4, s11 | add a4, zero, s11
+471a 08412703 c.lwsp a4, 132(sp) | lw a4, 132(sp)
+8f9d 40f787b3 c.sub a5, a5 | sub a5, a5, a5
+82f5 01d6d693 c.srli a3, 29 | srli a3, a3, 29
+17ce 03379793 c.slli a5, 51 | slli a5, a5, 51
+9382 000380e7 c.jalr t2 | jalr ra, 0(t2)
+fac4 0a96b823 c.sd s1, 176(a3) | sd s1, 176(a3)
+3ddd ff7d8d9b c.addiw s11, -9 | addiw s11, s11, -9
+98c6 011888b3 c.add a7, a7 | add a7, a7, a7
+9f2d 00b7073b c.addw a4, a1 | addw a4, a4, a1
+8415 40545413 c.srai s0, 5 | srai s0, s0, 5
+9fad 00b787bb c.addw a5, a1 | addw a5, a5, a1
+588e 0e012883 c.lwsp a7, 224(sp) | lw a7, 224(sp)
+852e 00b00533 c.mv a0, a1 | add a0, zero, a1
+69f0 0d05b603 c.ld a2, 208(a1) | ld a2, 208(a1)
+4a7d 01f00a13 c.li s4, 31 | addi s4, zero, 31
+a82d 03a0006f c.j 58 | jal zero, 58
+fc56 03513c23 c.sdsp s5, 56(sp) | sd s5, 56(sp)
+5501 fe000513 c.li a0, -32 | addi a0, zero, -32
+91e5 0395d593 c.srli a1, 57 | srli a1, a1, 57
+91e1 0385d593 c.srli a1, 56 | srli a1, a1, 56
+e039 04041363 c.bnez s0, 70 | bne s0, zero, 70
+bcb1 a5dff06f c.j -1444 | jal zero, -1444
+f6cc 0ab6b423 c.sd a1, 168(a3) | sd a1, 168(a3)
+6865 00019837 c.lui a6, 25 | lui a6, 25
+6aa8 0506b503 c.ld a0, 80(a3) | ld a0, 80(a3)
+cab1 04068a63 c.beqz a3, 84 | beq a3, zero, 84
+f18c 02b5b023 c.sd a1, 32(a1) | sd a1, 32(a1)
+4cfd 01f00c93 c.li s9, 31 | addi s9, zero, 31
+8dad 00b5c5b3 c.xor a1, a1 | xor a1, a1, a1
+b8f9 8dfff06f c.j -1826 | jal zero, -1826
+e192 0c413023 c.sdsp tp, 192(sp) | sd tp, 192(sp)
+6510 00853603 c.ld a2, 8(a0) | ld a2, 8(a0)
+9e3d 00f6063b c.addw a2, a5 | addw a2, a2, a5
+0001 00000013 c.nop | addi zero, zero, 0
+e2e2 15813023 c.sdsp s8, 320(sp) | sd s8, 320(sp)
+0bf1 01cb8b93 c.addi s7, 28 | addi s7, s7, 28
+9d21 0085053b c.addw a0, s0 | addw a0, a0, s0
+9002 00100073 c.ebreak | ebreak
+4496 04412483 c.lwsp s1, 68(sp) | lw s1, 68(sp)
+0001 00000013 c.nop | addi zero, zero, 0
+6d9d 00007db7 c.lui s11, 7 | lui s11, 7
+9e5e 017e0e33 c.add t3, s7 | add t3, t3, s7
+1434 22810693 c.addi4spn a3, sp, 552 | addi a3, sp, 552
+8b02 000b0067 c.jr s6 | jalr zero, 0(s6)
+7af0 0f06b603 c.ld a2, 240(a3) | ld a2, 240(a3)
+dd8c 02b5ac23 c.sw a1, 56(a1) | sw a1, 56(a1)
+e3ae 1cb13023 c.sdsp a1, 448(sp) | sd a1, 448(sp)
+0001 00000013 c.nop | addi zero, zero, 0
+2e7d 01fe0e1b c.addiw t3, 31 | addiw t3, t3, 31
+9e81 408686bb c.subw a3, s0 | subw a3, a3, s0
+bfd9 fd7ff06f c.j -42 | jal zero, -42
+9002 00100073 c.ebreak | ebreak
+8b75 01d77713 c.andi a4, 29 | andi a4, a4, 29
+7149 e9010113 c.addi16sp sp, -368 | addi sp, sp, -368
+8ff1 00c7f7b3 c.and a5, a2 | and a5, a5, a2
+1692 02469693 c.slli a3, 36 | slli a3, a3, 36
+9c8d 40b484bb c.subw s1, a1 | subw s1, s1, a1
+841d 40745413 c.srai s0, 7 | srai s0, s0, 7
+0001 00000013 c.nop | addi zero, zero, 0
+965e 01760633 c.add a2, s7 | add a2, a2, s7
+1731 fec70713 c.addi a4, -20 | addi a4, a4, -20
+0b66 019b1b13 c.slli s6, 25 | slli s6, s6, 25
+711d fa010113 c.addi16sp sp, -96 | addi sp, sp, -96
+9f09 40a7073b c.subw a4, a0 | subw a4, a4, a0
+695a 19013903 c.ldsp s2, 400(sp) | ld s2, 400(sp)
+8e19 40e60633 c.sub a2, a4 | sub a2, a2, a4
+9002 00100073 c.ebreak | ebreak
+0ba4 1d810493 c.addi4spn s1, sp, 472 | addi s1, sp, 472
+6165 07010113 c.addi16sp sp, 112 | addi sp, sp, 112
+8cb9 00e4c4b3 c.xor s1, a4 | xor s1, s1, a4
+8c99 40e484b3 c.sub s1, a4 | sub s1, s1, a4
+6135 16010113 c.addi16sp sp, 352 | addi sp, sp, 352
+049c 24010793 c.addi4spn a5, sp, 576 | addi a5, sp, 576
+4ca8 0584a503 c.lw a0, 88(s1) | lw a0, 88(s1)
+4796 04412783 c.lwsp a5, 68(sp) | lw a5, 68(sp)
+e5cc 08b5b423 c.sd a1, 136(a1) | sd a1, 136(a1)
+67cd 000137b7 c.lui a5, 19 | lui a5, 19
+17ac 3e810593 c.addi4spn a1, sp, 1000 | addi a1, sp, 1000
+65d9 000165b7 c.lui a1, 22 | lui a1, 22
+7755 ffff5737 c.lui a4, 1048565 | lui a4, 1048565
+7ab1 fffecab7 c.lui s5, 1048556 | lui s5, 1048556
+8ed5 00d6e6b3 c.or a3, a3 | or a3, a3, a3
+67dd 000177b7 c.lui a5, 23 | lui a5, 23
+9111 02455513 c.srli a0, 36 | srli a0, a0, 36
+8685 4016d693 c.srai a3, 1 | srai a3, a3, 1
+f75d fa0717e3 c.bnez a4, -82 | bne a4, zero, -82
+9cc2 010c8cb3 c.add s9, a6 | add s9, s9, a6
+0001 00000013 c.nop | addi zero, zero, 0
+e7f9 0c079763 c.bnez a5, 206 | bne a5, zero, 206
+5998 0305a703 c.lw a4, 48(a1) | lw a4, 48(a1)
+ff28 06a73c23 c.sd a0, 120(a4) | sd a0, 120(a4)
+9002 00100073 c.ebreak | ebreak
+5d56 07412d03 c.lwsp s10, 116(sp) | lw s10, 116(sp)
+9d02 000d00e7 c.jalr s10 | jalr ra, 0(s10)
+0001 00000013 c.nop | addi zero, zero, 0
+0700 38010413 c.addi4spn s0, sp, 896 | addi s0, sp, 896
+9069 03a45413 c.srli s0, 58 | srli s0, s0, 58
+8f59 00e76733 c.or a4, a4 | or a4, a4, a4
+9ca5 009484bb c.addw s1, s1 | addw s1, s1, s1
+8b82 000b8067 c.jr s7 | jalr zero, 0(s7)
+98a9 fea4f493 c.andi s1, -22 | andi s1, s1, -22
+803d 00f45413 c.srli s0, 15 | srli s0, s0, 15
+8d25 00954533 c.xor a0, s1 | xor a0, a0, s1
+932d 02b75713 c.srli a4, 43 | srli a4, a4, 43
+f510 02c53423 c.sd a2, 40(a0) | sd a2, 40(a0)
+8e9d 40f686b3 c.sub a3, a5 | sub a3, a3, a5
+ebe9 0c079963 c.bnez a5, 210 | bne a5, zero, 210
+795a 1b013903 c.ldsp s2, 432(sp) | ld s2, 432(sp)
+9002 00100073 c.ebreak | ebreak
+9a25 fe967613 c.andi a2, -23 | andi a2, a2, -23
+8e45 00966633 c.or a2, s1 | or a2, a2, s1
+819d 0075d593 c.srli a1, 7 | srli a1, a1, 7
+7f0a 0a013f03 c.ldsp t5, 160(sp) | ld t5, 160(sp)
+0c19 006c0c13 c.addi s8, 6 | addi s8, s8, 6
+8971 01c57513 c.andi a0, 28 | andi a0, a0, 28
+51ac 0605a583 c.lw a1, 96(a1) | lw a1, 96(a1)
+68ea 09813883 c.ldsp a7, 152(sp) | ld a7, 152(sp)
+9002 00100073 c.ebreak | ebreak
+e78e 1c313423 c.sdsp gp, 456(sp) | sd gp, 456(sp)
+9f02 000f00e7 c.jalr t5 | jalr ra, 0(t5)
+8b02 000b0067 c.jr s6 | jalr zero, 0(s6)
+d334 06d72023 c.sw a3, 96(a4) | sw a3, 96(a4)
+6119 18010113 c.addi16sp sp, 384 | addi sp, sp, 384
+9682 000680e7 c.jalr a3 | jalr ra, 0(a3)
+435e 0d412303 c.lwsp t1, 212(sp) | lw t1, 212(sp)
+8cd1 00c4e4b3 c.or s1, a2 | or s1, s1, a2
+e56c 0cb53423 c.sd a1, 200(a0) | sd a1, 200(a0)
+b091 845ff06f c.j -1980 | jal zero, -1980
+8ea1 0086c6b3 c.xor a3, s0 | xor a3, a3, s0
+e74c 08b73423 c.sd a1, 136(a4) | sd a1, 136(a4)
+d26a 03a12223 c.swsp s10, 36(sp) | sw s10, 36(sp)
+dfed fe078de3 c.beqz a5, -6 | beq a5, zero, -6
+71cc 0a05b583 c.ld a1, 160(a1) | ld a1, 160(a1)
+9002 00100073 c.ebreak | ebreak
+10a9 fea08093 c.addi ra, -22 | addi ra, ra, -22
+90f9 03e4d493 c.srli s1, 62 | srli s1, s1, 62
+d0c9 f80481e3 c.beqz s1, -126 | beq s1, zero, -126
+7e7e 1f813e03 c.ldsp t3, 504(sp) | ld t3, 504(sp)
+38b9 fee8889b c.addiw a7, -18 | addiw a7, a7, -18
+437c 04472783 c.lw a5, 68(a4) | lw a5, 68(a4)
+9f1d 40f7073b c.subw a4, a5 | subw a4, a4, a5
+562d feb00613 c.li a2, -21 | addi a2, zero, -21
+408e 0c012083 c.lwsp ra, 192(sp) | lw ra, 192(sp)
+eee6 15913c23 c.sdsp s9, 344(sp) | sd s9, 344(sp)
+9c91 40c484bb c.subw s1, a2 | subw s1, s1, a2
+6b91 00004bb7 c.lui s7, 4 | lui s7, 4
+cf38 04e72c23 c.sw a4, 88(a4) | sw a4, 88(a4)
+0a35 00da0a13 c.addi s4, 13 | addi s4, s4, 13
+0a34 11810693 c.addi4spn a3, sp, 280 | addi a3, sp, 280
+9282 000280e7 c.jalr t0 | jalr ra, 0(t0)
+fc72 03c13c23 c.sdsp t3, 56(sp) | sd t3, 56(sp)
+96c6 011686b3 c.add a3, a7 | add a3, a3, a7
+4b92 00412b83 c.lwsp s7, 4(sp) | lw s7, 4(sp)
+9f9d 40f787bb c.subw a5, a5 | subw a5, a5, a5
+8162 01800133 c.mv sp, s8 | add sp, zero, s8
+6949 00012937 c.lui s2, 18 | lui s2, 18
+1325 fe930313 c.addi t1, -23 | addi t1, t1, -23
+ffb4 06d7bc23 c.sd a3, 120(a5) | sd a3, 120(a5)
+c5e1 0c058463 c.beqz a1, 200 | beq a1, zero, 200
+42ac 0406a583 c.lw a1, 64(a3) | lw a1, 64(a3)
+5669 ffa00613 c.li a2, -6 | addi a2, zero, -6
+8e05 40960633 c.sub a2, s1 | sub a2, a2, s1
+fa14 02d63823 c.sd a3, 48(a2) | sd a3, 48(a2)
+9382 000380e7 c.jalr t2 | jalr ra, 0(t2)
+239d 0073839b c.addiw t2, 7 | addiw t2, t2, 7
+9201 02065613 c.srli a2, 32 | srli a2, a2, 32
+5511 fe400513 c.li a0, -28 | addi a0, zero, -28
+8411 40445413 c.srai s0, 4 | srai s0, s0, 4
+cf22 08812e23 c.swsp s0, 156(sp) | sw s0, 156(sp)
+ed84 0095bc23 c.sd s1, 24(a1) | sd s1, 24(a1)
+8ffa 01e00fb3 c.mv t6, t5 | add t6, zero, t5
+87e2 018007b3 c.mv a5, s8 | add a5, zero, s8
+936d 03b75713 c.srli a4, 59 | srli a4, a4, 59
+392d feb9091b c.addiw s2, -21 | addiw s2, s2, -21
+8ef9 00e6f6b3 c.and a3, a4 | and a3, a3, a4
+400c 00042583 c.lw a1, 0(s0) | lw a1, 0(s0)
+f3d5 fa0792e3 c.bnez a5, -92 | bne a5, zero, -92
+0001 00000013 c.nop | addi zero, zero, 0
+1621 fe860613 c.addi a2, -24 | addi a2, a2, -24
+68bc 0504b783 c.ld a5, 80(s1) | ld a5, 80(s1)
+469c 0086a783 c.lw a5, 8(a3) | lw a5, 8(a3)
+f135 f60512e3 c.bnez a0, -156 | bne a0, zero, -156
+8649 41265613 c.srai a2, 18 | srai a2, a2, 18
+7125 e6010113 c.addi16sp sp, -416 | addi sp, sp, -416
+ce0e 00312e23 c.swsp gp, 28(sp) | sw gp, 28(sp)
+9002 00100073 c.ebreak | ebreak
+0001 00000013 c.nop | addi zero, zero, 0
+dd82 0e012c23 c.swsp zero, 248(sp) | sw zero, 248(sp)
+7675 ffffd637 c.lui a2, 1048573 | lui a2, 1048573
+8f29 00a74733 c.xor a4, a0 | xor a4, a4, a0
+8982 00098067 c.jr s3 | jalr zero, 0(s3)
+457d 01f00513 c.li a0, 31 | addi a0, zero, 31
+cdf0 04c5ae23 c.sw a2, 92(a1) | sw a2, 92(a1)
+8d05 40950533 c.sub a0, s1 | sub a0, a0, s1
+0084 04010493 c.addi4spn s1, sp, 64 | addi s1, sp, 64
+9861 ff847413 c.andi s0, -8 | andi s0, s0, -8
+90de 017080b3 c.add ra, s7 | add ra, ra, s7
+896d 01b57513 c.andi a0, 27 | andi a0, a0, 27
+523a 0ac12203 c.lwsp tp, 172(sp) | lw tp, 172(sp)
+7179 fd010113 c.addi16sp sp, -48 | addi sp, sp, -48
+9ca9 00a484bb c.addw s1, a0 | addw s1, s1, a0
+9c15 40d4043b c.subw s0, a3 | subw s0, s0, a3
+9e42 010e0e33 c.add t3, a6 | add t3, t3, a6
+9682 000680e7 c.jalr a3 | jalr ra, 0(a3)
+8721 40875713 c.srai a4, 8 | srai a4, a4, 8
+7e66 07813e03 c.ldsp t3, 120(sp) | ld t3, 120(sp)
+9c25 0094043b c.addw s0, s1 | addw s0, s0, s1
+9dbd 00f585bb c.addw a1, a5 | addw a1, a1, a5
+cedd 0a068f63 c.beqz a3, 190 | beq a3, zero, 190
+9982 000980e7 c.jalr s3 | jalr ra, 0(s3)
+9a6d ffb67613 c.andi a2, -5 | andi a2, a2, -5
+8f4d 00b76733 c.or a4, a1 | or a4, a4, a1
+9002 00100073 c.ebreak | ebreak
+f72c 06b73423 c.sd a1, 104(a4) | sd a1, 104(a4)
+ca98 00e6a823 c.sw a4, 16(a3) | sw a4, 16(a3)
+8865 01947413 c.andi s0, 25 | andi s0, s0, 25
+3d25 fe9d0d1b c.addiw s10, -23 | addiw s10, s10, -23
+37c5 ff17879b c.addiw a5, -15 | addiw a5, a5, -15
+8361 01875713 c.srli a4, 24 | srli a4, a4, 24
+6246 05013203 c.ldsp tp, 80(sp) | ld tp, 80(sp)
+12f1 ffc28293 c.addi t0, -4 | addi t0, t0, -4
+586d ffb00813 c.li a6, -5 | addi a6, zero, -5
+3721 fe87071b c.addiw a4, -24 | addiw a4, a4, -24
+99f5 ffd5f593 c.andi a1, -3 | andi a1, a1, -3
+4a1c 01062783 c.lw a5, 16(a2) | lw a5, 16(a2)
+9002 00100073 c.ebreak | ebreak
+d83a 02e12823 c.swsp a4, 48(sp) | sw a4, 48(sp)
+2bb5 00db8b9b c.addiw s7, 13 | addiw s7, s7, 13
+710d ea010113 c.addi16sp sp, -352 | addi sp, sp, -352
+9e9d 40f686bb c.subw a3, a5 | subw a3, a3, a5
+6845 00011837 c.lui a6, 17 | lui a6, 17
+9ea9 00a686bb c.addw a3, a0 | addw a3, a3, a0
+8be6 01900bb3 c.mv s7, s9 | add s7, zero, s9
+f51a 0a613423 c.sdsp t1, 168(sp) | sd t1, 168(sp)
+887d 01f47413 c.andi s0, 31 | andi s0, s0, 31
+9002 00100073 c.ebreak | ebreak
+d5a8 06a5a423 c.sw a0, 104(a1) | sw a0, 104(a1)
+8c71 00c47433 c.and s0, a2 | and s0, s0, a2
+8b4e 01300b33 c.mv s6, s3 | add s6, zero, s3
+0001 00000013 c.nop | addi zero, zero, 0
+632c 04073583 c.ld a1, 64(a4) | ld a1, 64(a4)
+9f99 40e787bb c.subw a5, a4 | subw a5, a5, a4
+fc26 02913c23 c.sdsp s1, 56(sp) | sd s1, 56(sp)
+dd29 f4050de3 c.beqz a0, -166 | beq a0, zero, -166
+96bd 42f6d693 c.srai a3, 47 | srai a3, a3, 47
+8ed9 00e6e6b3 c.or a3, a4 | or a3, a3, a4
+7929 fffea937 c.lui s2, 1048554 | lui s2, 1048554
+9b2d feb77713 c.andi a4, -21 | andi a4, a4, -21
+7161 e5010113 c.addi16sp sp, -432 | addi sp, sp, -432
+8ff9 00e7f7b3 c.and a5, a4 | and a5, a5, a4
+4114 00052683 c.lw a3, 0(a0) | lw a3, 0(a0)
+7a56 17013a03 c.ldsp s4, 368(sp) | ld s4, 368(sp)
+8e7d 00f67633 c.and a2, a5 | and a2, a2, a5
+0001 00000013 c.nop | addi zero, zero, 0
+742a 0a813403 c.ldsp s0, 168(sp) | ld s0, 168(sp)
+f0e8 0ea4b023 c.sd a0, 224(s1) | sd a0, 224(s1)
+7105 e2010113 c.addi16sp sp, -480 | addi sp, sp, -480
+590a 0a012903 c.lwsp s2, 160(sp) | lw s2, 160(sp)
+f26d fe0611e3 c.bnez a2, -30 | bne a2, zero, -30
+b35d da7ff06f c.j -602 | jal zero, -602
+d4e0 0684a623 c.sw s0, 108(s1) | sw s0, 108(s1)
+e4c2 05013423 c.sdsp a6, 72(sp) | sd a6, 72(sp)
+8e91 40c686b3 c.sub a3, a2 | sub a3, a3, a2
+650c 00853583 c.ld a1, 8(a0) | ld a1, 8(a0)
+f772 1bc13423 c.sdsp t3, 424(sp) | sd t3, 424(sp)
+4839 00e00813 c.li a6, 14 | addi a6, zero, 14
+8eb9 00e6c6b3 c.xor a3, a4 | xor a3, a3, a4
+18dd ff788893 c.addi a7, -9 | addi a7, a7, -9
+7678 0e863703 c.ld a4, 232(a2) | ld a4, 232(a2)
+8329 00a75713 c.srli a4, 10 | srli a4, a4, 10
+4362 01812303 c.lwsp t1, 24(sp) | lw t1, 24(sp)
+cb38 04e72823 c.sw a4, 80(a4) | sw a4, 80(a4)
+8c01 40840433 c.sub s0, s0 | sub s0, s0, s0
+89dd 0175f593 c.andi a1, 23 | andi a1, a1, 23
+fc14 02d43c23 c.sd a3, 56(s0) | sd a3, 56(s0)
+df66 0b912e23 c.swsp s9, 188(sp) | sw s9, 188(sp)
+5c2c 07842583 c.lw a1, 120(s0) | lw a1, 120(s0)
+8c11 40c40433 c.sub s0, a2 | sub s0, s0, a2
+9882 000880e7 c.jalr a7 | jalr ra, 0(a7)
+71da 1b013183 c.ldsp gp, 432(sp) | ld gp, 432(sp)
+9f29 00a7073b c.addw a4, a0 | addw a4, a4, a0
+f231 f40612e3 c.bnez a2, -188 | bne a2, zero, -188
+4ab5 00d00a93 c.li s5, 13 | addi s5, zero, 13
+661e 1c013603 c.ldsp a2, 448(sp) | ld a2, 448(sp)
+7450 0a843603 c.ld a2, 168(s0) | ld a2, 168(s0)
+57f9 ffe00793 c.li a5, -2 | addi a5, zero, -2
+7c2d fffebc37 c.lui s8, 1048555 | lui s8, 1048555
+9bc9 ff27f793 c.andi a5, -14 | andi a5, a5, -14
+79a4 0705b483 c.ld s1, 112(a1) | ld s1, 112(a1)
+8ec5 0096e6b3 c.or a3, s1 | or a3, a3, s1
+9e85 409686bb c.subw a3, s1 | subw a3, a3, s1
+c015 02040263 c.beqz s0, 36 | beq s0, zero, 36
+5cc0 03c4a403 c.lw s0, 60(s1) | lw s0, 60(s1)
+cfb0 04c7ac23 c.sw a2, 88(a5) | sw a2, 88(a5)
+2301 0003031b c.addiw t1, 0 | addiw t1, t1, 0
+742c 06843583 c.ld a1, 104(s0) | ld a1, 104(s0)
+9d85 409585bb c.subw a1, s1 | subw a1, a1, s1
+6161 05010113 c.addi16sp sp, 80 | addi sp, sp, 80
+e49a 04613423 c.sdsp t1, 72(sp) | sd t1, 72(sp)
+fa9e 16713823 c.sdsp t2, 368(sp) | sd t2, 368(sp)
+df9c 02f7ac23 c.sw a5, 56(a5) | sw a5, 56(a5)
+12cc 16410593 c.addi4spn a1, sp, 356 | addi a1, sp, 356
+9002 00100073 c.ebreak | ebreak
+6141 01010113 c.addi16sp sp, 16 | addi sp, sp, 16
+8902 00090067 c.jr s2 | jalr zero, 0(s2)
+8f35 00d74733 c.xor a4, a3 | xor a4, a4, a3
+85f5 41d5d593 c.srai a1, 29 | srai a1, a1, 29
+9002 00100073 c.ebreak | ebreak
+8b09 00277713 c.andi a4, 2 | andi a4, a4, 2
+4595 00500593 c.li a1, 5 | addi a1, zero, 5
+666a 09813603 c.ldsp a2, 152(sp) | ld a2, 152(sp)
+73e6 07813383 c.ldsp t2, 120(sp) | ld t2, 120(sp)
+0f7e 01ff1f13 c.slli t5, 31 | slli t5, t5, 31
+9702 000700e7 c.jalr a4 | jalr ra, 0(a4)
+9002 00100073 c.ebreak | ebreak
+5301 fe000313 c.li t1, -32 | addi t1, zero, -32
+7789 fffe27b7 c.lui a5, 1048546 | lui a5, 1048546
+799e 1e013983 c.ldsp s3, 480(sp) | ld s3, 480(sp)
+e10c 00b53023 c.sd a1, 0(a0) | sd a1, 0(a0)
+6974 0d053683 c.ld a3, 208(a0) | ld a3, 208(a0)
+9f02 000f00e7 c.jalr t5 | jalr ra, 0(t5)
+3795 fe57879b c.addiw a5, -27 | addiw a5, a5, -27
+8f21 00874733 c.xor a4, s0 | xor a4, a4, s0
+d2b9 f40683e3 c.beqz a3, -186 | beq a3, zero, -186
+9b2d feb77713 c.andi a4, -21 | andi a4, a4, -21
+8921 00857513 c.andi a0, 8 | andi a0, a0, 8
+8c8d 40b484b3 c.sub s1, a1 | sub s1, s1, a1
+9895 fe54f493 c.andi s1, -27 | andi s1, s1, -27
+db81 f00788e3 c.beqz a5, -240 | beq a5, zero, -240
+9cbd 00f484bb c.addw s1, a5 | addw s1, s1, a5
+e92c 04b53823 c.sd a1, 80(a0) | sd a1, 80(a0)
+8ef5 00d6f6b3 c.and a3, a3 | and a3, a3, a3
+8d05 40950533 c.sub a0, s1 | sub a0, a0, s1
+6141 01010113 c.addi16sp sp, 16 | addi sp, sp, 16
+79f8 0f05b703 c.ld a4, 240(a1) | ld a4, 240(a1)
+1d01 fe0d0d13 c.addi s10, -32 | addi s10, s10, -32
+91d1 0345d593 c.srli a1, 52 | srli a1, a1, 52
+2d25 009d0d1b c.addiw s10, 9 | addiw s10, s10, 9
+f591 f00596e3 c.bnez a1, -244 | bne a1, zero, -244
+8c25 00944433 c.xor s0, s1 | xor s0, s0, s1
+9c85 409484bb c.subw s1, s1 | subw s1, s1, s1
+9a82 000a80e7 c.jalr s5 | jalr ra, 0(s5)
+7e3c 07863783 c.ld a5, 120(a2) | ld a5, 120(a2)
+9302 000300e7 c.jalr t1 | jalr ra, 0(t1)
+13d0 1e410613 c.addi4spn a2, sp, 484 | addi a2, sp, 484
+9ea1 008686bb c.addw a3, s0 | addw a3, a3, s0
+9171 03c55513 c.srli a0, 60 | srli a0, a0, 60
+9002 00100073 c.ebreak | ebreak
+fc22 02813c23 c.sdsp s0, 56(sp) | sd s0, 56(sp)
+9f19 40e7073b c.subw a4, a4 | subw a4, a4, a4
+0b15 005b0b13 c.addi s6, 5 | addi s6, s6, 5
+6c7e 1d813c03 c.ldsp s8, 472(sp) | ld s8, 472(sp)
+7612 12013603 c.ldsp a2, 288(sp) | ld a2, 288(sp)
+5496 06412483 c.lwsp s1, 100(sp) | lw s1, 100(sp)
+8f29 00a74733 c.xor a4, a0 | xor a4, a4, a0
+9c1d 40f4043b c.subw s0, a5 | subw s0, s0, a5
+8205 00165613 c.srli a2, 1 | srli a2, a2, 1
+7982 02013983 c.ldsp s3, 32(sp) | ld s3, 32(sp)
+7111 f0010113 c.addi16sp sp, -256 | addi sp, sp, -256
+e91e 08713823 c.sdsp t2, 144(sp) | sd t2, 144(sp)
+fc28 06a43c23 c.sd a0, 120(s0) | sd a0, 120(s0)
+78fe 1f813883 c.ldsp a7, 504(sp) | ld a7, 504(sp)
+fde8 0ea5bc23 c.sd a0, 248(a1) | sd a0, 248(a1)
+8c59 00e46433 c.or s0, a4 | or s0, s0, a4
+8ead 00b6c6b3 c.xor a3, a1 | xor a3, a3, a1
+7169 ed010113 c.addi16sp sp, -304 | addi sp, sp, -304
+4158 00452703 c.lw a4, 4(a0) | lw a4, 4(a0)
+810a 00200133 c.mv sp, sp | add sp, zero, sp
+85a1 4085d593 c.srai a1, 8 | srai a1, a1, 8
+9002 00100073 c.ebreak | ebreak
+0001 00000013 c.nop | addi zero, zero, 0
+8cb9 00e4c4b3 c.xor s1, a4 | xor s1, s1, a4
+612d 0e010113 c.addi16sp sp, 224 | addi sp, sp, 224
+9202 000200e7 c.jalr tp | jalr ra, 0(tp)
+9082 000080e7 c.jalr ra | jalr ra, 0(ra)
+8fc9 00a7e7b3 c.or a5, a0 | or a5, a5, a0
+d162 0b812023 c.swsp s8, 160(sp) | sw s8, 160(sp)
+8d45 00956533 c.or a0, s1 | or a0, a0, s1
+098e 00399993 c.slli s3, 3 | slli s3, s3, 3
+8ef5 00d6f6b3 c.and a3, a3 | and a3, a3, a3
+1a6d ffba0a13 c.addi s4, -5 | addi s4, s4, -5
+07aa 00a79793 c.slli a5, 10 | slli a5, a5, 10
+0001 00000013 c.nop | addi zero, zero, 0
+9002 00100073 c.ebreak | ebreak
+9055 03545413 c.srli s0, 53 | srli s0, s0, 53
+d4a1 f40484e3 c.beqz s1, -184 | beq s1, zero, -184
+b74d fa3ff06f c.j -94 | jal zero, -94
+c7cc 00b7a623 c.sw a1, 12(a5) | sw a1, 12(a5)
+9002 00100073 c.ebreak | ebreak
+53f8 0647a703 c.lw a4, 100(a5) | lw a4, 100(a5)
+cbde 0d712a23 c.swsp s7, 212(sp) | sw s7, 212(sp)
+4a92 00412a83 c.lwsp s5, 4(sp) | lw s5, 4(sp)
+8f91 40c787b3 c.sub a5, a2 | sub a5, a5, a2
+8db9 00e5c5b3 c.xor a1, a4 | xor a1, a1, a4
+4cd9 01600c93 c.li s9, 22 | addi s9, zero, 22
+f064 0e943023 c.sd s1, 224(s0) | sd s1, 224(s0)
+f3f5 fe0792e3 c.bnez a5, -28 | bne a5, zero, -28
+6c0e 0c013c03 c.ldsp s8, 192(sp) | ld s8, 192(sp)
+a5c5 6e00006f c.j 1760 | jal zero, 1760
+8d15 40d50533 c.sub a0, a3 | sub a0, a0, a3
+3395 fe53839b c.addiw t2, -27 | addiw t2, t2, -27
+fbc2 1f013823 c.sdsp a6, 496(sp) | sd a6, 496(sp)
+8d39 00e54533 c.xor a0, a4 | xor a0, a0, a4
+1a4d ff3a0a13 c.addi s4, -13 | addi s4, s4, -13
+4c11 00400c13 c.li s8, 4 | addi s8, zero, 4
+9919 fe657513 c.andi a0, -26 | andi a0, a0, -26
+f0f4 0ed4b023 c.sd a3, 224(s1) | sd a3, 224(s1)
+0001 00000013 c.nop | addi zero, zero, 0
+fd22 0a813c23 c.sdsp s0, 184(sp) | sd s0, 184(sp)
+6fed 0001bfb7 c.lui t6, 27 | lui t6, 27
+8fa1 0087c7b3 c.xor a5, s0 | xor a5, a5, s0
+5fc4 03c7a483 c.lw s1, 60(a5) | lw s1, 60(a5)
+83e2 018003b3 c.mv t2, s8 | add t2, zero, s8
+8c0d 40b40433 c.sub s0, a1 | sub s0, s0, a1
+1e6e 03be1e13 c.slli t3, 59 | slli t3, t3, 59
+0001 00000013 c.nop | addi zero, zero, 0
+8d79 00e57533 c.and a0, a4 | and a0, a0, a4
+8f7d 00f77733 c.and a4, a5 | and a4, a4, a5
+bd0d e33ff06f c.j -462 | jal zero, -462
+1a10 13010613 c.addi4spn a2, sp, 304 | addi a2, sp, 304
+8be1 0187f793 c.andi a5, 24 | andi a5, a5, 24
+629c 0006b783 c.ld a5, 0(a3) | ld a5, 0(a3)
+574d ff300713 c.li a4, -13 | addi a4, zero, -13
+9f25 0097073b c.addw a4, s1 | addw a4, a4, s1
+10b8 06810713 c.addi4spn a4, sp, 104 | addi a4, sp, 104
+9c19 40e4043b c.subw s0, a4 | subw s0, s0, a4
+6169 0d010113 c.addi16sp sp, 208 | addi sp, sp, 208
+7141 e1010113 c.addi16sp sp, -496 | addi sp, sp, -496
+0001 00000013 c.nop | addi zero, zero, 0
+cc11 00040e63 c.beqz s0, 28 | beq s0, zero, 28
+9c39 00e4043b c.addw s0, a4 | addw s0, s0, a4
+fefd fe069fe3 c.bnez a3, -2 | bne a3, zero, -2
+415c 00452783 c.lw a5, 4(a0) | lw a5, 4(a0)
+e6a9 04069563 c.bnez a3, 74 | bne a3, zero, 74
+7aa9 fffeaab7 c.lui s5, 1048554 | lui s5, 1048554
+82e9 01a6d693 c.srli a3, 26 | srli a3, a3, 26
+8d0d 40b50533 c.sub a0, a1 | sub a0, a0, a1
+696d 0001b937 c.lui s2, 27 | lui s2, 27
+6971 0001c937 c.lui s2, 28 | lui s2, 28
+cd70 04c52e23 c.sw a2, 92(a0) | sw a2, 92(a0)
+4e95 00500e93 c.li t4, 5 | addi t4, zero, 5
+94f9 43e4d493 c.srai s1, 62 | srai s1, s1, 62
+e1e2 0d813023 c.sdsp s8, 192(sp) | sd s8, 192(sp)
+8e7d 00f67633 c.and a2, a5 | and a2, a2, a5
+7dad fffebdb7 c.lui s11, 1048555 | lui s11, 1048555
+91d9 0365d593 c.srli a1, 54 | srli a1, a1, 54
+5d7d fff00d13 c.li s10, -1 | addi s10, zero, -1
+8e1d 40f60633 c.sub a2, a5 | sub a2, a2, a5
+6acd 00013ab7 c.lui s5, 19 | lui s5, 19
+983e 00f80833 c.add a6, a5 | add a6, a6, a5
+c574 04d52623 c.sw a3, 76(a0) | sw a3, 76(a0)
+4339 00e00313 c.li t1, 14 | addi t1, zero, 14
+98bd fef4f493 c.andi s1, -17 | andi s1, s1, -17
+8a6a 01a00a33 c.mv s4, s10 | add s4, zero, s10
+7ae9 ffffaab7 c.lui s5, 1048570 | lui s5, 1048570
+24c5 0114849b c.addiw s1, 17 | addiw s1, s1, 17
+08ec 05c10593 c.addi4spn a1, sp, 92 | addi a1, sp, 92
+4134 04052683 c.lw a3, 64(a0) | lw a3, 64(a0)
+9d81 408585bb c.subw a1, s0 | subw a1, a1, s0
+5020 06042403 c.lw s0, 96(s0) | lw s0, 96(s0)
+9129 02a55513 c.srli a0, 42 | srli a0, a0, 42
+5d36 06c12d03 c.lwsp s10, 108(sp) | lw s10, 108(sp)
+b671 b8dff06f c.j -1140 | jal zero, -1140
+8eb9 00e6c6b3 c.xor a3, a4 | xor a3, a3, a4
+9025 02945413 c.srli s0, 41 | srli s0, s0, 41
+8b05 00177713 c.andi a4, 1 | andi a4, a4, 1
+d72c 06b72423 c.sw a1, 104(a4) | sw a1, 104(a4)
+8bed 01b7f793 c.andi a5, 27 | andi a5, a5, 27
+5351 ff400313 c.li t1, -12 | addi t1, zero, -12
+e12c 04b53023 c.sd a1, 64(a0) | sd a1, 64(a0)
+1566 03951513 c.slli a0, 57 | slli a0, a0, 57
+9f82 000f80e7 c.jalr t6 | jalr ra, 0(t6)
+2d8d 003d8d9b c.addiw s11, 3 | addiw s11, s11, 3
+8e82 000e8067 c.jr t4 | jalr zero, 0(t4)
+c34e 09312223 c.swsp s3, 132(sp) | sw s3, 132(sp)
+8f89 40a787b3 c.sub a5, a0 | sub a5, a5, a0
+87b9 40e7d793 c.srai a5, 14 | srai a5, a5, 14
+e85e 01713823 c.sdsp s7, 16(sp) | sd s7, 16(sp)
+b825 839ff06f c.j -1992 | jal zero, -1992
+dd8c 02b5ac23 c.sw a1, 56(a1) | sw a1, 56(a1)
+73be 1e813383 c.ldsp t2, 488(sp) | ld t2, 488(sp)
+9902 000900e7 c.jalr s2 | jalr ra, 0(s2)
+9721 42875713 c.srai a4, 40 | srai a4, a4, 40
+8d8e 00300db3 c.mv s11, gp | add s11, zero, gp
+8c6d 00b47433 c.and s0, a1 | and s0, s0, a1
+9631 42c65613 c.srai a2, 44 | srai a2, a2, 44
+82a5 0096d693 c.srli a3, 9 | srli a3, a3, 9
+9dae 00bd8db3 c.add s11, a1 | add s11, s11, a1
+753a 1a813503 c.ldsp a0, 424(sp) | ld a0, 424(sp)
+51b1 fec00193 c.li gp, -20 | addi gp, zero, -20
+8ae1 0186f693 c.andi a3, 24 | andi a3, a3, 24
+8fa1 0087c7b3 c.xor a5, s0 | xor a5, a5, s0
+dacd fa0689e3 c.beqz a3, -78 | beq a3, zero, -78
+7e95 fffe5eb7 c.lui t4, 1048549 | lui t4, 1048549
+9582 000580e7 c.jalr a1 | jalr ra, 0(a1)
+9cb5 00d484bb c.addw s1, a3 | addw s1, s1, a3
+8582 00058067 c.jr a1 | jalr zero, 0(a1)
+9a2d feb67613 c.andi a2, -21 | andi a2, a2, -21
+ffa1 f4079ce3 c.bnez a5, -168 | bne a5, zero, -168
+89c1 0105f593 c.andi a1, 16 | andi a1, a1, 16
+710d ea010113 c.addi16sp sp, -352 | addi sp, sp, -352
+8f1d 40f70733 c.sub a4, a5 | sub a4, a4, a5
+9b22 008b0b33 c.add s6, s0 | add s6, s6, s0
+a445 2a00006f c.j 672 | jal zero, 672
+8b51 01477713 c.andi a4, 20 | andi a4, a4, 20
+4c8e 0c012c83 c.lwsp s9, 192(sp) | lw s9, 192(sp)
+0001 00000013 c.nop | addi zero, zero, 0
+0001 00000013 c.nop | addi zero, zero, 0
+f685 f20694e3 c.bnez a3, -216 | bne a3, zero, -216
+1724 3a810493 c.addi4spn s1, sp, 936 | addi s1, sp, 936
+29b9 00e9899b c.addiw s3, 14 | addiw s3, s3, 14
+c2c8 00a6a223 c.sw a0, 4(a3) | sw a0, 4(a3)
+7151 f1010113 c.addi16sp sp, -240 | addi sp, sp, -240
+9f2a 00af0f33 c.add t5, a0 | add t5, t5, a0
+85a5 4095d593 c.srai a1, 9 | srai a1, a1, 9
+9acd ff36f693 c.andi a3, -13 | andi a3, a3, -13
+01b0 0c810613 c.addi4spn a2, sp, 200 | addi a2, sp, 200
+9b29 fea77713 c.andi a4, -22 | andi a4, a4, -22
+4822 00812803 c.lwsp a6, 8(sp) | lw a6, 8(sp)
+6d65 00019d37 c.lui s10, 25 | lui s10, 25
+8e81 408686b3 c.sub a3, s0 | sub a3, a3, s0
+40b0 0404a603 c.lw a2, 64(s1) | lw a2, 64(s1)
+9fa9 00a787bb c.addw a5, a0 | addw a5, a5, a0
+9fc6 011f8fb3 c.add t6, a7 | add t6, t6, a7
+7f8c 0387b583 c.ld a1, 56(a5) | ld a1, 56(a5)
+5162 03812103 c.lwsp sp, 56(sp) | lw sp, 56(sp)
+c1a4 0495a023 c.sw s1, 64(a1) | sw s1, 64(a1)
+68d4 0904b683 c.ld a3, 144(s1) | ld a3, 144(s1)
+709a 1a013083 c.ldsp ra, 416(sp) | ld ra, 416(sp)
+c1c6 0d112023 c.swsp a7, 192(sp) | sw a7, 192(sp)
+0271 01c20213 c.addi tp, 28 | addi tp, tp, 28
+8f09 40a70733 c.sub a4, a0 | sub a4, a4, a0
+8d51 00c56533 c.or a0, a2 | or a0, a0, a2
+84f9 41e4d493 c.srai s1, 30 | srai s1, s1, 30
+fef9 fc069fe3 c.bnez a3, -34 | bne a3, zero, -34
+8c21 00844433 c.xor s0, s0 | xor s0, s0, s0
+84ed 41b4d493 c.srai s1, 27 | srai s1, s1, 27
+bd01 e11ff06f c.j -496 | jal zero, -496
+ef8c 00b7bc23 c.sd a1, 24(a5) | sd a1, 24(a5)
+1adc 17410793 c.addi4spn a5, sp, 372 | addi a5, sp, 372
+9db5 00d585bb c.addw a1, a3 | addw a1, a1, a3
+e254 08d63023 c.sd a3, 128(a2) | sd a3, 128(a2)
+8dfd 00f5f5b3 c.and a1, a5 | and a1, a1, a5
+8f51 00c76733 c.or a4, a2 | or a4, a4, a2
+5d04 03852483 c.lw s1, 56(a0) | lw s1, 56(a0)
+6155 13010113 c.addi16sp sp, 304 | addi sp, sp, 304
+6424 04843483 c.ld s1, 72(s0) | ld s1, 72(s0)
+9c36 00dc0c33 c.add s8, a3 | add s8, s8, a3
+8be5 0197f793 c.andi a5, 25 | andi a5, a5, 25
+8bd9 0167f793 c.andi a5, 22 | andi a5, a5, 22
+a665 3a80006f c.j 936 | jal zero, 936
+8d8d 40b585b3 c.sub a1, a1 | sub a1, a1, a1
+8c99 40e484b3 c.sub s1, a4 | sub s1, s1, a4
+65a0 0485b403 c.ld s0, 72(a1) | ld s0, 72(a1)
+8cb1 00c4c4b3 c.xor s1, a2 | xor s1, s1, a2
+9f82 000f80e7 c.jalr t6 | jalr ra, 0(t6)
+8f51 00c76733 c.or a4, a2 | or a4, a4, a2
+718e 0e013183 c.ldsp gp, 224(sp) | ld gp, 224(sp)
+9c85 409484bb c.subw s1, s1 | subw s1, s1, s1
+8d55 00d56533 c.or a0, a3 | or a0, a0, a3
+7141 e1010113 c.addi16sp sp, -496 | addi sp, sp, -496
+03e1 01838393 c.addi t2, 24 | addi t2, t2, 24
+0001 00000013 c.nop | addi zero, zero, 0
+030a 00231313 c.slli t1, 2 | slli t1, t1, 2
+8e95 40d686b3 c.sub a3, a3 | sub a3, a3, a3
+8726 00900733 c.mv a4, s1 | add a4, zero, s1
+8dd5 00d5e5b3 c.or a1, a3 | or a1, a1, a3
+5f06 06012f03 c.lwsp t5, 96(sp) | lw t5, 96(sp)
+4100 00052403 c.lw s0, 0(a0) | lw s0, 0(a0)
+8082 00008067 c.jr ra | jalr zero, 0(ra)
+9002 00100073 c.ebreak | ebreak
+8516 00500533 c.mv a0, t0 | add a0, zero, t0
+790e 0e013903 c.ldsp s2, 224(sp) | ld s2, 224(sp)
+982d feb47413 c.andi s0, -21 | andi s0, s0, -21
+9002 00100073 c.ebreak | ebreak
+082d 00b80813 c.addi a6, 11 | addi a6, a6, 11
+d84e 03312823 c.swsp s3, 48(sp) | sw s3, 48(sp)
+e1ad 06059163 c.bnez a1, 98 | bne a1, zero, 98
+8c02 000c0067 c.jr s8 | jalr zero, 0(s8)
+7ccd ffff3cb7 c.lui s9, 1048563 | lui s9, 1048563
+07ea 01a79793 c.slli a5, 26 | slli a5, a5, 26
+12d9 ff628293 c.addi t0, -10 | addi t0, t0, -10
+8f6d 00b77733 c.and a4, a1 | and a4, a4, a1
+9002 00100073 c.ebreak | ebreak
+6870 0d043603 c.ld a2, 208(s0) | ld a2, 208(s0)
+ccec 04b4ae23 c.sw a1, 92(s1) | sw a1, 92(s1)
+9b82 000b80e7 c.jalr s7 | jalr ra, 0(s7)
+de4c 02b62e23 c.sw a1, 60(a2) | sw a1, 60(a2)
+659d 000075b7 c.lui a1, 7 | lui a1, 7
+7bbe 1e813b83 c.ldsp s7, 488(sp) | ld s7, 488(sp)
+52b8 0606a703 c.lw a4, 96(a3) | lw a4, 96(a3)
+10f1 ffc08093 c.addi ra, -4 | addi ra, ra, -4
+4185 00100193 c.li gp, 1 | addi gp, zero, 1
+0001 00000013 c.nop | addi zero, zero, 0
+177c 3ac10793 c.addi4spn a5, sp, 940 | addi a5, sp, 940
+86a5 4096d693 c.srai a3, 9 | srai a3, a3, 9
+3511 fe45051b c.addiw a0, -28 | addiw a0, a0, -28
+1b20 1b810413 c.addi4spn s0, sp, 440 | addi s0, sp, 440
+8f95 40d787b3 c.sub a5, a3 | sub a5, a5, a3
+3965 ff99091b c.addiw s2, -7 | addiw s2, s2, -7
+9c29 00a4043b c.addw s0, a0 | addw s0, s0, a0
+8d82 000d8067 c.jr s11 | jalr zero, 0(s11)
+0001 00000013 c.nop | addi zero, zero, 0
+8e01 40860633 c.sub a2, s0 | sub a2, a2, s0
+9002 00100073 c.ebreak | ebreak
+1b68 1bc10513 c.addi4spn a0, sp, 444 | addi a0, sp, 444
+8e65 00967633 c.and a2, s1 | and a2, a2, s1
+fc0e 02313c23 c.sdsp gp, 56(sp) | sd gp, 56(sp)
+9081 0204d493 c.srli s1, 32 | srli s1, s1, 32
+51b1 fec00193 c.li gp, -20 | addi gp, zero, -20
+1f6d ffbf0f13 c.addi t5, -5 | addi t5, t5, -5
+5519 fe600513 c.li a0, -26 | addi a0, zero, -26
+f561 fc0514e3 c.bnez a0, -56 | bne a0, zero, -56
+74a5 fffe94b7 c.lui s1, 1048553 | lui s1, 1048553
+713d fe010113 c.addi16sp sp, -32 | addi sp, sp, -32
+00c9 01208093 c.addi ra, 18 | addi ra, ra, 18
+e51a 08613423 c.sdsp t1, 136(sp) | sd t1, 136(sp)
+0339 00e30313 c.addi t1, 14 | addi t1, t1, 14
+8e25 00964633 c.xor a2, s1 | xor a2, a2, s1
+8a02 000a0067 c.jr s4 | jalr zero, 0(s4)
+4ad0 0146a603 c.lw a2, 20(a3) | lw a2, 20(a3)
+9002 00100073 c.ebreak | ebreak
+610d 0a010113 c.addi16sp sp, 160 | addi sp, sp, 160
+9d85 409585bb c.subw a1, s1 | subw a1, a1, s1
+9002 00100073 c.ebreak | ebreak
+68c9 000128b7 c.lui a7, 18 | lui a7, 18
+8e81 408686b3 c.sub a3, s0 | sub a3, a3, s0
+62d1 000142b7 c.lui t0, 20 | lui t0, 20
+8ecd 00b6e6b3 c.or a3, a1 | or a3, a3, a1
+570a 0a012703 c.lwsp a4, 160(sp) | lw a4, 160(sp)
+55a0 0685a403 c.lw s0, 104(a1) | lw s0, 104(a1)
+494a 09012903 c.lwsp s2, 144(sp) | lw s2, 144(sp)
+8e6d 00b67633 c.and a2, a1 | and a2, a2, a1
+af59 7960006f c.j 1942 | jal zero, 1942
+4cca 09012c83 c.lwsp s9, 144(sp) | lw s9, 144(sp)
+0878 01c10713 c.addi4spn a4, sp, 28 | addi a4, sp, 28
+04bd 00f48493 c.addi s1, 15 | addi s1, s1, 15
+cc2d 06040d63 c.beqz s0, 122 | beq s0, zero, 122
+a559 6860006f c.j 1670 | jal zero, 1670
+851a 00600533 c.mv a0, t1 | add a0, zero, t1
+6139 1c010113 c.addi16sp sp, 448 | addi sp, sp, 448
+a7a9 74a0006f c.j 1866 | jal zero, 1866
+8df9 00e5f5b3 c.and a1, a4 | and a1, a1, a4
+8d25 00954533 c.xor a0, s1 | xor a0, a0, s1
+a871 09c0006f c.j 156 | jal zero, 156
+8d19 40e50533 c.sub a0, a4 | sub a0, a0, a4
+e47d 0e041763 c.bnez s0, 238 | bne s0, zero, 238
+7bc2 03013b83 c.ldsp s7, 48(sp) | ld s7, 48(sp)
+c785 02078463 c.beqz a5, 40 | beq a5, zero, 40
+9002 00100073 c.ebreak | ebreak
+9f11 40c7073b c.subw a4, a2 | subw a4, a4, a2
+9f29 00a7073b c.addw a4, a0 | addw a4, a4, a0
+1af0 17c10613 c.addi4spn a2, sp, 380 | addi a2, sp, 380
+13fe 03f39393 c.slli t2, 63 | slli t2, t2, 63
+94a1 4284d493 c.srai s1, 40 | srai s1, s1, 40
+644a 09013403 c.ldsp s0, 144(sp) | ld s0, 144(sp)
+8c55 00d46433 c.or s0, a3 | or s0, s0, a3
+70e2 03813083 c.ldsp ra, 56(sp) | ld ra, 56(sp)
+9002 00100073 c.ebreak | ebreak
+8cb9 00e4c4b3 c.xor s1, a4 | xor s1, s1, a4
+d781 f00784e3 c.beqz a5, -248 | beq a5, zero, -248
+01c2 01019193 c.slli gp, 16 | slli gp, gp, 16
+1761 ff870713 c.addi a4, -8 | addi a4, a4, -8
+4ac6 05012a83 c.lwsp s5, 80(sp) | lw s5, 80(sp)
+0001 00000013 c.nop | addi zero, zero, 0
+6151 11010113 c.addi16sp sp, 272 | addi sp, sp, 272
+06fe 01f69693 c.slli a3, 31 | slli a3, a3, 31
+1335 fed30313 c.addi t1, -19 | addi t1, t1, -19
+88c9 0124f493 c.andi s1, 18 | andi s1, s1, 18
+0001 00000013 c.nop | addi zero, zero, 0
+5586 06012583 c.lwsp a1, 96(sp) | lw a1, 96(sp)
+1f81 fe0f8f93 c.addi t6, -32 | addi t6, t6, -32
+8e82 000e8067 c.jr t4 | jalr zero, 0(t4)
+caa9 04068963 c.beqz a3, 82 | beq a3, zero, 82
+9002 00100073 c.ebreak | ebreak
+cd55 0a050e63 c.beqz a0, 188 | beq a0, zero, 188
+130c 1a010593 c.addi4spn a1, sp, 416 | addi a1, sp, 416
+bfe5 ff9ff06f c.j -8 | jal zero, -8
+8f09 40a70733 c.sub a4, a0 | sub a4, a4, a0
+459d 00700593 c.li a1, 7 | addi a1, zero, 7
+8d75 00d57533 c.and a0, a3 | and a0, a0, a3
+0001 00000013 c.nop | addi zero, zero, 0
+6f54 09873683 c.ld a3, 152(a4) | ld a3, 152(a4)
+8f82 000f8067 c.jr t6 | jalr zero, 0(t6)
+cf62 09812e23 c.swsp s8, 156(sp) | sw s8, 156(sp)
+1118 0a010713 c.addi4spn a4, sp, 160 | addi a4, sp, 160
+40fe 0dc12083 c.lwsp ra, 220(sp) | lw ra, 220(sp)
+9da1 008585bb c.addw a1, s0 | addw a1, a1, s0
+5632 02c12603 c.lwsp a2, 44(sp) | lw a2, 44(sp)
+7dfc 0f85b783 c.ld a5, 248(a1) | ld a5, 248(a1)
+8bcd 0137f793 c.andi a5, 19 | andi a5, a5, 19
+4d9e 0c412d83 c.lwsp s11, 196(sp) | lw s11, 196(sp)
+8ad9 0166f693 c.andi a3, 22 | andi a3, a3, 22
+8399 0067d793 c.srli a5, 6 | srli a5, a5, 6
+19c6 03199993 c.slli s3, 49 | slli s3, s3, 49
+4d80 0185a403 c.lw s0, 24(a1) | lw s0, 24(a1)
+9c2d 00b4043b c.addw s0, a1 | addw s0, s0, a1
+9e85 409686bb c.subw a3, s1 | subw a3, a3, s1
+f002 02013023 c.sdsp zero, 32(sp) | sd zero, 32(sp)
+8d82 000d8067 c.jr s11 | jalr zero, 0(s11)
+e1cc 08b5b023 c.sd a1, 128(a1) | sd a1, 128(a1)
+0001 00000013 c.nop | addi zero, zero, 0
+9471 43c45413 c.srai s0, 60 | srai s0, s0, 60
+a171 48c0006f c.j 1164 | jal zero, 1164
+d55e 0b712423 c.swsp s7, 168(sp) | sw s7, 168(sp)
+cf18 00e72c23 c.sw a4, 24(a4) | sw a4, 24(a4)
+9371 03c75713 c.srli a4, 60 | srli a4, a4, 60
+d339 f40703e3 c.beqz a4, -186 | beq a4, zero, -186
+0001 00000013 c.nop | addi zero, zero, 0
+8f61 00877733 c.and a4, s0 | and a4, a4, s0
+8cd2 01400cb3 c.mv s9, s4 | add s9, zero, s4
+8e15 40d60633 c.sub a2, a3 | sub a2, a2, a3
+cdf1 0c058e63 c.beqz a1, 220 | beq a1, zero, 220
+6196 14013183 c.ldsp gp, 320(sp) | ld gp, 320(sp)
+8bae 00b00bb3 c.mv s7, a1 | add s7, zero, a1
+3109 fe21011b c.addiw sp, -30 | addiw sp, sp, -30
+8479 41e45413 c.srai s0, 30 | srai s0, s0, 30
+80a1 0084d493 c.srli s1, 8 | srli s1, s1, 8
+8782 00078067 c.jr a5 | jalr zero, 0(a5)
+828d 0036d693 c.srli a3, 3 | srli a3, a3, 3
+8e61 00867633 c.and a2, s0 | and a2, a2, s0
+9161 03855513 c.srli a0, 56 | srli a0, a0, 56
+45e1 01800593 c.li a1, 24 | addi a1, zero, 24
+8eed 00b6f6b3 c.and a3, a1 | and a3, a3, a1
+4b8d 00300b93 c.li s7, 3 | addi s7, zero, 3
+dc5d fa040fe3 c.beqz s0, -66 | beq s0, zero, -66
+da2c 06b62823 c.sw a1, 112(a2) | sw a1, 112(a2)
+059c 2c010793 c.addi4spn a5, sp, 704 | addi a5, sp, 704
+8482 00048067 c.jr s1 | jalr zero, 0(s1)
+e859 08041b63 c.bnez s0, 150 | bne s0, zero, 150
+a0f5 0ec0006f c.j 236 | jal zero, 236
+6a99 00006ab7 c.lui s5, 6 | lui s5, 6
+8df5 00d5f5b3 c.and a1, a3 | and a1, a1, a3
+8d15 40d50533 c.sub a0, a3 | sub a0, a0, a3
+e61e 10713423 c.sdsp t2, 264(sp) | sd t2, 264(sp)
+8d8d 40b585b3 c.sub a1, a1 | sub a1, a1, a1
+3d51 ff4d0d1b c.addiw s10, -12 | addiw s10, s10, -12
+9002 00100073 c.ebreak | ebreak
+d5e1 fc0584e3 c.beqz a1, -56 | beq a1, zero, -56
+6f71 0001cf37 c.lui t5, 28 | lui t5, 28
+e601 00061463 c.bnez a2, 8 | bne a2, zero, 8
+5da2 02812d83 c.lwsp s11, 40(sp) | lw s11, 40(sp)
+7d85 fffe1db7 c.lui s11, 1048545 | lui s11, 1048545
+77ea 0b813783 c.ldsp a5, 184(sp) | ld a5, 184(sp)
+8e95 40d686b3 c.sub a3, a3 | sub a3, a3, a3
+0f86 001f9f93 c.slli t6, 1 | slli t6, t6, 1
+4b1d 00700b13 c.li s6, 7 | addi s6, zero, 7
+8c2d 00b44433 c.xor s0, a1 | xor s0, s0, a1
+059a 00659593 c.slli a1, 6 | slli a1, a1, 6
+0d39 00ed0d13 c.addi s10, 14 | addi s10, s10, 14
+6e20 05863403 c.ld s0, 88(a2) | ld s0, 88(a2)
+cd94 00d5ac23 c.sw a3, 24(a1) | sw a3, 24(a1)
+8d55 00d56533 c.or a0, a3 | or a0, a0, a3
+9002 00100073 c.ebreak | ebreak
+8ebd 00f6c6b3 c.xor a3, a5 | xor a3, a3, a5
+6165 07010113 c.addi16sp sp, 112 | addi sp, sp, 112
+da55 fa060ae3 c.beqz a2, -76 | beq a2, zero, -76
+f565 fe0514e3 c.bnez a0, -24 | bne a0, zero, -24
+5b18 03072703 c.lw a4, 48(a4) | lw a4, 48(a4)
+82da 016002b3 c.mv t0, s6 | add t0, zero, s6
+f375 fe0712e3 c.bnez a4, -28 | bne a4, zero, -28
+9002 00100073 c.ebreak | ebreak
+6151 11010113 c.addi16sp sp, 272 | addi sp, sp, 272
+8f51 00c76733 c.or a4, a2 | or a4, a4, a2
+8789 4027d793 c.srai a5, 2 | srai a5, a5, 2
+8ec5 0096e6b3 c.or a3, s1 | or a3, a3, s1
+9c29 00a4043b c.addw s0, a0 | addw s0, s0, a0
+7141 e1010113 c.addi16sp sp, -496 | addi sp, sp, -496
+8996 005009b3 c.mv s3, t0 | add s3, zero, t0
+9239 02e65613 c.srli a2, 46 | srli a2, a2, 46
+0590 2c010613 c.addi4spn a2, sp, 704 | addi a2, sp, 704
+8841 01047413 c.andi s0, 16 | andi s0, s0, 16
+a0d1 0c40006f c.j 196 | jal zero, 196
+cab8 04e6a823 c.sw a4, 80(a3) | sw a4, 80(a3)
+8726 00900733 c.mv a4, s1 | add a4, zero, s1
+6516 14013503 c.ldsp a0, 320(sp) | ld a0, 320(sp)
+ff31 f4071ee3 c.bnez a4, -164 | bne a4, zero, -164
+9355 03575713 c.srli a4, 53 | srli a4, a4, 53
+67bd 0000f7b7 c.lui a5, 15 | lui a5, 15
+9cb6 00dc8cb3 c.add s9, a3 | add s9, s9, a3
+9002 00100073 c.ebreak | ebreak
+e29d 02069363 c.bnez a3, 38 | bne a3, zero, 38
+8dd5 00d5e5b3 c.or a1, a3 | or a1, a1, a3
+efce 1d313c23 c.sdsp s3, 472(sp) | sd s3, 472(sp)
+c9a9 04058963 c.beqz a1, 82 | beq a1, zero, 82
+6105 02010113 c.addi16sp sp, 32 | addi sp, sp, 32
+0369 01a30313 c.addi t1, 26 | addi t1, t1, 26
+44a4 0484a483 c.lw s1, 72(s1) | lw s1, 72(s1)
+fac9 f80699e3 c.bnez a3, -110 | bne a3, zero, -110
+c5a4 0495a423 c.sw s1, 72(a1) | sw s1, 72(a1)
+9432 00c40433 c.add s0, a2 | add s0, s0, a2
+9c85 409484bb c.subw s1, s1 | subw s1, s1, s1
+f2f6 17d13023 c.sdsp t4, 352(sp) | sd t4, 352(sp)
+8c1d 40f40433 c.sub s0, a5 | sub s0, s0, a5
+f7b4 06d7b423 c.sd a3, 104(a5) | sd a3, 104(a5)
+8fa9 00a7c7b3 c.xor a5, a0 | xor a5, a5, a0
+cc41 08040c63 c.beqz s0, 152 | beq s0, zero, 152
+8cb1 00c4c4b3 c.xor s1, a2 | xor s1, s1, a2
+28f9 01e8889b c.addiw a7, 30 | addiw a7, a7, 30
+9e39 00e6063b c.addw a2, a4 | addw a2, a2, a4
+9c09 40a4043b c.subw s0, a0 | subw s0, s0, a0
+0ac4 15410493 c.addi4spn s1, sp, 340 | addi s1, sp, 340
+feb5 f6069ee3 c.bnez a3, -132 | bne a3, zero, -132
+7e6d ffffbe37 c.lui t3, 1048571 | lui t3, 1048571
+40c1 01000093 c.li ra, 16 | addi ra, zero, 16
+53f6 07c12383 c.lwsp t2, 124(sp) | lw t2, 124(sp)
+7101 e0010113 c.addi16sp sp, -512 | addi sp, sp, -512
+3861 ff88081b c.addiw a6, -8 | addiw a6, a6, -8
+a63d 32e0006f c.j 814 | jal zero, 814
+cc98 00e4ac23 c.sw a4, 24(s1) | sw a4, 24(s1)
+b3f1 dcdff06f c.j -564 | jal zero, -564
+8ee1 0086f6b3 c.and a3, s0 | and a3, a3, s0
+9002 00100073 c.ebreak | ebreak
+8e75 00d67633 c.and a2, a3 | and a2, a2, a3
+790e 0e013903 c.ldsp s2, 224(sp) | ld s2, 224(sp)
+0d96 005d9d93 c.slli s11, 5 | slli s11, s11, 5
+7dcc 0b85b583 c.ld a1, 184(a1) | ld a1, 184(a1)
+46f9 01e00693 c.li a3, 30 | addi a3, zero, 30
+9f1d 40f7073b c.subw a4, a5 | subw a4, a4, a5
+8d09 40a50533 c.sub a0, a0 | sub a0, a0, a0
+8b29 00a77713 c.andi a4, 10 | andi a4, a4, 10
+f582 0e013423 c.sdsp zero, 232(sp) | sd zero, 232(sp)
+8d31 00c54533 c.xor a0, a2 | xor a0, a0, a2
+c7f8 04e7a623 c.sw a4, 76(a5) | sw a4, 76(a5)
+5070 06442603 c.lw a2, 100(s0) | lw a2, 100(s0)
+72a4 0606b483 c.ld s1, 96(a3) | ld s1, 96(a3)
+ccaa 04a12c23 c.swsp a0, 88(sp) | sw a0, 88(sp)
+1725 fe970713 c.addi a4, -23 | addi a4, a4, -23
+58a1 fe800893 c.li a7, -24 | addi a7, zero, -24
+420d 00300213 c.li tp, 3 | addi tp, zero, 3
+fbdd fa079be3 c.bnez a5, -74 | bne a5, zero, -74
+ccb8 04e4ac23 c.sw a4, 88(s1) | sw a4, 88(s1)
+92ea 01a282b3 c.add t0, s10 | add t0, t0, s10
+5e09 fe200e13 c.li t3, -30 | addi t3, zero, -30
+612d 0e010113 c.addi16sp sp, 224 | addi sp, sp, 224
+2d21 008d0d1b c.addiw s10, 8 | addiw s10, s10, 8
+8865 01947413 c.andi s0, 25 | andi s0, s0, 25
+1c14 23010693 c.addi4spn a3, sp, 560 | addi a3, sp, 560
+8e55 00d66633 c.or a2, a3 | or a2, a2, a3
+7981 fffe09b7 c.lui s3, 1048544 | lui s3, 1048544
+0001 00000013 c.nop | addi zero, zero, 0
+6171 15010113 c.addi16sp sp, 336 | addi sp, sp, 336
+76ec 0e86b583 c.ld a1, 232(a3) | ld a1, 232(a3)
+8d85 409585b3 c.sub a1, s1 | sub a1, a1, s1
+ce59 08060f63 c.beqz a2, 158 | beq a2, zero, 158
+70c0 0a04b403 c.ld s0, 160(s1) | ld s0, 160(s1)
+9db5 00d585bb c.addw a1, a3 | addw a1, a1, a3
+f4e1 fc0494e3 c.bnez s1, -56 | bne s1, zero, -56
+e8ce 05313823 c.sdsp s3, 80(sp) | sd s3, 80(sp)
+5c06 06012c03 c.lwsp s8, 96(sp) | lw s8, 96(sp)
+8fd1 00c7e7b3 c.or a5, a2 | or a5, a5, a2
+9e19 40e6063b c.subw a2, a4 | subw a2, a2, a4
+8b82 000b8067 c.jr s7 | jalr zero, 0(s7)
+141e 02741413 c.slli s0, 39 | slli s0, s0, 39
+065a 01661613 c.slli a2, 22 | slli a2, a2, 22
+adc9 6d20006f c.j 1746 | jal zero, 1746
+36a5 fe96869b c.addiw a3, -23 | addiw a3, a3, -23
+8f51 00c76733 c.or a4, a2 | or a4, a4, a2
+458d 00300593 c.li a1, 3 | addi a1, zero, 3
+713d fe010113 c.addi16sp sp, -32 | addi sp, sp, -32
+8d09 40a50533 c.sub a0, a0 | sub a0, a0, a0
+bfd1 fd5ff06f c.j -44 | jal zero, -44
+c3e5 0e078063 c.beqz a5, 224 | beq a5, zero, 224
+8cdd 00f4e4b3 c.or s1, a5 | or s1, s1, a5
+9502 000500e7 c.jalr a0 | jalr ra, 0(a0)
+1b5a 036b1b13 c.slli s6, 54 | slli s6, s6, 54
+4381 00000393 c.li t2, 0 | addi t2, zero, 0
+8c11 40c40433 c.sub s0, a2 | sub s0, s0, a2
+8fe5 0097f7b3 c.and a5, s1 | and a5, a5, s1
+b3b1 d4dff06f c.j -692 | jal zero, -692
+fc7d fe041fe3 c.bnez s0, -2 | bne s0, zero, -2
+7dca 0b013d83 c.ldsp s11, 176(sp) | ld s11, 176(sp)
+6159 19010113 c.addi16sp sp, 400 | addi sp, sp, 400
+8b39 00e77713 c.andi a4, 14 | andi a4, a4, 14
+8ccd 00b4e4b3 c.or s1, a1 | or s1, s1, a1
+08f0 05c10613 c.addi4spn a2, sp, 92 | addi a2, sp, 92
+1c56 035c1c13 c.slli s8, 53 | slli s8, s8, 53
+ce16 00512e23 c.swsp t0, 28(sp) | sw t0, 28(sp)
+cdb0 04c5ac23 c.sw a2, 88(a1) | sw a2, 88(a1)
+f522 0a813423 c.sdsp s0, 168(sp) | sd s0, 168(sp)
+0540 28410413 c.addi4spn s0, sp, 644 | addi s0, sp, 644
+8d02 000d0067 c.jr s10 | jalr zero, 0(s10)
+d949 f80509e3 c.beqz a0, -110 | beq a0, zero, -110
+7b11 fffe4b37 c.lui s6, 1048548 | lui s6, 1048548
+f3d8 0ae7b023 c.sd a4, 160(a5) | sd a4, 160(a5)
+8b75 01d77713 c.andi a4, 29 | andi a4, a4, 29
+5970 07452603 c.lw a2, 116(a0) | lw a2, 116(a0)
+1154 0a410693 c.addi4spn a3, sp, 164 | addi a3, sp, 164
+7109 e8010113 c.addi16sp sp, -384 | addi sp, sp, -384
+dccd fa048de3 c.beqz s1, -70 | beq s1, zero, -70
+56b5 fed00693 c.li a3, -19 | addi a3, zero, -19
+ed39 04051f63 c.bnez a0, 94 | bne a0, zero, 94
+eb6e 19b13823 c.sdsp s11, 400(sp) | sd s11, 400(sp)
+18cd ff388893 c.addi a7, -13 | addi a7, a7, -13
+1bee 03bb9b93 c.slli s7, 59 | slli s7, s7, 59
+c184 0095a023 c.sw s1, 0(a1) | sw s1, 0(a1)
+1aaa 02aa9a93 c.slli s5, 42 | slli s5, s5, 42
+9f82 000f80e7 c.jalr t6 | jalr ra, 0(t6)
+6f74 0d873683 c.ld a3, 216(a4) | ld a3, 216(a4)
+1942 03091913 c.slli s2, 48 | slli s2, s2, 48
+0001 00000013 c.nop | addi zero, zero, 0
+80a9 00a4d493 c.srli s1, 10 | srli s1, s1, 10
+a899 0560006f c.j 86 | jal zero, 86
+f255 fa0612e3 c.bnez a2, -92 | bne a2, zero, -92
+9c82 000c80e7 c.jalr s9 | jalr ra, 0(s9)
+8af9 01e6f693 c.andi a3, 30 | andi a3, a3, 30
+a505 6200006f c.j 1568 | jal zero, 1568
+c470 04c42623 c.sw a2, 76(s0) | sw a2, 76(s0)
+edc1 08059c63 c.bnez a1, 152 | bne a1, zero, 152
+8d02 000d0067 c.jr s10 | jalr zero, 0(s10)
+9f05 4097073b c.subw a4, s1 | subw a4, a4, s1
+60bc 0404b783 c.ld a5, 64(s1) | ld a5, 64(s1)
+73e2 03813383 c.ldsp t2, 56(sp) | ld t2, 56(sp)
+625a 19013203 c.ldsp tp, 400(sp) | ld tp, 400(sp)
+8c9e 00700cb3 c.mv s9, t2 | add s9, zero, t2
+5e2e 0e812e03 c.lwsp t3, 232(sp) | lw t3, 232(sp)
+84e5 4194d493 c.srai s1, 25 | srai s1, s1, 25
+68bc 0504b783 c.ld a5, 80(s1) | ld a5, 80(s1)
+6d7c 0d853783 c.ld a5, 216(a0) | ld a5, 216(a0)
+0aa9 00aa8a93 c.addi s5, 10 | addi s5, s5, 10
+c6b0 04c6a423 c.sw a2, 72(a3) | sw a2, 72(a3)
+4c16 04412c03 c.lwsp s8, 68(sp) | lw s8, 68(sp)
+9d89 40a585bb c.subw a1, a0 | subw a1, a1, a0
+e968 0ca53823 c.sd a0, 208(a0) | sd a0, 208(a0)
+182d feb80813 c.addi a6, -21 | addi a6, a6, -21
+5c14 03842683 c.lw a3, 56(s0) | lw a3, 56(s0)
+7a1e 1e013a03 c.ldsp s4, 480(sp) | ld s4, 480(sp)
+baa9 95bff06f c.j -1702 | jal zero, -1702
+9db9 00e585bb c.addw a1, a4 | addw a1, a1, a4
+8a89 0026f693 c.andi a3, 2 | andi a3, a3, 2
+c0f8 04e4a223 c.sw a4, 68(s1) | sw a4, 68(s1)
+7109 e8010113 c.addi16sp sp, -384 | addi sp, sp, -384
+6496 14013483 c.ldsp s1, 320(sp) | ld s1, 320(sp)
+27e1 0187879b c.addiw a5, 24 | addiw a5, a5, 24
+8f4d 00b76733 c.or a4, a1 | or a4, a4, a1
+06cd 01368693 c.addi a3, 19 | addi a3, a3, 19
+1979 ffe90913 c.addi s2, -2 | addi s2, s2, -2
+9da9 00a585bb c.addw a1, a0 | addw a1, a1, a0
+a9e1 4d80006f c.j 1240 | jal zero, 1240
+1c25 fe9c0c13 c.addi s8, -23 | addi s8, s8, -23
+882a 00a00833 c.mv a6, a0 | add a6, zero, a0
+d004 02942023 c.sw s1, 32(s0) | sw s1, 32(s0)
+1b31 fecb0b13 c.addi s6, -20 | addi s6, s6, -20
+8df5 00d5f5b3 c.and a1, a3 | and a1, a1, a3
+f22c 06b63023 c.sd a1, 96(a2) | sd a1, 96(a2)
+57ad feb00793 c.li a5, -21 | addi a5, zero, -21
+16ca 03269693 c.slli a3, 50 | slli a3, a3, 50
+cb54 00d72a23 c.sw a3, 20(a4) | sw a3, 20(a4)
+9db9 00e585bb c.addw a1, a4 | addw a1, a1, a4
+610d 0a010113 c.addi16sp sp, 160 | addi sp, sp, 160
+8951 01457513 c.andi a0, 20 | andi a0, a0, 20
+b109 c03ff06f c.j -1022 | jal zero, -1022
+16a9 fea68693 c.addi a3, -22 | addi a3, a3, -22
+8d25 00954533 c.xor a0, s1 | xor a0, a0, s1
+6c8a 08013c83 c.ldsp s9, 128(sp) | ld s9, 128(sp)
+9496 005484b3 c.add s1, t0 | add s1, s1, t0
+8eb5 00d6c6b3 c.xor a3, a3 | xor a3, a3, a3
+e06a 01a13023 c.sdsp s10, 0(sp) | sd s10, 0(sp)
+053d 00f50513 c.addi a0, 15 | addi a0, a0, 15
+a0f9 0ce0006f c.j 206 | jal zero, 206
+9dbd 00f585bb c.addw a1, a5 | addw a1, a1, a5
+9c21 0084043b c.addw s0, s0 | addw s0, s0, s0
+08c2 01089893 c.slli a7, 16 | slli a7, a7, 16
+9a81 fe06f693 c.andi a3, -32 | andi a3, a3, -32
+9c01 4084043b c.subw s0, s0 | subw s0, s0, s0
+f2a6 16913023 c.sdsp s1, 352(sp) | sd s1, 352(sp)
+8cc9 00a4e4b3 c.or s1, a0 | or s1, s1, a0
+9f05 4097073b c.subw a4, s1 | subw a4, a4, s1
+6119 18010113 c.addi16sp sp, 384 | addi sp, sp, 384
+5756 07412703 c.lwsp a4, 116(sp) | lw a4, 116(sp)
+708a 0a013083 c.ldsp ra, 160(sp) | ld ra, 160(sp)
+8239 00e65613 c.srli a2, 14 | srli a2, a2, 14
+0001 00000013 c.nop | addi zero, zero, 0
+6b86 04013b83 c.ldsp s7, 64(sp) | ld s7, 64(sp)
+6bb4 0507b683 c.ld a3, 80(a5) | ld a3, 80(a5)
+9195 0255d593 c.srli a1, 37 | srli a1, a1, 37
+8e21 00864633 c.xor a2, s0 | xor a2, a2, s0
+8555 41555513 c.srai a0, 21 | srai a0, a0, 21
+32c9 ff22829b c.addiw t0, -14 | addiw t0, t0, -14
+8cc5 0094e4b3 c.or s1, s1 | or s1, s1, s1
+f110 02c53023 c.sd a2, 32(a0) | sd a2, 32(a0)
+7a4a 0b013a03 c.ldsp s4, 176(sp) | ld s4, 176(sp)
+74ca 0b013483 c.ldsp s1, 176(sp) | ld s1, 176(sp)
+9c89 40a484bb c.subw s1, a0 | subw s1, s1, a0
+ca4d 0a060963 c.beqz a2, 178 | beq a2, zero, 178
+8d82 000d8067 c.jr s11 | jalr zero, 0(s11)
+9261 03865613 c.srli a2, 56 | srli a2, a2, 56
+40e1 01800093 c.li ra, 24 | addi ra, zero, 24
+9d02 000d00e7 c.jalr s10 | jalr ra, 0(s10)
+2495 0054849b c.addiw s1, 5 | addiw s1, s1, 5
+73b9 fffee3b7 c.lui t2, 1048558 | lui t2, 1048558
+9fea 01af8fb3 c.add t6, s10 | add t6, t6, s10
+c19a 0c612023 c.swsp t1, 192(sp) | sw t1, 192(sp)
+48f9 01e00893 c.li a7, 30 | addi a7, zero, 30
+51b9 fee00193 c.li gp, -18 | addi gp, zero, -18
+97a1 4287d793 c.srai a5, 40 | srai a5, a5, 40
+7fea 0b813f83 c.ldsp t6, 184(sp) | ld t6, 184(sp)
+fab2 16c13823 c.sdsp a2, 368(sp) | sd a2, 368(sp)
+8682 00068067 c.jr a3 | jalr zero, 0(a3)
+9982 000980e7 c.jalr s3 | jalr ra, 0(s3)
+99c2 010989b3 c.add s3, a6 | add s3, s3, a6
+7efe 1f813e83 c.ldsp t4, 504(sp) | ld t4, 504(sp)
+9951 ff457513 c.andi a0, -12 | andi a0, a0, -12
+d722 0a812623 c.swsp s0, 172(sp) | sw s0, 172(sp)
+5a18 03062703 c.lw a4, 48(a2) | lw a4, 48(a2)
+8821 00847413 c.andi s0, 8 | andi s0, s0, 8
+c401 00040463 c.beqz s0, 8 | beq s0, zero, 8
+8182 00018067 c.jr gp | jalr zero, 0(gp)
+ac05 2300006f c.j 560 | jal zero, 560
+0835 00d80813 c.addi a6, 13 | addi a6, a6, 13
+4922 00812903 c.lwsp s2, 8(sp) | lw s2, 8(sp)
+9bb9 fee7f793 c.andi a5, -18 | andi a5, a5, -18
+9771 43c75713 c.srai a4, 60 | srai a4, a4, 60
+09ac 0d810593 c.addi4spn a1, sp, 216 | addi a1, sp, 216
+8af9 01e6f693 c.andi a3, 30 | andi a3, a3, 30
+1659 ff660613 c.addi a2, -10 | addi a2, a2, -10
+7a06 06013a03 c.ldsp s4, 96(sp) | ld s4, 96(sp)
+8ce5 0094f4b3 c.and s1, s1 | and s1, s1, s1
+8296 005002b3 c.mv t0, t0 | add t0, zero, t0
+d5e5 fe0584e3 c.beqz a1, -24 | beq a1, zero, -24
+9b72 01cb0b33 c.add s6, t3 | add s6, s6, t3
+95c5 4315d593 c.srai a1, 49 | srai a1, a1, 49
+91c9 0325d593 c.srli a1, 50 | srli a1, a1, 50
+9002 00100073 c.ebreak | ebreak
+9a2e 00ba0a33 c.add s4, a1 | add s4, s4, a1
+90c6 011080b3 c.add ra, a7 | add ra, ra, a7
+614d 0b010113 c.addi16sp sp, 176 | addi sp, sp, 176
+9e05 4096063b c.subw a2, s1 | subw a2, a2, s1
+8e72 01c00e33 c.mv t3, t3 | add t3, zero, t3
+4396 04412383 c.lwsp t2, 68(sp) | lw t2, 68(sp)
+9401 42045413 c.srai s0, 32 | srai s0, s0, 32
+8971 01c57513 c.andi a0, 28 | andi a0, a0, 28
+9eb1 00c686bb c.addw a3, a2 | addw a3, a3, a2
+4436 04c12403 c.lwsp s0, 76(sp) | lw s0, 76(sp)
+988a 002888b3 c.add a7, sp | add a7, a7, sp
+f931 f4051ae3 c.bnez a0, -172 | bne a0, zero, -172
+8c11 40c40433 c.sub s0, a2 | sub s0, s0, a2
+7c48 0b843503 c.ld a0, 184(s0) | ld a0, 184(s0)
+613d 1e010113 c.addi16sp sp, 480 | addi sp, sp, 480
+8db5 00d5c5b3 c.xor a1, a3 | xor a1, a1, a3
+8c55 00d46433 c.or s0, a3 | or s0, s0, a3
+9002 00100073 c.ebreak | ebreak
+5bf9 ffe00b93 c.li s7, -2 | addi s7, zero, -2
+7159 f9010113 c.addi16sp sp, -112 | addi sp, sp, -112
+0001 00000013 c.nop | addi zero, zero, 0
+8472 01c00433 c.mv s0, t3 | add s0, zero, t3
+e060 0c843023 c.sd s0, 192(s0) | sd s0, 192(s0)
+83a2 008003b3 c.mv t2, s0 | add t2, zero, s0
+0001 00000013 c.nop | addi zero, zero, 0
+8e51 00c66633 c.or a2, a2 | or a2, a2, a2
+d389 f00781e3 c.beqz a5, -254 | beq a5, zero, -254
+9c21 0084043b c.addw s0, s0 | addw s0, s0, s0
+9b02 000b00e7 c.jalr s6 | jalr ra, 0(s6)
+5ab8 0706a703 c.lw a4, 112(a3) | lw a4, 112(a3)
+5719 fe600713 c.li a4, -26 | addi a4, zero, -26
+4d05 00100d13 c.li s10, 1 | addi s10, zero, 1
+8fc1 0087e7b3 c.or a5, s0 | or a5, a5, s0
+0001 00000013 c.nop | addi zero, zero, 0
+9899 fe64f493 c.andi s1, -26 | andi s1, s1, -26
+9a71 ffc67613 c.andi a2, -4 | andi a2, a2, -4
+53ac 0607a583 c.lw a1, 96(a5) | lw a1, 96(a5)
+d055 fa0402e3 c.beqz s0, -92 | beq s0, zero, -92
+9c2d 00b4043b c.addw s0, a1 | addw s0, s0, a1
+7142 03013103 c.ldsp sp, 48(sp) | ld sp, 48(sp)
+9b01 fe077713 c.andi a4, -32 | andi a4, a4, -32
+d569 fc0505e3 c.beqz a0, -54 | beq a0, zero, -54
+e4b8 04e4b423 c.sd a4, 72(s1) | sd a4, 72(s1)
+a6b5 36c0006f c.j 876 | jal zero, 876
+9002 00100073 c.ebreak | ebreak
+ff81 f0079ce3 c.bnez a5, -232 | bne a5, zero, -232
+8491 4044d493 c.srai s1, 4 | srai s1, s1, 4
+566a 0b812603 c.lwsp a2, 184(sp) | lw a2, 184(sp)
+8051 01445413 c.srli s0, 20 | srli s0, s0, 20
+7fac 0787b583 c.ld a1, 120(a5) | ld a1, 120(a5)
+9002 00100073 c.ebreak | ebreak
+a129 40a0006f c.j 1034 | jal zero, 1034
+c641 08060463 c.beqz a2, 136 | beq a2, zero, 136
+61ba 18813183 c.ldsp gp, 392(sp) | ld gp, 392(sp)
+09b0 0d810613 c.addi4spn a2, sp, 216 | addi a2, sp, 216
+e518 00e53423 c.sd a4, 8(a0) | sd a4, 8(a0)
+9121 02855513 c.srli a0, 40 | srli a0, a0, 40
+8ca5 0094c4b3 c.xor s1, s1 | xor s1, s1, s1
+3961 ff89091b c.addiw s2, -8 | addiw s2, s2, -8
+6be6 05813b83 c.ldsp s7, 88(sp) | ld s7, 88(sp)
+a565 6a80006f c.j 1704 | jal zero, 1704
+7d52 13013d03 c.ldsp s10, 304(sp) | ld s10, 304(sp)
+ca2c 04b62823 c.sw a1, 80(a2) | sw a1, 80(a2)
+d3d9 f80783e3 c.beqz a5, -122 | beq a5, zero, -122
+9cb1 00c484bb c.addw s1, a2 | addw s1, s1, a2
+5481 fe000493 c.li s1, -32 | addi s1, zero, -32
+86fd 41f6d693 c.srai a3, 31 | srai a3, a3, 31
+9af5 ffd6f693 c.andi a3, -3 | andi a3, a3, -3
+9282 000280e7 c.jalr t0 | jalr ra, 0(t0)
+1cc8 27410513 c.addi4spn a0, sp, 628 | addi a0, sp, 628
+21c9 0121819b c.addiw gp, 18 | addiw gp, gp, 18
+6d62 01813d03 c.ldsp s10, 24(sp) | ld s10, 24(sp)
+d9c1 f80588e3 c.beqz a1, -112 | beq a1, zero, -112
+1d12 024d1d13 c.slli s10, 36 | slli s10, s10, 36
+9e1d 40f6063b c.subw a2, a5 | subw a2, a2, a5
+efaa 1ca13c23 c.sdsp a0, 472(sp) | sd a0, 472(sp)
+c7ba 0ce12623 c.swsp a4, 204(sp) | sw a4, 204(sp)
+9002 00100073 c.ebreak | ebreak
+413d 00f00113 c.li sp, 15 | addi sp, zero, 15
+4434 04842683 c.lw a3, 72(s0) | lw a3, 72(s0)
+c055 0a040263 c.beqz s0, 164 | beq s0, zero, 164
+0fb1 00cf8f93 c.addi t6, 12 | addi t6, t6, 12
+0a60 11c10413 c.addi4spn s0, sp, 284 | addi s0, sp, 284
+ef9e 1c713c23 c.sdsp t2, 472(sp) | sd t2, 472(sp)
+7d22 02813d03 c.ldsp s10, 40(sp) | ld s10, 40(sp)
+1f7e 03ff1f13 c.slli t5, 63 | slli t5, t5, 63
+8c82 000c8067 c.jr s9 | jalr zero, 0(s9)
+8299 0066d693 c.srli a3, 6 | srli a3, a3, 6
+9002 00100073 c.ebreak | ebreak
+7369 ffffa337 c.lui t1, 1048570 | lui t1, 1048570
+d2ec 06b6a223 c.sw a1, 100(a3) | sw a1, 100(a3)
+05f9 01e58593 c.addi a1, 30 | addi a1, a1, 30
+9e0d 40b6063b c.subw a2, a1 | subw a2, a2, a1
+17be 02f79793 c.slli a5, 47 | slli a5, a5, 47
+0ca2 008c9c93 c.slli s9, 8 | slli s9, s9, 8
+d376 0bd12223 c.swsp t4, 164(sp) | sw t4, 164(sp)
+6718 00873703 c.ld a4, 8(a4) | ld a4, 8(a4)
+9002 00100073 c.ebreak | ebreak
+9f3d 00f7073b c.addw a4, a5 | addw a4, a4, a5
+0c7d 01fc0c13 c.addi s8, 31 | addi s8, s8, 31
+56b2 02c12683 c.lwsp a3, 44(sp) | lw a3, 44(sp)
+a565 6a80006f c.j 1704 | jal zero, 1704
+9002 00100073 c.ebreak | ebreak
+9002 00100073 c.ebreak | ebreak
+9639 42e65613 c.srai a2, 46 | srai a2, a2, 46
+9002 00100073 c.ebreak | ebreak
+9002 00100073 c.ebreak | ebreak
+1972 03c91913 c.slli s2, 60 | slli s2, s2, 60
+8fc5 0097e7b3 c.or a5, s1 | or a5, a5, s1
+8c05 40940433 c.sub s0, s1 | sub s0, s0, s1
+5c1a 0a412c03 c.lwsp s8, 164(sp) | lw s8, 164(sp)
+9211 02465613 c.srli a2, 36 | srli a2, a2, 36
+8d45 00956533 c.or a0, s1 | or a0, a0, s1
+0405 00140413 c.addi s0, 1 | addi s0, s0, 1
+8f55 00d76733 c.or a4, a3 | or a4, a4, a3
+0a86 001a9a93 c.slli s5, 1 | slli s5, s5, 1
+4c8c 0184a583 c.lw a1, 24(s1) | lw a1, 24(s1)
+9ead 00b686bb c.addw a3, a1 | addw a3, a3, a1
+0f0c 39010593 c.addi4spn a1, sp, 912 | addi a1, sp, 912
+59ba 0ac12983 c.lwsp s3, 172(sp) | lw s3, 172(sp)
+7115 f2010113 c.addi16sp sp, -224 | addi sp, sp, -224
+eeb1 04069e63 c.bnez a3, 92 | bne a3, zero, 92
+b581 e41ff06f c.j -448 | jal zero, -448
+9601 42065613 c.srai a2, 32 | srai a2, a2, 32
+8c39 00e44433 c.xor s0, a4 | xor s0, s0, a4
+02e4 14c10493 c.addi4spn s1, sp, 332 | addi s1, sp, 332
+f9dd fa059be3 c.bnez a1, -74 | bne a1, zero, -74
+e778 0ce73423 c.sd a4, 200(a4) | sd a4, 200(a4)
+f715 f20716e3 c.bnez a4, -212 | bne a4, zero, -212
+8d65 00957533 c.and a0, s1 | and a0, a0, s1
+cc49 08040d63 c.beqz s0, 154 | beq s0, zero, 154
+9182 000180e7 c.jalr gp | jalr ra, 0(gp)
+0ea2 008e9e93 c.slli t4, 8 | slli t4, t4, 8
+5a72 03c12a03 c.lwsp s4, 60(sp) | lw s4, 60(sp)
+0b00 19010413 c.addi4spn s0, sp, 400 | addi s0, sp, 400
+0e71 01ce0e13 c.addi t3, 28 | addi t3, t3, 28
+8df1 00c5f5b3 c.and a1, a2 | and a1, a1, a2
+0f7e 01ff1f13 c.slli t5, 31 | slli t5, t5, 31
+9002 00100073 c.ebreak | ebreak
+8ed9 00e6e6b3 c.or a3, a4 | or a3, a3, a4
+8ebd 00f6c6b3 c.xor a3, a5 | xor a3, a3, a5
+8dd5 00d5e5b3 c.or a1, a3 | or a1, a1, a3
+8951 01457513 c.andi a0, 20 | andi a0, a0, 20
+1d2d febd0d13 c.addi s10, -21 | addi s10, s10, -21
+36d5 ff56869b c.addiw a3, -11 | addiw a3, a3, -11
+8dbd 00f5c5b3 c.xor a1, a5 | xor a1, a1, a5
+8751 41475713 c.srai a4, 20 | srai a4, a4, 20
+5d11 fe400d13 c.li s10, -28 | addi s10, zero, -28
+8fe2 01800fb3 c.mv t6, s8 | add t6, zero, s8
+f6ea 17a13423 c.sdsp s10, 360(sp) | sd s10, 360(sp)
+c971 0c050a63 c.beqz a0, 212 | beq a0, zero, 212
+cd6e 09b12c23 c.swsp s11, 152(sp) | sw s11, 152(sp)
+5d24 07852483 c.lw s1, 120(a0) | lw s1, 120(a0)
+8fd2 01400fb3 c.mv t6, s4 | add t6, zero, s4
+63d2 11013383 c.ldsp t2, 272(sp) | ld t2, 272(sp)
+321d fe72021b c.addiw tp, -25 | addiw tp, tp, -25
+fdbc 06f5bc23 c.sd a5, 120(a1) | sd a5, 120(a1)
+0bf0 1dc10613 c.addi4spn a2, sp, 476 | addi a2, sp, 476
+7139 fc010113 c.addi16sp sp, -64 | addi sp, sp, -64
+9181 0205d593 c.srli a1, 32 | srli a1, a1, 32
+7c5c 0b843783 c.ld a5, 184(s0) | ld a5, 184(s0)
+17f5 ffd78793 c.addi a5, -3 | addi a5, a5, -3
+cf16 08512e23 c.swsp t0, 156(sp) | sw t0, 156(sp)
+8a5e 01700a33 c.mv s4, s7 | add s4, zero, s7
+d764 06972623 c.sw s1, 108(a4) | sw s1, 108(a4)
+a0f5 0ec0006f c.j 236 | jal zero, 236
+8879 01e47413 c.andi s0, 30 | andi s0, s0, 30
+8d85 409585b3 c.sub a1, s1 | sub a1, a1, s1
+6908 01053503 c.ld a0, 16(a0) | ld a0, 16(a0)
+f65e 13713423 c.sdsp s7, 296(sp) | sd s7, 296(sp)
+e56e 09b13423 c.sdsp s11, 136(sp) | sd s11, 136(sp)
+83a1 0087d793 c.srli a5, 8 | srli a5, a5, 8
+e040 08843023 c.sd s0, 128(s0) | sd s0, 128(s0)
+72f6 17813283 c.ldsp t0, 376(sp) | ld t0, 376(sp)
+11bd fef18193 c.addi gp, -17 | addi gp, gp, -17
+8cd9 00e4e4b3 c.or s1, a4 | or s1, s1, a4
+8c6d 00b47433 c.and s0, a1 | and s0, s0, a1
+9769 43a75713 c.srai a4, 58 | srai a4, a4, 58
+0ca8 25810513 c.addi4spn a0, sp, 600 | addi a0, sp, 600
+50dd ff700093 c.li ra, -9 | addi ra, zero, -9
+8aa1 0086f693 c.andi a3, 8 | andi a3, a3, 8
+db38 06e72823 c.sw a4, 112(a4) | sw a4, 112(a4)
+0bdd 017b8b93 c.addi s7, 23 | addi s7, s7, 23
+8629 40a65613 c.srai a2, 10 | srai a2, a2, 10
+9da9 00a585bb c.addw a1, a0 | addw a1, a1, a0
+ecf0 0cc4bc23 c.sd a2, 216(s1) | sd a2, 216(s1)
+8fd1 00c7e7b3 c.or a5, a2 | or a5, a5, a2
+06e0 34c10413 c.addi4spn s0, sp, 844 | addi s0, sp, 844
+dbae 0eb12a23 c.swsp a1, 244(sp) | sw a1, 244(sp)
+89d9 0165f593 c.andi a1, 22 | andi a1, a1, 22
+9c02 000c00e7 c.jalr s8 | jalr ra, 0(s8)
+9db9 00e585bb c.addw a1, a4 | addw a1, a1, a4
+3f95 fe5f8f9b c.addiw t6, -27 | addiw t6, t6, -27
+713d fe010113 c.addi16sp sp, -32 | addi sp, sp, -32
+7ff8 0f87b703 c.ld a4, 248(a5) | ld a4, 248(a5)
+6f15 00005f37 c.lui t5, 5 | lui t5, 5
+6cf8 0d84b703 c.ld a4, 216(s1) | ld a4, 216(s1)
+e4e6 05913423 c.sdsp s9, 72(sp) | sd s9, 72(sp)
+e261 0c061063 c.bnez a2, 192 | bne a2, zero, 192
+029e 00729293 c.slli t0, 7 | slli t0, t0, 7
+f44c 0ab43423 c.sd a1, 168(s0) | sd a1, 168(s0)
+689e 1c013883 c.ldsp a7, 448(sp) | ld a7, 448(sp)
+036e 01b31313 c.slli t1, 27 | slli t1, t1, 27
+763e 1e813603 c.ldsp a2, 488(sp) | ld a2, 488(sp)
+4c5c 01c42783 c.lw a5, 28(s0) | lw a5, 28(s0)
+8e15 40d60633 c.sub a2, a3 | sub a2, a2, a3
+ee40 08863c23 c.sd s0, 152(a2) | sd s0, 152(a2)
+6131 14010113 c.addi16sp sp, 320 | addi sp, sp, 320
+4c8c 0184a583 c.lw a1, 24(s1) | lw a1, 24(s1)
+85d9 4165d593 c.srai a1, 22 | srai a1, a1, 22
+6115 12010113 c.addi16sp sp, 288 | addi sp, sp, 288
+edf4 0cd5bc23 c.sd a3, 216(a1) | sd a3, 216(a1)
+8ce9 00a4f4b3 c.and s1, a0 | and s1, s1, a0
+99f9 ffe5f593 c.andi a1, -2 | andi a1, a1, -2
+ec74 0cd43c23 c.sd a3, 216(s0) | sd a3, 216(s0)
+ebbc 04f7b823 c.sd a5, 80(a5) | sd a5, 80(a5)
+931d 02775713 c.srli a4, 39 | srli a4, a4, 39
+1e30 33810613 c.addi4spn a2, sp, 824 | addi a2, sp, 824
+18e8 07c10513 c.addi4spn a0, sp, 124 | addi a0, sp, 124
+9019 02645413 c.srli s0, 38 | srli s0, s0, 38
+fb0a 1a213823 c.sdsp sp, 432(sp) | sd sp, 432(sp)
+7bb0 0707b603 c.ld a2, 112(a5) | ld a2, 112(a5)
+38d1 ff48889b c.addiw a7, -12 | addiw a7, a7, -12
+d118 02e52023 c.sw a4, 32(a0) | sw a4, 32(a0)
+9fa9 00a787bb c.addw a5, a0 | addw a5, a5, a0
+0e41 010e0e13 c.addi t3, 16 | addi t3, t3, 16
+8d11 40c50533 c.sub a0, a2 | sub a0, a0, a2
+b219 907ff06f c.j -1786 | jal zero, -1786
+8d39 00e54533 c.xor a0, a4 | xor a0, a0, a4
+d1d5 fa0582e3 c.beqz a1, -92 | beq a1, zero, -92
+9289 0226d693 c.srli a3, 34 | srli a3, a3, 34
+5b96 06412b83 c.lwsp s7, 100(sp) | lw s7, 100(sp)
+f378 0ee73023 c.sd a4, 224(a4) | sd a4, 224(a4)
+d652 03412623 c.swsp s4, 44(sp) | sw s4, 44(sp)
+86bd 40f6d693 c.srai a3, 15 | srai a3, a3, 15
+8e71 00c67633 c.and a2, a2 | and a2, a2, a2
+56e8 06c6a503 c.lw a0, 108(a3) | lw a0, 108(a3)
+0aa1 008a8a93 c.addi s5, 8 | addi s5, s5, 8
+d0fd fe0483e3 c.beqz s1, -26 | beq s1, zero, -26
+9c3d 00f4043b c.addw s0, a5 | addw s0, s0, a5
+0001 00000013 c.nop | addi zero, zero, 0
+9282 000280e7 c.jalr t0 | jalr ra, 0(t0)
+744c 0a843583 c.ld a1, 168(s0) | ld a1, 168(s0)
+707c 0e043783 c.ld a5, 224(s0) | ld a5, 224(s0)
+99cd ff35f593 c.andi a1, -13 | andi a1, a1, -13
+8f49 00a76733 c.or a4, a0 | or a4, a4, a0
+0001 00000013 c.nop | addi zero, zero, 0
+8405 40145413 c.srai s0, 1 | srai s0, s0, 1
+8a66 01900a33 c.mv s4, s9 | add s4, zero, s9
+8ef1 00c6f6b3 c.and a3, a2 | and a3, a3, a2
+8cc9 00a4e4b3 c.or s1, a0 | or s1, s1, a0
+6111 10010113 c.addi16sp sp, 256 | addi sp, sp, 256
+0c98 25010713 c.addi4spn a4, sp, 592 | addi a4, sp, 592
+10b5 fed08093 c.addi ra, -19 | addi ra, ra, -19
+7a5c 0b063783 c.ld a5, 176(a2) | ld a5, 176(a2)
+d8ca 07212823 c.swsp s2, 112(sp) | sw s2, 112(sp)
+d62a 02a12623 c.swsp a0, 44(sp) | sw a0, 44(sp)
+8fc9 00a7e7b3 c.or a5, a0 | or a5, a5, a0
+7129 ec010113 c.addi16sp sp, -320 | addi sp, sp, -320
+f00d f20411e3 c.bnez s0, -222 | bne s0, zero, -222
+9f25 0097073b c.addw a4, s1 | addw a4, a4, s1
+83f1 01c7d793 c.srli a5, 28 | srli a5, a5, 28
+8966 01900933 c.mv s2, s9 | add s2, zero, s9
+9002 00100073 c.ebreak | ebreak
+8c69 00a47433 c.and s0, a0 | and s0, s0, a0
+3161 ff81011b c.addiw sp, -8 | addiw sp, sp, -8
+68d4 0904b683 c.ld a3, 144(s1) | ld a3, 144(s1)
+119a 02619193 c.slli gp, 38 | slli gp, gp, 38
+8382 00038067 c.jr t2 | jalr zero, 0(t2)
+753a 1a813503 c.ldsp a0, 424(sp) | ld a0, 424(sp)
+8fc1 0087e7b3 c.or a5, s0 | or a5, a5, s0
+9402 000400e7 c.jalr s0 | jalr ra, 0(s0)
+f3c6 1f113023 c.sdsp a7, 480(sp) | sd a7, 480(sp)
+59ac 0705a583 c.lw a1, 112(a1) | lw a1, 112(a1)
+967d 43f65613 c.srai a2, 63 | srai a2, a2, 63
+8ec9 00a6e6b3 c.or a3, a0 | or a3, a3, a0
+d33d f60703e3 c.beqz a4, -154 | beq a4, zero, -154
+85b9 40e5d593 c.srai a1, 14 | srai a1, a1, 14
+ff02 1a013c23 c.sdsp zero, 440(sp) | sd zero, 440(sp)
+8809 00247413 c.andi s0, 2 | andi s0, s0, 2
+f3d6 1f513023 c.sdsp s5, 480(sp) | sd s5, 480(sp)
+6121 04010113 c.addi16sp sp, 64 | addi sp, sp, 64
+0001 00000013 c.nop | addi zero, zero, 0
+3be5 ff9b8b9b c.addiw s7, -7 | addiw s7, s7, -7
+8142 01000133 c.mv sp, a6 | add sp, zero, a6
+6165 07010113 c.addi16sp sp, 112 | addi sp, sp, 112
+9eb9 00e686bb c.addw a3, a4 | addw a3, a3, a4
+9399 0267d793 c.srli a5, 38 | srli a5, a5, 38
+986d ffb47413 c.andi s0, -5 | andi s0, s0, -5
+6171 15010113 c.addi16sp sp, 336 | addi sp, sp, 336
+aa5d 1b60006f c.j 438 | jal zero, 438
+9fb5 00d787bb c.addw a5, a3 | addw a5, a5, a3
+8ada 01600ab3 c.mv s5, s6 | add s5, zero, s6
+8889 0024f493 c.andi s1, 2 | andi s1, s1, 2
+8485 4014d493 c.srai s1, 1 | srai s1, s1, 1
+d3f1 fc0782e3 c.beqz a5, -60 | beq a5, zero, -60
+9002 00100073 c.ebreak | ebreak
+0b95 005b8b93 c.addi s7, 5 | addi s7, s7, 5
+8445 41145413 c.srai s0, 17 | srai s0, s0, 17
+9ebd 00f686bb c.addw a3, a5 | addw a3, a3, a5
+8c21 00844433 c.xor s0, s0 | xor s0, s0, s0
+8d82 000d8067 c.jr s11 | jalr zero, 0(s11)
+8a02 000a0067 c.jr s4 | jalr zero, 0(s4)
+9f0d 40b7073b c.subw a4, a1 | subw a4, a4, a1
+c168 04a52223 c.sw a0, 68(a0) | sw a0, 68(a0)
+a9cd 4f20006f c.j 1266 | jal zero, 1266
+8f89 40a787b3 c.sub a5, a0 | sub a5, a5, a0
+cc2a 00a12c23 c.swsp a0, 24(sp) | sw a0, 24(sp)
+0fd4 3d410693 c.addi4spn a3, sp, 980 | addi a3, sp, 980
+8976 01d00933 c.mv s2, t4 | add s2, zero, t4
+d89c 02f4a823 c.sw a5, 48(s1) | sw a5, 48(s1)
+033d 00f30313 c.addi t1, 15 | addi t1, t1, 15
+8995 0055f593 c.andi a1, 5 | andi a1, a1, 5
+9002 00100073 c.ebreak | ebreak
+8c05 40940433 c.sub s0, s1 | sub s0, s0, s1
+0001 00000013 c.nop | addi zero, zero, 0
+8c45 00946433 c.or s0, s1 | or s0, s0, s1
+84a1 4084d493 c.srai s1, 8 | srai s1, s1, 8
+8b8d 0037f793 c.andi a5, 3 | andi a5, a5, 3
+9002 00100073 c.ebreak | ebreak
+9245 03165613 c.srli a2, 49 | srli a2, a2, 49
+9782 000780e7 c.jalr a5 | jalr ra, 0(a5)
+9545 43155513 c.srai a0, 49 | srai a0, a0, 49
+0001 00000013 c.nop | addi zero, zero, 0
+bbf1 dddff06f c.j -548 | jal zero, -548
+5300 02072403 c.lw s0, 32(a4) | lw s0, 32(a4)
+dc1c 02f42c23 c.sw a5, 56(s0) | sw a5, 56(s0)
+9795 4257d793 c.srai a5, 37 | srai a5, a5, 37
+8fd1 00c7e7b3 c.or a5, a2 | or a5, a5, a2
+0001 00000013 c.nop | addi zero, zero, 0
+8d99 40e585b3 c.sub a1, a4 | sub a1, a1, a4
+3cbd fefc8c9b c.addiw s9, -17 | addiw s9, s9, -17
+c37c 04f72223 c.sw a5, 68(a4) | sw a5, 68(a4)
+9989 fe25f593 c.andi a1, -30 | andi a1, a1, -30
+cc30 04c42c23 c.sw a2, 88(s0) | sw a2, 88(s0)
+9e89 40a686bb c.subw a3, a0 | subw a3, a3, a0
+fe42 13013c23 c.sdsp a6, 312(sp) | sd a6, 312(sp)
+8539 40e55513 c.srai a0, 14 | srai a0, a0, 14
+6719 00006737 c.lui a4, 6 | lui a4, 6
+2505 0015051b c.addiw a0, 1 | addiw a0, a0, 1
+d301 f00700e3 c.beqz a4, -256 | beq a4, zero, -256
+0001 00000013 c.nop | addi zero, zero, 0
+0001 00000013 c.nop | addi zero, zero, 0
+8fed 00b7f7b3 c.and a5, a1 | and a5, a5, a1
+9e1d 40f6063b c.subw a2, a5 | subw a2, a2, a5
+7151 f1010113 c.addi16sp sp, -240 | addi sp, sp, -240
+4a36 04c12a03 c.lwsp s4, 76(sp) | lw s4, 76(sp)
+02ad 00b28293 c.addi t0, 11 | addi t0, t0, 11
+5da9 fea00d93 c.li s11, -22 | addi s11, zero, -22
+8621 40865613 c.srai a2, 8 | srai a2, a2, 8
+c898 00e4a823 c.sw a4, 16(s1) | sw a4, 16(s1)
+4552 01412503 c.lwsp a0, 20(sp) | lw a0, 20(sp)
+5e6a 0b812e03 c.lwsp t3, 184(sp) | lw t3, 184(sp)
+591c 03052783 c.lw a5, 48(a0) | lw a5, 48(a0)
+2b1d 007b0b1b c.addiw s6, 7 | addiw s6, s6, 7
+dfd5 fa078ee3 c.beqz a5, -68 | beq a5, zero, -68
+612d 0e010113 c.addi16sp sp, 224 | addi sp, sp, 224
+82ce 013002b3 c.mv t0, s3 | add t0, zero, s3
+7661 ffff8637 c.lui a2, 1048568 | lui a2, 1048568
+8c05 40940433 c.sub s0, s1 | sub s0, s0, s1
+9841 ff047413 c.andi s0, -16 | andi s0, s0, -16
+c81d 02040b63 c.beqz s0, 54 | beq s0, zero, 54
+01a1 00818193 c.addi gp, 8 | addi gp, gp, 8
+bff9 fdfff06f c.j -34 | jal zero, -34
+f094 02d4b023 c.sd a3, 32(s1) | sd a3, 32(s1)
+92e9 03a6d693 c.srli a3, 58 | srli a3, a3, 58
+1748 3a410513 c.addi4spn a0, sp, 932 | addi a0, sp, 932
+8db9 00e5c5b3 c.xor a1, a4 | xor a1, a1, a4
+9d15 40d5053b c.subw a0, a3 | subw a0, a0, a3
+62aa 08813283 c.ldsp t0, 136(sp) | ld t0, 136(sp)
+7830 07043603 c.ld a2, 112(s0) | ld a2, 112(s0)
+ef50 08c73c23 c.sd a2, 152(a4) | sd a2, 152(a4)
+ca80 0086a823 c.sw s0, 16(a3) | sw s0, 16(a3)
+9c99 40e484bb c.subw s1, a4 | subw s1, s1, a4
+131c 1a010793 c.addi4spn a5, sp, 416 | addi a5, sp, 416
+520c 02062583 c.lw a1, 32(a2) | lw a1, 32(a2)
+c742 09012623 c.swsp a6, 140(sp) | sw a6, 140(sp)
+91cd 0335d593 c.srli a1, 51 | srli a1, a1, 51
+907d 03f45413 c.srli s0, 63 | srli s0, s0, 63
+8db5 00d5c5b3 c.xor a1, a3 | xor a1, a1, a3
+8621 40865613 c.srai a2, 8 | srai a2, a2, 8
+1429 fea40413 c.addi s0, -22 | addi s0, s0, -22
+1f7c 3bc10793 c.addi4spn a5, sp, 956 | addi a5, sp, 956
+8702 00070067 c.jr a4 | jalr zero, 0(a4)
+7b09 fffe2b37 c.lui s6, 1048546 | lui s6, 1048546
+8b02 000b0067 c.jr s6 | jalr zero, 0(s6)
+6a10 01063603 c.ld a2, 16(a2) | ld a2, 16(a2)
+c2f2 05c12223 c.swsp t3, 68(sp) | sw t3, 68(sp)
+04e5 01948493 c.addi s1, 25 | addi s1, s1, 25
+13f6 03d39393 c.slli t2, 61 | slli t2, t2, 61
+5629 fea00613 c.li a2, -22 | addi a2, zero, -22
+9002 00100073 c.ebreak | ebreak
+f34d fa0711e3 c.bnez a4, -94 | bne a4, zero, -94
+e441 08041463 c.bnez s0, 136 | bne s0, zero, 136
+0521 00850513 c.addi a0, 8 | addi a0, a0, 8
+9259 03665613 c.srli a2, 54 | srli a2, a2, 54
+75b9 fffee5b7 c.lui a1, 1048558 | lui a1, 1048558
+0001 00000013 c.nop | addi zero, zero, 0
+8982 00098067 c.jr s3 | jalr zero, 0(s3)
+8f85 409787b3 c.sub a5, s1 | sub a5, a5, s1
+5885 fe100893 c.li a7, -31 | addi a7, zero, -31
+7af8 0f06b703 c.ld a4, 240(a3) | ld a4, 240(a3)
+4149 01200113 c.li sp, 18 | addi sp, zero, 18
+8e81 408686b3 c.sub a3, s0 | sub a3, a3, s0
+5145 ff100113 c.li sp, -15 | addi sp, zero, -15
+ec96 04513c23 c.sdsp t0, 88(sp) | sd t0, 88(sp)
+768d fffe36b7 c.lui a3, 1048547 | lui a3, 1048547
+9f0d 40b7073b c.subw a4, a1 | subw a4, a4, a1
+0eb8 35810713 c.addi4spn a4, sp, 856 | addi a4, sp, 856
+8f29 00a74733 c.xor a4, a0 | xor a4, a4, a0
+f4b1 f40496e3 c.bnez s1, -180 | bne s1, zero, -180
+3511 fe45051b c.addiw a0, -28 | addiw a0, a0, -28
+2225 0092021b c.addiw tp, 9 | addiw tp, tp, 9
+6334 04073683 c.ld a3, 64(a4) | ld a3, 64(a4)
+dbcc 02b7aa23 c.sw a1, 52(a5) | sw a1, 52(a5)
+89e9 01a5f593 c.andi a1, 26 | andi a1, a1, 26
+8f85 409787b3 c.sub a5, s1 | sub a5, a5, s1
+8e41 00866633 c.or a2, s0 | or a2, a2, s0
+74f5 ffffd4b7 c.lui s1, 1048573 | lui s1, 1048573
+9605 42165613 c.srai a2, 33 | srai a2, a2, 33
+9f29 00a7073b c.addw a4, a0 | addw a4, a4, a0
+9785 4217d793 c.srai a5, 33 | srai a5, a5, 33
+9471 43c45413 c.srai s0, 60 | srai s0, s0, 60
+1e3e 02fe1e13 c.slli t3, 47 | slli t3, t3, 47
+8c11 40c40433 c.sub s0, a2 | sub s0, s0, a2
+97b9 42e7d793 c.srai a5, 46 | srai a5, a5, 46
+87a5 4097d793 c.srai a5, 9 | srai a5, a5, 9
+8d61 00857533 c.and a0, s0 | and a0, a0, s0
+4292 00412283 c.lwsp t0, 4(sp) | lw t0, 4(sp)
+9a32 00ca0a33 c.add s4, a2 | add s4, s4, a2
+ee60 0c863c23 c.sd s0, 216(a2) | sd s0, 216(a2)
+ebbc 04f7b823 c.sd a5, 80(a5) | sd a5, 80(a5)
+e1ca 0d213023 c.sdsp s2, 192(sp) | sd s2, 192(sp)
+8ead 00b6c6b3 c.xor a3, a1 | xor a3, a3, a1
+4541 01000513 c.li a0, 16 | addi a0, zero, 16
+f62e 12b13423 c.sdsp a1, 296(sp) | sd a1, 296(sp)
+e226 10913023 c.sdsp s1, 256(sp) | sd s1, 256(sp)
+f13a 0ae13023 c.sdsp a4, 160(sp) | sd a4, 160(sp)
+210d 0031011b c.addiw sp, 3 | addiw sp, sp, 3
+f55e 0b713423 c.sdsp s7, 168(sp) | sd s7, 168(sp)
+8c49 00a46433 c.or s0, a0 | or s0, s0, a0
+8d55 00d56533 c.or a0, a3 | or a0, a0, a3
+db98 02e7a823 c.sw a4, 48(a5) | sw a4, 48(a5)
+4f70 05c72603 c.lw a2, 92(a4) | lw a2, 92(a4)
+b891 855ff06f c.j -1964 | jal zero, -1964
+8841 01047413 c.andi s0, 16 | andi s0, s0, 16
+e670 0cc63423 c.sd a2, 200(a2) | sd a2, 200(a2)
+f82e 02b13823 c.sdsp a1, 48(sp) | sd a1, 48(sp)
+167c 32c10793 c.addi4spn a5, sp, 812 | addi a5, sp, 812
+9b02 000b00e7 c.jalr s6 | jalr ra, 0(s6)
+73a4 0607b483 c.ld s1, 96(a5) | ld s1, 96(a5)
+a74d 7a20006f c.j 1954 | jal zero, 1954
+0749 01270713 c.addi a4, 18 | addi a4, a4, 18
+bc89 a53ff06f c.j -1454 | jal zero, -1454
+1ce1 ff8c8c93 c.addi s9, -8 | addi s9, s9, -8
+8e81 408686b3 c.sub a3, s0 | sub a3, a3, s0
+0080 04010413 c.addi4spn s0, sp, 64 | addi s0, sp, 64
+10ea 03a09093 c.slli ra, 58 | slli ra, ra, 58
+e715 02071663 c.bnez a4, 44 | bne a4, zero, 44
+4bad 00b00b93 c.li s7, 11 | addi s7, zero, 11
+712d ee010113 c.addi16sp sp, -288 | addi sp, sp, -288
+9a86 001a8ab3 c.add s5, ra | add s5, s5, ra
+6e18 01863703 c.ld a4, 24(a2) | ld a4, 24(a2)
+6159 19010113 c.addi16sp sp, 400 | addi sp, sp, 400
+5f1d fe700f13 c.li t5, -25 | addi t5, zero, -25
+8102 00010067 c.jr sp | jalr zero, 0(sp)
+9e0a 002e0e33 c.add t3, sp | add t3, t3, sp
+5ec6 07012e83 c.lwsp t4, 112(sp) | lw t4, 112(sp)
+ffcc 0ab7bc23 c.sd a1, 184(a5) | sd a1, 184(a5)
+bb91 d55ff06f c.j -684 | jal zero, -684
+d716 0a512623 c.swsp t0, 172(sp) | sw t0, 172(sp)
+9b09 fe277713 c.andi a4, -30 | andi a4, a4, -30
+e5da 0d613423 c.sdsp s6, 200(sp) | sd s6, 200(sp)
+436c 04472583 c.lw a1, 68(a4) | lw a1, 68(a4)
+47f2 01c12783 c.lwsp a5, 28(sp) | lw a5, 28(sp)
+8ded 00b5f5b3 c.and a1, a1 | and a1, a1, a1
+8049 01245413 c.srli s0, 18 | srli s0, s0, 18
+d186 0e112023 c.swsp ra, 224(sp) | sw ra, 224(sp)
+e325 06071063 c.bnez a4, 96 | bne a4, zero, 96
+dad1 f8068ae3 c.beqz a3, -108 | beq a3, zero, -108
+c0dd 0a048363 c.beqz s1, 166 | beq s1, zero, 166
+37c9 ff27879b c.addiw a5, -14 | addiw a5, a5, -14
+f2e0 0e86b023 c.sd s0, 224(a3) | sd s0, 224(a3)
+9002 00100073 c.ebreak | ebreak
+f001 f00410e3 c.bnez s0, -256 | bne s0, zero, -256
+786e 0f813803 c.ldsp a6, 248(sp) | ld a6, 248(sp)
+376d ffb7071b c.addiw a4, -5 | addiw a4, a4, -5
+87f1 41c7d793 c.srai a5, 28 | srai a5, a5, 28
+6266 05813203 c.ldsp tp, 88(sp) | ld tp, 88(sp)
+7131 f4010113 c.addi16sp sp, -192 | addi sp, sp, -192
+8af5 01d6f693 c.andi a3, 29 | andi a3, a3, 29
+9fa5 009787bb c.addw a5, s1 | addw a5, a5, s1
+9482 000480e7 c.jalr s1 | jalr ra, 0(s1)
+7028 06043503 c.ld a0, 96(s0) | ld a0, 96(s0)
+9aa1 fe86f693 c.andi a3, -24 | andi a3, a3, -24
+f150 0ac53023 c.sd a2, 160(a0) | sd a2, 160(a0)
+cd80 0085ac23 c.sw s0, 24(a1) | sw s0, 24(a1)
+0474 20c10693 c.addi4spn a3, sp, 524 | addi a3, sp, 524
+1416 02541413 c.slli s0, 37 | slli s0, s0, 37
+0245 01120213 c.addi tp, 17 | addi tp, tp, 17
+0001 00000013 c.nop | addi zero, zero, 0
+b205 921ff06f c.j -1760 | jal zero, -1760
+7c80 0384b403 c.ld s0, 56(s1) | ld s0, 56(s1)
+13b9 fee38393 c.addi t2, -18 | addi t2, t2, -18
+8682 00068067 c.jr a3 | jalr zero, 0(a3)
+59a0 0705a403 c.lw s0, 112(a1) | lw s0, 112(a1)
+8f9d 40f787b3 c.sub a5, a5 | sub a5, a5, a5
+7165 e7010113 c.addi16sp sp, -400 | addi sp, sp, -400
+6b75 0001db37 c.lui s6, 29 | lui s6, 29
+98bd fef4f493 c.andi s1, -17 | andi s1, s1, -17
+c752 09412623 c.swsp s4, 140(sp) | sw s4, 140(sp)
+080d 00380813 c.addi a6, 3 | addi a6, a6, 3
+9c11 40c4043b c.subw s0, a2 | subw s0, s0, a2
+3add ff7a8a9b c.addiw s5, -9 | addiw s5, s5, -9
+9f05 4097073b c.subw a4, s1 | subw a4, a4, s1
+9dbd 00f585bb c.addw a1, a5 | addw a1, a1, a5
+e8dd 0a049b63 c.bnez s1, 182 | bne s1, zero, 182
+9182 000180e7 c.jalr gp | jalr ra, 0(gp)
+9f9a 006f8fb3 c.add t6, t1 | add t6, t6, t1
+464c 00c62583 c.lw a1, 12(a2) | lw a1, 12(a2)
+e5d0 08c5b423 c.sd a2, 136(a1) | sd a2, 136(a1)
+9fa1 008787bb c.addw a5, s0 | addw a5, a5, s0
+8cca 01200cb3 c.mv s9, s2 | add s9, zero, s2
+815a 01600133 c.mv sp, s6 | add sp, zero, s6
+6349 00012337 c.lui t1, 18 | lui t1, 18
+e2c6 15113023 c.sdsp a7, 320(sp) | sd a7, 320(sp)
+90e9 03a4d493 c.srli s1, 58 | srli s1, s1, 58
+c4fc 04f4a623 c.sw a5, 76(s1) | sw a5, 76(s1)
+805d 01745413 c.srli s0, 23 | srli s0, s0, 23
+27f9 01e7879b c.addiw a5, 30 | addiw a5, a5, 30
+5ff0 07c7a603 c.lw a2, 124(a5) | lw a2, 124(a5)
+9c31 00c4043b c.addw s0, a2 | addw s0, s0, a2
+8f02 000f0067 c.jr t5 | jalr zero, 0(t5)
+4784 0087a483 c.lw s1, 8(a5) | lw s1, 8(a5)
+74e1 ffff84b7 c.lui s1, 1048568 | lui s1, 1048568
+55f1 ffc00593 c.li a1, -4 | addi a1, zero, -4
+8a4a 01200a33 c.mv s4, s2 | add s4, zero, s2
+62b0 0406b603 c.ld a2, 64(a3) | ld a2, 64(a3)
+8f61 00877733 c.and a4, s0 | and a4, a4, s0
+8a45 01167613 c.andi a2, 17 | andi a2, a2, 17
+9e95 40d686bb c.subw a3, a3 | subw a3, a3, a3
+d6f4 06d6a623 c.sw a3, 108(a3) | sw a3, 108(a3)
+dd69 fc050de3 c.beqz a0, -38 | beq a0, zero, -38
+8a2d 00b67613 c.andi a2, 11 | andi a2, a2, 11
+59d0 0345a603 c.lw a2, 52(a1) | lw a2, 52(a1)
+9559 43655513 c.srai a0, 54 | srai a0, a0, 54
+4dbe 0cc12d83 c.lwsp s11, 204(sp) | lw s11, 204(sp)
+2f41 010f0f1b c.addiw t5, 16 | addiw t5, t5, 16
+901d 02745413 c.srli s0, 39 | srli s0, s0, 39
+7159 f9010113 c.addi16sp sp, -112 | addi sp, sp, -112
+8915 00557513 c.andi a0, 5 | andi a0, a0, 5
+6145 03010113 c.addi16sp sp, 48 | addi sp, sp, 48
+789c 0304b783 c.ld a5, 48(s1) | ld a5, 48(s1)
+1fdd ff7f8f93 c.addi t6, -9 | addi t6, t6, -9
+085e 01781813 c.slli a6, 23 | slli a6, a6, 23
+c0e6 05912023 c.swsp s9, 64(sp) | sw s9, 64(sp)
+fcb4 06d4bc23 c.sd a3, 120(s1) | sd a3, 120(s1)
+94c1 4304d493 c.srai s1, 48 | srai s1, s1, 48
+8b15 00577713 c.andi a4, 5 | andi a4, a4, 5
+4d76 05c12d03 c.lwsp s10, 92(sp) | lw s10, 92(sp)
+8c85 409484b3 c.sub s1, s1 | sub s1, s1, s1
+e3a8 04a7b023 c.sd a0, 64(a5) | sd a0, 64(a5)
+d9e6 0f912823 c.swsp s9, 240(sp) | sw s9, 240(sp)
+9646 01160633 c.add a2, a7 | add a2, a2, a7
+3991 fe49899b c.addiw s3, -28 | addiw s3, s3, -28
+6161 05010113 c.addi16sp sp, 80 | addi sp, sp, 80
+96e2 018686b3 c.add a3, s8 | add a3, a3, s8
+6e98 0186b703 c.ld a4, 24(a3) | ld a4, 24(a3)
+863d 40f65613 c.srai a2, 15 | srai a2, a2, 15
+9002 00100073 c.ebreak | ebreak
+0001 00000013 c.nop | addi zero, zero, 0
+9b75 ffd77713 c.andi a4, -3 | andi a4, a4, -3
+4542 01012503 c.lwsp a0, 16(sp) | lw a0, 16(sp)
+793e 1e813903 c.ldsp s2, 488(sp) | ld s2, 488(sp)
+4b7a 09c12b03 c.lwsp s6, 156(sp) | lw s6, 156(sp)
+710d ea010113 c.addi16sp sp, -352 | addi sp, sp, -352
+8ec1 0086e6b3 c.or a3, s0 | or a3, a3, s0
+0001 00000013 c.nop | addi zero, zero, 0
+0001 00000013 c.nop | addi zero, zero, 0
+8dba 00e00db3 c.mv s11, a4 | add s11, zero, a4
+9dbd 00f585bb c.addw a1, a5 | addw a1, a1, a5
+9e35 00d6063b c.addw a2, a3 | addw a2, a2, a3
+c599 00058763 c.beqz a1, 14 | beq a1, zero, 14
+4d65 01900d13 c.li s10, 25 | addi s10, zero, 25
+062d 00b60613 c.addi a2, 11 | addi a2, a2, 11
+5e92 02412e83 c.lwsp t4, 36(sp) | lw t4, 36(sp)
+e50a 08213423 c.sdsp sp, 136(sp) | sd sp, 136(sp)
+6139 1c010113 c.addi16sp sp, 448 | addi sp, sp, 448
+8e85 409686b3 c.sub a3, s1 | sub a3, a3, s1
+41ae 0c812183 c.lwsp gp, 200(sp) | lw gp, 200(sp)
+8882 00088067 c.jr a7 | jalr zero, 0(a7)
+dce1 fc048ce3 c.beqz s1, -40 | beq s1, zero, -40
+7194 0205b683 c.ld a3, 32(a1) | ld a3, 32(a1)
+c3e8 04a7a223 c.sw a0, 68(a5) | sw a0, 68(a5)
+6750 08873603 c.ld a2, 136(a4) | ld a2, 136(a4)
+80c5 0114d493 c.srli s1, 17 | srli s1, s1, 17
+ad65 6b80006f c.j 1720 | jal zero, 1720
+9002 00100073 c.ebreak | ebreak
+945d 43745413 c.srai s0, 55 | srai s0, s0, 55
+e5d5 0a059663 c.bnez a1, 172 | bne a1, zero, 172
+0829 00a80813 c.addi a6, 10 | addi a6, a6, 10
+c7c9 08078563 c.beqz a5, 138 | beq a5, zero, 138
+4390 0007a603 c.lw a2, 0(a5) | lw a2, 0(a5)
+80b5 00d4d493 c.srli s1, 13 | srli s1, s1, 13
+1609 fe260613 c.addi a2, -30 | addi a2, a2, -30
+80b5 00d4d493 c.srli s1, 13 | srli s1, s1, 13
+6e74 0d863683 c.ld a3, 216(a2) | ld a3, 216(a2)
+7111 f0010113 c.addi16sp sp, -256 | addi sp, sp, -256
+8d45 00956533 c.or a0, s1 | or a0, a0, s1
+90b5 02d4d493 c.srli s1, 45 | srli s1, s1, 45
+c670 04c62623 c.sw a2, 76(a2) | sw a2, 76(a2)
+c42e 00b12423 c.swsp a1, 8(sp) | sw a1, 8(sp)
+d910 02c52823 c.sw a2, 48(a0) | sw a2, 48(a0)
+93c9 0327d793 c.srli a5, 50 | srli a5, a5, 50
+9a11 fe467613 c.andi a2, -28 | andi a2, a2, -28
+0dc2 010d9d93 c.slli s11, 16 | slli s11, s11, 16
+89d5 0155f593 c.andi a1, 21 | andi a1, a1, 21
+7115 f2010113 c.addi16sp sp, -224 | addi sp, sp, -224
+7235 fffed237 c.lui tp, 1048557 | lui tp, 1048557
+ec9c 00f4bc23 c.sd a5, 24(s1) | sd a5, 24(s1)
+f791 f00796e3 c.bnez a5, -244 | bne a5, zero, -244
+a9ad 47a0006f c.j 1146 | jal zero, 1146
+c372 09c12223 c.swsp t3, 132(sp) | sw t3, 132(sp)
+8b3d 00f77713 c.andi a4, 15 | andi a4, a4, 15
+8e2d 00b64633 c.xor a2, a1 | xor a2, a2, a1
+538e 0e012383 c.lwsp t2, 224(sp) | lw t2, 224(sp)
+5506 06012503 c.lwsp a0, 96(sp) | lw a0, 96(sp)
+6908 01053503 c.ld a0, 16(a0) | ld a0, 16(a0)
+dc80 0284ac23 c.sw s0, 56(s1) | sw s0, 56(s1)
+7824 07043483 c.ld s1, 112(s0) | ld s1, 112(s0)
+e768 0ca73423 c.sd a0, 200(a4) | sd a0, 200(a4)
+c704 00972423 c.sw s1, 8(a4) | sw s1, 8(a4)
+4b42 01012b03 c.lwsp s6, 16(sp) | lw s6, 16(sp)
+5684 0286a483 c.lw s1, 40(a3) | lw s1, 40(a3)
+177a 03e71713 c.slli a4, 62 | slli a4, a4, 62
+9402 000400e7 c.jalr s0 | jalr ra, 0(s0)
+9b82 000b80e7 c.jalr s7 | jalr ra, 0(s7)
+daa0 0686a823 c.sw s0, 112(a3) | sw s0, 112(a3)
+b8c1 8d1ff06f c.j -1840 | jal zero, -1840
+c6aa 04a12623 c.swsp a0, 76(sp) | sw a0, 76(sp)
+9002 00100073 c.ebreak | ebreak
+55fa 0bc12583 c.lwsp a1, 188(sp) | lw a1, 188(sp)
+6c29 0000ac37 c.lui s8, 10 | lui s8, 10
+f2d2 17413023 c.sdsp s4, 352(sp) | sd s4, 352(sp)
+6929 0000a937 c.lui s2, 10 | lui s2, 10
+9c9d 40f484bb c.subw s1, a5 | subw s1, s1, a5
+8d39 00e54533 c.xor a0, a4 | xor a0, a0, a4
+13d0 1e410613 c.addi4spn a2, sp, 484 | addi a2, sp, 484
+46ee 0d812683 c.lwsp a3, 216(sp) | lw a3, 216(sp)
+8ec5 0096e6b3 c.or a3, s1 | or a3, a3, s1
+bc1d a37ff06f c.j -1482 | jal zero, -1482
+8845 01147413 c.andi s0, 17 | andi s0, s0, 17
+01ce 01319193 c.slli gp, 19 | slli gp, gp, 19
+9e99 40e686bb c.subw a3, a4 | subw a3, a3, a4
+f17e 0bf13023 c.sdsp t6, 160(sp) | sd t6, 160(sp)
+1826 02981813 c.slli a6, 41 | slli a6, a6, 41
+8e4d 00b66633 c.or a2, a1 | or a2, a2, a1
+5554 02c52683 c.lw a3, 44(a0) | lw a3, 44(a0)
+d726 0a912623 c.swsp s1, 172(sp) | sw s1, 172(sp)
+d469 fc0405e3 c.beqz s0, -54 | beq s0, zero, -54
+8c9d 40f484b3 c.sub s1, a5 | sub s1, s1, a5
+95c1 4305d593 c.srai a1, 48 | srai a1, a1, 48
+ff82 1e013c23 c.sdsp zero, 504(sp) | sd zero, 504(sp)
+33c9 ff23839b c.addiw t2, -14 | addiw t2, t2, -14
+694c 09053583 c.ld a1, 144(a0) | ld a1, 144(a0)
+1236 02d21213 c.slli tp, 45 | slli tp, tp, 45
+474c 00c72583 c.lw a1, 12(a4) | lw a1, 12(a4)
+c484 0094a423 c.sw s1, 8(s1) | sw s1, 8(s1)
+692e 0c813903 c.ldsp s2, 200(sp) | ld s2, 200(sp)
+7665 ffff9637 c.lui a2, 1048569 | lui a2, 1048569
+1348 1a410513 c.addi4spn a0, sp, 420 | addi a0, sp, 420
+6165 07010113 c.addi16sp sp, 112 | addi sp, sp, 112
+2849 0128081b c.addiw a6, 18 | addiw a6, a6, 18
+9cad 00b484bb c.addw s1, a1 | addw s1, s1, a1
+4675 01d00613 c.li a2, 29 | addi a2, zero, 29
+c860 04842a23 c.sw s0, 84(s0) | sw s0, 84(s0)
+8f8d 40b787b3 c.sub a5, a1 | sub a5, a5, a1
+c436 00d12423 c.swsp a3, 8(sp) | sw a3, 8(sp)
+9f09 40a7073b c.subw a4, a0 | subw a4, a4, a0
+670d 00003737 c.lui a4, 3 | lui a4, 3
+8c69 00a47433 c.and s0, a0 | and s0, s0, a0
+9fb1 00c787bb c.addw a5, a2 | addw a5, a5, a2
+c369 0c070163 c.beqz a4, 194 | beq a4, zero, 194
+64de 1d013483 c.ldsp s1, 464(sp) | ld s1, 464(sp)
+8eb1 00c6c6b3 c.xor a3, a2 | xor a3, a3, a2
+8e2d 00b64633 c.xor a2, a1 | xor a2, a2, a1
+2675 01d6061b c.addiw a2, 29 | addiw a2, a2, 29
+86a6 009006b3 c.mv a3, s1 | add a3, zero, s1
+7b05 fffe1b37 c.lui s6, 1048545 | lui s6, 1048545
+83ad 00b7d793 c.srli a5, 11 | srli a5, a5, 11
+0420 20810413 c.addi4spn s0, sp, 520 | addi s0, sp, 520
+8db5 00d5c5b3 c.xor a1, a3 | xor a1, a1, a3
+86c9 4126d693 c.srai a3, 18 | srai a3, a3, 18
+de8e 06312e23 c.swsp gp, 124(sp) | sw gp, 124(sp)
+ab99 5560006f c.j 1366 | jal zero, 1366
+9f39 00e7073b c.addw a4, a4 | addw a4, a4, a4
+a05d 0a60006f c.j 166 | jal zero, 166
+8f85 409787b3 c.sub a5, s1 | sub a5, a5, s1
+9691 4246d693 c.srai a3, 36 | srai a3, a3, 36
+8d51 00c56533 c.or a0, a2 | or a0, a0, a2
+1100 0a010413 c.addi4spn s0, sp, 160 | addi s0, sp, 160
+9b76 01db0b33 c.add s6, t4 | add s6, s6, t4
+961a 00660633 c.add a2, t1 | add a2, a2, t1
+9692 004686b3 c.add a3, tp | add a3, a3, tp
+dfb8 06e7ac23 c.sw a4, 120(a5) | sw a4, 120(a5)
+308d fe30809b c.addiw ra, -29 | addiw ra, ra, -29
+7ad4 0b06b683 c.ld a3, 176(a3) | ld a3, 176(a3)
+da96 06512a23 c.swsp t0, 116(sp) | sw t0, 116(sp)
+8ed5 00d6e6b3 c.or a3, a3 | or a3, a3, a3
+8d65 00957533 c.and a0, s1 | and a0, a0, s1
+0764 38c10493 c.addi4spn s1, sp, 908 | addi s1, sp, 908
+8df1 00c5f5b3 c.and a1, a2 | and a1, a1, a2
+8f35 00d74733 c.xor a4, a3 | xor a4, a4, a3
+8d2d 00b54533 c.xor a0, a1 | xor a0, a0, a1
+2e71 01ce0e1b c.addiw t3, 28 | addiw t3, t3, 28
+19ac 0f810593 c.addi4spn a1, sp, 248 | addi a1, sp, 248
+614d 0b010113 c.addi16sp sp, 176 | addi sp, sp, 176
+817d 01f55513 c.srli a0, 31 | srli a0, a0, 31
+ccfe 05f12c23 c.swsp t6, 88(sp) | sw t6, 88(sp)
+9002 00100073 c.ebreak | ebreak
+587e 0fc12803 c.lwsp a6, 252(sp) | lw a6, 252(sp)
+9c82 000c80e7 c.jalr s9 | jalr ra, 0(s9)
+8e46 01100e33 c.mv t3, a7 | add t3, zero, a7
+8fb1 00c7c7b3 c.xor a5, a2 | xor a5, a5, a2
+e092 04413023 c.sdsp tp, 64(sp) | sd tp, 64(sp)
+417a 09c12103 c.lwsp sp, 156(sp) | lw sp, 156(sp)
+0db1 00cd8d93 c.addi s11, 12 | addi s11, s11, 12
+79fa 1b813983 c.ldsp s3, 440(sp) | ld s3, 440(sp)
+876d 41b75713 c.srai a4, 27 | srai a4, a4, 27
+8c2d 00b44433 c.xor s0, a1 | xor s0, s0, a1
+d650 02c62623 c.sw a2, 44(a2) | sw a2, 44(a2)
+9c29 00a4043b c.addw s0, a0 | addw s0, s0, a0
+0001 00000013 c.nop | addi zero, zero, 0
+0001 00000013 c.nop | addi zero, zero, 0
+13a1 fe838393 c.addi t2, -24 | addi t2, t2, -24
+9176 01d10133 c.add sp, t4 | add sp, sp, t4
+d61e 02712623 c.swsp t2, 44(sp) | sw t2, 44(sp)
+8f09 40a70733 c.sub a4, a0 | sub a4, a4, a0
+8382 00038067 c.jr t2 | jalr zero, 0(t2)
+8881 0004f493 c.andi s1, 0 | andi s1, s1, 0
+fb49 f80719e3 c.bnez a4, -110 | bne a4, zero, -110
+cf10 00c72c23 c.sw a2, 24(a4) | sw a2, 24(a4)
+c505 02050463 c.beqz a0, 40 | beq a0, zero, 40
+ce54 00d62e23 c.sw a3, 28(a2) | sw a3, 28(a2)
+1f42 030f1f13 c.slli t5, 48 | slli t5, t5, 48
+8379 01e75713 c.srli a4, 30 | srli a4, a4, 30
+6dc0 0985b403 c.ld s0, 152(a1) | ld s0, 152(a1)
+d2b5 f60682e3 c.beqz a3, -156 | beq a3, zero, -156
+53ee 0f812383 c.lwsp t2, 248(sp) | lw t2, 248(sp)
+9ca1 008484bb c.addw s1, s0 | addw s1, s1, s0
+ee46 11113c23 c.sdsp a7, 280(sp) | sd a7, 280(sp)
+9002 00100073 c.ebreak | ebreak
+7966 07813903 c.ldsp s2, 120(sp) | ld s2, 120(sp)
+c8d5 0a048a63 c.beqz s1, 180 | beq s1, zero, 180
+9cb1 00c484bb c.addw s1, a2 | addw s1, s1, a2
+fa79 fc061be3 c.bnez a2, -42 | bne a2, zero, -42
+e83a 00e13823 c.sdsp a4, 16(sp) | sd a4, 16(sp)
+938d 0237d793 c.srli a5, 35 | srli a5, a5, 35
+befd bffff06f c.j -1026 | jal zero, -1026
+3ba1 fe8b8b9b c.addiw s7, -24 | addiw s7, s7, -24
+4b78 05472703 c.lw a4, 84(a4) | lw a4, 84(a4)
+98be 00f888b3 c.add a7, a5 | add a7, a7, a5
+6452 11013403 c.ldsp s0, 272(sp) | ld s0, 272(sp)
+9002 00100073 c.ebreak | ebreak
+4c78 05c42703 c.lw a4, 92(s0) | lw a4, 92(s0)
+7bce 0f013b83 c.ldsp s7, 240(sp) | ld s7, 240(sp)
+77d5 ffff57b7 c.lui a5, 1048565 | lui a5, 1048565
+9b99 fe67f793 c.andi a5, -26 | andi a5, a5, -26
+8fed 00b7f7b3 c.and a5, a1 | and a5, a5, a1
+92e2 018282b3 c.add t0, s8 | add t0, t0, s8
+8f95 40d787b3 c.sub a5, a3 | sub a5, a5, a3
+91dd 0375d593 c.srli a1, 55 | srli a1, a1, 55
+5a3a 0ac12a03 c.lwsp s4, 172(sp) | lw s4, 172(sp)
+7f6a 0b813f03 c.ldsp t5, 184(sp) | ld t5, 184(sp)
+3f55 ff5f0f1b c.addiw t5, -11 | addiw t5, t5, -11
+cf8d 02078d63 c.beqz a5, 58 | beq a5, zero, 58
+9dad 00b585bb c.addw a1, a1 | addw a1, a1, a1
+c83a 00e12823 c.swsp a4, 16(sp) | sw a4, 16(sp)
+ce28 04a62c23 c.sw a0, 88(a2) | sw a0, 88(a2)
+7f1e 1e013f03 c.ldsp t5, 480(sp) | ld t5, 480(sp)
+8085 0014d493 c.srli s1, 1 | srli s1, s1, 1
+cbb8 04e7a823 c.sw a4, 80(a5) | sw a4, 80(a5)
+e2b0 04c6b023 c.sd a2, 64(a3) | sd a2, 64(a3)
+8de1 0085f5b3 c.and a1, s0 | and a1, a1, s0
+92d1 0346d693 c.srli a3, 52 | srli a3, a3, 52
+da5d fa060be3 c.beqz a2, -74 | beq a2, zero, -74
+a5bd 66e0006f c.j 1646 | jal zero, 1646
+db74 06d72a23 c.sw a3, 116(a4) | sw a3, 116(a4)
+faad f60699e3 c.bnez a3, -142 | bne a3, zero, -142
+52d0 0246a603 c.lw a2, 36(a3) | lw a2, 36(a3)
+9002 00100073 c.ebreak | ebreak
+6342 01013303 c.ldsp t1, 16(sp) | ld t1, 16(sp)
+8dc5 0095e5b3 c.or a1, s1 | or a1, a1, s1
+4084 0004a483 c.lw s1, 0(s1) | lw s1, 0(s1)
+6121 04010113 c.addi16sp sp, 64 | addi sp, sp, 64
+06c1 01068693 c.addi a3, 16 | addi a3, a3, 16
+0b42 010b1b13 c.slli s6, 16 | slli s6, s6, 16
+6f41 00010f37 c.lui t5, 16 | lui t5, 16
+1fc8 3f410513 c.addi4spn a0, sp, 1012 | addi a0, sp, 1012
+9002 00100073 c.ebreak | ebreak
+c6d1 08068663 c.beqz a3, 140 | beq a3, zero, 140
+02b9 00e28293 c.addi t0, 14 | addi t0, t0, 14
+4c61 01800c13 c.li s8, 24 | addi s8, zero, 24
+ebe5 0e079863 c.bnez a5, 240 | bne a5, zero, 240
+7175 f7010113 c.addi16sp sp, -144 | addi sp, sp, -144
+cfcd 0a078d63 c.beqz a5, 186 | beq a5, zero, 186
+8db5 00d5c5b3 c.xor a1, a3 | xor a1, a1, a3
+4ec1 01000e93 c.li t4, 16 | addi t4, zero, 16
+9882 000880e7 c.jalr a7 | jalr ra, 0(a7)
+670a 08013703 c.ldsp a4, 128(sp) | ld a4, 128(sp)
+9a02 000a00e7 c.jalr s4 | jalr ra, 0(s4)
+eaf5 0e069a63 c.bnez a3, 244 | bne a3, zero, 244
+eb6c 0cb73823 c.sd a1, 208(a4) | sd a1, 208(a4)
+c66c 04b62623 c.sw a1, 76(a2) | sw a1, 76(a2)
+1965 ff990913 c.addi s2, -7 | addi s2, s2, -7
+7cc0 0b84b403 c.ld s0, 184(s1) | ld s0, 184(s1)
+42dc 0046a783 c.lw a5, 4(a3) | lw a5, 4(a3)
+27fd 01f7879b c.addiw a5, 31 | addiw a5, a5, 31
+1e1a 026e1e13 c.slli t3, 38 | slli t3, t3, 38
+cd4d 0a050d63 c.beqz a0, 186 | beq a0, zero, 186
+00e9 01a08093 c.addi ra, 26 | addi ra, ra, 26
+6dd4 0985b683 c.ld a3, 152(a1) | ld a3, 152(a1)
+8ded 00b5f5b3 c.and a1, a1 | and a1, a1, a1
+c760 04872623 c.sw s0, 76(a4) | sw s0, 76(a4)
+9ea9 00a686bb c.addw a3, a0 | addw a3, a3, a0
+9002 00100073 c.ebreak | ebreak
+3e55 ff5e0e1b c.addiw t3, -11 | addiw t3, t3, -11
+8282 00028067 c.jr t0 | jalr zero, 0(t0)
+41a0 0405a403 c.lw s0, 64(a1) | lw s0, 64(a1)
+7104 02053483 c.ld s1, 32(a0) | ld s1, 32(a0)
+9fb1 00c787bb c.addw a5, a2 | addw a5, a5, a2
+9aa1 fe86f693 c.andi a3, -24 | andi a3, a3, -24
+3f39 feef0f1b c.addiw t5, -18 | addiw t5, t5, -18
+d600 02862423 c.sw s0, 40(a2) | sw s0, 40(a2)
+8e01 40860633 c.sub a2, s0 | sub a2, a2, s0
+8a1d 00767613 c.andi a2, 7 | andi a2, a2, 7
+d4e6 07912423 c.swsp s9, 104(sp) | sw s9, 104(sp)
+d860 06842a23 c.sw s0, 116(s0) | sw s0, 116(s0)
+7960 0f053403 c.ld s0, 240(a0) | ld s0, 240(a0)
+8ff1 00c7f7b3 c.and a5, a2 | and a5, a5, a2
+0439 00e40413 c.addi s0, 14 | addi s0, s0, 14
+9002 00100073 c.ebreak | ebreak
+b8a5 879ff06f c.j -1928 | jal zero, -1928
+8cdd 00f4e4b3 c.or s1, a5 | or s1, s1, a5
+fb8d f20799e3 c.bnez a5, -206 | bne a5, zero, -206
+8dd1 00c5e5b3 c.or a1, a2 | or a1, a1, a2
+0001 00000013 c.nop | addi zero, zero, 0
+ea90 00c6b823 c.sd a2, 16(a3) | sd a2, 16(a3)
+990e 00390933 c.add s2, gp | add s2, s2, gp
+74bc 0684b783 c.ld a5, 104(s1) | ld a5, 104(s1)
+8e8d 40b686b3 c.sub a3, a1 | sub a3, a3, a1
+195e 03791913 c.slli s2, 55 | slli s2, s2, 55
+60d2 11013083 c.ldsp ra, 272(sp) | ld ra, 272(sp)
+baad 97bff06f c.j -1670 | jal zero, -1670
+7996 16013983 c.ldsp s3, 352(sp) | ld s3, 352(sp)
+9cad 00b484bb c.addw s1, a1 | addw s1, s1, a1
+ea88 00a6b823 c.sd a0, 16(a3) | sd a0, 16(a3)
+04d0 24410613 c.addi4spn a2, sp, 580 | addi a2, sp, 580
+5ace 0f012a83 c.lwsp s5, 240(sp) | lw s5, 240(sp)
+2199 0061819b c.addiw gp, 6 | addiw gp, gp, 6
+3d55 ff5d0d1b c.addiw s10, -11 | addiw s10, s10, -11
+9f0d 40b7073b c.subw a4, a1 | subw a4, a4, a1
+981a 00680833 c.add a6, t1 | add a6, a6, t1
+8895 0054f493 c.andi s1, 5 | andi s1, s1, 5
+7ac8 0b06b503 c.ld a0, 176(a3) | ld a0, 176(a3)
+8d91 40c585b3 c.sub a1, a2 | sub a1, a1, a2
+9d39 00e5053b c.addw a0, a4 | addw a0, a0, a4
+6fa4 0587b483 c.ld s1, 88(a5) | ld s1, 88(a5)
+82a2 008002b3 c.mv t0, s0 | add t0, zero, s0
+8fb9 00e7c7b3 c.xor a5, a4 | xor a5, a5, a4
+5cc2 03012c83 c.lwsp s9, 48(sp) | lw s9, 48(sp)
+4cb1 00c00c93 c.li s9, 12 | addi s9, zero, 12
+dc30 06c42c23 c.sw a2, 120(s0) | sw a2, 120(s0)
+610d 0a010113 c.addi16sp sp, 160 | addi sp, sp, 160
+760c 02863583 c.ld a1, 40(a2) | ld a1, 40(a2)
+9002 00100073 c.ebreak | ebreak
+8f8d 40b787b3 c.sub a5, a1 | sub a5, a5, a1
+7169 ed010113 c.addi16sp sp, -304 | addi sp, sp, -304
+1148 0a410513 c.addi4spn a0, sp, 164 | addi a0, sp, 164
+6170 0c053603 c.ld a2, 192(a0) | ld a2, 192(a0)
+52d0 0246a603 c.lw a2, 36(a3) | lw a2, 36(a3)
+d395 f20782e3 c.beqz a5, -220 | beq a5, zero, -220
+6131 14010113 c.addi16sp sp, 320 | addi sp, sp, 320
+8c75 00d47433 c.and s0, a3 | and s0, s0, a3
+9282 000280e7 c.jalr t0 | jalr ra, 0(t0)
+7e6e 0f813e03 c.ldsp t3, 248(sp) | ld t3, 248(sp)
+0c04 21010493 c.addi4spn s1, sp, 528 | addi s1, sp, 528
+8602 00060067 c.jr a2 | jalr zero, 0(a2)
+5ee9 ffa00e93 c.li t4, -6 | addi t4, zero, -6
+8e09 40a60633 c.sub a2, a0 | sub a2, a2, a0
+0001 00000013 c.nop | addi zero, zero, 0
+9eb9 00e686bb c.addw a3, a4 | addw a3, a3, a4
+f70e 1a313423 c.sdsp gp, 424(sp) | sd gp, 424(sp)
+9902 000900e7 c.jalr s2 | jalr ra, 0(s2)
+8c01 40840433 c.sub s0, s0 | sub s0, s0, s0
+8ce1 0084f4b3 c.and s1, s0 | and s1, s1, s0
+c970 04c52a23 c.sw a2, 84(a0) | sw a2, 84(a0)
+8d5d 00f56533 c.or a0, a5 | or a0, a0, a5
+8182 00018067 c.jr gp | jalr zero, 0(gp)
+6109 08010113 c.addi16sp sp, 128 | addi sp, sp, 128
+8dad 00b5c5b3 c.xor a1, a1 | xor a1, a1, a1
+64b5 0000d4b7 c.lui s1, 13 | lui s1, 13
+8c2d 00b44433 c.xor s0, a1 | xor s0, s0, a1
+614d 0b010113 c.addi16sp sp, 176 | addi sp, sp, 176
+8ded 00b5f5b3 c.and a1, a1 | and a1, a1, a1
+8d0d 40b50533 c.sub a0, a1 | sub a0, a0, a1
+f340 0a873023 c.sd s0, 160(a4) | sd s0, 160(a4)
+9466 01940433 c.add s0, s9 | add s0, s0, s9
+7149 e9010113 c.addi16sp sp, -368 | addi sp, sp, -368
+6129 0c010113 c.addi16sp sp, 192 | addi sp, sp, 192
+4361 01800313 c.li t1, 24 | addi t1, zero, 24
+9802 000800e7 c.jalr a6 | jalr ra, 0(a6)
+9abd fef6f693 c.andi a3, -17 | andi a3, a3, -17
+8cbd 00f4c4b3 c.xor s1, a5 | xor s1, s1, a5
+d026 02912023 c.swsp s1, 32(sp) | sw s1, 32(sp)
+c25a 01612223 c.swsp s6, 4(sp) | sw s6, 4(sp)
+9602 000600e7 c.jalr a2 | jalr ra, 0(a2)
+612c 04053583 c.ld a1, 64(a0) | ld a1, 64(a0)
+9afd fff6f693 c.andi a3, -1 | andi a3, a3, -1
+8302 00030067 c.jr t1 | jalr zero, 0(t1)
+9002 00100073 c.ebreak | ebreak
+a879 09e0006f c.j 158 | jal zero, 158
+7776 17813703 c.ldsp a4, 376(sp) | ld a4, 376(sp)
+0b99 006b8b93 c.addi s7, 6 | addi s7, s7, 6
+f811 f0041ae3 c.bnez s0, -236 | bne s0, zero, -236
+8695 4056d693 c.srai a3, 5 | srai a3, a3, 5
+714d eb010113 c.addi16sp sp, -336 | addi sp, sp, -336
+8179 01e55513 c.srli a0, 30 | srli a0, a0, 30
+862e 00b00633 c.mv a2, a1 | add a2, zero, a1
+6ce8 0d84b503 c.ld a0, 216(s1) | ld a0, 216(s1)
+5144 02452483 c.lw s1, 36(a0) | lw s1, 36(a0)
+c5d1 08058663 c.beqz a1, 140 | beq a1, zero, 140
+f03a 02e13023 c.sdsp a4, 32(sp) | sd a4, 32(sp)
+8f4d 00b76733 c.or a4, a1 | or a4, a4, a1
+8dc9 00a5e5b3 c.or a1, a0 | or a1, a1, a0
+0001 00000013 c.nop | addi zero, zero, 0
+8f19 40e70733 c.sub a4, a4 | sub a4, a4, a4
+4bfa 09c12b83 c.lwsp s7, 156(sp) | lw s7, 156(sp)
+9e95 40d686bb c.subw a3, a3 | subw a3, a3, a3
+8fd1 00c7e7b3 c.or a5, a2 | or a5, a5, a2
+8fd1 00c7e7b3 c.or a5, a2 | or a5, a5, a2
+855a 01600533 c.mv a0, s6 | add a0, zero, s6
+0446 01141413 c.slli s0, 17 | slli s0, s0, 17
+cc76 01d12c23 c.swsp t4, 24(sp) | sw t4, 24(sp)
+8fbd 00f7c7b3 c.xor a5, a5 | xor a5, a5, a5
+8cf9 00e4f4b3 c.and s1, a4 | and s1, s1, a4
+8e11 40c60633 c.sub a2, a2 | sub a2, a2, a2
+91d2 014181b3 c.add gp, s4 | add gp, gp, s4
+8f35 00d74733 c.xor a4, a3 | xor a4, a4, a3
+8075 01d45413 c.srli s0, 29 | srli s0, s0, 29
+599e 0e412983 c.lwsp s3, 228(sp) | lw s3, 228(sp)
+fdbe 0ef13c23 c.sdsp a5, 248(sp) | sd a5, 248(sp)
+1c96 025c9c93 c.slli s9, 37 | slli s9, s9, 37
+1a68 13c10513 c.addi4spn a0, sp, 316 | addi a0, sp, 316
+9575 43d55513 c.srai a0, 61 | srai a0, a0, 61
+cf1e 08712e23 c.swsp t2, 156(sp) | sw t2, 156(sp)
+5be6 07812b83 c.lwsp s7, 120(sp) | lw s7, 120(sp)
+8912 00400933 c.mv s2, tp | add s2, zero, tp
+9c99 40e484bb c.subw s1, a4 | subw s1, s1, a4
+9dad 00b585bb c.addw a1, a1 | addw a1, a1, a1
+9002 00100073 c.ebreak | ebreak
+8c01 40840433 c.sub s0, s0 | sub s0, s0, s0
+fbb8 06e7b823 c.sd a4, 112(a5) | sd a4, 112(a5)
+8bb5 00d7f793 c.andi a5, 13 | andi a5, a5, 13
+7101 e0010113 c.addi16sp sp, -512 | addi sp, sp, -512
+8c0d 40b40433 c.sub s0, a1 | sub s0, s0, a1
+713d fe010113 c.addi16sp sp, -32 | addi sp, sp, -32
+9146 01110133 c.add sp, a7 | add sp, sp, a7
+8456 01500433 c.mv s0, s5 | add s0, zero, s5
+7b6e 0f813b03 c.ldsp s6, 248(sp) | ld s6, 248(sp)
+9962 01890933 c.add s2, s8 | add s2, s2, s8
+7bec 0f07b583 c.ld a1, 240(a5) | ld a1, 240(a5)
+1cda 036c9c93 c.slli s9, 54 | slli s9, s9, 54
+9d99 40e585bb c.subw a1, a4 | subw a1, a1, a4
+3231 fec2021b c.addiw tp, -20 | addiw tp, tp, -20
+5f00 03872403 c.lw s0, 56(a4) | lw s0, 56(a4)
+b00d 823ff06f c.j -2014 | jal zero, -2014
+5a4d ff300a13 c.li s4, -13 | addi s4, zero, -13
+9359 03675713 c.srli a4, 54 | srli a4, a4, 54
+c705 02070463 c.beqz a4, 40 | beq a4, zero, 40
+8c4e 01300c33 c.mv s8, s3 | add s8, zero, s3
+35fd fff5859b c.addiw a1, -1 | addiw a1, a1, -1
+fe00 02863c23 c.sd s0, 56(a2) | sd s0, 56(a2)
+40c4 0044a483 c.lw s1, 4(s1) | lw s1, 4(s1)
+79e5 ffff99b7 c.lui s3, 1048569 | lui s3, 1048569
+3d45 ff1d0d1b c.addiw s10, -15 | addiw s10, s10, -15
+55b0 0685a603 c.lw a2, 104(a1) | lw a2, 104(a1)
+7159 f9010113 c.addi16sp sp, -112 | addi sp, sp, -112
+8d29 00a54533 c.xor a0, a0 | xor a0, a0, a0
+06fe 01f69693 c.slli a3, 31 | slli a3, a3, 31
+8db9 00e5c5b3 c.xor a1, a4 | xor a1, a1, a4
+91b9 02e5d593 c.srli a1, 46 | srli a1, a1, 46
+8c5d 00f46433 c.or s0, a5 | or s0, s0, a5
+c734 04d72423 c.sw a3, 72(a4) | sw a3, 72(a4)
+7175 f7010113 c.addi16sp sp, -144 | addi sp, sp, -144
+8c35 00d44433 c.xor s0, a3 | xor s0, s0, a3
+8df9 00e5f5b3 c.and a1, a4 | and a1, a1, a4
+ef5d 0a071f63 c.bnez a4, 190 | bne a4, zero, 190
+9e89 40a686bb c.subw a3, a0 | subw a3, a3, a0
+3975 ffd9091b c.addiw s2, -3 | addiw s2, s2, -3
+f342 1b013023 c.sdsp a6, 416(sp) | sd a6, 416(sp)
+fae5 fe0698e3 c.bnez a3, -16 | bne a3, zero, -16
+8ffd 00f7f7b3 c.and a5, a5 | and a5, a5, a5
+0001 00000013 c.nop | addi zero, zero, 0
+65b5 0000d5b7 c.lui a1, 13 | lui a1, 13
+9a05 fe167613 c.andi a2, -31 | andi a2, a2, -31
+9075 03d45413 c.srli s0, 61 | srli s0, s0, 61
+7be4 0f07b483 c.ld s1, 240(a5) | ld s1, 240(a5)
+0001 00000013 c.nop | addi zero, zero, 0
+1f42 030f1f13 c.slli t5, 48 | slli t5, t5, 48
+6b39 0000eb37 c.lui s6, 14 | lui s6, 14
+d05d fa0403e3 c.beqz s0, -90 | beq s0, zero, -90
+9d9d 40f585bb c.subw a1, a5 | subw a1, a1, a5
+9e91 40c686bb c.subw a3, a2 | subw a3, a3, a2
+fe20 06863c23 c.sd s0, 120(a2) | sd s0, 120(a2)
+9e29 00a6063b c.addw a2, a0 | addw a2, a2, a0
+9c8d 40b484bb c.subw s1, a1 | subw s1, s1, a1
+87cd 4137d793 c.srai a5, 19 | srai a5, a5, 19
+8c8d 40b484b3 c.sub s1, a1 | sub s1, s1, a1
+cd2a 08a12c23 c.swsp a0, 152(sp) | sw a0, 152(sp)
+2e51 014e0e1b c.addiw t3, 20 | addiw t3, t3, 20
+9ca1 008484bb c.addw s1, s0 | addw s1, s1, s0
+6c41 00010c37 c.lui s8, 16 | lui s8, 16
+d356 0b512223 c.swsp s5, 164(sp) | sw s5, 164(sp)
+8d45 00956533 c.or a0, s1 | or a0, a0, s1
+9d25 0095053b c.addw a0, s1 | addw a0, a0, s1
+e54c 08b53423 c.sd a1, 136(a0) | sd a1, 136(a0)
+cfbc 04f7ac23 c.sw a5, 88(a5) | sw a5, 88(a5)
+4896 04412883 c.lwsp a7, 68(sp) | lw a7, 68(sp)
+957d 43f55513 c.srai a0, 63 | srai a0, a0, 63
+89ed 01b5f593 c.andi a1, 27 | andi a1, a1, 27
+f32a 1aa13023 c.sdsp a0, 416(sp) | sd a0, 416(sp)
+8f31 00c74733 c.xor a4, a2 | xor a4, a4, a2
+8ac5 0116f693 c.andi a3, 17 | andi a3, a3, 17
+9d02 000d00e7 c.jalr s10 | jalr ra, 0(s10)
+f8ed fe0499e3 c.bnez s1, -14 | bne s1, zero, -14
+fb6c 0eb73823 c.sd a1, 240(a4) | sd a1, 240(a4)
+4a82 00012a83 c.lwsp s5, 0(sp) | lw s5, 0(sp)
+8c6d 00b47433 c.and s0, a1 | and s0, s0, a1
+5b29 fea00b13 c.li s6, -22 | addi s6, zero, -22
+9002 00100073 c.ebreak | ebreak
+9b99 fe67f793 c.andi a5, -26 | andi a5, a5, -26
+1ca5 fe9c8c93 c.addi s9, -23 | addi s9, s9, -23
+8e19 40e60633 c.sub a2, a4 | sub a2, a2, a4
+8c85 409484b3 c.sub s1, s1 | sub s1, s1, s1
+ef64 0c973c23 c.sd s1, 216(a4) | sd s1, 216(a4)
+12aa 02a29293 c.slli t0, 42 | slli t0, t0, 42
+7ec0 0b86b403 c.ld s0, 184(a3) | ld s0, 184(a3)
+0001 00000013 c.nop | addi zero, zero, 0
+e64c 08b63423 c.sd a1, 136(a2) | sd a1, 136(a2)
+23b1 00c3839b c.addiw t2, 12 | addiw t2, t2, 12
+0d92 004d9d93 c.slli s11, 4 | slli s11, s11, 4
+9e0d 40b6063b c.subw a2, a1 | subw a2, a2, a1
+d95a 0b612823 c.swsp s6, 176(sp) | sw s6, 176(sp)
+d519 f00507e3 c.beqz a0, -242 | beq a0, zero, -242
+755d ffff7537 c.lui a0, 1048567 | lui a0, 1048567
+96bd 42f6d693 c.srai a3, 47 | srai a3, a3, 47
+67dd 000177b7 c.lui a5, 23 | lui a5, 23
+de5c 02f62e23 c.sw a5, 60(a2) | sw a5, 60(a2)
+69a4 0505b483 c.ld s1, 80(a1) | ld s1, 80(a1)
+9cb1 00c484bb c.addw s1, a2 | addw s1, s1, a2
+26bd 00f6869b c.addiw a3, 15 | addiw a3, a3, 15
+69f5 0001d9b7 c.lui s3, 29 | lui s3, 29
+69ce 0d013983 c.ldsp s3, 208(sp) | ld s3, 208(sp)
+0291 00428293 c.addi t0, 4 | addi t0, t0, 4
+8241 01065613 c.srli a2, 16 | srli a2, a2, 16

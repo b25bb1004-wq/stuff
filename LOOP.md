@@ -68,22 +68,23 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 T19 | PASS |
 | T07 | P1 | shale | journal, fsck, crash injection at every write | haiku | T06 | PASS |
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
-| T13 | P1 | quartz | A and C extensions, official riscv-tests as data | hydrogen | T12 | TODO |
+| T13 | P1 | quartz | official riscv-tests as data (needs download: operator) | hydrogen | T13a | TODO |
+| T13a | P1 | quartz | A and C extensions, LLVM as oracle (split from T13) | hydrogen-high | T12 | RUNNING |
 | T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
 | T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | PASS |
-| T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13 | TODO |
+| T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | TODO |
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | TODO |
 | T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
 | T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | argon | T22 T23 | TODO |
-| T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 | TODO |
+| T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 T13a | TODO |
 | T26 | P2 | mantle | processes, user mode, syscalls, scheduler (geyser), ELF loading | argon-high | T25 T05 | TODO |
 | T27 | P2 | mantle | block driver, shale mounted, file syscalls | argon | T26 T07 | TODO |
 | T28 | P2 | mantle | userland: init, shell (crust), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
 | T29 | P2 | sinter | Mica IR to RV64 code, linear-scan registers, ELF out | argon-high | T10 T22 | TODO |
 | T30 | P2 | sinter | constant folding, dead code, copy propagation | hydrogen | T29 | TODO |
-| T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13 | TODO |
+| T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | TODO |
 | T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
 | T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | TODO |
 | T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | argon-high | T04 T20 D2 | TODO |
