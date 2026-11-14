@@ -181,13 +181,14 @@ fn destroy<D: BlockDevice>(t: &mut Txn<'_, D>, n: u32) -> Result<(), Error> {
 }
 
 /// One directory record: `off` in the table, inode 0 when removed, and the name.
-struct Rec<'a> {
-    off: usize,
-    ino: u32,
-    name: &'a [u8],
+pub(crate) struct Rec<'a> {
+    pub(crate) off: usize,
+    pub(crate) ino: u32,
+    pub(crate) name: &'a [u8],
 }
 
-fn parse_dir(buf: &[u8]) -> Result<Vec<Rec<'_>>, Error> {
+/// Split an entry table into records. Corrupt on a zero-length name or a name with a slash.
+pub(crate) fn parse_dir(buf: &[u8]) -> Result<Vec<Rec<'_>>, Error> {
     let mut out = Vec::new();
     let mut pos = 0usize;
     while pos < buf.len() {

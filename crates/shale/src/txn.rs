@@ -2,8 +2,10 @@
 //! `commit` is the only place where blocks reach the device. Dropping a `Txn` changes nothing.
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 
 use crate::disk::BlockDevice;
+use crate::journal::{self, Page};
 use crate::layout::{
     self, Geo, Inode, BITS_PER_BLOCK, BLOCK64, DIRECT, INODES_PER_BLOCK, INODE_SIZE, KIND_FREE,
     MAX_EXTENTS,
@@ -65,10 +67,31 @@ impl<'a, D: BlockDevice> Txn<'a, D> {
         Ok(&mut *s.data)
     }
 
-    /// Write every dirty block to the device. This is the only device write of an operation.
+    /// Commit the dirty blocks through the journal. This is the only device write of an operation.
+    /// Data blocks that were free on the device are written home first; the rest is logged.
     pub(crate) fn commit(self) -> Result<(), Error> {
+        let Txn { dev, geo, slots } = self;
+        let mut bitmaps: BTreeMap<u64, Page> = BTreeMap::new();
+        let mut direct: Vec<(u64, &[u8; BLOCK])> = Vec::new();
+        let mut logged: Vec<(u64, &[u8; BLOCK])> = Vec::new();
+        for (&b, s) in slots.iter() {
+            if !s.dirty {
+                continue;
+            }
+            if geo.in_data(b) && !was_used(dev, &geo, b, &mut bitmaps)? {
+                direct.push((b, &*s.data));
+            } else {
+                logged.push((b, &*s.data));
+            }
+        }
+        journal::commit(dev, &geo, &direct, &logged)
+    }
+
+    /// Write every dirty block straight to the device, superblock (block 0) last. Used by mkfs,
+    /// which has no earlier state to protect.
+    pub(crate) fn commit_direct(self) -> Result<(), Error> {
         let Txn { dev, slots, .. } = self;
-        for (b, s) in slots.iter() {
+        for (b, s) in slots.iter().rev() {
             if s.dirty {
                 dev.write(*b, &s.data)?;
             }
@@ -89,7 +112,8 @@ impl<'a, D: BlockDevice> Txn<'a, D> {
         Ok((blk, (idx / 8) as usize, (idx % 8) as u8))
     }
 
-    fn is_used(&mut self, b: u64) -> Result<bool, Error> {
+    /// True when block `b` is marked used in the bitmap of this transaction.
+    pub(crate) fn is_used(&mut self, b: u64) -> Result<bool, Error> {
         let (blk, byte, bit) = self.bit_pos(b)?;
         let v = *self.get(blk)?.get(byte).ok_or(Error::Corrupt)?;
         Ok(v & (1 << bit) != 0)
@@ -147,7 +171,8 @@ impl<'a, D: BlockDevice> Txn<'a, D> {
         Ok(free)
     }
 
-    fn inode_pos(&self, n: u32) -> Result<(u64, usize), Error> {
+    /// Block and byte offset of inode `n` in the inode table.
+    pub(crate) fn inode_pos(&self, n: u32) -> Result<(u64, usize), Error> {
         if n == 0 || n >= self.geo.inodes {
             return Err(Error::Corrupt);
         }
@@ -221,4 +246,28 @@ impl<'a, D: BlockDevice> Txn<'a, D> {
         }
         Err(Error::NoSpace)
     }
+}
+
+/// Whether data block `b` is marked used in the bitmap on the device, which is the committed state.
+fn was_used<D: BlockDevice>(
+    dev: &mut D,
+    geo: &Geo,
+    b: u64,
+    cache: &mut BTreeMap<u64, Page>,
+) -> Result<bool, Error> {
+    let blk = geo
+        .bitmap_start
+        .checked_add(b / BITS_PER_BLOCK)
+        .ok_or(Error::Corrupt)?;
+    let page = match cache.entry(blk) {
+        alloc::collections::btree_map::Entry::Occupied(e) => e.into_mut(),
+        alloc::collections::btree_map::Entry::Vacant(e) => {
+            let mut page = Box::new([0u8; BLOCK]);
+            dev.read(blk, &mut page)?;
+            e.insert(page)
+        }
+    };
+    let idx = b % BITS_PER_BLOCK;
+    let byte = *page.get((idx / 8) as usize).ok_or(Error::Corrupt)?;
+    Ok(byte & (1 << ((idx % 8) as u32)) != 0)
 }

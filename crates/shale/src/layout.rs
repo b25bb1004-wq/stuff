@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use crate::crc::crc32c;
 use crate::{Error, BLOCK};
 
-pub(crate) const MAGIC: &[u8] = b"SHALE001";
+pub(crate) const MAGIC: &[u8] = b"SHALE002";
 pub(crate) const INODE_SIZE: usize = 128;
 pub(crate) const INODES_PER_BLOCK: u32 = 32;
 pub(crate) const DIRECT: usize = 6;
@@ -73,9 +73,9 @@ pub(crate) struct Geo {
 
 impl Geo {
     /// The layout for `blocks` blocks, `inodes` inodes and a journal of `journal` blocks.
-    /// None if the parts do not fit or leave no data block.
+    /// None if the parts do not fit, leave no data block, or the journal has under 2 blocks.
     pub(crate) fn plan(blocks: u64, inodes: u32, journal: u64) -> Option<Geo> {
-        if inodes < 2 || blocks > u64::from(u32::MAX) {
+        if inodes < 2 || journal < 2 || blocks > u64::from(u32::MAX) {
             return None;
         }
         let journal_start = 1u64;
@@ -98,6 +98,11 @@ impl Geo {
             itable_len,
             first_data,
         })
+    }
+
+    /// True when block `b` is a data block (not part of the metadata or the journal).
+    pub(crate) fn in_data(&self, b: u64) -> bool {
+        b >= self.first_data && b < self.blocks
     }
 
     /// True when `e` covers data blocks only, inside the device, and is not empty.

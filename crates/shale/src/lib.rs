@@ -1,6 +1,7 @@
 //! shale: the file system of Strata OS. Version 1 on-disk format, mkfs, mount and path-based
 //! file and directory operations. Every operation buffers its block writes in one private
-//! transaction and commits them in a single pass, so a failed operation leaves the disk as it was.
+//! transaction and commits them through a write-ahead journal, so a power cut leaves either the
+//! state before or the state after the operation. `fsck` checks a device for consistency.
 #![forbid(unsafe_code)]
 #![cfg_attr(not(test), no_std)]
 
@@ -9,6 +10,8 @@ extern crate alloc;
 mod crc;
 mod disk;
 mod fs;
+mod fsck;
+mod journal;
 mod layout;
 mod ops;
 mod txn;
@@ -16,12 +19,17 @@ mod txn;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_crash;
+#[cfg(test)]
+mod tests_fsck;
+#[cfg(test)]
 mod tests_prop;
 
 use alloc::string::String;
 
-pub use disk::{BlockDevice, MemDisk};
+pub use disk::{BlockDevice, CrashDisk, MemDisk};
 pub use fs::{mkfs, Fs};
+pub use fsck::{fsck, Report};
 
 /// Block size in bytes; every block on disk is this long.
 pub const BLOCK: usize = 4096;
@@ -49,7 +57,8 @@ pub enum Error {
     NameTooLong,
     /// The path is relative, has an empty or dot component, or is otherwise not allowed.
     BadPath,
-    /// The file needs more extents than the inode and its indirect block can hold.
+    /// The file needs more extents than the inode and its indirect block can hold, or the
+    /// operation changes more blocks in place than the journal can log. Nothing is written.
     TooLarge,
 }
 
@@ -102,7 +111,7 @@ pub struct FsStat {
 pub struct MkfsOptions {
     /// Number of inodes. 0 picks blocks / 4, at least 32. Values below 2 are raised to 2.
     pub inodes: u32,
-    /// Blocks reserved for the journal.
+    /// Blocks reserved for the journal. Values below 2 are raised to 2.
     pub journal_blocks: u32,
 }
 

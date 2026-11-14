@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::disk::BlockDevice;
+use crate::journal;
 use crate::layout::{self, Geo, Inode, KIND_DIR, KIND_FILE, KIND_FREE, ROOT};
 use crate::ops;
 use crate::txn::Txn;
@@ -17,10 +18,11 @@ pub fn mkfs<D: BlockDevice>(dev: &mut D, opts: MkfsOptions) -> Result<(), Error>
     } else {
         opts.inodes.max(2)
     };
-    let geo = Geo::plan(blocks, inodes, u64::from(opts.journal_blocks)).ok_or(Error::NoSpace)?;
+    let jblocks = u64::from(opts.journal_blocks.max(2));
+    let geo = Geo::plan(blocks, inodes, jblocks).ok_or(Error::NoSpace)?;
     let mut t = Txn::new(&mut *dev, geo);
     format(&mut t)?;
-    t.commit()?;
+    t.commit_direct()?;
     dev.flush()
 }
 
@@ -45,6 +47,24 @@ fn format<D: BlockDevice>(t: &mut Txn<'_, D>) -> Result<(), Error> {
     layout::encode_sb(&g, ROOT, t.fresh(0)?)
 }
 
+/// Read the superblock of `dev` and check it against the device. Corrupt if it does not fit.
+pub(crate) fn read_geo<D: BlockDevice>(dev: &mut D) -> Result<Geo, Error> {
+    let blocks = dev.block_count();
+    if blocks == 0 {
+        return Err(Error::Corrupt);
+    }
+    let mut sb = Box::new([0u8; BLOCK]);
+    dev.read(0, &mut sb)?;
+    let (geo, root) = layout::decode_sb(&sb[..])?;
+    if geo.blocks != blocks
+        || root != ROOT
+        || Geo::plan(geo.blocks, geo.inodes, geo.journal_len) != Some(geo)
+    {
+        return Err(Error::Corrupt);
+    }
+    Ok(geo)
+}
+
 /// A mounted file system on a block device.
 pub struct Fs<D: BlockDevice> {
     dev: D,
@@ -52,21 +72,11 @@ pub struct Fs<D: BlockDevice> {
 }
 
 impl<D: BlockDevice> Fs<D> {
-    /// Mount the file system on `dev`. Corrupt on a bad superblock, CRC, layout or root.
+    /// Mount the file system on `dev`, replaying a complete journal transaction first.
+    /// Corrupt on a bad superblock, CRC, layout or root.
     pub fn mount(mut dev: D) -> Result<Fs<D>, Error> {
-        let blocks = dev.block_count();
-        if blocks == 0 {
-            return Err(Error::Corrupt);
-        }
-        let mut sb = Box::new([0u8; BLOCK]);
-        dev.read(0, &mut sb)?;
-        let (geo, root) = layout::decode_sb(&sb[..])?;
-        if geo.blocks != blocks
-            || root != ROOT
-            || Geo::plan(geo.blocks, geo.inodes, geo.journal_len) != Some(geo)
-        {
-            return Err(Error::Corrupt);
-        }
+        let geo = read_geo(&mut dev)?;
+        journal::recover(&mut dev, &geo)?;
         let mut fs = Fs { dev, geo };
         {
             let mut t = Txn::new(&mut fs.dev, fs.geo);

@@ -12,7 +12,7 @@ use assay::{forall, Rng};
 use crate::layout::Geo;
 use crate::{mkfs, BlockDevice, Error, Fs, Kind, MemDisk, MkfsOptions, BLOCK};
 
-const NAMES: [&str; 3] = ["a", "b", "c"];
+pub(crate) const NAMES: [&str; 3] = ["a", "b", "c"];
 
 /// Path rules as the spec states them, written again for the model.
 fn mparse(path: &str) -> Result<Vec<String>, Error> {
@@ -45,13 +45,13 @@ fn path_of(c: &[String]) -> String {
 
 /// The expected tree: directories (the root is the empty component list) and file contents.
 #[derive(Default)]
-struct Model {
-    files: BTreeMap<Vec<String>, Vec<u8>>,
-    dirs: BTreeSet<Vec<String>>,
+pub(crate) struct Model {
+    pub(crate) files: BTreeMap<Vec<String>, Vec<u8>>,
+    pub(crate) dirs: BTreeSet<Vec<String>>,
 }
 
 impl Model {
-    fn new() -> Model {
+    pub(crate) fn new() -> Model {
         let mut m = Model::default();
         m.dirs.insert(Vec::new());
         m
@@ -94,7 +94,7 @@ impl Model {
         self.dirs.iter().any(under) || self.files.keys().any(under)
     }
 
-    fn make(&mut self, path: &str, dir: bool) -> Result<(), Error> {
+    pub(crate) fn make(&mut self, path: &str, dir: bool) -> Result<(), Error> {
         let c = mparse(path)?;
         let Some((_, pc)) = c.split_last() else {
             return Err(Error::Exists);
@@ -118,7 +118,7 @@ impl Model {
         self.files.get_mut(c).ok_or(Error::Corrupt)
     }
 
-    fn write(&mut self, path: &str, off: u64, data: &[u8]) -> Result<usize, Error> {
+    pub(crate) fn write(&mut self, path: &str, off: u64, data: &[u8]) -> Result<usize, Error> {
         let c = mparse(path)?;
         let file = self.file_mut(&c)?;
         if data.is_empty() {
@@ -143,13 +143,13 @@ impl Model {
         Ok(f[start..end].to_vec())
     }
 
-    fn truncate(&mut self, path: &str, size: u64) -> Result<(), Error> {
+    pub(crate) fn truncate(&mut self, path: &str, size: u64) -> Result<(), Error> {
         let c = mparse(path)?;
         self.file_mut(&c)?.resize(size as usize, 0);
         Ok(())
     }
 
-    fn remove(&mut self, path: &str) -> Result<(), Error> {
+    pub(crate) fn remove(&mut self, path: &str) -> Result<(), Error> {
         let c = mparse(path)?;
         let Some((_, pc)) = c.split_last() else {
             return Err(Error::IsDir);
@@ -161,7 +161,7 @@ impl Model {
         self.files.remove(&c).map(|_| ()).ok_or(Error::NotFound)
     }
 
-    fn rmdir(&mut self, path: &str) -> Result<(), Error> {
+    pub(crate) fn rmdir(&mut self, path: &str) -> Result<(), Error> {
         let c = mparse(path)?;
         let Some((_, pc)) = c.split_last() else {
             return Err(Error::BadPath);
@@ -180,7 +180,7 @@ impl Model {
         Ok(())
     }
 
-    fn rename(&mut self, from: &str, to: &str) -> Result<(), Error> {
+    pub(crate) fn rename(&mut self, from: &str, to: &str) -> Result<(), Error> {
         let fc = mparse(from)?;
         let tc = mparse(to)?;
         let Some((_, fpc)) = fc.split_last() else {
@@ -256,7 +256,7 @@ impl Model {
 }
 
 #[derive(Debug)]
-enum Op {
+pub(crate) enum Op {
     Make {
         path: String,
         dir: bool,
@@ -315,7 +315,7 @@ fn gen_path(r: &mut Rng, names: &[&str]) -> String {
     s
 }
 
-fn gen_op(r: &mut Rng, names: &[&str]) -> Op {
+pub(crate) fn gen_op(r: &mut Rng, names: &[&str]) -> Op {
     match r.below(20) {
         0..=2 => Op::Make {
             path: gen_path(r, names),
@@ -363,7 +363,7 @@ fn gen_op(r: &mut Rng, names: &[&str]) -> Op {
     }
 }
 
-fn apply(fs: &mut Fs<MemDisk>, m: &mut Model, op: &Op) {
+pub(crate) fn apply<D: BlockDevice>(fs: &mut Fs<D>, m: &mut Model, op: &Op) {
     match op {
         Op::Make { path, dir } => {
             let got = if *dir {

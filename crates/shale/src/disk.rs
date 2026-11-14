@@ -72,3 +72,58 @@ impl BlockDevice for MemDisk {
         Ok(())
     }
 }
+
+/// A device that models a power cut: the first `budget` writes reach the inner device, and every
+/// later write returns Ok and changes nothing. Block writes are atomic here.
+pub struct CrashDisk<D: BlockDevice> {
+    inner: D,
+    budget: u64,
+    writes: u64,
+}
+
+impl<D: BlockDevice> CrashDisk<D> {
+    /// Wrap `inner` so that only its first `budget` writes take effect.
+    pub fn new(inner: D, budget: u64) -> CrashDisk<D> {
+        CrashDisk {
+            inner,
+            budget,
+            writes: 0,
+        }
+    }
+
+    /// Number of write calls made so far, kept or dropped.
+    pub fn writes(&self) -> u64 {
+        self.writes
+    }
+
+    /// The inner device, as it is after the cut.
+    pub fn into_inner(self) -> D {
+        self.inner
+    }
+}
+
+impl<D: BlockDevice> BlockDevice for CrashDisk<D> {
+    fn block_count(&self) -> u64 {
+        self.inner.block_count()
+    }
+
+    fn read(&mut self, block: u64, buf: &mut [u8; BLOCK]) -> Result<(), Error> {
+        self.inner.read(block, buf)
+    }
+
+    fn write(&mut self, block: u64, buf: &[u8; BLOCK]) -> Result<(), Error> {
+        self.writes = self.writes.saturating_add(1);
+        if self.writes > self.budget {
+            return Ok(());
+        }
+        self.inner.write(block, buf)
+    }
+
+    fn flush(&mut self) -> Result<(), Error> {
+        if self.writes <= self.budget {
+            self.inner.flush()
+        } else {
+            Ok(())
+        }
+    }
+}
