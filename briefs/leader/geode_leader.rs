@@ -2,7 +2,9 @@
 //! limits, and a fuzz run over the public API only. `STRATA_SEED`/`STRATA_CASES` change the run.
 #![allow(clippy::unwrap_used)]
 use assay::{forall, Rng};
-use geode::{verify, Const, Func, Heap, Host, Limits, LoadError, Module, NoHost, Op, Trap, Value, Vm};
+use geode::{
+    verify, Const, Func, Heap, Host, Limits, LoadError, Module, NoHost, Op, Trap, Value, Vm,
+};
 use Op::*;
 
 fn env(name: &str, default: u64) -> u64 {
@@ -91,18 +93,28 @@ fn leader_recursive_fib() {
         Ret(3),
     ];
     let main = vec![Int(0, 20), Call(0, 1, 0, 1), Ret(0)];
-    let m = module(vec![], &[], vec![func("main", 0, 1, main), func("fib", 1, 5, fib)]);
+    let m = module(
+        vec![],
+        &[],
+        vec![func("main", 0, 1, main), func("fib", 1, 5, fib)],
+    );
     let (r, used) = run(m.clone(), Limits::default());
     assert_eq!(r, Ok(Value::Int(6765)));
     let (r2, used2) = run(m.clone(), Limits::default());
-    assert_eq!((r2, used2), (Ok(Value::Int(6765)), used), "not deterministic");
+    assert_eq!(
+        (r2, used2),
+        (Ok(Value::Int(6765)), used),
+        "not deterministic"
+    );
     let mut vm = Vm::new(m, &[]).unwrap();
     assert_eq!(
         vm.call("fib", &[Value::Int(10)], &mut NoHost, Limits::default()),
         Ok(Value::Int(55))
     );
     assert!(vm.call("fib", &[], &mut NoHost, Limits::default()).is_err());
-    assert!(vm.call("nope", &[], &mut NoHost, Limits::default()).is_err());
+    assert!(vm
+        .call("nope", &[], &mut NoHost, Limits::default())
+        .is_err());
 }
 
 fn churn(keep: bool) -> Module {
@@ -165,34 +177,90 @@ fn leader_deep_linked_list_survives_collections() {
 fn leader_depth_limits() {
     let f = vec![Call(0, 1, 0, 0), Ret(0)];
     let main = vec![Call(0, 1, 0, 0), Ret(0)];
-    let m = module(vec![], &[], vec![func("main", 0, 1, main), func("f", 0, 1, f)]);
+    let m = module(
+        vec![],
+        &[],
+        vec![func("main", 0, 1, main), func("f", 0, 1, f)],
+    );
     let (r, _) = run(m.clone(), limits(u64::MAX, 64 << 20, 1000));
     assert_eq!(r, Err(Trap::StackOverflow));
     let (r, _) = run(m, limits(3_000_000, 1 << 30, 1_000_000));
-    assert!(matches!(r, Err(Trap::StackOverflow) | Err(Trap::OutOfFuel)), "{r:?}");
+    assert!(
+        matches!(r, Err(Trap::StackOverflow) | Err(Trap::OutOfFuel)),
+        "{r:?}"
+    );
 }
 
 fn trap_of(code: Vec<Op>, consts: Vec<Const>) -> Result<Value, Trap> {
-    run(module(consts, &[], vec![func("main", 0, 8, code)]), limits(10_000_000, 1 << 24, 64)).0
+    run(
+        module(consts, &[], vec![func("main", 0, 8, code)]),
+        limits(10_000_000, 1 << 24, 64),
+    )
+    .0
 }
 
 #[test]
 fn leader_traps() {
-    assert_eq!(trap_of(vec![Int(0, 1), Int(1, 0), Div(2, 0, 1), Ret(2)], vec![]), Err(Trap::DivideByZero));
-    assert_eq!(trap_of(vec![Int(0, i64::MAX), Int(1, 1), Add(2, 0, 1), Ret(2)], vec![]), Err(Trap::Overflow));
-    assert_eq!(trap_of(vec![Int(0, i64::MIN), Int(1, -1), Div(2, 0, 1), Ret(2)], vec![]), Err(Trap::Overflow));
-    assert_eq!(trap_of(vec![Int(0, 1), Int(1, 64), Shl(2, 0, 1), Ret(2)], vec![]), Err(Trap::Overflow));
-    assert_eq!(trap_of(vec![Byte(0, 200), Byte(1, 100), Add(2, 0, 1), Ret(2)], vec![]), Err(Trap::Overflow));
-    assert_eq!(trap_of(vec![Int(0, 1), Bool(1, true), Add(2, 0, 1), Ret(2)], vec![]), Err(Trap::TypeError));
-    assert_eq!(trap_of(vec![NewArray(0, 0, 0), Int(1, 0), GetIndex(2, 0, 1), Ret(2)], vec![]), Err(Trap::IndexOutOfRange));
     assert_eq!(
-        trap_of(vec![Bool(0, false), Assert(0, 0), Ret(0)], vec![Const::Str("boom".into())]),
+        trap_of(vec![Int(0, 1), Int(1, 0), Div(2, 0, 1), Ret(2)], vec![]),
+        Err(Trap::DivideByZero)
+    );
+    assert_eq!(
+        trap_of(
+            vec![Int(0, i64::MAX), Int(1, 1), Add(2, 0, 1), Ret(2)],
+            vec![]
+        ),
+        Err(Trap::Overflow)
+    );
+    assert_eq!(
+        trap_of(
+            vec![Int(0, i64::MIN), Int(1, -1), Div(2, 0, 1), Ret(2)],
+            vec![]
+        ),
+        Err(Trap::Overflow)
+    );
+    assert_eq!(
+        trap_of(vec![Int(0, 1), Int(1, 64), Shl(2, 0, 1), Ret(2)], vec![]),
+        Err(Trap::Overflow)
+    );
+    assert_eq!(
+        trap_of(
+            vec![Byte(0, 200), Byte(1, 100), Add(2, 0, 1), Ret(2)],
+            vec![]
+        ),
+        Err(Trap::Overflow)
+    );
+    assert_eq!(
+        trap_of(vec![Int(0, 1), Bool(1, true), Add(2, 0, 1), Ret(2)], vec![]),
+        Err(Trap::TypeError)
+    );
+    assert_eq!(
+        trap_of(
+            vec![NewArray(0, 0, 0), Int(1, 0), GetIndex(2, 0, 1), Ret(2)],
+            vec![]
+        ),
+        Err(Trap::IndexOutOfRange)
+    );
+    assert_eq!(
+        trap_of(
+            vec![Bool(0, false), Assert(0, 0), Ret(0)],
+            vec![Const::Str("boom".into())]
+        ),
         Err(Trap::AssertFailed("boom".into()))
     );
     assert_eq!(trap_of(vec![Op::Trap(7)], vec![]), Err(Trap::User(7)));
-    let huge = trap_of(vec![Int(0, 0), Int(1, 1 << 40), NewFill(2, 0, 1), Ret(2)], vec![]);
-    assert!(matches!(huge, Err(Trap::OutOfMemory) | Err(Trap::OutOfFuel)), "{huge:?}");
-    let neg = trap_of(vec![Int(0, 0), Int(1, -1), NewFill(2, 0, 1), Ret(2)], vec![]);
+    let huge = trap_of(
+        vec![Int(0, 0), Int(1, 1 << 40), NewFill(2, 0, 1), Ret(2)],
+        vec![],
+    );
+    assert!(
+        matches!(huge, Err(Trap::OutOfMemory) | Err(Trap::OutOfFuel)),
+        "{huge:?}"
+    );
+    let neg = trap_of(
+        vec![Int(0, 0), Int(1, -1), NewFill(2, 0, 1), Ret(2)],
+        vec![],
+    );
     assert_eq!(neg, Err(Trap::IndexOutOfRange));
     // "héllo"[0..2] cuts inside 'é'.
     let cut = trap_of(
@@ -205,14 +273,37 @@ fn leader_traps() {
 #[test]
 fn leader_strings_and_options() {
     // ParseInt("-42") then Tag and field: some(-42) -> tag 1, field 0 = -42.
-    let code = vec![Const(0, 0), ParseInt(1, 0), GetField(2, 1, 0), Tag(3, 1), Add(4, 2, 3), Ret(4)];
-    assert_eq!(trap_of(code, vec![Const::Str("-42".into())]), Ok(Value::Int(-41)));
+    let code = vec![
+        Const(0, 0),
+        ParseInt(1, 0),
+        GetField(2, 1, 0),
+        Tag(3, 1),
+        Add(4, 2, 3),
+        Ret(4),
+    ];
+    assert_eq!(
+        trap_of(code, vec![Const::Str("-42".into())]),
+        Ok(Value::Int(-41))
+    );
     for bad in ["", "-", "+1", "1_0", "9223372036854775808", " 1"] {
         let code = vec![Const(0, 0), ParseInt(1, 0), Tag(2, 1), Ret(2)];
-        assert_eq!(trap_of(code, vec![Const::Str(bad.into())]), Ok(Value::Int(0)), "{bad:?}");
+        assert_eq!(
+            trap_of(code, vec![Const::Str(bad.into())]),
+            Ok(Value::Int(0)),
+            "{bad:?}"
+        );
     }
-    let code = vec![Int(0, -1234), IntToStr(1, 0), Const(2, 0), Eq(3, 1, 2), Ret(3)];
-    assert_eq!(trap_of(code, vec![Const::Str("-1234".into())]), Ok(Value::Bool(true)));
+    let code = vec![
+        Int(0, -1234),
+        IntToStr(1, 0),
+        Const(2, 0),
+        Eq(3, 1, 2),
+        Ret(3),
+    ];
+    assert_eq!(
+        trap_of(code, vec![Const::Str("-1234".into())]),
+        Ok(Value::Bool(true))
+    );
 }
 
 struct Counter(u32);
@@ -231,7 +322,10 @@ impl Host for Counter {
 fn leader_host_and_imports() {
     let code = vec![Int(0, 5), Int(1, 6), CallHost(2, 0, 0, 2), Ret(2)];
     let m = module(vec![], &["io.len"], vec![func("main", 0, 3, code)]);
-    assert!(matches!(Vm::new(m.clone(), &[]), Err(LoadError::MissingImport(_))));
+    assert!(matches!(
+        Vm::new(m.clone(), &[]),
+        Err(LoadError::MissingImport(_))
+    ));
     let mut vm = Vm::new(m, &["io.len", "io.print"]).unwrap();
     let mut host = Counter(0);
     assert_eq!(vm.run(&mut host, Limits::default()), Ok(Value::Int(2)));
@@ -241,7 +335,7 @@ fn leader_host_and_imports() {
 fn random_op(r: &mut Rng, regs: u16, len: u32, funcs: &[(u16, u16)], nconst: u32) -> Op {
     let g = |r: &mut Rng| r.below(regs as usize) as u16;
     let t = |r: &mut Rng| r.below(len as usize) as u32;
-    let span = |r: &mut Rng, n: u16| -> u16 { r.below((regs - n) as usize + 1) as u16 };
+    let span = |r: &mut Rng, n: u16| -> u16 { r.below(regs.saturating_sub(n) as usize + 1) as u16 };
     match r.below(30) {
         0 => Int(g(r), (r.u64() as i64) >> r.below(64)),
         1 => Byte(g(r), r.u64() as u8),
@@ -291,7 +385,11 @@ fn random_module(r: &mut Rng) -> Module {
     let shapes: Vec<(u16, u16)> = (0..nf)
         .map(|i| {
             let regs = 1 + r.below(8) as u16;
-            let params = if i == 0 { 0 } else { r.below(regs as usize + 1) as u16 };
+            let params = if i == 0 {
+                0
+            } else {
+                r.below(regs as usize + 1) as u16
+            };
             (params, regs)
         })
         .collect();
@@ -313,7 +411,7 @@ fn random_module(r: &mut Rng) -> Module {
 
 #[test]
 fn leader_fuzz_valid_modules_never_panic_and_are_deterministic() {
-    let seed = env("STRATA_SEED", 0x9e0de_2026_1114);
+    let seed = env("STRATA_SEED", 0x0009_e0de_2026_1114);
     let cases = env("STRATA_CASES", 3000) as u32;
     let mut verified = 0u32;
     forall(cases, seed, |r| {
@@ -331,5 +429,8 @@ fn leader_fuzz_valid_modules_never_panic_and_are_deterministic() {
         assert_eq!(a.fuel_used(), b.fuel_used());
         assert!(a.fuel_used() <= 5_000);
     });
-    assert!(verified > cases / 4, "generator too weak: {verified} verified");
+    assert!(
+        verified > cases / 4,
+        "generator too weak: {verified} verified"
+    );
 }
