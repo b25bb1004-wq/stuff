@@ -99,7 +99,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
 | T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | PASS |
-| T46 | P3 | cairn | manifest, versions, dependency solver, lock file | argon |  | TODO |
+| T46 | P3 | cairn | manifest, versions, dependency solver, lock file | hydrogen |  | RUNNING |
 | T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | TODO |
 | T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | argon | T04 | TODO |
 | T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | TODO |
