@@ -2,8 +2,8 @@
 
 ## State
 - LEADER: Claude Fable
-- heartbeat: 2026-11-14 16:30
-- phase: P1 Cores, round 1 done (3 of 3 PASS), round 2 starting
+- heartbeat: 2026-11-14 15:19
+- phase: P1 Cores, round 2 running (T11 PASS; T06, T09 with workers)
 - stop reason: none
 - Stand-in: Gemini Argon. Open this folder in Antigravity, choose Argon, say
   "You are the stand-in leader. Follow AGENTS.md." (The agy command is not installed on this PC
@@ -33,7 +33,7 @@ top to bottom, and deployable.
   sessions. It cannot finish inside one usage window.
 - Round budget (this session): 2.0M worker tokens. Concurrency 3. Retries 2 per task.
 - Per task: 150k (Haiku), 250k (Sonnet).
-- Spent so far: 529k.
+- Spent so far: 708k (worker tokens only; leader tokens are not counted here).
 
 ## Workers checked on 2026-11-14
 | Worker | Status |
@@ -60,7 +60,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T08 | P1 | mica | language design `docs/MICA.md` + bytecode `docs/MBC.md` | leader | | PASS |
 | T09 | P1 | mica | lexer + parser + AST | haiku | T08 | RUNNING |
 | T10 | P1 | mica | type checker + IR | sonnet | T09 | TODO |
-| T11 | P1 | geode | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | RUNNING |
+| T11 | P1 | geode | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | PASS |
 | T17 | P1 | geode | interpreter, heap, garbage collector, fuel | haiku | T11 | TODO |
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | sonnet | T03 | TODO |
 | T13 | P1 | quartz | A + C extensions, official RISC-V tests | haiku | T12 | TODO |
@@ -79,3 +79,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-14 16:00 | T02 | haiku | 170k | PASS | gate green; leader shadow model (public API only) 400 cases x 3000 ops in release, seed 991177: no overlap, no corruption, no leak, full merge. Gaps moved to T16
 - 2026-11-14 16:25 | T03 | haiku | 202k | PASS | gate green; 499 instructions assembled by LLVM 19 all decode and re-encode identically; official RISC-V tests come in T13
 - 2026-11-14 16:30 | names | leader | n/a | PASS | every crate renamed to its Strata name (table in docs/SPEC.md); full gate green, 55 test groups
+- 2026-11-14 15:19 | T11 | haiku | 179k | PASS | gate green; opcode table read against docs/MBC.md (58 of 58 in order); leader fuzz 40 000 hostile inputs, new seed: no panic, decode then encode stable. Note: earlier log times in this file ran ahead of the clock
