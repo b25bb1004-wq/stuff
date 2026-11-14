@@ -14,7 +14,11 @@ case "${1:-}" in
   argon) M=gemini-4-argon-medium ;;              # hard tasks, second reviews
   argon-high) M=gemini-4-argon-high ;;           # hardest tasks
   orchestrator) M=gemini-pro-orchestrator-g1-pro ;;
-  *) echo "unknown lane: ${1:-} (flash, hydrogen, hydrogen-high, argon, argon-high, orchestrator)"; exit 2 ;;
+  hydrogen-xhigh) M=gemini-4-hydrogen-xhigh ;;   # second retry of a hydrogen task
+  sonnet) M=claude-sonnet-5-5-high ;;            # Claude through agy quota: careful Rust, reviews
+  opus) M=claude-opus-5-5-medium ;;              # Claude through agy quota: hardest design work
+  oss) M=gpt-oss-120b-medium ;;                  # cheap text and docs
+  *) echo "unknown lane: ${1:-} (flash, hydrogen, hydrogen-high, hydrogen-xhigh, argon, argon-high, orchestrator, sonnet, opus, oss)"; exit 2 ;;
 esac
 ID="${2:-}"
 [ -f "briefs/$ID.md" ] || { echo "no brief: briefs/$ID.md"; exit 2; }
