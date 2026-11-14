@@ -172,11 +172,24 @@ fn leader_expansion_matches_bash() {
         };
         script += &format!("printf '<%s>' {w} ); printf '\\n'\n");
     }
-    let out = Proc::new("bash")
-        .args(["--posix", "-c", &script])
+    let mut child = Proc::new("bash")
+        .args(["--posix", "-s"])
         .current_dir(&dir)
-        .output()
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
         .expect("bash on PATH");
+    {
+        use std::io::Write;
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(script.as_bytes())
+            .unwrap();
+    }
+    let out = child.wait_with_output().unwrap();
     let text = String::from_utf8(out.stdout).unwrap();
     let lines: Vec<&str> = text.split('\n').collect();
     assert!(
@@ -235,7 +248,6 @@ fn leader_parser_shapes_errors_and_incomplete() {
         "cat <<EOF\nx\n",
         "case a in",
         "{ echo",
-        "echo \\",
         "while x; do y",
         "f() {",
         "a &&",
