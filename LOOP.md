@@ -29,6 +29,8 @@ top to bottom, and deployable.
 10. No secret, key or personal data in the repository; pushes go only to the private repo `b25bb1004-wq/stuff`.
 
 ## Budget
+- Argon quota is low (41% left on 2026-11-14 18:41, operator). Argon lanes only for the hardest, highest-value tasks (what you would give Opus): compilers, kernels, hypervisor, protocol cores. Everything else: hydrogen / hydrogen-high / hydrogen-xhigh, sonnet or opus via agy, flash or oss for text, Haiku for Claude-lane work. The lane column below is a plan, not a rule; downgrade argon rows when dispatching.
+- Parallel: at most two agy workers at once, one per crate (lane.sh per-crate lock), plus the Haiku lane (resumed 18:40 by the operator, past the round cap).
 - Whole programme, honest estimate: 150 to 250 worker tasks, 25M to 40M worker tokens, many
   sessions. It cannot finish inside one usage window.
 - One worker at a time (operator rule 2026-11-14). Retries 2 per task. Gemini lanes use no Claude tokens.

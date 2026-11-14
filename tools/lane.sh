@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run ONE worker on ONE brief through the Antigravity CLI (agy). No Claude tokens are used.
 # Usage: bash tools/lane.sh <lane> <task-id>      e.g.  bash tools/lane.sh hydrogen T05
-# A lock file makes sure only one worker runs at a time (operator rule, 2026-11-14).
+# Lock files allow two workers at once, one per crate.
 # The worker may edit files and run ONLY the exact commands listed below for its own crate
 # (agy headless mode denies every other shell command; a rule must match the command exactly).
 set -euo pipefail
@@ -25,9 +25,14 @@ ID="${2:-}"
 CRATE="$(grep -o 'crates/[a-z_]*' "briefs/$ID.md" | head -1 | cut -d/ -f2)"
 [ -n "$CRATE" ] || { echo "brief names no crates/<name> path"; exit 2; }
 mkdir -p .loop-local
-if [ -e .loop-local/BUSY ]; then echo "a worker is already running: $(cat .loop-local/BUSY)"; exit 3; fi
-echo "$ID on $1 since $(date '+%Y-%m-%d %H:%M')" > .loop-local/BUSY
-trap 'rm -f .loop-local/BUSY' EXIT
+# At most two workers, never two on one crate (operator rule, 2026-11-14 18:45; was one at a time).
+LOCK=".loop-local/BUSY.$CRATE"
+if [ -e "$LOCK" ]; then echo "a worker is already on $CRATE: $(cat "$LOCK")"; exit 3; fi
+N=$(ls .loop-local/BUSY.* .loop-local/BUSY 2>/dev/null | wc -l)
+if [ "$N" -ge 2 ]; then echo "two workers already running: $(cat .loop-local/BUSY* | tr '
+' ';')"; exit 3; fi
+echo "$ID on $1 since $(date '+%Y-%m-%d %H:%M')" > "$LOCK"
+trap 'rm -f "$LOCK"' EXIT
 CMDS=("bash tools/check.sh $CRATE" "cargo fmt -p $CRATE" "cargo check -p $CRATE --all-targets" \
       "cargo test -p $CRATE" "cargo test -p $CRATE -q" \
       "cargo clippy -p $CRATE --all-targets -- -D warnings")
