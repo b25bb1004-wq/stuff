@@ -237,3 +237,13 @@ Gemini Orchestrator (when Claude is out, or as second judge), run in this folder
   machine is our emulator), Windows containers (Vug is Linux only, tested in WSL).
 - Cinnabar is a learning cipher. Nothing may depend on it for safety.
 - The Gemini lanes are unproven on this code as of this writing; T05 is the first trial.
+
+## 11. agy facts learned on 2026-11-14 (do not rediscover)
+- The CLI is `C:\Users\ADMIN\.gemini\bin\agy.exe` (installed 15:40). `agy models` lists lanes.
+- `--mode auto` is not available on this account. Print mode with `--mode accept-edits` lets a
+  worker edit files; every shell command is denied unless an allow rule matches it EXACTLY:
+  `{"permissions":{"allow":["command(cargo test -p geyser)"]}}`. Wildcards do not match.
+  `tools/lane.sh` writes that list per crate. Never use `--dangerously-skip-permissions`.
+- Process `agy.exe --hub ...` belongs to the operator's Antigravity window. Never kill it.
+- If a worker needs a command that is not on its list, add the exact command to `CMDS` in
+  `tools/lane.sh` (only gate, format, build and test commands for its own crate).

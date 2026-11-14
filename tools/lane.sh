@@ -2,6 +2,8 @@
 # Run ONE worker on ONE brief through the Antigravity CLI (agy). No Claude tokens are used.
 # Usage: bash tools/lane.sh <lane> <task-id>      e.g.  bash tools/lane.sh hydrogen T05
 # A lock file makes sure only one worker runs at a time (operator rule, 2026-11-14).
+# The worker may edit files and run ONLY the exact commands listed below for its own crate
+# (agy headless mode denies every other shell command; a rule must match the command exactly).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 AGY="${AGY:-$HOME/.gemini/bin/agy.exe}"
@@ -16,10 +18,18 @@ case "${1:-}" in
 esac
 ID="${2:-}"
 [ -f "briefs/$ID.md" ] || { echo "no brief: briefs/$ID.md"; exit 2; }
+CRATE="$(grep -o 'crates/[a-z_]*' "briefs/$ID.md" | head -1 | cut -d/ -f2)"
+[ -n "$CRATE" ] || { echo "brief names no crates/<name> path"; exit 2; }
 mkdir -p .loop-local
 if [ -e .loop-local/BUSY ]; then echo "a worker is already running: $(cat .loop-local/BUSY)"; exit 3; fi
 echo "$ID on $1 since $(date '+%Y-%m-%d %H:%M')" > .loop-local/BUSY
 trap 'rm -f .loop-local/BUSY' EXIT
-PROMPT="You are a worker on the Strata project in this folder. Read briefs/_RULES.md, then briefs/$ID.md, and do exactly that task. Touch only the files the brief lists. Run the gate the brief names and fix until its last line is CHECK PASS. Finish by writing reports/$ID.md (at most 10 lines) and print that report as your final answer."
-"$AGY" -p "$PROMPT" --model "$M" --mode auto --print-timeout "${TIMEOUT:-60m}" 2>&1 \
-  | tee ".loop-local/$ID.$1.log" | tail -15
+CMDS=("bash tools/check.sh $CRATE" "cargo fmt -p $CRATE" "cargo check -p $CRATE --all-targets" \
+      "cargo test -p $CRATE" "cargo test -p $CRATE -q" \
+      "cargo clippy -p $CRATE --all-targets -- -D warnings")
+RULES=""; LIST=""
+for c in "${CMDS[@]}"; do RULES="$RULES\"command($c)\","; LIST="$LIST  $c ;"; done
+echo "{\"permissions\":{\"allow\":[${RULES%,}]}}" > ".loop-local/settings.$ID.json"
+PROMPT="You are a worker on the Strata project in this folder. Read briefs/_RULES.md, then briefs/$ID.md, and do exactly that task. Touch only the files the brief lists. You can edit files freely. The ONLY shell commands that will run are these, typed exactly, one per call, with no cd, pipes or extra flags: $LIST every other command is denied. Use them to fix until the last line of 'bash tools/check.sh $CRATE' is CHECK PASS $CRATE. Finish by writing reports/$ID.md (at most 10 lines) and print that report as your final answer."
+"$AGY" -p "$PROMPT" --model "$M" --mode accept-edits --settings ".loop-local/settings.$ID.json" \
+  --print-timeout "${TIMEOUT:-60m}" 2>&1 | tee ".loop-local/$ID.$1.log" | tail -15

@@ -2,7 +2,7 @@
 
 ## State
 - LEADER: Claude Fable until the operator starts Claude Opus (start prompt: docs/PLAN.md section 9)
-- heartbeat: 2026-11-14 16:35
+- heartbeat: 2026-11-14 16:13
 - phase: P1 Cores. Full plan written: docs/PLAN.md. T05 running on Hydrogen (first agy trial). T09 half done (lexer ok, parser tests missing)
 - stop reason: none
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
