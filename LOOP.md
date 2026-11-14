@@ -109,7 +109,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | TODO |
 | T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | argon |  | TODO |
 | T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
-| T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | RUNNING |
+| T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | argon | T58 | TODO |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | TODO |
 | T61 | P4 | glint | widget tree, flex layout, events, focus, themes | argon | T60 | TODO |
@@ -163,3 +163,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 2026-11-14 18:51 | T36 | gemini hydrogen | gemini quota | PASS | outcrop gate + clean-worktree workspace gate; leader_http.rs: CL+TE and duplicate/odd CL smuggling, chunk overflow, limits before bytes arrive, keep-alive, pipelining, split at every byte, 4000-case mutation fuzz (939 accepted, round trip)
 - 2026-11-14 23:40 T18 sinter PASS (hydrogen). Leader check: corpus + 6 unseen programs + 9 trap spans vs oracle, binary run/test; my check had a wrong line (3: vs 4:3). geode gained Vm::trap_site (additive). Workspace gate PASS in clean worktree.
 - 2026-11-14 23:44 T20 onyx PASS (haiku, ~121k tokens). Leader check: RFC 8439 A.1 #1 + differential vs chacha20::xor, split reads, bias at n=3*2^62, box rebuilt byte for byte from spec, tamper/truncate/weak keys. Lesson again: write `.is_multiple_of()` in leader checks.
+- 2026-11-14 23:56 T58 pigment PASS (haiku, ~176k tokens). Leader check: over vs formula (300k random + full alpha grid), Bresenham nearest-pixel rule on 3000 lines, single blending, 300 random convex polygons (area, winding, interior), clip fuzz with i32 extremes. ESCALATE fixed inline: 1 pixel off by 1 alpha when winding reversed; polygon now normalises orientation first. My check had 3 bugs (no clamp in reference, centre outside polygon, clippy approx TAU). Brief bug: alpha-0 rule vs formula conflict, worker chose the rule.

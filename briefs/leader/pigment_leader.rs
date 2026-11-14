@@ -6,6 +6,9 @@ use pigment::{over, Canvas, Rect, Rgba};
 use std::time::Duration;
 
 fn reference(d: Rgba, s: Rgba) -> Rgba {
+    if s.3 == 0 {
+        return d; // the brief's rule wins over the formula when both alphas are 0
+    }
     let (sa, da) = (u32::from(s.3), u32::from(d.3));
     let oa = sa + (da * (255 - sa) + 127) / 255;
     let ch = |sc: u8, dc: u8| {
@@ -13,7 +16,8 @@ fn reference(d: Rgba, s: Rgba) -> Rgba {
             0
         } else {
             ((u32::from(sc) * sa * 255 + u32::from(dc) * da * (255 - sa) + oa * 255 / 2)
-                / (oa * 255)) as u8
+                / (oa * 255))
+                .min(255) as u8
         }
     };
     Rgba(ch(s.0, d.0), ch(s.1, d.1), ch(s.2, d.2), oa as u8)
@@ -128,7 +132,7 @@ fn leader_polygon_area_winding_and_interior() {
         let (cx, cy) = (40.0 + r.below(20) as f32, 40.0 + r.below(20) as f32);
         let rad = 5.0 + r.below(25) as f32 + (r.below(100) as f32) / 100.0;
         let mut ang: Vec<f32> = (0..k)
-            .map(|_| (r.below(100_000) as f32) / 100_000.0 * 6.283_185)
+            .map(|_| (r.below(100_000) as f32) / 100_000.0 * std::f32::consts::TAU)
             .collect();
         ang.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let pts: Vec<(f32, f32)> = ang
@@ -148,7 +152,16 @@ fn leader_polygon_area_winding_and_interior() {
         let rev: Vec<(f32, f32)> = pts.iter().rev().copied().collect();
         let mut d = Canvas::new(100, 100, Rgba(0, 0, 0, 0));
         d.fill_polygon(&rev, white);
-        assert_eq!(c, d, "case {case}: winding changes pixels");
+        let diffs: Vec<(usize, u8, u8)> = (0..c.pixels.len())
+            .filter(|&i| c.pixels[i] != d.pixels[i])
+            .map(|i| (i, c.pixels[i].3, d.pixels[i].3))
+            .collect();
+        assert!(
+            diffs.is_empty(),
+            "case {case}: winding changes {} pixels, first {:?}",
+            diffs.len(),
+            &diffs[..diffs.len().min(5)]
+        );
         let sum = coverage_sum(&c);
         assert!(
             (sum - area).abs() <= 0.01 * area + 1.0,
@@ -167,7 +180,16 @@ fn leader_polygon_area_winding_and_interior() {
             }
         }
         // Centre pixel of a big shape is fully covered.
-        if rad > 12.0 && k >= 5 {
+        let gap = (0..k)
+            .map(|i| {
+                if i + 1 < k {
+                    ang[i + 1] - ang[i]
+                } else {
+                    ang[0] + std::f32::consts::TAU - ang[i]
+                }
+            })
+            .fold(0.0f32, f32::max);
+        if rad > 12.0 && gap < 2.0 {
             assert_eq!(
                 c.get(cx as i32, cy as i32).unwrap(),
                 white,
