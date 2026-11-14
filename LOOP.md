@@ -5,7 +5,7 @@
 - heartbeat: 2026-11-14 17:34
 - phase: P1 Cores. T04, T05, T07, T09, T10, T12, T16, T17, T19 PASS.
 - stop reason: none
-- Next for the leader: Haiku lane paused (round cap reached); Gemini lane: T18 next (brief to write), then T13. T15 waits for the next round or a Gemini lane. Flash job docs/SKILLS.md still owed.
+- Next for the leader: Haiku lane paused (round cap reached); Gemini lane: T18 running on argon; then T13. T15 waits for the next round or a Gemini lane. Flash job docs/SKILLS.md still owed.
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
 - At most one Gemini worker (through `bash tools/lane.sh <lane> <id>`) plus one Claude Haiku worker, on different crates. Lanes and rules: docs/PLAN.md section 2.
 
@@ -63,7 +63,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T17 | P1 | geode | interpreter, heap, mark-sweep GC, fuel, `Host` trait | argon | T11 | PASS |
 | T10 | P1 | mica | type checker, layer checker, IR | argon-high | T09 | PASS |
 | T19 | P1 | mica | reference interpreter for the typed IR (oracle for T18, T29, T30) | hydrogen | T10 | PASS |
-| T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 T19 | TODO |
+| T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 T19 | RUNNING |
 | T07 | P1 | shale | journal, fsck, crash injection at every write | haiku | T06 | PASS |
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
 | T13 | P1 | quartz | A and C extensions, official riscv-tests as data | hydrogen | T12 | TODO |
