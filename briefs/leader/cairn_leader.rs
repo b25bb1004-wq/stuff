@@ -1,4 +1,5 @@
 //! Leader check for T46 (cairn). The leader copies it to crates/cairn/tests/leader.rs.
+#![allow(clippy::unwrap_used)]
 use assay::{forall, Rng};
 use cairn::lock;
 use cairn::manifest::Manifest;
@@ -428,12 +429,16 @@ fn brute_exists(g: &G, root: &[Dep]) -> bool {
 }
 
 fn gen_dep(r: &mut Rng, names: &[&str]) -> Dep {
-    let n = if r.chance(1, 15) {
+    let n = if r.chance(1, 25) {
         "zz"
     } else {
         *r.pick(names)
     };
-    let (_, canon, cmps) = gen_req(r, 2, 3);
+    let (_, canon, cmps) = if r.chance(3, 4) {
+        gen_req(r, 1, 2)
+    } else {
+        gen_req(r, 2, 3)
+    };
     (n.to_string(), canon, cmps)
 }
 
@@ -456,22 +461,23 @@ fn sol_tuples(s: &Solution) -> BTreeMap<String, V3> {
 fn leader_solver_vs_model_and_brute_force() {
     let names = ["a", "b", "c", "d", "e"];
     let (mut ok, mut fail, mut backtracked) = (0, 0, 0);
-    forall(3000, 0x46_0000_0003, |r| {
+    forall(6000, 0x46_0000_0003, |r| {
         let mut g = G {
             pkgs: BTreeMap::new(),
         };
-        for n in names.iter().take(2 + r.below(4)) {
+        let used = &names[..2 + r.below(4)];
+        for n in used {
             let mut vs = BTreeMap::new();
-            for _ in 0..r.below(4) {
+            for _ in 0..1 + r.below(4) {
                 let v = (r.range(0, 2), r.range(0, 3), r.range(0, 2));
-                let deps = (0..r.below(3)).map(|_| gen_dep(r, &names)).collect();
+                let deps = (0..r.below(3)).map(|_| gen_dep(r, used)).collect();
                 vs.insert(v, deps);
             }
             if !vs.is_empty() {
                 g.pkgs.insert(n.to_string(), vs);
             }
         }
-        let root: Vec<Dep> = (0..1 + r.below(3)).map(|_| gen_dep(r, &names)).collect();
+        let root: Vec<Dep> = (0..1 + r.below(3)).map(|_| gen_dep(r, used)).collect();
         let mut lock = BTreeMap::new();
         if r.chance(1, 3) {
             for n in names {
@@ -519,12 +525,13 @@ fn leader_solver_vs_model_and_brute_force() {
         }
     });
     assert!(
-        ok > 800 && fail > 300 && backtracked > 200,
+        ok > 900 && fail > 300 && backtracked > 450,
         "weak mix: ok {ok} fail {fail} older {backtracked}"
     );
 }
 
-fn idx_from(spec: &[(&str, &str, &[(&str, &str)])]) -> Index {
+type Spec<'a> = (&'a str, &'a str, &'a [(&'a str, &'a str)]);
+fn idx_from(spec: &[Spec]) -> Index {
     let mut idx = Index::new();
     for (n, v, deps) in spec {
         let d = deps.iter().map(|(d, q)| (d.to_string(), req(q))).collect();

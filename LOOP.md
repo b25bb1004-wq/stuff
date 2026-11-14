@@ -99,7 +99,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
 | T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | PASS |
-| T46 | P3 | cairn | manifest, versions, dependency solver, lock file | hydrogen |  | RUNNING |
+| T46 | P3 | cairn | manifest, versions, dependency solver, lock file | hydrogen |  | PASS |
 | T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | TODO |
 | T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | argon | T04 | TODO |
 | T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | TODO |
@@ -185,3 +185,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 02:26 T23 PASS (hydrogen-high): quartz::machine, 9/9 leader checks after a leader fixture fix (timer.S trap clobbered t1 used by the idle loop; WFI may be a NOP), fresh-seed fuzz green, workspace gate green.
 - 2026-11-15 02:43 T65 PASS (hydrogen): spelunk HTML tokenizer/tree, CSS syntax, selectors; 7/7 leader checks (3000 CSS strings + 1300 sheets/decl lists vs tinycss2, 2000 docs vs html.parser, 35 trees, 3000 queries vs soupsieve), fresh seeds green. Leader fixes: tokenizer panicked slicing inside a multi-byte char in comments; leading whitespace of a mixed text run before body content now processed on its own (WHATWG). Check fixes: lone-surrogate escape removed, tinycss2 two-char match tokens split, soupsieve document-as-parent quirk patched.
 - 2026-11-15 02:55 T13a PASS (hydrogen-high, 1 run): leader check 9/9 after leader fixture fix (rvc.S trap handler at 2 mod 4 made mtvec mode 2; now .balign 4); fresh seed ok. drillcore remote_leader failed once under load in the workspace gate, passed 3/3 alone and on gate rerun: flake to look at.
+- 2026-11-15 03:00 T46 PASS (hydrogen, 1 run): leader check 11/11 incl. 6000 solver cases equal to the normative model and brute force, 500-chain on 128 KiB stack, fresh seeds ok. Leader fixes: case generator was mostly unsolvable (deps named absent packages), floors set from measured mix; clippy lints in check.
