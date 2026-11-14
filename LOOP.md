@@ -5,6 +5,7 @@
 - heartbeat: 2026-11-14 16:13
 - phase: P1 Cores. Full plan written: docs/PLAN.md. T05 running on Hydrogen (first agy trial). T09 half done (lexer ok, parser tests missing)
 - stop reason: none
+- Next for the leader: (1) T05 was started on Hydrogen at 16:12; when no agy worker runs (ignore the process `agy.exe --hub`), delete a stale `.loop-local/BUSY`, then judge T05 or re-run it. (2) Flash job: write docs/SKILLS.md from `.loop-local/skills-index.tsv` (1163 installed skills, name and description) mapped to the phases of docs/PLAN.md. (3) T09, then the table order.
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
 - ONE worker at a time, through `bash tools/lane.sh <lane> <id>`. Lanes and rules: docs/PLAN.md section 2.
 
