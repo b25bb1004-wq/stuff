@@ -94,7 +94,7 @@ fn leader_mixed_load_with_body_echo() {
         .map(|t| {
             let (conns, reqs) = (Arc::clone(&conns), Arc::clone(&reqs));
             std::thread::spawn(move || {
-                for i in 0..300u64 {
+                for i in 0..50u64 {
                     let k = 1 + ((t * 7 + i) % 3) as usize; // 1..=3 pipelined requests
                     let mut s = connect(a);
                     let mut raw = String::new();

@@ -3,9 +3,13 @@
 #![forbid(unsafe_code)]
 
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 mod body;
 mod head;
+#[cfg(feature = "std")]
+pub mod server;
 mod types;
 mod write;
 
