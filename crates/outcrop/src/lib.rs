@@ -12,6 +12,7 @@ mod head;
 pub mod server;
 mod types;
 mod write;
+pub mod ws;
 
 use alloc::vec::Vec;
 

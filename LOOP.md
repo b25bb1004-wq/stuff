@@ -90,14 +90,14 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
 | T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
-| T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | RUNNING |
+| T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | PASS |
 | T39 | P3 | varve | pager, write-ahead log, crash recovery | argon-high | D3 | TODO |
 | T40 | P3 | varve | B+tree with range scans | hydrogen | T39 | TODO |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
-| T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | QUEUED |
+| T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | RUNNING |
 | T46 | P3 | cairn | manifest, versions, dependency solver, lock file | argon |  | TODO |
 | T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | TODO |
 | T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | argon | T04 | TODO |
@@ -178,3 +178,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 01:30 T37 outcrop server PASS (hydrogen; agy hit its deadline because the worker's own gate hung). Leader found and fixed inline: rejected 503 socket closed with the request unread gives RST on Windows (client never sees 503; the test then panicked and Server drop deadlocked on the held handler); now FIN + bounded 20 ms drain. Load tests trimmed (leader 48x50, worker 2k): 14.4k + 10k connections per run exhausted Windows ephemeral ports (TIME_WAIT). Leader check (mixed keep-alive load, traversal, error statuses, slow clients, stop under load) green; suite green 3 runs in a row.
 - 2026-11-15 01:32 T54 slate brief written, dispatched to hydrogen-high (not argon: Python re is a full oracle).
 - 2026-11-15 01:33 T38 outcrop WebSocket/ranges/chunked brief written, dispatched to hydrogen.
+- 2026-11-15 01:43 T38 outcrop WebSocket/ranges/chunked PASS first try (hydrogen): Python client 40/40 (chunked + HTTP/1.0 streams, chunked request body, 12 range cases + HEAD, WS handshake, echo 7/16/64-bit, ping inside fragments, close echo, 10 protocol-error close codes, 4 bad handshakes), RFC 6455 vectors, 20k decode fuzz. Known design wrinkle (brief's fault): stream status applies only when no chunk was written (head sent on first chunk). T45 dispatched to hydrogen.

@@ -1,7 +1,7 @@
 //! Per-connection HTTP/1.1 loop: keep-alive, pipelining, timeouts, and error replies.
 
 use std::io::{ErrorKind, Read, Write};
-use std::net::TcpStream;
+use std::net::{Shutdown, TcpStream};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::string::ToString;
 use std::sync::atomic::{AtomicBool, Ordering::SeqCst};
@@ -10,7 +10,9 @@ use std::time::{Duration, Instant};
 use std::vec;
 use std::vec::Vec;
 
+use super::router::Dispatch;
 use super::{lock, ActiveConn, ServerInner};
+use crate::ws::WebSocket;
 use crate::{parse_request, write_response, Error, Response};
 
 /// Guard that registers an open connection and decrements `open` on drop.
@@ -70,41 +72,147 @@ pub(crate) fn handle_connection(mut stream: TcpStream, inner: Arc<ServerInner>) 
                     && req_count < inner.keep_alive_max
                     && !inner.stopping.load(SeqCst);
 
-                let result = catch_unwind(AssertUnwindSafe(|| inner.router.dispatch(&req)));
-                let mut panicked = false;
-                let mut resp = match result {
-                    Ok(r) => r,
-                    Err(_) => {
-                        panicked = true;
-                        error_response(500, "Internal Server Error", true)
+                let dispatched =
+                    match catch_unwind(AssertUnwindSafe(|| inner.router.dispatch(&req))) {
+                        Ok(d) => d,
+                        Err(_) => {
+                            let resp = error_response(500, "Internal Server Error", true);
+                            let wire = write_response(&resp);
+                            let _ = stream.write_all(&wire);
+                            let _ = stream.flush();
+                            break;
+                        }
+                    };
+
+                match dispatched {
+                    Dispatch::Response(mut resp) => {
+                        if req.method == "HEAD" {
+                            if resp.header("content-length").is_none() && !resp.body.is_empty() {
+                                let len = resp.body.len().to_string();
+                                resp.headers
+                                    .push(("Content-Length".to_string(), len.into_bytes()));
+                            }
+                            resp.body.clear();
+                        }
+
+                        if !keep_alive && resp.header("connection").is_none() {
+                            resp.headers
+                                .push(("Connection".to_string(), b"close".to_vec()));
+                        }
+                        if resp.header("content-length").is_none() && resp.body.is_empty() {
+                            resp.headers
+                                .push(("Content-Length".to_string(), b"0".to_vec()));
+                        }
+
+                        let wire = write_response(&resp);
+                        let write_ok = stream.write_all(&wire).is_ok() && stream.flush().is_ok();
+                        in_flight.store(false, SeqCst);
+                        last_activity = Instant::now();
+
+                        if !write_ok || !keep_alive || inner.stopping.load(SeqCst) {
+                            break;
+                        }
                     }
-                };
-
-                if req.method == "HEAD" && !panicked {
-                    if resp.header("content-length").is_none() && !resp.body.is_empty() {
-                        let len = resp.body.len().to_string();
-                        resp.headers
-                            .push(("Content-Length".to_string(), len.into_bytes()));
+                    Dispatch::WebSocket(handler, accept) => {
+                        let resp = Response {
+                            minor: 1,
+                            status: 101,
+                            reason: "Switching Protocols".to_string(),
+                            headers: vec![
+                                ("Upgrade".to_string(), b"websocket".to_vec()),
+                                ("Connection".to_string(), b"Upgrade".to_vec()),
+                                ("Sec-WebSocket-Accept".to_string(), accept.into_bytes()),
+                            ],
+                            body: Vec::new(),
+                        };
+                        let wire = write_response(&resp);
+                        if stream.write_all(&wire).is_ok() && stream.flush().is_ok() {
+                            let leftover = core::mem::take(&mut buf);
+                            let ws = WebSocket::new(stream, leftover);
+                            let _ = catch_unwind(AssertUnwindSafe(|| handler(ws)));
+                        }
+                        break;
                     }
-                    resp.body.clear();
-                }
+                    Dispatch::Stream(handler) => {
+                        let is_http11 = req.minor >= 1;
+                        let is_head = req.method == "HEAD";
+                        let close_after = !is_http11 || !keep_alive;
+                        let mut head_sent = false;
+                        let mut write_err = false;
 
-                if !keep_alive && resp.header("connection").is_none() {
-                    resp.headers
-                        .push(("Connection".to_string(), b"close".to_vec()));
-                }
-                if resp.header("content-length").is_none() && resp.body.is_empty() {
-                    resp.headers
-                        .push(("Content-Length".to_string(), b"0".to_vec()));
-                }
+                        let res = catch_unwind(AssertUnwindSafe(|| {
+                            let mut emit = |piece: &[u8]| -> std::io::Result<()> {
+                                if piece.is_empty() || is_head {
+                                    return Ok(());
+                                }
+                                if !head_sent {
+                                    write_stream_head(
+                                        &mut stream,
+                                        req.minor,
+                                        200,
+                                        is_http11,
+                                        close_after,
+                                    )
+                                    .inspect_err(|_| write_err = true)?;
+                                    head_sent = true;
+                                }
+                                if is_http11 {
+                                    let hdr = std::format!("{:x}\r\n", piece.len());
+                                    stream
+                                        .write_all(hdr.as_bytes())
+                                        .inspect_err(|_| write_err = true)?;
+                                    stream.write_all(piece).inspect_err(|_| write_err = true)?;
+                                    stream
+                                        .write_all(b"\r\n")
+                                        .inspect_err(|_| write_err = true)?;
+                                } else {
+                                    stream.write_all(piece).inspect_err(|_| write_err = true)?;
+                                }
+                                stream.flush().inspect_err(|_| write_err = true)?;
+                                Ok(())
+                            };
+                            handler(&req, &mut emit)
+                        }));
 
-                let wire = write_response(&resp);
-                let write_ok = stream.write_all(&wire).is_ok() && stream.flush().is_ok();
-                in_flight.store(false, SeqCst);
-                last_activity = Instant::now();
+                        let Ok(status) = res else {
+                            let _ = stream.shutdown(Shutdown::Both);
+                            break;
+                        };
+                        if write_err {
+                            break;
+                        }
 
-                if panicked || !write_ok || !keep_alive || inner.stopping.load(SeqCst) {
-                    break;
+                        let no_body = is_head
+                            || (100..=199).contains(&status)
+                            || status == 204
+                            || status == 304;
+                        if !head_sent {
+                            let chunked = is_http11 && !no_body;
+                            if write_stream_head(
+                                &mut stream,
+                                req.minor,
+                                status,
+                                chunked,
+                                close_after,
+                            )
+                            .is_err()
+                            {
+                                break;
+                            }
+                        }
+                        if is_http11
+                            && !no_body
+                            && (stream.write_all(b"0\r\n\r\n").is_err() || stream.flush().is_err())
+                        {
+                            break;
+                        }
+                        in_flight.store(false, SeqCst);
+                        last_activity = Instant::now();
+
+                        if close_after || inner.stopping.load(SeqCst) {
+                            break;
+                        }
+                    }
                 }
             }
             Err(Error::Incomplete) => {
@@ -161,6 +269,54 @@ pub(crate) fn reject_503(mut stream: TcpStream) {
             Ok(n) if n > 0 => {}
             _ => break,
         }
+    }
+}
+
+fn write_stream_head(
+    stream: &mut TcpStream,
+    minor: u8,
+    status: u16,
+    chunked: bool,
+    close: bool,
+) -> std::io::Result<()> {
+    let mut headers = vec![(
+        "Content-Type".to_string(),
+        b"application/octet-stream".to_vec(),
+    )];
+    if chunked {
+        headers.push(("Transfer-Encoding".to_string(), b"chunked".to_vec()));
+    }
+    if close {
+        headers.push(("Connection".to_string(), b"close".to_vec()));
+    }
+    let resp = Response {
+        minor,
+        status,
+        reason: reason_for(status).to_string(),
+        headers,
+        body: Vec::new(),
+    };
+    let wire = write_response(&resp);
+    stream.write_all(&wire)?;
+    stream.flush()
+}
+
+fn reason_for(status: u16) -> &'static str {
+    match status {
+        200 => "OK",
+        201 => "Created",
+        202 => "Accepted",
+        204 => "No Content",
+        206 => "Partial Content",
+        400 => "Bad Request",
+        403 => "Forbidden",
+        404 => "Not Found",
+        405 => "Method Not Allowed",
+        416 => "Range Not Satisfiable",
+        426 => "Upgrade Required",
+        500 => "Internal Server Error",
+        503 => "Service Unavailable",
+        _ => "",
     }
 }
 
