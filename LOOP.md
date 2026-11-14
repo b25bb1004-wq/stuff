@@ -105,7 +105,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
 | T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
-| T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen |  | TODO |
+| T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | RUNNING |
 | T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | TODO |
 | T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | argon |  | TODO |
 | T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
