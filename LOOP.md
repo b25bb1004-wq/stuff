@@ -5,7 +5,7 @@
 - heartbeat: 2026-11-14 17:34
 - phase: P1 Cores. T04, T05, T07, T09, T10, T12, T16, T17, T19 PASS.
 - stop reason: none
-- Next for the leader: Haiku lane paused (round cap reached); Gemini lane: T18 running on argon; then T13. T15 waits for the next round or a Gemini lane. Flash job docs/SKILLS.md still owed.
+- Next for the leader (18:52, Claude usage limit hit): judge T18 when argon returns (check parked in briefs/leader/sinter_leader.rs). Briefs ready: T20 (haiku), T37 (hydrogen). Then T53, T43, T23 (not argon), T13 (needs riscv-tests download: ask operator).
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
 - At most one Gemini worker (through `bash tools/lane.sh <lane> <id>`) plus one Claude Haiku worker, on different crates. Lanes and rules: docs/PLAN.md section 2.
 
