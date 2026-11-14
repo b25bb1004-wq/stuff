@@ -131,8 +131,8 @@ fn epc_bits_are_forced_aligned() {
     let mut cpu = Cpu::new(0);
     cpu.csr_write(0x341, 0x7);
     cpu.csr_write(0x141, 0xff);
-    assert_eq!(cpu.csr_read(0x341), Some(0x4));
-    assert_eq!(cpu.csr_read(0x141), Some(0xfc));
+    assert_eq!(cpu.csr_read(0x341), Some(0x6));
+    assert_eq!(cpu.csr_read(0x141), Some(0xfe));
 }
 
 #[test]

@@ -94,6 +94,7 @@ impl Cpu {
     /// Take a trap (or interrupt, with `interrupt` set) with cause `code` into its handler.
     /// Delegated traps from S or U go to S-mode; everything else goes to M-mode.
     fn enter(&mut self, code: u64, interrupt: bool, tval: u64) {
+        self.reservation = None;
         let deleg = if interrupt {
             self.csr.mideleg
         } else {

@@ -1,5 +1,5 @@
 //! Word to instruction. Anything outside the supported set decodes to `None`.
-use super::Inst;
+use super::{AmoOp, Inst};
 
 /// Sign-extend the low `bits` bits of `v`.
 fn sext(v: u32, bits: u32) -> i64 {
@@ -90,6 +90,7 @@ pub fn decode(w: u32) -> Option<Inst> {
         0x33 => op_reg(rd, rs1, rs2, f3, f7),
         0x1b => op_imm32(w, rd, rs1, f3, f7),
         0x3b => op_reg32(rd, rs1, rs2, f3, f7),
+        0x2f => amo(rd, rs1, rs2, f3, f7),
         0x0f => match f3 {
             0 => Some(Inst::Fence),
             1 => Some(Inst::FenceI),
@@ -224,5 +225,76 @@ fn op_reg32(rd: u8, rs1: u8, rs2: u8, f3: u32, f7: u32) -> Option<Inst> {
         (0x01, 6) => Inst::Remw { rd, rs1, rs2 },
         (0x01, 7) => Inst::Remuw { rd, rs1, rs2 },
         _ => return None,
+    })
+}
+
+/// Atomic memory operations (RV64A): LR, SC and AMO*.W/D.
+fn amo(rd: u8, rs1: u8, rs2: u8, f3: u32, f7: u32) -> Option<Inst> {
+    if !matches!(f3, 2 | 3) {
+        return None;
+    }
+    let aq = (f7 & 2) != 0;
+    let rl = (f7 & 1) != 0;
+    let f5 = f7 >> 2;
+    let word = f3 == 2;
+    let op = match f5 {
+        0x02 => {
+            if rs2 != 0 {
+                return None;
+            }
+            return Some(if word {
+                Inst::LrW { rd, rs1, aq, rl }
+            } else {
+                Inst::LrD { rd, rs1, aq, rl }
+            });
+        }
+        0x03 => {
+            return Some(if word {
+                Inst::ScW {
+                    rd,
+                    rs1,
+                    rs2,
+                    aq,
+                    rl,
+                }
+            } else {
+                Inst::ScD {
+                    rd,
+                    rs1,
+                    rs2,
+                    aq,
+                    rl,
+                }
+            });
+        }
+        0x01 => AmoOp::Swap,
+        0x00 => AmoOp::Add,
+        0x04 => AmoOp::Xor,
+        0x0c => AmoOp::And,
+        0x08 => AmoOp::Or,
+        0x10 => AmoOp::Min,
+        0x14 => AmoOp::Max,
+        0x18 => AmoOp::Minu,
+        0x1c => AmoOp::Maxu,
+        _ => return None,
+    };
+    Some(if word {
+        Inst::AmoW {
+            op,
+            rd,
+            rs1,
+            rs2,
+            aq,
+            rl,
+        }
+    } else {
+        Inst::AmoD {
+            op,
+            rd,
+            rs1,
+            rs2,
+            aq,
+            rl,
+        }
     })
 }

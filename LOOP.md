@@ -69,7 +69,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T07 | P1 | shale | journal, fsck, crash injection at every write | haiku | T06 | PASS |
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
 | T13 | P1 | quartz | official riscv-tests as data (needs download: operator) | hydrogen | T13a | TODO |
-| T13a | P1 | quartz | A and C extensions, LLVM as oracle (split from T13) | hydrogen-high | T12 | RUNNING |
+| T13a | P1 | quartz | A and C extensions, LLVM as oracle (split from T13) | hydrogen-high | T12 | PASS |
 | T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
@@ -184,3 +184,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 02:00 T45 drillcore remote (push/fetch/pull/clone over outcrop HTTP) PASS (hydrogen, first try). Leader: 3 clones converge, 8 racing pushers (losers stale/non-ff then land, linear first-parent chain), forged commit without tree -> ng missing, bad names, stale old, garbage/bad checksum -> 400, 300 fuzz bodies <500 with refs unchanged, fetch minimality 4/7 objects; fresh seed x3 stable; T43/T44 leader checks still pass.
 - 2026-11-15 02:26 T23 PASS (hydrogen-high): quartz::machine, 9/9 leader checks after a leader fixture fix (timer.S trap clobbered t1 used by the idle loop; WFI may be a NOP), fresh-seed fuzz green, workspace gate green.
 - 2026-11-15 02:43 T65 PASS (hydrogen): spelunk HTML tokenizer/tree, CSS syntax, selectors; 7/7 leader checks (3000 CSS strings + 1300 sheets/decl lists vs tinycss2, 2000 docs vs html.parser, 35 trees, 3000 queries vs soupsieve), fresh seeds green. Leader fixes: tokenizer panicked slicing inside a multi-byte char in comments; leading whitespace of a mixed text run before body content now processed on its own (WHATWG). Check fixes: lone-surrogate escape removed, tinycss2 two-char match tokens split, soupsieve document-as-parent quirk patched.
+- 2026-11-15 02:55 T13a PASS (hydrogen-high, 1 run): leader check 9/9 after leader fixture fix (rvc.S trap handler at 2 mod 4 made mtvec mode 2; now .balign 4); fresh seed ok. drillcore remote_leader failed once under load in the workspace gate, passed 3/3 alone and on gate rerun: flake to look at.

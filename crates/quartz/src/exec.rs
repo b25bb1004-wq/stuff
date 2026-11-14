@@ -2,7 +2,7 @@
 //! so a trap leaves the cpu exactly as it was.
 use crate::bus::Bus;
 use crate::csr::{MIE, MPIE, MPP, MPRV, SIE, SPIE, SPP, TSR, TVM, TW};
-use crate::inst::{decode, Inst};
+use crate::inst::{decode, decode_c, Inst};
 use crate::{Access, Cpu, Mode, Trap};
 
 /// Everything one instruction changes, produced before anything is committed.
@@ -11,6 +11,7 @@ struct Effect {
     rd: Option<(u8, u64)>,
     csr: Option<(u16, u64)>,
     mode: Option<Mode>,
+    reservation: Option<Option<u64>>,
     wfi: bool,
 }
 
@@ -22,6 +23,7 @@ impl Effect {
             rd: None,
             csr: None,
             mode: None,
+            reservation: None,
             wfi: false,
         }
     }
@@ -55,25 +57,25 @@ fn extend(raw: u64, size: u8, signed: bool) -> u64 {
     }
 }
 
-/// Fail with `FetchMisaligned` unless `target` is a multiple of 4.
+/// Fail with `FetchMisaligned` unless `target` is a multiple of 2 (IALIGN=16).
 fn check_pc(target: u64) -> Result<(), Trap> {
-    if target & 3 != 0 {
+    if target & 1 != 0 {
         Err(Trap::FetchMisaligned(target))
     } else {
         Ok(())
     }
 }
 
-/// Jump to `target` and write the link value; the target must be a multiple of 4.
+/// Jump to `target` and write the link value; the target must be a multiple of 2.
 fn jump(target: u64, link: u64, rd: u8) -> Outcome {
     check_pc(target)?;
     Ok(Effect::wb(target, rd, link))
 }
 
-/// Conditional branch: fall through, or jump to `pc + imm` when `taken`.
-fn branch(pc: u64, taken: bool, imm: i64) -> Outcome {
+/// Conditional branch: fall through to `next`, or jump to `pc + imm` when `taken`.
+fn branch(pc: u64, next: u64, taken: bool, imm: i64) -> Outcome {
     if !taken {
-        return Ok(Effect::at(pc.wrapping_add(4)));
+        return Ok(Effect::at(next));
     }
     let target = pc.wrapping_add(imm as u64);
     check_pc(target)?;
@@ -85,9 +87,9 @@ impl Cpu {
     pub(crate) fn step_inner(&mut self, bus: &mut impl Bus) -> Result<bool, Trap> {
         let pc = self.pc;
         check_pc(pc)?;
-        let word = self.fetch(bus, pc)?;
-        let inst = decode(word).ok_or(Trap::IllegalInstruction(word))?;
-        let eff = self.execute(inst, word, bus)?;
+        let (inst, word, len) = self.fetch(bus, pc)?;
+        let next = pc.wrapping_add(len);
+        let eff = self.execute(inst, word, next, bus)?;
         if let Some((rd, value)) = eff.rd {
             self.set(rd, value);
         }
@@ -96,6 +98,9 @@ impl Cpu {
         }
         if let Some(mode) = eff.mode {
             self.mode = mode;
+        }
+        if let Some(res) = eff.reservation {
+            self.reservation = res;
         }
         self.pc = eff.pc;
         self.instret = self.instret.wrapping_add(1);
@@ -108,11 +113,22 @@ impl Cpu {
         self.step_inner(bus).map(|_| ())
     }
 
-    /// Fetch the 32-bit instruction word at virtual address `pc`.
-    fn fetch(&self, bus: &mut impl Bus, pc: u64) -> Result<u32, Trap> {
-        let pa = self.translate_with(bus, pc, Access::Fetch)?;
-        let word = bus.read(pa, 4).map_err(|_| Trap::FetchFault(pc))?;
-        Ok(word as u32)
+    /// Fetch and decode one 16-bit compressed or 32-bit instruction at `pc`.
+    fn fetch(&self, bus: &mut impl Bus, pc: u64) -> Result<(Inst, u32, u64), Trap> {
+        let pa0 = self.translate_with(bus, pc, Access::Fetch)?;
+        let lo = bus.read(pa0, 2).map_err(|_| Trap::FetchFault(pc))? as u16;
+        if lo & 3 != 3 {
+            let word = u32::from(lo);
+            let inst = decode_c(lo).ok_or(Trap::IllegalInstruction(word))?;
+            Ok((inst, word, 2))
+        } else {
+            let pc2 = pc.wrapping_add(2);
+            let pa1 = self.translate_with(bus, pc2, Access::Fetch)?;
+            let hi = bus.read(pa1, 2).map_err(|_| Trap::FetchFault(pc2))? as u16;
+            let word = u32::from(lo) | (u32::from(hi) << 16);
+            let inst = decode(word).ok_or(Trap::IllegalInstruction(word))?;
+            Ok((inst, word, 4))
+        }
     }
 
     /// Write register `rd`; writes to `x0` are discarded.
@@ -126,25 +142,30 @@ impl Cpu {
     }
 
     /// Compute the effect of `inst` without changing any state.
-    fn execute(&self, inst: Inst, word: u32, bus: &mut impl Bus) -> Outcome {
+    fn execute(&self, inst: Inst, word: u32, next: u64, bus: &mut impl Bus) -> Outcome {
         let pc = self.pc;
-        let next = pc.wrapping_add(4);
         let illegal = Trap::IllegalInstruction(word);
         match inst {
             Inst::Jal { rd, imm } => jump(pc.wrapping_add(imm as u64), next, rd),
             Inst::Jalr { rd, rs1, imm } => {
                 jump(self.reg(rs1).wrapping_add(imm as u64) & !1, next, rd)
             }
-            Inst::Beq { rs1, rs2, imm } => branch(pc, self.reg(rs1) == self.reg(rs2), imm),
-            Inst::Bne { rs1, rs2, imm } => branch(pc, self.reg(rs1) != self.reg(rs2), imm),
-            Inst::Blt { rs1, rs2, imm } => {
-                branch(pc, (self.reg(rs1) as i64) < (self.reg(rs2) as i64), imm)
-            }
-            Inst::Bge { rs1, rs2, imm } => {
-                branch(pc, (self.reg(rs1) as i64) >= (self.reg(rs2) as i64), imm)
-            }
-            Inst::Bltu { rs1, rs2, imm } => branch(pc, self.reg(rs1) < self.reg(rs2), imm),
-            Inst::Bgeu { rs1, rs2, imm } => branch(pc, self.reg(rs1) >= self.reg(rs2), imm),
+            Inst::Beq { rs1, rs2, imm } => branch(pc, next, self.reg(rs1) == self.reg(rs2), imm),
+            Inst::Bne { rs1, rs2, imm } => branch(pc, next, self.reg(rs1) != self.reg(rs2), imm),
+            Inst::Blt { rs1, rs2, imm } => branch(
+                pc,
+                next,
+                (self.reg(rs1) as i64) < (self.reg(rs2) as i64),
+                imm,
+            ),
+            Inst::Bge { rs1, rs2, imm } => branch(
+                pc,
+                next,
+                (self.reg(rs1) as i64) >= (self.reg(rs2) as i64),
+                imm,
+            ),
+            Inst::Bltu { rs1, rs2, imm } => branch(pc, next, self.reg(rs1) < self.reg(rs2), imm),
+            Inst::Bgeu { rs1, rs2, imm } => branch(pc, next, self.reg(rs1) >= self.reg(rs2), imm),
             Inst::Lb { rd, rs1, imm } => {
                 Ok(Effect::wb(next, rd, self.load(bus, rs1, imm, 1, true)?))
             }
@@ -204,6 +225,40 @@ impl Cpu {
                 Op::Clear,
                 uimm & 31 != 0,
             ),
+            Inst::LrW { rd, rs1, .. } => {
+                let (val, pa) = self.lr(bus, rs1, 4)?;
+                Ok(Effect {
+                    reservation: Some(Some(pa)),
+                    ..Effect::wb(next, rd, val)
+                })
+            }
+            Inst::LrD { rd, rs1, .. } => {
+                let (val, pa) = self.lr(bus, rs1, 8)?;
+                Ok(Effect {
+                    reservation: Some(Some(pa)),
+                    ..Effect::wb(next, rd, val)
+                })
+            }
+            Inst::ScW { rd, rs1, rs2, .. } => {
+                let val = self.sc(bus, rs1, rs2, 4)?;
+                Ok(Effect {
+                    reservation: Some(None),
+                    ..Effect::wb(next, rd, val)
+                })
+            }
+            Inst::ScD { rd, rs1, rs2, .. } => {
+                let val = self.sc(bus, rs1, rs2, 8)?;
+                Ok(Effect {
+                    reservation: Some(None),
+                    ..Effect::wb(next, rd, val)
+                })
+            }
+            Inst::AmoW {
+                op, rd, rs1, rs2, ..
+            } => Ok(Effect::wb(next, rd, self.amo(bus, op, rs1, rs2, 4)?)),
+            Inst::AmoD {
+                op, rd, rs1, rs2, ..
+            } => Ok(Effect::wb(next, rd, self.amo(bus, op, rs1, rs2, 8)?)),
             Inst::Mret => self.mret(word),
             Inst::Sret => self.sret(word),
             Inst::Wfi => {

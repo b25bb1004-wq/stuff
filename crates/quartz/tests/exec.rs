@@ -602,6 +602,17 @@ fn jalr_clears_bit_zero_of_target() {
 
 #[test]
 fn misaligned_targets_trap_without_changing_state() {
+    for bad_pc in [1u64, 0x103] {
+        let mut cpu = Cpu::new(bad_pc);
+        let before = cpu.clone();
+        let mut ram = Ram::new(0, 0x1000);
+        assert_eq!(
+            cpu.step(&mut ram),
+            Err(Trap::FetchMisaligned(bad_pc)),
+            "pc={bad_pc:#x}"
+        );
+        assert_eq!(cpu, before);
+    }
     let cases: [Case; 3] = [
         (Inst::Jal { rd: 1, imm: 2 }, &[], 2),
         (
@@ -628,15 +639,10 @@ fn misaligned_targets_trap_without_changing_state() {
         for &(i, v) in regs {
             cpu.x[i] = v;
         }
-        let before = cpu.clone();
         let mut ram = Ram::new(0, 0x1000);
         place(&mut ram, 0, &[inst]);
-        assert_eq!(
-            cpu.step(&mut ram),
-            Err(Trap::FetchMisaligned(target)),
-            "{inst:?}"
-        );
-        assert_eq!(cpu, before);
+        cpu.step(&mut ram).unwrap();
+        assert_eq!(cpu.pc, target, "{inst:?}");
     }
 }
 

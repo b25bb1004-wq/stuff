@@ -28,8 +28,8 @@ const MIP_SW: u64 = S_INT;
 const MIE_MASK: u64 = 0xAAA;
 /// Delegable exceptions: every cause up to 15 except 10, 11 and 14 (reserved, and ECALL from M).
 const MEDELEG_MASK: u64 = 0xB3FF;
-/// misa: RV64 (MXL=2) with I, M, S and U.
-const MISA: u64 = (2 << 62) | (1 << 8) | (1 << 12) | (1 << 18) | (1 << 20);
+/// misa: RV64 (MXL=2) with A, C, I, M, S and U.
+const MISA: u64 = (2 << 62) | (1 << 0) | (1 << 2) | (1 << 8) | (1 << 12) | (1 << 18) | (1 << 20);
 
 /// Raw storage for the CSRs that hold state. Read and write rules live in `Cpu` below.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -119,7 +119,7 @@ impl Cpu {
             0x105 => c.stvec = tvec(c.stvec, value),
             0x106 => c.scounteren = value & 7,
             0x140 => c.sscratch = value,
-            0x141 => c.sepc = value & !3,
+            0x141 => c.sepc = value & !1,
             0x142 => c.scause = value,
             0x143 => c.stval = value,
             0x144 => {
@@ -139,7 +139,7 @@ impl Cpu {
             0x305 => c.mtvec = tvec(c.mtvec, value),
             0x306 => c.mcounteren = value & 7,
             0x340 => c.mscratch = value,
-            0x341 => c.mepc = value & !3,
+            0x341 => c.mepc = value & !1,
             0x342 => c.mcause = value,
             0x343 => c.mtval = value,
             0x344 => c.mip = (c.mip & !MIP_SW) | (value & MIP_SW),

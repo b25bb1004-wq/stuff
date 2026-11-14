@@ -1,5 +1,5 @@
 //! Instruction to word: the exact inverse of `decode` for every instruction it produces.
-use super::Inst;
+use super::{AmoOp, Inst};
 
 /// Register-register format.
 fn r_fmt(op: u32, f3: u32, f7: u32, rd: u8, rs1: u8, rs2: u8) -> u32 {
@@ -135,5 +135,56 @@ pub fn encode(inst: Inst) -> u32 {
         Inst::Sret => 0x1020_0073,
         Inst::Wfi => 0x1050_0073,
         Inst::SfenceVma { rs1, rs2 } => r_fmt(0x73, 0, 0x09, 0, rs1, rs2),
+        Inst::LrW { rd, rs1, aq, rl } => amo_fmt(2, 0x02, aq, rl, rd, rs1, 0),
+        Inst::LrD { rd, rs1, aq, rl } => amo_fmt(3, 0x02, aq, rl, rd, rs1, 0),
+        Inst::ScW {
+            rd,
+            rs1,
+            rs2,
+            aq,
+            rl,
+        } => amo_fmt(2, 0x03, aq, rl, rd, rs1, rs2),
+        Inst::ScD {
+            rd,
+            rs1,
+            rs2,
+            aq,
+            rl,
+        } => amo_fmt(3, 0x03, aq, rl, rd, rs1, rs2),
+        Inst::AmoW {
+            op,
+            rd,
+            rs1,
+            rs2,
+            aq,
+            rl,
+        } => amo_fmt(2, amo_funct5(op), aq, rl, rd, rs1, rs2),
+        Inst::AmoD {
+            op,
+            rd,
+            rs1,
+            rs2,
+            aq,
+            rl,
+        } => amo_fmt(3, amo_funct5(op), aq, rl, rd, rs1, rs2),
     }
+}
+
+fn amo_funct5(op: AmoOp) -> u32 {
+    match op {
+        AmoOp::Swap => 0x01,
+        AmoOp::Add => 0x00,
+        AmoOp::Xor => 0x04,
+        AmoOp::And => 0x0c,
+        AmoOp::Or => 0x08,
+        AmoOp::Min => 0x10,
+        AmoOp::Max => 0x14,
+        AmoOp::Minu => 0x18,
+        AmoOp::Maxu => 0x1c,
+    }
+}
+
+fn amo_fmt(f3: u32, f5: u32, aq: bool, rl: bool, rd: u8, rs1: u8, rs2: u8) -> u32 {
+    let f7 = (f5 << 2) | (u32::from(aq) << 1) | u32::from(rl);
+    r_fmt(0x2f, f3, f7, rd, rs1, rs2)
 }

@@ -123,8 +123,8 @@ fn csr_writes_stay_inside_the_warl_masks() {
         assert_eq!(read(0x344) & !0x222, 0, "no hardware pending bits were set");
         assert!((read(0x305) & 3) <= 1);
         assert!((read(0x105) & 3) <= 1);
-        assert_eq!(read(0x341) & 3, 0);
-        assert_eq!(read(0x141) & 3, 0);
+        assert_eq!(read(0x341) & 1, 0);
+        assert_eq!(read(0x141) & 1, 0);
         assert!(matches!(read(0x180) >> 60, 0 | 8));
         assert_eq!(read(0x306) & !7, 0);
         assert_eq!(read(0x106) & !7, 0);

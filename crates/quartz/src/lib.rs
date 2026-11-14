@@ -1,4 +1,4 @@
-//! quartz: RV64IM hart with Zicsr, M/S/U modes, traps, interrupts and Sv39 paging
+//! quartz: RV64IMAC hart with Zicsr, M/S/U modes, traps, interrupts and Sv39 paging
 //! (RISC-V Privileged Specification 20211203).
 #![forbid(unsafe_code)]
 #![cfg_attr(not(test), no_std)]
@@ -6,6 +6,7 @@
 extern crate alloc;
 
 mod alu;
+mod amo;
 mod bus;
 mod csr;
 mod exec;
@@ -33,7 +34,7 @@ pub enum Trap {
     LoadFault(u64),
     /// Store hit unmapped memory.
     StoreFault(u64),
-    /// Jump or taken branch to a pc that is not a multiple of 4.
+    /// Jump or taken branch to a pc that is not a multiple of 2.
     FetchMisaligned(u64),
     /// Load address is not a multiple of the access size.
     LoadMisaligned(u64),
@@ -103,7 +104,7 @@ pub enum Step {
     Wfi,
 }
 
-/// An RV64IM hart with Zicsr, M/S/U privilege and Sv39 paging.
+/// An RV64IMAC hart with Zicsr, M/S/U privilege and Sv39 paging.
 ///
 /// `x[0]` always reads as zero. The CSR file is private; use `csr_read` and `csr_write`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,6 +118,7 @@ pub struct Cpu {
     /// Current privilege mode.
     pub mode: Mode,
     csr: Csrs,
+    reservation: Option<u64>,
 }
 
 impl Cpu {
@@ -128,6 +130,7 @@ impl Cpu {
             instret: 0,
             mode: Mode::Machine,
             csr: Csrs::default(),
+            reservation: None,
         }
     }
 

@@ -98,6 +98,7 @@ jr_ok:
     li t3, 0x80000006
     bne t2, t3, fail_14
     PASS
+    .balign 4
 trap:
     csrr t5, mcause
     li t6, 3

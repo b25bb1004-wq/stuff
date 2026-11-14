@@ -1,10 +1,35 @@
-//! RV64IM, Zicsr, Zifencei and the privileged instructions: the typed form the decoder produces
+//! RV64IMAC, Zicsr, Zifencei and the privileged instructions: the typed form the decoder produces
 //! and the encoder consumes.
 mod decode;
+mod decode_c;
 mod encode;
 
 pub use decode::decode;
+pub use decode_c::decode_c;
 pub use encode::encode;
+
+/// Operation performed by an AMO instruction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AmoOp {
+    /// Atomically swap memory with `rs2`.
+    Swap,
+    /// Atomically add `rs2` to memory.
+    Add,
+    /// Atomically XOR memory with `rs2`.
+    Xor,
+    /// Atomically AND memory with `rs2`.
+    And,
+    /// Atomically OR memory with `rs2`.
+    Or,
+    /// Atomically store the signed minimum of memory and `rs2`.
+    Min,
+    /// Atomically store the signed maximum of memory and `rs2`.
+    Max,
+    /// Atomically store the unsigned minimum of memory and `rs2`.
+    Minu,
+    /// Atomically store the unsigned maximum of memory and `rs2`.
+    Maxu,
+}
 
 /// One RV64IM instruction, with the Zicsr and privileged instructions.
 ///
@@ -166,4 +191,42 @@ pub enum Inst {
     Wfi,
     /// SFENCE.VMA: supervisor memory-management fence, a no-op here (no TLB).
     SfenceVma { rs1: u8, rs2: u8 },
+    /// LR.W: load-reserved word, sign-extended.
+    LrW { rd: u8, rs1: u8, aq: bool, rl: bool },
+    /// LR.D: load-reserved doubleword.
+    LrD { rd: u8, rs1: u8, aq: bool, rl: bool },
+    /// SC.W: store-conditional word.
+    ScW {
+        rd: u8,
+        rs1: u8,
+        rs2: u8,
+        aq: bool,
+        rl: bool,
+    },
+    /// SC.D: store-conditional doubleword.
+    ScD {
+        rd: u8,
+        rs1: u8,
+        rs2: u8,
+        aq: bool,
+        rl: bool,
+    },
+    /// AMO*.W: atomic memory operation on a 32-bit word, sign-extended.
+    AmoW {
+        op: AmoOp,
+        rd: u8,
+        rs1: u8,
+        rs2: u8,
+        aq: bool,
+        rl: bool,
+    },
+    /// AMO*.D: atomic memory operation on a 64-bit doubleword.
+    AmoD {
+        op: AmoOp,
+        rd: u8,
+        rs1: u8,
+        rs2: u8,
+        aq: bool,
+        rl: bool,
+    },
 }

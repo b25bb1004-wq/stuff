@@ -253,7 +253,7 @@ fn leader_random_amos_match_reference() {
         AmoOp::Minu,
         AmoOp::Maxu,
     ];
-    let mut r = Rng::new(0x13a_a3_2026);
+    let mut r = Rng::new(0x0001_3aa3_2026);
     let special = [
         0,
         1,
