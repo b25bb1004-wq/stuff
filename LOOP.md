@@ -2,8 +2,8 @@
 
 ## State
 - LEADER: Claude Fable
-- heartbeat: 2026-11-14 15:19
-- phase: P1 Cores, round 2 running (T11 PASS; T06, T09 with workers)
+- heartbeat: 2026-11-14 16:10
+- phase: P1 Cores, round 2: T11 PASS, T06 PASS, T09 stopped half way by the Claude usage limit (lexer done, parser tests left; resume agent a81440dc6ef9b6a74)
 - stop reason: none
 - Stand-in: Gemini Argon. Open this folder in Antigravity, choose Argon, say
   "You are the stand-in leader. Follow AGENTS.md." (The agy command is not installed on this PC
@@ -33,7 +33,7 @@ top to bottom, and deployable.
   sessions. It cannot finish inside one usage window.
 - Round budget (this session): 2.0M worker tokens. Concurrency 3. Retries 2 per task.
 - Per task: 150k (Haiku), 250k (Sonnet).
-- Spent so far: 708k (worker tokens only; leader tokens are not counted here).
+- Spent so far: 948k Claude worker tokens (leader tokens not counted).
 
 ## Workers checked on 2026-11-14
 | Worker | Status |
@@ -55,10 +55,10 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T03 | P1 | quartz | RV64IM decode, encode, execute | haiku | | PASS |
 | T04 | P1 | onyx | X25519 + Ed25519 (RFC 7748, RFC 8032 vectors) | sonnet | T01 | TODO |
 | T05 | P1 | geyser | fair scheduler core + simulator tests | haiku | | TODO |
-| T06 | P1 | shale | block layer, on-disk format, mkfs, read/write path | haiku | | RUNNING |
+| T06 | P1 | shale | block layer, on-disk format, mkfs, read/write path | haiku | | PASS |
 | T07 | P1 | shale | journal, fsck, crash-injection tests | haiku | T06 | TODO |
 | T08 | P1 | mica | language design `docs/MICA.md` + bytecode `docs/MBC.md` | leader | | PASS |
-| T09 | P1 | mica | lexer + parser + AST | haiku | T08 | RUNNING |
+| T09 | P1 | mica | lexer + parser + AST | haiku | T08 | RETRY |
 | T10 | P1 | mica | type checker + IR | sonnet | T09 | TODO |
 | T11 | P1 | geode | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | PASS |
 | T17 | P1 | geode | interpreter, heap, garbage collector, fuel | haiku | T11 | TODO |
@@ -80,3 +80,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-14 16:25 | T03 | haiku | 202k | PASS | gate green; 499 instructions assembled by LLVM 19 all decode and re-encode identically; official RISC-V tests come in T13
 - 2026-11-14 16:30 | names | leader | n/a | PASS | every crate renamed to its Strata name (table in docs/SPEC.md); full gate green, 55 test groups
 - 2026-11-14 15:19 | T11 | haiku | 179k | PASS | gate green; opcode table read against docs/MBC.md (58 of 58 in order); leader fuzz 40 000 hostile inputs, new seed: no panic, decode then encode stable. Note: earlier log times in this file ran ahead of the clock
+- 2026-11-14 16:10 | T06 | haiku | 240k | PASS | gate green; leader shadow model 100 cases x 400 ops with remount every 40 and a leak check, plus 5000 corrupted images, fresh seeds: no mismatch, no panic. Over budget (170k). Open points for T07: TooLarge is an extent-count limit; overlapping extents across files are not detected
