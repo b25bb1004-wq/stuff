@@ -134,7 +134,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
 | T80 | P6 | review | security review of every crate, one report each | argon | all | TODO |
 | T81 | P6 | docs | README and runnable example per system, architecture book | flash | all | TODO |
-| T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | TODO |
+| T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | RUNNING |
 | T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
 
 Later phases get their task rows when P1 is green (see the build order in `docs/SPEC.md`):
