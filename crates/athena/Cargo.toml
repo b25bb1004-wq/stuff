@@ -15,6 +15,7 @@ path = "src/bin/athena.rs"
 [dependencies]
 calliope = { path = "../calliope" }
 cobalt = { path = "../cobalt" }
+elysium = { path = "../elysium" }
 logos = { path = "../logos" }
 neon = { path = "../neon" }
 

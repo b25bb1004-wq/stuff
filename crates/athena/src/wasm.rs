@@ -7,6 +7,7 @@ pub use neon::wasm::{
     titan_pump, titan_send,
 };
 
+use crate::debug;
 use crate::lang::{definition, format as format_source, hover};
 use crate::service::{check, highlight, run_tests, Style};
 
@@ -161,6 +162,38 @@ pub extern "C" fn athena_hover(ptr: *const u8, len: usize, offset: usize) -> usi
         Some(text) => set_last(text.into_bytes()),
         None => set_last(Vec::new()),
     }
+}
+
+/// Start the debug session for Logos source at `(ptr, len)`, paused before `main`; writes the debug state text.
+#[no_mangle]
+pub extern "C" fn athena_debug_start(ptr: *const u8, len: usize) -> usize {
+    let Some(bytes) = copy_slice_from_guest(ptr, len) else {
+        return set_last(debug::error_text("invalid source pointer").into_bytes());
+    };
+    let src = String::from_utf8_lossy(bytes);
+    set_last(debug::start_text(&src).into_bytes())
+}
+
+/// Step the debug session: mode 0 continue, 1 over, 2 into, 3 out; breakpoint lines are the digit runs at `(bp_ptr, bp_len)`.
+#[no_mangle]
+pub extern "C" fn athena_debug_step(mode: u32, bp_ptr: *const u8, bp_len: usize) -> usize {
+    let text = copy_slice_from_guest(bp_ptr, bp_len)
+        .map(|b| String::from_utf8_lossy(b).into_owned())
+        .unwrap_or_default();
+    let lines = debug::parse_breakpoints(&text);
+    set_last(debug::step_text(mode, &lines).into_bytes())
+}
+
+/// Select call frame `index` (0 is innermost) of the debug session; writes its state with that frame's variables.
+#[no_mangle]
+pub extern "C" fn athena_debug_frame(index: usize) -> usize {
+    set_last(debug::frame_text(index).into_bytes())
+}
+
+/// End the debug session.
+#[no_mangle]
+pub extern "C" fn athena_debug_stop() {
+    debug::stop();
 }
 
 /// Format Logos source at `(ptr, len)`, writing `ok\n<text>` or `error: <message>`.

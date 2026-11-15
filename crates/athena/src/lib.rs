@@ -2,6 +2,7 @@
 
 #![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
 
+pub mod debug;
 #[cfg(not(target_arch = "wasm32"))]
 mod icons;
 pub mod lang;

@@ -22,6 +22,7 @@ dependencies = [
  "assay",
  "calliope",
  "cobalt",
+ "elysium",
  "logos",
  "neon",
  "pigment",

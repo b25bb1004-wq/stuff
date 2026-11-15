@@ -520,6 +520,10 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
         "athena_definition",
         "athena_hover",
         "athena_format",
+        "athena_debug_start",
+        "athena_debug_step",
+        "athena_debug_frame",
+        "athena_debug_stop",
     ] {
         assert!(
             exports.contains(required),
