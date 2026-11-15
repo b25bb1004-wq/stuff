@@ -1,0 +1,4 @@
+# T80 security review: silicon (RISC-V emulator)
+Method: code reading only, nothing executed. Coverage partial: lib.rs, mmu.rs walk and leaf checks, bus.rs load/store bounds, machine/mod.rs store and DMA paths, machine/cache.rs invalidation, machine/block.rs. Grep-level only: exec.rs, csr.rs, inst/decode*.rs.
+HIGH: none. MEDIUM: none. LOW: none.
+No finding: zero non-test unwrap, expect, panic or unreachable sites; crate is forbid(unsafe_code) (lib.rs:3); superpage alignment is checked (mmu.rs leaf, ppn and low mask); reserved PTE bits rejected (mmu.rs:131); guest accesses are bounds-checked with checked_sub and try_from (bus.rs:39-53); decode cache is invalidated on RAM stores (machine/mod.rs:245, 273), on block DMA reads (machine/mod.rs:221-224, block.rs:79), and on large writes (cache.rs:160-170).
