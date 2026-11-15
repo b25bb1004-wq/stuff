@@ -9,6 +9,11 @@ publish = false
 default = ["std"]
 std = ["dep:kairos"]
 
+[[bin]]
+name = "mercury"
+path = "src/bin/mercury.rs"
+required-features = ["std"]
+
 [dependencies]
 kairos = { path = "../kairos", optional = true }
 
