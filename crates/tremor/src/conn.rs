@@ -383,7 +383,9 @@ impl Connection {
     pub(crate) fn enter_draining(&mut self, err: Error, wire_code: u64, wire_reason: &str) {
         self.error = Some(err);
         if self.keys.is_some() && !matches!(self.phase, Phase::ServerHalfOpen { .. }) {
-            let drain_until = self.last_now.saturating_add(3 * self.recovery.base_pto());
+            let drain_until = self
+                .last_now
+                .saturating_add(self.recovery.base_pto().saturating_mul(3));
             self.phase = Phase::Draining {
                 close_code: wire_code,
                 close_reason: wire_reason.to_owned(),

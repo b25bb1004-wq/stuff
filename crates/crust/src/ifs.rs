@@ -3,7 +3,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::glob::{glob_match, ExpChar};
+use crate::glob::{compile_glob, ExpChar, GlobAtom};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum ExpToken {
@@ -11,42 +11,96 @@ pub(crate) enum ExpToken {
     EmptyQuoted,
 }
 
-pub(crate) fn trim_prefix<'a>(val: &'a str, pat: &str, longest: bool) -> &'a str {
-    let mut bounds: Vec<usize> = val.char_indices().map(|(i, _)| i).collect();
-    bounds.push(val.len());
-    if longest {
-        for &idx in bounds.iter().rev() {
-            if glob_match(pat, &val[..idx]) {
-                return &val[idx..];
+fn close_stars(states: &mut [bool], atoms: &[GlobAtom]) {
+    for (i, atom) in atoms.iter().enumerate() {
+        if states[i] && matches!(atom, GlobAtom::Star) {
+            states[i + 1] = true;
+        }
+    }
+}
+
+fn match_boundary<I>(
+    atoms: &[GlobAtom],
+    init_boundary: usize,
+    steps: I,
+    longest: bool,
+) -> Option<usize>
+where
+    I: IntoIterator<Item = (char, usize)>,
+{
+    let m = atoms.len();
+    let mut cur = vec![false; m + 1];
+    let mut next = vec![false; m + 1];
+    cur[0] = true;
+    close_stars(&mut cur, atoms);
+
+    let mut matched = if cur[m] {
+        if !longest {
+            return Some(init_boundary);
+        }
+        Some(init_boundary)
+    } else {
+        None
+    };
+
+    for (ch, boundary) in steps {
+        next.fill(false);
+        let mut any_next = false;
+        for (i, atom) in atoms.iter().enumerate() {
+            if !cur[i] {
+                continue;
+            }
+            if matches!(atom, GlobAtom::Star) {
+                next[i] = true;
+                any_next = true;
+            } else if atom.matches_char(ch) {
+                next[i + 1] = true;
+                any_next = true;
             }
         }
-    } else {
-        for &idx in &bounds {
-            if glob_match(pat, &val[..idx]) {
-                return &val[idx..];
+        if !any_next {
+            break;
+        }
+        close_stars(&mut next, atoms);
+        core::mem::swap(&mut cur, &mut next);
+        if cur[m] {
+            matched = Some(boundary);
+            if !longest {
+                break;
             }
         }
     }
-    val
+
+    matched
+}
+
+pub(crate) fn trim_prefix<'a>(val: &'a str, pat: &str, longest: bool) -> &'a str {
+    let Some(atoms) = compile_glob(pat) else {
+        return val;
+    };
+    let chars: Vec<(usize, char)> = val.char_indices().collect();
+    let n = chars.len();
+    let steps = (0..n).map(|i| {
+        let end = if i + 1 < n { chars[i + 1].0 } else { val.len() };
+        (chars[i].1, end)
+    });
+    match match_boundary(&atoms, 0, steps, longest) {
+        Some(idx) => &val[idx..],
+        None => val,
+    }
 }
 
 pub(crate) fn trim_suffix<'a>(val: &'a str, pat: &str, longest: bool) -> &'a str {
-    let mut bounds: Vec<usize> = val.char_indices().map(|(i, _)| i).collect();
-    bounds.push(val.len());
-    if longest {
-        for &idx in &bounds {
-            if glob_match(pat, &val[idx..]) {
-                return &val[..idx];
-            }
-        }
-    } else {
-        for &idx in bounds.iter().rev() {
-            if glob_match(pat, &val[idx..]) {
-                return &val[..idx];
-            }
-        }
+    let Some(mut atoms) = compile_glob(pat) else {
+        return val;
+    };
+    atoms.reverse();
+    let chars: Vec<(usize, char)> = val.char_indices().collect();
+    let steps = chars.iter().rev().map(|&(byte_idx, ch)| (ch, byte_idx));
+    match match_boundary(&atoms, val.len(), steps, longest) {
+        Some(idx) => &val[..idx],
+        None => val,
     }
-    val
 }
 
 fn is_ifs_ws(ch: char) -> bool {

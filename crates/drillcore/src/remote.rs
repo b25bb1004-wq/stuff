@@ -309,9 +309,17 @@ pub(crate) fn collect_missing_objects<S: Store>(
 }
 
 pub(crate) fn verify_history<S: Store>(repo: &Repo<S>, root: &Id) -> bool {
+    fn kind_tag(k: Kind) -> u8 {
+        match k {
+            Kind::Blob => 1,
+            Kind::Tree => 2,
+            Kind::Commit => 3,
+        }
+    }
+
     let mut visited = BTreeSet::new();
     let mut queue = VecDeque::new();
-    if visited.insert(*root) {
+    if visited.insert((*root, kind_tag(Kind::Commit))) {
         queue.push_back((*root, Kind::Commit));
     }
     while let Some((id, expected_kind)) = queue.pop_front() {
@@ -326,11 +334,11 @@ pub(crate) fn verify_history<S: Store>(repo: &Repo<S>, root: &Id) -> bool {
                 let Ok(c) = decode_commit(&data) else {
                     return false;
                 };
-                if visited.insert(c.tree) {
+                if visited.insert((c.tree, kind_tag(Kind::Tree))) {
                     queue.push_back((c.tree, Kind::Tree));
                 }
                 for p in c.parents {
-                    if visited.insert(p) {
+                    if visited.insert((p, kind_tag(Kind::Commit))) {
                         queue.push_back((p, Kind::Commit));
                     }
                 }
@@ -340,11 +348,14 @@ pub(crate) fn verify_history<S: Store>(repo: &Repo<S>, root: &Id) -> bool {
                     return false;
                 };
                 for e in entries {
+                    if e.name == "." || e.name == ".." {
+                        return false;
+                    }
                     let child_kind = match e.mode {
                         Mode::Dir => Kind::Tree,
                         Mode::File | Mode::Exec => Kind::Blob,
                     };
-                    if visited.insert(e.id) {
+                    if visited.insert((e.id, kind_tag(child_kind))) {
                         queue.push_back((e.id, child_kind));
                     }
                 }

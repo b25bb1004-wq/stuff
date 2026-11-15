@@ -3,23 +3,41 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use crate::head::{parse_header_line, read_line_limited};
+use crate::head::{is_tchar, parse_header_line, read_line_limited};
 use crate::types::{trim_ows, Error, Limits};
 
-/// Return `true` if `Transfer-Encoding` ends with `chunked` (ASCII case-insensitive).
-pub(crate) fn is_chunked(headers: &[(String, Vec<u8>)]) -> bool {
+/// Validate `Transfer-Encoding` headers and return `Ok(true)` if chunked framing applies.
+/// Rejects empty, malformed, duplicate `chunked`, or non-`chunked`-terminated codings.
+pub(crate) fn parse_transfer_encoding(headers: &[(String, Vec<u8>)]) -> Result<bool, Error> {
+    let mut has_te = false;
+    let mut chunked_count = 0usize;
     let mut last: Option<&[u8]> = None;
     for (k, v) in headers {
         if k.eq_ignore_ascii_case("transfer-encoding") {
+            has_te = true;
             for part in v.split(|&b| b == b',') {
                 let trimmed = trim_ows(part);
-                if !trimmed.is_empty() {
-                    last = Some(trimmed);
+                if trimmed.is_empty() {
+                    continue;
                 }
+                if !trimmed.iter().all(|&b| is_tchar(b)) {
+                    return Err(Error::BadHeader);
+                }
+                if trimmed.eq_ignore_ascii_case(b"chunked") {
+                    chunked_count += 1;
+                }
+                last = Some(trimmed);
             }
         }
     }
-    last.is_some_and(|c| c.eq_ignore_ascii_case(b"chunked"))
+    if !has_te {
+        return Ok(false);
+    }
+    if chunked_count == 1 && last.is_some_and(|c| c.eq_ignore_ascii_case(b"chunked")) {
+        Ok(true)
+    } else {
+        Err(Error::BadHeader)
+    }
 }
 
 /// Parse and validate `Content-Length` headers, rejecting non-digits, overflows, and mismatches.

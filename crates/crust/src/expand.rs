@@ -11,33 +11,54 @@ use crate::ifs::{split_by_ifs, trim_prefix, trim_suffix, ExpToken};
 use crate::types::{is_assignable_name, Env, ExpandError};
 use crate::word::parse_arith_template;
 
-struct Stage1 {
+const MAX_EXPAND_CHARS: usize = 2_097_152;
+
+struct Stage1<'a> {
     fields: Vec<Vec<ExpToken>>,
     depth: usize,
     saw_empty_at: bool,
+    used: &'a mut usize,
 }
 
-impl Stage1 {
-    fn new() -> Self {
+impl<'a> Stage1<'a> {
+    fn new(used: &'a mut usize) -> Self {
         Self {
             fields: vec![Vec::new()],
             depth: 0,
             saw_empty_at: false,
+            used,
         }
+    }
+
+    fn charge(&mut self, n: usize) -> Result<(), ExpandError> {
+        let next = self.used.saturating_add(n);
+        if next > MAX_EXPAND_CHARS {
+            return Err(ExpandError::BadSubst(String::from(
+                "expansion size limit exceeded",
+            )));
+        }
+        *self.used = next;
+        Ok(())
     }
 
     fn total_tokens(&self) -> usize {
         self.fields.iter().map(Vec::len).sum()
     }
 
-    fn push_str(&mut self, s: &str, quoted: bool, splittable: bool) {
-        let Some(cur) = self.fields.last_mut() else {
-            return;
-        };
-        if s.is_empty() && quoted {
-            cur.push(ExpToken::EmptyQuoted);
-            return;
+    fn push_str(&mut self, s: &str, quoted: bool, splittable: bool) -> Result<(), ExpandError> {
+        if s.is_empty() {
+            if quoted {
+                self.charge(1)?;
+                if let Some(cur) = self.fields.last_mut() {
+                    cur.push(ExpToken::EmptyQuoted);
+                }
+            }
+            return Ok(());
         }
+        self.charge(s.len())?;
+        let Some(cur) = self.fields.last_mut() else {
+            return Ok(());
+        };
         for ch in s.chars() {
             cur.push(ExpToken::Char(ExpChar {
                 ch,
@@ -45,9 +66,11 @@ impl Stage1 {
                 splittable,
             }));
         }
+        Ok(())
     }
 
-    fn push_char(&mut self, ch: char, quoted: bool, splittable: bool) {
+    fn push_char(&mut self, ch: char, quoted: bool, splittable: bool) -> Result<(), ExpandError> {
+        self.charge(1)?;
         if let Some(cur) = self.fields.last_mut() {
             cur.push(ExpToken::Char(ExpChar {
                 ch,
@@ -55,16 +78,21 @@ impl Stage1 {
                 splittable,
             }));
         }
+        Ok(())
     }
 
-    fn push_empty_quoted(&mut self) {
+    fn push_empty_quoted(&mut self) -> Result<(), ExpandError> {
+        self.charge(1)?;
         if let Some(cur) = self.fields.last_mut() {
             cur.push(ExpToken::EmptyQuoted);
         }
+        Ok(())
     }
 
-    fn split_field(&mut self) {
+    fn split_field(&mut self) -> Result<(), ExpandError> {
+        self.charge(1)?;
         self.fields.push(Vec::new());
+        Ok(())
     }
 }
 
@@ -86,7 +114,17 @@ fn first_ifs_sep(env: &dyn Env) -> Option<char> {
     }
 }
 
-fn join_positional(pos: &[String], sep: Option<char>) -> String {
+fn join_positional(pos: &[String], sep: Option<char>) -> Result<String, ExpandError> {
+    let total: usize = pos
+        .iter()
+        .map(String::len)
+        .fold(0usize, usize::saturating_add)
+        .saturating_add(pos.len());
+    if total > MAX_EXPAND_CHARS {
+        return Err(ExpandError::BadSubst(String::from(
+            "expansion size limit exceeded",
+        )));
+    }
     let mut out = String::new();
     for (idx, item) in pos.iter().enumerate() {
         if idx > 0 {
@@ -96,38 +134,40 @@ fn join_positional(pos: &[String], sep: Option<char>) -> String {
         }
         out.push_str(item);
     }
-    out
+    Ok(out)
 }
 
-fn lookup_param(name: &str, env: &dyn Env) -> Option<String> {
+fn lookup_param(name: &str, env: &dyn Env) -> Result<Option<String>, ExpandError> {
     match name {
-        "?" | "$" | "!" | "-" | "0" => env.get(name),
-        "#" => Some(env.positional().len().to_string()),
+        "?" | "$" | "!" | "-" | "0" => Ok(env.get(name)),
+        "#" => Ok(Some(env.positional().len().to_string())),
         "@" => {
             let pos = env.positional();
             if pos.is_empty() {
-                None
+                Ok(None)
             } else {
-                Some(join_positional(&pos, Some(' ')))
+                Ok(Some(join_positional(&pos, Some(' '))?))
             }
         }
         "*" => {
             let pos = env.positional();
             if pos.is_empty() {
-                None
+                Ok(None)
             } else {
-                Some(join_positional(&pos, first_ifs_sep(env)))
+                Ok(Some(join_positional(&pos, first_ifs_sep(env))?))
             }
         }
         _ if name.bytes().all(|b| b.is_ascii_digit()) => {
-            let idx = name.parse::<usize>().ok()?;
+            let Some(idx) = name.parse::<usize>().ok() else {
+                return Ok(None);
+            };
             if idx == 0 {
-                env.get("0")
+                Ok(env.get("0"))
             } else {
-                env.positional().get(idx - 1).cloned()
+                Ok(env.positional().get(idx - 1).cloned())
             }
         }
-        _ => env.get(name),
+        _ => Ok(env.get(name)),
     }
 }
 
@@ -136,7 +176,7 @@ fn expand_word_stage1(
     in_double: bool,
     split_lit: bool,
     env: &mut dyn Env,
-    st: &mut Stage1,
+    st: &mut Stage1<'_>,
 ) -> Result<(), ExpandError> {
     st.depth += 1;
     if st.depth > 128 {
@@ -148,25 +188,25 @@ fn expand_word_stage1(
     let res = (|| {
         for part in word {
             match part {
-                Part::Lit(s) => st.push_str(s, in_double, !in_double && split_lit),
+                Part::Lit(s) => st.push_str(s, in_double, !in_double && split_lit)?,
                 Part::Single(s) => {
                     if s.is_empty() {
-                        st.push_empty_quoted();
+                        st.push_empty_quoted()?;
                     } else {
-                        st.push_str(s, true, false);
+                        st.push_str(s, true, false)?;
                     }
                 }
-                Part::Escaped(ch) => st.push_char(*ch, true, false),
+                Part::Escaped(ch) => st.push_char(*ch, true, false)?,
                 Part::Double(parts) => {
                     if parts.is_empty() {
-                        st.push_empty_quoted();
+                        st.push_empty_quoted()?;
                     } else {
                         let before = st.total_tokens();
                         let prev_empty_at = st.saw_empty_at;
                         st.saw_empty_at = false;
                         expand_word_stage1(parts, true, false, env, st)?;
                         if st.total_tokens() == before && !st.saw_empty_at {
-                            st.push_empty_quoted();
+                            st.push_empty_quoted()?;
                         }
                         st.saw_empty_at = prev_empty_at;
                     }
@@ -174,13 +214,13 @@ fn expand_word_stage1(
                 Part::Tilde(user) => {
                     if let Some(home) = env.home(user) {
                         if home.is_empty() {
-                            st.push_empty_quoted();
+                            st.push_empty_quoted()?;
                         } else {
-                            st.push_str(&home, true, false);
+                            st.push_str(&home, true, false)?;
                         }
                     } else {
-                        st.push_char('~', false, split_lit);
-                        st.push_str(user, false, split_lit);
+                        st.push_char('~', false, split_lit)?;
+                        st.push_str(user, false, split_lit)?;
                     }
                 }
                 Part::Cmd(script) => {
@@ -188,14 +228,14 @@ fn expand_word_stage1(
                     while out.ends_with('\n') {
                         out.pop();
                     }
-                    st.push_str(&out, in_double, !in_double);
+                    st.push_str(&out, in_double, !in_double)?;
                 }
                 Part::Arith(raw) => {
-                    let tpl =
-                        parse_arith_template(raw).map_err(|e| ExpandError::BadSubst(e.msg))?;
-                    let expanded = expand_one_depth(&tpl, env, st.depth)?;
+                    let tpl = parse_arith_template(raw, st.depth)
+                        .map_err(|e| ExpandError::BadSubst(e.msg))?;
+                    let expanded = expand_one_depth(&tpl, env, st.depth, st.used)?;
                     let val = arith(&expanded, env)?;
-                    st.push_str(&val.to_string(), in_double, !in_double);
+                    st.push_str(&val.to_string(), in_double, !in_double)?;
                 }
                 Part::Param(p) => expand_param(p, in_double, env, st)?,
             }
@@ -210,7 +250,7 @@ fn expand_param(
     p: &Param,
     in_double: bool,
     env: &mut dyn Env,
-    st: &mut Stage1,
+    st: &mut Stage1<'_>,
 ) -> Result<(), ExpandError> {
     let splittable = !in_double;
     match &p.op {
@@ -223,12 +263,12 @@ fn expand_param(
                 let keep_empty = in_double || ifs_first_is_non_ws(env);
                 for (idx, item) in pos.iter().enumerate() {
                     if idx > 0 {
-                        st.split_field();
+                        st.split_field()?;
                     }
                     if item.is_empty() && keep_empty {
-                        st.push_empty_quoted();
+                        st.push_empty_quoted()?;
                     } else {
-                        st.push_str(item, in_double, splittable);
+                        st.push_str(item, in_double, splittable)?;
                     }
                 }
                 return Ok(());
@@ -236,25 +276,25 @@ fn expand_param(
             if p.name == "*" {
                 let pos = env.positional();
                 if in_double {
-                    let joined = join_positional(&pos, first_ifs_sep(env));
-                    st.push_str(&joined, true, false);
+                    let joined = join_positional(&pos, first_ifs_sep(env))?;
+                    st.push_str(&joined, true, false)?;
                 } else {
                     let keep_empty = ifs_first_is_non_ws(env);
                     for (idx, item) in pos.iter().enumerate() {
                         if idx > 0 {
-                            st.split_field();
+                            st.split_field()?;
                         }
                         if item.is_empty() && keep_empty {
-                            st.push_empty_quoted();
+                            st.push_empty_quoted()?;
                         } else {
-                            st.push_str(item, false, true);
+                            st.push_str(item, false, true)?;
                         }
                     }
                 }
                 return Ok(());
             }
-            if let Some(val) = lookup_param(&p.name, env) {
-                st.push_str(&val, in_double, splittable);
+            if let Some(val) = lookup_param(&p.name, env)? {
+                st.push_str(&val, in_double, splittable)?;
             } else if env.nounset() {
                 return Err(ExpandError::Unset(
                     p.name.clone(),
@@ -267,7 +307,7 @@ fn expand_param(
             let len = if p.name == "@" || p.name == "*" {
                 env.positional().len()
             } else {
-                match lookup_param(&p.name, env) {
+                match lookup_param(&p.name, env)? {
                     Some(s) => s.chars().count(),
                     None => {
                         if env.nounset() {
@@ -280,11 +320,11 @@ fn expand_param(
                     }
                 }
             };
-            st.push_str(&len.to_string(), in_double, splittable);
+            st.push_str(&len.to_string(), in_double, splittable)?;
             Ok(())
         }
         ParamOp::Default(colon, w) => {
-            let val = lookup_param(&p.name, env);
+            let val = lookup_param(&p.name, env)?;
             let use_val = match &val {
                 Some(s) => !*colon || !s.is_empty(),
                 None => false,
@@ -302,7 +342,7 @@ fn expand_param(
                     );
                 }
                 if let Some(s) = val {
-                    st.push_str(&s, in_double, splittable);
+                    st.push_str(&s, in_double, splittable)?;
                 }
             } else {
                 expand_word_stage1(w, in_double, !in_double, env, st)?;
@@ -313,38 +353,38 @@ fn expand_param(
             if !is_assignable_name(&p.name) {
                 return Err(ExpandError::BadSubst(p.name.clone()));
             }
-            let val = lookup_param(&p.name, env);
+            let val = lookup_param(&p.name, env)?;
             let use_val = match &val {
                 Some(s) => !*colon || !s.is_empty(),
                 None => false,
             };
             if use_val {
                 if let Some(s) = val {
-                    st.push_str(&s, in_double, splittable);
+                    st.push_str(&s, in_double, splittable)?;
                 }
             } else {
-                let assigned = expand_one_depth(w, env, st.depth)?;
+                let assigned = expand_one_depth(w, env, st.depth, st.used)?;
                 env.set(&p.name, &assigned);
-                st.push_str(&assigned, in_double, splittable);
+                st.push_str(&assigned, in_double, splittable)?;
             }
             Ok(())
         }
         ParamOp::Error(colon, w) => {
-            let val = lookup_param(&p.name, env);
+            let val = lookup_param(&p.name, env)?;
             let use_val = match &val {
                 Some(s) => !*colon || !s.is_empty(),
                 None => false,
             };
             if use_val {
                 if let Some(s) = val {
-                    st.push_str(&s, in_double, splittable);
+                    st.push_str(&s, in_double, splittable)?;
                 }
                 Ok(())
             } else {
                 let msg = if w.is_empty() {
                     String::from("parameter null or not set")
                 } else {
-                    let expanded = expand_one_depth(w, env, st.depth)?;
+                    let expanded = expand_one_depth(w, env, st.depth, st.used)?;
                     if expanded.is_empty() {
                         String::from("parameter null or not set")
                     } else {
@@ -355,7 +395,7 @@ fn expand_param(
             }
         }
         ParamOp::Alt(colon, w) => {
-            let val = lookup_param(&p.name, env);
+            let val = lookup_param(&p.name, env)?;
             let use_val = match &val {
                 Some(s) => !*colon || !s.is_empty(),
                 None => false,
@@ -366,7 +406,7 @@ fn expand_param(
             Ok(())
         }
         ParamOp::TrimPrefix(longest, w) => {
-            let val = match lookup_param(&p.name, env) {
+            let val = match lookup_param(&p.name, env)? {
                 Some(v) => v,
                 None => {
                     if env.nounset() && p.name != "@" && p.name != "*" {
@@ -378,13 +418,13 @@ fn expand_param(
                     String::new()
                 }
             };
-            let pat = expand_to_glob_pattern(w, env, st.depth)?;
+            let pat = expand_to_glob_pattern(w, env, st.depth, st.used)?;
             let trimmed = trim_prefix(&val, &pat, *longest);
-            st.push_str(trimmed, in_double, splittable);
+            st.push_str(trimmed, in_double, splittable)?;
             Ok(())
         }
         ParamOp::TrimSuffix(longest, w) => {
-            let val = match lookup_param(&p.name, env) {
+            let val = match lookup_param(&p.name, env)? {
                 Some(v) => v,
                 None => {
                     if env.nounset() && p.name != "@" && p.name != "*" {
@@ -396,9 +436,9 @@ fn expand_param(
                     String::new()
                 }
             };
-            let pat = expand_to_glob_pattern(w, env, st.depth)?;
+            let pat = expand_to_glob_pattern(w, env, st.depth, st.used)?;
             let trimmed = trim_suffix(&val, &pat, *longest);
-            st.push_str(trimmed, in_double, splittable);
+            st.push_str(trimmed, in_double, splittable)?;
             Ok(())
         }
     }
@@ -408,11 +448,13 @@ fn expand_to_glob_pattern(
     w: &[Part],
     env: &mut dyn Env,
     depth: usize,
+    used: &mut usize,
 ) -> Result<String, ExpandError> {
     let mut st = Stage1 {
         fields: vec![Vec::new()],
         depth,
         saw_empty_at: false,
+        used,
     };
     expand_word_stage1(w, false, false, env, &mut st)?;
     let mut chars = Vec::new();
@@ -436,24 +478,32 @@ fn expand_to_glob_pattern(
 /// Expand a slice of shell words (tilde, param, cmd, arith, IFS split, glob, quote removal).
 pub fn expand(words: &[Word], env: &mut dyn Env) -> Result<Vec<String>, ExpandError> {
     let mut out = Vec::new();
+    let mut used = 0usize;
+    let mut glob_budget = 0usize;
     for word in words {
-        let mut st = Stage1::new();
+        let mut st = Stage1::new(&mut used);
         expand_word_stage1(word, false, false, env, &mut st)?;
         let ifs = ifs_string(env);
         for pre in st.fields {
             for field in split_by_ifs(&pre, &ifs) {
-                out.extend(expand_pathname(&field, env));
+                out.extend(expand_pathname(&field, env, &mut glob_budget)?);
             }
         }
     }
     Ok(out)
 }
 
-fn expand_one_depth(word: &Word, env: &mut dyn Env, depth: usize) -> Result<String, ExpandError> {
+fn expand_one_depth(
+    word: &Word,
+    env: &mut dyn Env,
+    depth: usize,
+    used: &mut usize,
+) -> Result<String, ExpandError> {
     let mut st = Stage1 {
         fields: vec![Vec::new()],
         depth,
         saw_empty_at: false,
+        used,
     };
     expand_word_stage1(word, false, false, env, &mut st)?;
     let mut out = String::new();
@@ -472,5 +522,6 @@ fn expand_one_depth(word: &Word, env: &mut dyn Env, depth: usize) -> Result<Stri
 
 /// Expand a single word without field splitting or pathname expansion.
 pub fn expand_one(word: &Word, env: &mut dyn Env) -> Result<String, ExpandError> {
-    expand_one_depth(word, env, 0)
+    let mut used = 0usize;
+    expand_one_depth(word, env, 0, &mut used)
 }

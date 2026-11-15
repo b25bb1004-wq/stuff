@@ -203,11 +203,11 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T79s | P6 | fuzz | soak seam | haiku | - | PASS |
 | T79t | P6 | fuzz | soak glint | haiku | - | PASS |
 | T79u | P6 | fuzz | soak geyser | haiku | - | PASS |
-| T80a | P6 | review | security review outcrop, findings proven by tests | hydrogen-high | - | RUNNING |
-| T80b | P6 | review | security review tremor, findings proven by tests | hydrogen-high | - | RUNNING |
-| T80c | P6 | review | security review drillcore, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80a | P6 | review | security review outcrop, findings proven by tests | hydrogen-high | - | PASS |
+| T80b | P6 | review | security review tremor, findings proven by tests | hydrogen-high | - | PASS |
+| T80c | P6 | review | security review drillcore, findings proven by tests | hydrogen-high | - | PASS |
 | T80d | P6 | review | security review cairn, findings proven by tests | hydrogen-high | - | RUNNING |
-| T80e | P6 | review | security review crust, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80e | P6 | review | security review crust, findings proven by tests | hydrogen-high | - | PASS |
 | T81i | P6 | docs | README + demo geode mica | haiku | - | PASS |
 | T81j | P6 | docs | README + demo onyx pigment | haiku | - | PASS |
 | T81k | P6 | docs | README + demo quarry quartz | haiku | - | PASS |
@@ -336,3 +336,7 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 18:35 | T81l | leader | - | PASS | batch4 workspace gate CHECK PASS workspace
 - 2026-11-15 18:35 | T81m | leader | - | PASS | batch4 workspace gate CHECK PASS workspace
 - 2026-11-15 18:35 | T81p | leader | - | PASS | batch4 workspace gate CHECK PASS workspace
+- 2026-11-15 18:52 | T80a | hydrogen-high | - | PASS | findings fail on HEAD src, fixed; gate CHECK PASS workspace
+- 2026-11-15 18:52 | T80b | hydrogen-high | - | PASS | findings fail on HEAD src, fixed; gate CHECK PASS workspace
+- 2026-11-15 18:52 | T80c | hydrogen-high | - | PASS | findings fail on HEAD src, fixed; gate CHECK PASS workspace
+- 2026-11-15 18:52 | T80e | hydrogen-high | - | PASS | findings fail on HEAD src, fixed; gate CHECK PASS workspace

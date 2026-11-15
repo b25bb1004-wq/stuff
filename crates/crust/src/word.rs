@@ -516,9 +516,8 @@ pub(crate) fn parse_word(
     parse_word_inner(scanner, tilde_mode, StopMode::Word)
 }
 
-pub(crate) fn parse_arith_template(src: &str) -> Result<Word, ParseError> {
-    let mut scanner = Scanner::new(src);
-    parse_word_inner(&mut scanner, TildeMode::None, StopMode::EndOfInput)
+pub(crate) fn parse_arith_template(src: &str, depth: usize) -> Result<Word, ParseError> {
+    parse_unquoted_template(src, depth)
 }
 
 pub(crate) fn parse_unquoted_template(src: &str, depth: usize) -> Result<Word, ParseError> {
@@ -532,7 +531,7 @@ pub(crate) fn parse_unquoted_template(src: &str, depth: usize) -> Result<Word, P
     }
     let mut scanner = Scanner::new(src);
     scanner.depth = depth;
-    let w = parse_word_inner(&mut scanner, TildeMode::None, StopMode::EndOfInput)?;
+    let mut w = parse_word_inner(&mut scanner, TildeMode::None, StopMode::EndOfInput)?;
     if !scanner.pending_heredocs.is_empty() {
         return Err(ParseError {
             line: 1,
@@ -541,5 +540,6 @@ pub(crate) fn parse_unquoted_template(src: &str, depth: usize) -> Result<Word, P
             incomplete: true,
         });
     }
+    crate::compound::resolve_word(&mut w, &mut scanner.heredocs);
     Ok(w)
 }

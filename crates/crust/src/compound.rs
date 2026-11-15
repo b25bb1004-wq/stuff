@@ -405,7 +405,7 @@ fn resolve_redirs(redirs: &mut [Redir], heredocs: &mut [Option<Word>]) {
     }
 }
 
-fn resolve_word(word: &mut Word, heredocs: &mut [Option<Word>]) {
+pub(crate) fn resolve_word(word: &mut Word, heredocs: &mut [Option<Word>]) {
     for part in word {
         match part {
             Part::Double(parts) => resolve_word(parts, heredocs),

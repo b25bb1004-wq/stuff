@@ -4,7 +4,9 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::types::Env;
+use crate::types::{Env, ExpandError};
+
+const MAX_GLOB_BYTES: usize = 8 * 1024 * 1024;
 
 /// Character with quote-status and field-splitting metadata retained between expansion stages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,14 +17,14 @@ pub(crate) struct ExpChar {
 }
 
 #[derive(Debug, Clone)]
-enum ClassItem {
+pub(crate) enum ClassItem {
     Single(char),
     Range(char, char),
     Posix(PosixClass),
 }
 
 #[derive(Debug, Clone, Copy)]
-enum PosixClass {
+pub(crate) enum PosixClass {
     Alnum,
     Alpha,
     Blank,
@@ -79,7 +81,7 @@ impl PosixClass {
 }
 
 #[derive(Debug, Clone)]
-enum GlobAtom {
+pub(crate) enum GlobAtom {
     Star,
     Any,
     Lit(char),
@@ -90,7 +92,7 @@ enum GlobAtom {
 }
 
 impl GlobAtom {
-    fn matches_char(&self, c: char) -> bool {
+    pub(crate) fn matches_char(&self, c: char) -> bool {
         match self {
             Self::Star => true,
             Self::Any => true,
@@ -192,7 +194,7 @@ fn parse_char_class(chars: &[char], start: usize) -> Option<(GlobAtom, usize)> {
     None
 }
 
-fn compile_glob(pattern: &str) -> Option<Vec<GlobAtom>> {
+pub(crate) fn compile_glob(pattern: &str) -> Option<Vec<GlobAtom>> {
     let chars: Vec<char> = pattern.chars().collect();
     let mut atoms = Vec::new();
     let mut i = 0;
@@ -322,10 +324,20 @@ fn has_unquoted_glob(chars: &[ExpChar]) -> bool {
 }
 
 /// Perform pathname expansion on a single post-split field.
-pub(crate) fn expand_pathname(field: &[ExpChar], env: &mut dyn Env) -> Vec<String> {
+pub(crate) fn expand_pathname(
+    field: &[ExpChar],
+    env: &mut dyn Env,
+    glob_budget: &mut usize,
+) -> Result<Vec<String>, ExpandError> {
     let literal: String = field.iter().map(|c| c.ch).collect();
     if !has_unquoted_glob(field) {
-        return vec![literal];
+        *glob_budget = glob_budget.saturating_add(48 + literal.len());
+        if *glob_budget > MAX_GLOB_BYTES {
+            return Err(ExpandError::BadSubst(String::from(
+                "pathname expansion limit exceeded",
+            )));
+        }
+        return Ok(vec![literal]);
     }
 
     // Split on '/' into segments.
@@ -361,6 +373,13 @@ pub(crate) fn expand_pathname(field: &[ExpChar], env: &mut dyn Env) -> Vec<Strin
 
         if !has_unquoted_glob(seg) {
             let lit: String = seg.iter().map(|c| c.ch).collect();
+            let extra = paths.len().saturating_mul(lit.len() + 1);
+            *glob_budget = glob_budget.saturating_add(extra);
+            if *glob_budget > MAX_GLOB_BYTES {
+                return Err(ExpandError::BadSubst(String::from(
+                    "pathname expansion limit exceeded",
+                )));
+            }
             for p in &mut paths {
                 if !p.is_empty() && !p.ends_with('/') {
                     p.push('/');
@@ -388,22 +407,28 @@ pub(crate) fn expand_pathname(field: &[ExpChar], env: &mut dyn Env) -> Vec<Strin
                         joined.push('/');
                     }
                     joined.push_str(&entry);
+                    *glob_budget = glob_budget.saturating_add(48 + joined.len());
+                    if *glob_budget > MAX_GLOB_BYTES {
+                        return Err(ExpandError::BadSubst(String::from(
+                            "pathname expansion limit exceeded",
+                        )));
+                    }
                     next_paths.push(joined);
                 }
             }
         }
 
         if next_paths.is_empty() {
-            return vec![literal];
+            return Ok(vec![literal]);
         }
         paths = next_paths;
     }
 
     paths.sort_by(|a, b| a.as_bytes().cmp(b.as_bytes()));
     if paths.is_empty() {
-        vec![literal]
+        Ok(vec![literal])
     } else {
-        paths
+        Ok(paths)
     }
 }
 

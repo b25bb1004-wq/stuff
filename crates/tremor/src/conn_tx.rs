@@ -49,7 +49,7 @@ impl Connection {
                 }
                 *close_queued = false;
                 if !*armed_on_send {
-                    *drain_until = now.saturating_add(3 * self.recovery.base_pto());
+                    *drain_until = now.saturating_add(self.recovery.base_pto().saturating_mul(3));
                     *armed_on_send = true;
                 }
                 if self.next_pn >= MAX_PN {

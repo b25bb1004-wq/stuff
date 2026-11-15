@@ -30,12 +30,12 @@ pub(crate) fn is_tchar(b: u8) -> bool {
 }
 
 /// Check whether `b` is a visible ASCII character (`VCHAR`).
-fn is_vchar(b: u8) -> bool {
+pub(crate) fn is_vchar(b: u8) -> bool {
     (0x21..=0x7E).contains(&b)
 }
 
 /// Check whether `b` is allowed inside an HTTP header field value or reason phrase.
-fn is_field_value_byte(b: u8) -> bool {
+pub(crate) fn is_field_value_byte(b: u8) -> bool {
     b == b'\t' || (0x20..=0x7E).contains(&b) || b >= 0x80
 }
 

@@ -321,24 +321,29 @@ impl<'a> ArithParser<'a> {
     fn cond(&mut self, eval: bool) -> Result<(i64, Option<String>), ExpandError> {
         let (cond_val, lvalue) = self.log_or(eval)?;
         if matches!(self.peek(), Some(ATok::Question)) {
-            self.next();
-            let take_then = eval && cond_val != 0;
-            let (then_val, _) = self.expr(take_then)?;
-            if !matches!(self.next(), Some(ATok::Colon)) {
-                return Err(ExpandError::Arith(String::from(
-                    "expected ':' in ternary expression",
-                )));
-            }
-            let take_else = eval && cond_val == 0;
-            let (else_val, _) = self.cond(take_else)?;
-            let out = if !eval {
-                0
-            } else if cond_val != 0 {
-                then_val
-            } else {
-                else_val
-            };
-            Ok((out, None))
+            self.enter()?;
+            let res = (|| {
+                self.next();
+                let take_then = eval && cond_val != 0;
+                let (then_val, _) = self.expr(take_then)?;
+                if !matches!(self.next(), Some(ATok::Colon)) {
+                    return Err(ExpandError::Arith(String::from(
+                        "expected ':' in ternary expression",
+                    )));
+                }
+                let take_else = eval && cond_val == 0;
+                let (else_val, _) = self.cond(take_else)?;
+                let out = if !eval {
+                    0
+                } else if cond_val != 0 {
+                    then_val
+                } else {
+                    else_val
+                };
+                Ok((out, None))
+            })();
+            self.leave();
+            res
         } else {
             Ok((cond_val, lvalue))
         }

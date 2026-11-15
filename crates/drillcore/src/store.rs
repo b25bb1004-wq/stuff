@@ -161,6 +161,11 @@ pub(crate) fn validate_branch_name(name: &str) -> Result<(), Error> {
     {
         return Err(Error::BadName);
     }
+    for comp in name.split('/') {
+        if comp.is_empty() || comp.starts_with('.') || comp.ends_with(".lock") {
+            return Err(Error::BadName);
+        }
+    }
     for b in name.bytes() {
         let ok = matches!(
             b,

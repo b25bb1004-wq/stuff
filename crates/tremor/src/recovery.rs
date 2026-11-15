@@ -203,13 +203,14 @@ impl LossRecovery {
     /// Base PTO = srtt + max(4 * rttvar, 1 ms) + 25 ms.
     pub(crate) fn base_pto(&self) -> u64 {
         self.srtt_us
-            .saturating_add((4 * self.rttvar_us).max(1_000))
+            .saturating_add(self.rttvar_us.saturating_mul(4).max(1_000))
             .saturating_add(MAX_ACK_DELAY_US)
     }
 
     /// Current backed-off PTO duration.
     pub(crate) fn current_pto(&self) -> u64 {
-        self.base_pto() << self.pto_count.min(10)
+        self.base_pto()
+            .saturating_mul(1u64 << self.pto_count.min(10))
     }
 
     /// Record a newly transmitted ack-eliciting Data packet.
@@ -295,8 +296,8 @@ impl LossRecovery {
             self.has_rtt_sample = true;
         } else {
             let diff = self.srtt_us.abs_diff(adj);
-            self.rttvar_us = (3 * self.rttvar_us + diff) / 4;
-            self.srtt_us = (7 * self.srtt_us + adj) / 8;
+            self.rttvar_us = ((3 * u128::from(self.rttvar_us) + u128::from(diff)) / 4) as u64;
+            self.srtt_us = ((7 * u128::from(self.srtt_us) + u128::from(adj)) / 8) as u64;
         }
     }
 
@@ -329,7 +330,9 @@ impl LossRecovery {
             return;
         };
 
-        let loss_delay = ((9 * self.srtt_us.max(self.latest_rtt_us)) / 8).max(1_000);
+        let loss_delay = u64::try_from((9 * u128::from(self.srtt_us.max(self.latest_rtt_us))) / 8)
+            .unwrap_or(u64::MAX)
+            .max(1_000);
         let lost_send_time = now.saturating_sub(loss_delay);
 
         let mut lost_pns = Vec::new();
@@ -370,7 +373,7 @@ impl LossRecovery {
     }
 
     fn on_packets_lost_cc(&mut self, lost: &[SentPacket], next_pn: u64) {
-        let pc_duration = 3 * self.base_pto();
+        let pc_duration = self.base_pto().saturating_mul(3);
         for pkt in lost {
             let in_recovery = self.recovery_end_pn.is_some_and(|end_pn| pkt.pn <= end_pn);
             if !in_recovery {
