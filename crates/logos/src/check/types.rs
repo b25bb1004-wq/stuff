@@ -149,7 +149,7 @@ impl FnBuilder<'_> {
         };
         let r = self.new_reg(ty.clone());
         if ty == Ty::Unit {
-            self.emit(Inst::Lit(r, Lit::Unit), block.span);
+            self.emit(Inst::Lit(r, Lit::Unit), super::tail_span(block));
         }
         Ok((r, ty, diverges))
     }
@@ -168,7 +168,7 @@ impl FnBuilder<'_> {
                 let (v_reg, final_ty) = self.coerce_if_needed(v_reg, v_ty, ann.as_ref(), *span)?;
                 let var_reg = self.new_reg(final_ty.clone());
                 self.emit(Inst::Move(var_reg, v_reg), *span);
-                self.define_local(name, var_reg, final_ty, *mutable)?;
+                self.bind_local(name, var_reg, final_ty, *mutable)?;
                 Ok(d)
             }
             Stmt::Return { value, span } => {

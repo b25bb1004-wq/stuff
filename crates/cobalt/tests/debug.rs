@@ -195,3 +195,83 @@ fn endless_loop_with_continue_returns_budget() {
         Event::Budget
     );
 }
+
+/// `x` is defined on line 2, `y` on line 3, and `y` is the result on line 4.
+const LET_SRC: &str = "fn main() -> int {\n var x = 1;\n let y = x + 2;\n y\n}\n";
+
+#[test]
+fn locals_include_lets_in_scope_with_their_registers() {
+    let c = build(LET_SRC);
+    let main = func_index(&c, "main");
+    // Line 3 starts before `y` is defined, so only `x` is in scope there.
+    let (mut vm, mut s) = start(&c);
+    match step(&c, &mut s, &mut vm, &mut NoHost, Step::Continue, &[3]) {
+        Event::Paused(p) => {
+            let names: Vec<String> = locals_at(&c, main, p.pc)
+                .into_iter()
+                .map(|(n, _)| n)
+                .collect();
+            assert_eq!(names, vec!["x".to_string()]);
+        }
+        other => panic!("expected pause on line 3, got {other:?}"),
+    }
+    // Line 4 has both; each register must hold the value of its binding.
+    let (mut vm, mut s) = start(&c);
+    match step(&c, &mut s, &mut vm, &mut NoHost, Step::Continue, &[4]) {
+        Event::Paused(p) => {
+            assert_eq!(line_of(&c, main, p.pc).unwrap().0, 4);
+            let locals = locals_at(&c, main, p.pc);
+            let names: Vec<&str> = locals.iter().map(|(n, _)| n.as_str()).collect();
+            assert_eq!(names, vec!["x", "y"]);
+            let frames = s.frames();
+            let regs = &frames.last().unwrap().regs;
+            for (name, reg) in &locals {
+                let want = if name == "x" { 1 } else { 3 };
+                assert_eq!(regs[*reg as usize], Value::Int(want), "local {name}");
+            }
+            assert_ne!(locals[0].1, locals[1].1, "x and y need separate registers");
+        }
+        other => panic!("expected pause on line 4, got {other:?}"),
+    }
+}
+
+/// `work` is on line 1; the caller's `var x = work(300);` is on line 4.
+const RET_SRC: &str = "fn work(n: int) -> int { n + 1 }\nfn main() {\n var y = 1;\n var x = work(300);\n var z = 2;\n}\n";
+/// Same, but the call is the last statement, so the implicit return follows it.
+const RET_LAST_SRC: &str =
+    "fn work(n: int) -> int { n + 1 }\nfn main() {\n var y = 1;\n var x = work(300);\n}\n";
+
+/// Over from a statement that calls a function must stop on the next statement, never on the
+/// `fn` header line the implicit return used to borrow its span from.
+#[test]
+fn over_after_returned_call_stays_on_caller_line() {
+    let c = build(RET_SRC);
+    let main = func_index(&c, "main");
+    let (mut vm, mut s) = start(&c);
+    match step(&c, &mut s, &mut vm, &mut NoHost, Step::Continue, &[4]) {
+        Event::Paused(p) => assert_eq!(p.func, main),
+        other => panic!("expected pause on line 4, got {other:?}"),
+    }
+    match step(&c, &mut s, &mut vm, &mut NoHost, Step::Over, &[]) {
+        Event::Paused(p) => {
+            let line = line_of(&c, p.func, p.pc).unwrap().0;
+            assert_eq!((p.func, line), (main, 5), "over stopped on line {line}");
+        }
+        other => panic!("expected pause after Over, got {other:?}"),
+    }
+
+    let c = build(RET_LAST_SRC);
+    let (mut vm, mut s) = start(&c);
+    match step(&c, &mut s, &mut vm, &mut NoHost, Step::Continue, &[4]) {
+        Event::Paused(_) => {}
+        other => panic!("expected pause on line 4, got {other:?}"),
+    }
+    match step(&c, &mut s, &mut vm, &mut NoHost, Step::Over, &[]) {
+        Event::Paused(p) => {
+            let line = line_of(&c, p.func, p.pc).unwrap().0;
+            assert_ne!(line, 2, "over stopped on the fn header line");
+        }
+        Event::Done(_) => {}
+        other => panic!("unexpected {other:?}"),
+    }
+}

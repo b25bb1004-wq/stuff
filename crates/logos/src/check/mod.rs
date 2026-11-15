@@ -1,5 +1,7 @@
 //! Type checker, layer checker, and typed IR lowering for Logos modules.
-use crate::ast::{BinOp, FnBody, FnDef, Item, Module, Param, Pattern, PropDef, TestDef};
+use crate::ast::{
+    BinOp, Block, FnBody, FnDef, Item, Module, Param, Pattern, PropDef, Stmt, TestDef,
+};
 use crate::ir::{
     Body, Func, FuncId, Inst, Lit, Program, Prop, Reg, Ty, TypeId, TypeInfo, TypeKind,
 };
@@ -144,6 +146,7 @@ fn stub_func(f: &FuncEntry, path: String) -> Func {
         ret,
         layers,
         regs,
+        bindings: Vec::new(),
         body: Body::Extern(path),
     }
 }
@@ -166,7 +169,9 @@ fn check_fn_def(env: &Env, lg: &LayerGraph, f: &FnDef, fid: FuncId) -> Result<Fu
             if !div {
                 r = fb.coerce_if_needed(r, rt, Some(&fe.ret), b.span)?.0;
             }
-            fb.emit(Inst::Ret(r), b.span);
+            let ret_at = u32::try_from(fb.insts.len()).unwrap_or(u32::MAX);
+            fb.emit(Inst::Ret(r), tail_span(b));
+            fb.keep_bindings_through(ret_at);
             Ok(fb.finish(fe.params.len() as u32, fe.layers))
         }
     }
@@ -486,5 +491,28 @@ fn valid_inst_regs(inst: &Inst, regs: &[Ty], nr: u32) -> bool {
         }
         Inst::CallValue(d, f, xs) => *d < nr && *f < nr && xs.iter().all(|&r| r < nr),
         Inst::Label(_) | Inst::Jump(_) => true,
+    }
+}
+
+/// Span of a block's value: its final expression, else its last statement, else the whole block.
+pub(super) fn tail_span(b: &Block) -> Span {
+    match b.stmts.last() {
+        Some(Stmt::Expr { expr, .. }) => expr_span(expr),
+        Some(s) => stmt_span(s),
+        None => b.span,
+    }
+}
+
+fn stmt_span(s: &Stmt) -> Span {
+    match s {
+        Stmt::Let { span, .. }
+        | Stmt::Return { span, .. }
+        | Stmt::Break { span }
+        | Stmt::Continue { span }
+        | Stmt::While { span, .. }
+        | Stmt::For { span, .. }
+        | Stmt::Assert { span, .. }
+        | Stmt::Assign { span, .. }
+        | Stmt::Expr { span, .. } => *span,
     }
 }

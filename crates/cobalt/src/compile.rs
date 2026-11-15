@@ -1,5 +1,5 @@
 //! Lowering from checked `logos::ir::Program` to `elysium::Module`.
-use crate::debug::{func_debug, Debug};
+use crate::debug::{func_debug, Debug, FuncDebug, LocalVar};
 use crate::meta::encode_meta;
 use crate::{Compiled, CompiledProp};
 use alloc::format;
@@ -23,8 +23,14 @@ pub fn compile(p: &ir::Program) -> Compiled {
     let mut funcs = Vec::with_capacity(p.funcs.len().max(1));
     let mut spans = Vec::with_capacity(p.funcs.len().max(1));
 
+    let mut functions = Vec::with_capacity(p.funcs.len().max(1));
+
     for (fid, f) in p.funcs.iter().enumerate() {
-        let (gf, f_spans) = cx.compile_func(fid as u32, f);
+        let (gf, f_spans, locals) = cx.compile_func(fid as u32, f);
+        functions.push(FuncDebug {
+            locals,
+            ..func_debug(&gf)
+        });
         funcs.push(gf);
         spans.push(f_spans);
     }
@@ -37,11 +43,15 @@ pub fn compile(p: &ir::Program) -> Compiled {
             code: vec![Op::Unit(0), Op::Ret(0)],
         });
         spans.push(vec![Span { start: 0, end: 0 }; 2]);
+        functions.push(FuncDebug {
+            name: String::from("__empty"),
+            locals: Vec::new(),
+        });
     }
 
     let debug = Debug {
         line_starts: Vec::new(),
-        functions: funcs.iter().map(func_debug).collect(),
+        functions,
     };
 
     if !p.props.is_empty() {
@@ -137,7 +147,7 @@ impl ModCx<'_> {
         name
     }
 
-    fn compile_func(&mut self, fid: u32, f: &ir::Func) -> (Func, Vec<Span>) {
+    fn compile_func(&mut self, fid: u32, f: &ir::Func) -> (Func, Vec<Span>, Vec<LocalVar>) {
         let name = self.unique_func_name(fid, &f.name);
         let params = r16(f.params);
         match &f.body {
@@ -154,6 +164,7 @@ impl ModCx<'_> {
                         code,
                     },
                     sp,
+                    Vec::new(),
                 )
             }
             Body::Code { insts, spans } => {
@@ -169,9 +180,31 @@ impl ModCx<'_> {
                     labels: Vec::new(),
                     fixups: Vec::new(),
                 };
+                // op_start[i] is the first op of IR instruction i; the last entry is the body end.
+                let mut op_start = Vec::with_capacity(insts.len() + 1);
                 for (i, (inst, &sp)) in insts.iter().zip(spans.iter()).enumerate() {
+                    op_start.push(op_index(fcx.code.len()));
                     fcx.lower_inst(inst, sp, insts.get(i + 1));
                 }
+                let body_end = op_index(fcx.code.len());
+                op_start.push(body_end);
+                let at = |pc: u32| {
+                    usize::try_from(pc)
+                        .ok()
+                        .and_then(|i| op_start.get(i))
+                        .copied()
+                        .unwrap_or(body_end)
+                };
+                let locals = f
+                    .bindings
+                    .iter()
+                    .map(|b| LocalVar {
+                        reg: b.reg,
+                        name: b.name.clone(),
+                        from_pc: at(b.from),
+                        to_pc: at(b.to),
+                    })
+                    .collect();
                 if !matches!(
                     fcx.code.last(),
                     Some(Op::Ret(_) | Op::Jump(_) | Op::Trap(_))
@@ -187,7 +220,7 @@ impl ModCx<'_> {
                     regs,
                     code: fcx.code,
                 };
-                (func, fcx.spans)
+                (func, fcx.spans, locals)
             }
         }
     }
@@ -420,6 +453,11 @@ fn lower_bin(op: BinOp, d: u16, a: u16, b: u16) -> Op {
 
 fn r16(r: u32) -> u16 {
     u16::try_from(r).unwrap_or(0)
+}
+
+/// Op index as the `u32` used by debug info; saturates instead of wrapping.
+fn op_index(n: usize) -> u32 {
+    u32::try_from(n).unwrap_or(u32::MAX)
 }
 
 fn scratch_for_inst(inst: &Inst) -> u16 {

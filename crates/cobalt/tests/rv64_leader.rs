@@ -535,6 +535,7 @@ fn random_ir_never_panics_emit() {
                 ret,
                 layers: 0,
                 regs,
+                bindings: Vec::new(),
                 body,
             });
         }

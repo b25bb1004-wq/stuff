@@ -181,6 +181,19 @@ pub enum Body {
     Extern(String),
 }
 
+/// A named `let` or `var` binding and the instruction range where it is in scope.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Binding {
+    /// Name as written in the source.
+    pub name: String,
+    /// Register that holds the binding.
+    pub reg: Reg,
+    /// Index of the first instruction after the binding is defined (inclusive).
+    pub from: u32,
+    /// Index of the first instruction after the scope ends (exclusive).
+    pub to: u32,
+}
+
 /// Checked and lowered function.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Func {
@@ -194,6 +207,8 @@ pub struct Func {
     pub layers: u64,
     /// Types of all registers in this function frame.
     pub regs: Vec<Ty>,
+    /// `let` and `var` bindings with their scopes; used by debugging, not by execution.
+    pub bindings: Vec<Binding>,
     /// Code body or extern import name.
     pub body: Body,
 }

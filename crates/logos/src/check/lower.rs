@@ -3,7 +3,7 @@ use super::layers::{check_assignable, LayerGraph};
 use super::names::{err, expr_span};
 use super::{check_pattern_ty, is_exhaustive, Env, ExprRes, MAX_DEPTH};
 use crate::ast::{Arm, BinOp, Block, Expr, Ident, Pattern, UnOp};
-use crate::ir::{Body, Builtin, Func, FuncId, Inst, Label, Lit, Reg, Ty, TypeKind};
+use crate::ir::{Binding, Body, Builtin, Func, FuncId, Inst, Label, Lit, Reg, Ty, TypeKind};
 use crate::span::{Diag, Span};
 use alloc::collections::BTreeMap;
 use alloc::format;
@@ -33,6 +33,10 @@ pub(super) struct FnBuilder<'a> {
     pub local_map: BTreeMap<String, Vec<(usize, LocalVar)>>,
     pub loops: Vec<(Label, Label)>,
     pub depth: u32,
+    /// Recorded `let`/`var` bindings, moved into `Func::bindings` by `finish`.
+    pub bindings: Vec<Binding>,
+    /// Bindings whose scope has not ended yet: `(scope depth, index in bindings)`, innermost last.
+    open_bindings: Vec<(usize, usize)>,
 }
 
 impl<'a> FnBuilder<'a> {
@@ -60,10 +64,13 @@ impl<'a> FnBuilder<'a> {
             local_map: BTreeMap::new(),
             loops: Vec::new(),
             depth: 0,
+            bindings: Vec::new(),
+            open_bindings: Vec::new(),
         }
     }
 
-    pub(super) fn finish(self, params: u32, layers: u64) -> Func {
+    pub(super) fn finish(mut self, params: u32, layers: u64) -> Func {
+        self.close_bindings(0);
         let body = Body::Code {
             insts: self.insts,
             spans: self.spans,
@@ -74,8 +81,60 @@ impl<'a> FnBuilder<'a> {
             ret: self.ret_ty,
             layers,
             regs: self.regs,
+            bindings: self.bindings,
             body,
         }
+    }
+
+    /// Keeps bindings whose scope ended at instruction `at` live through the instruction at `at`,
+    /// so the function's final return sees the body's locals.
+    pub(super) fn keep_bindings_through(&mut self, at: u32) {
+        for b in &mut self.bindings {
+            if b.to == at {
+                b.to = at.saturating_add(1);
+            }
+        }
+    }
+
+    /// Index of the next instruction, as the `from` and `to` of a binding.
+    fn pc(&self) -> u32 {
+        u32::try_from(self.insts.len()).unwrap_or(u32::MAX)
+    }
+
+    /// Ends the scope of every open binding at scope depth `depth` or deeper.
+    fn close_bindings(&mut self, depth: usize) {
+        let pc = self.pc();
+        while let Some(&(d, idx)) = self.open_bindings.last() {
+            if d < depth {
+                break;
+            }
+            self.open_bindings.pop();
+            if let Some(b) = self.bindings.get_mut(idx) {
+                b.to = pc;
+            }
+        }
+    }
+
+    /// Defines a `let` or `var` local and records its binding for the debugger.
+    pub(super) fn bind_local(
+        &mut self,
+        id: &Ident,
+        reg: Reg,
+        ty: Ty,
+        mutable: bool,
+    ) -> Result<(), Diag> {
+        self.define_local(id, reg, ty, mutable)?;
+        if id.name != "_" {
+            let depth = self.scopes.len().saturating_sub(1);
+            self.open_bindings.push((depth, self.bindings.len()));
+            self.bindings.push(Binding {
+                name: id.name.clone(),
+                reg,
+                from: self.pc(),
+                to: u32::MAX,
+            });
+        }
+        Ok(())
     }
 
     pub(super) fn enter(&mut self, span: Span) -> Result<(), Diag> {
@@ -112,6 +171,7 @@ impl<'a> FnBuilder<'a> {
     }
 
     pub(super) fn pop_scope(&mut self) {
+        self.close_bindings(self.scopes.len().saturating_sub(1));
         if let Some(names) = self.scopes.pop() {
             for name in names {
                 if let Some(stack) = self.local_map.get_mut(&name) {

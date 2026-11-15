@@ -20,6 +20,8 @@ USAGE:
     cobalt <SUBCOMMAND> [OPTIONS]
 
 SUBCOMMANDS:
+    check FILE.logos               Type-check FILE.logos; prints nothing on success
+    fmt FILE.logos                 Print FILE.logos in canonical form (refuses comments)
     ir FILE.logos                  Print typed Logos IR for FILE.logos
     opt FILE.logos                 Optimise Logos IR and print IR plus Stats
     build FILE.logos -o OUT.mbc    Compile and verify Elysium bytecode module
@@ -31,6 +33,8 @@ OPTIONS:
 Note: '-' as FILE.logos reads stdin; '-' as OUT.mbc writes stdout.
 
 EXAMPLES:
+    cobalt check hello.logos
+    cobalt fmt hello.logos
     cobalt ir hello.logos
     cobalt opt hello.logos
     cobalt build hello.logos -o hello.mbc";
@@ -43,6 +47,8 @@ fn main() {
     match cmd {
         "--help" | "-h" => println!("{HELP}"),
         "--version" | "-V" => println!("{VERSION}"),
+        "check" => cmd_check(&args[1..]),
+        "fmt" => cmd_fmt(&args[1..]),
         "ir" => cmd_ir(&args[1..]),
         "opt" => cmd_opt(&args[1..]),
         "build" => cmd_build(&args[1..]),
@@ -58,6 +64,43 @@ fn usage_error(msg: &str) -> ! {
 fn fail(msg: &str) -> ! {
     eprintln!("cobalt: {msg}");
     process::exit(1);
+}
+
+fn cmd_check(args: &[String]) {
+    let path = parse_single_file(args, "usage: cobalt check FILE.logos");
+    let _ = load_and_check(path);
+}
+
+fn cmd_fmt(args: &[String]) {
+    let path = parse_single_file(args, "usage: cobalt fmt FILE.logos");
+    let src = read_source(path);
+    let label = source_label(path);
+    let tokens = match logos::lexer::lex(&src) {
+        Ok(t) => t,
+        Err(diag) => report(&src, label, &diag),
+    };
+    // The printer drops comments, so formatting such a file would lose text.
+    if has_comment(&src, &tokens) {
+        fail(&format!("{label}: refusing to format a file with comments"));
+    }
+    let ast = match logos::parser::parse(&src) {
+        Ok(m) => m,
+        Err(diag) => report(&src, label, &diag),
+    };
+    write_stdout_text(&logos::print::print(&ast));
+}
+
+/// True if the source has text between tokens, which can only be a `//` comment.
+fn has_comment(src: &str, tokens: &[logos::lexer::Token]) -> bool {
+    let mut pos = 0;
+    for t in tokens {
+        let start = usize::try_from(t.span.start).unwrap_or(usize::MAX);
+        if src.get(pos..start).is_some_and(|gap| gap.contains('/')) {
+            return true;
+        }
+        pos = usize::try_from(t.span.end).unwrap_or(usize::MAX);
+    }
+    src.get(pos..).is_some_and(|gap| gap.contains('/'))
 }
 
 fn cmd_ir(args: &[String]) {
@@ -173,8 +216,9 @@ fn parse_build_args<'a>(args: &'a [String]) -> (&'a str, &'a str) {
     (in_path, out_path)
 }
 
-fn load_and_check(path: &str) -> Program {
-    let src = if path == "-" {
+/// Reads a source file, or stdin for `-`.
+fn read_source(path: &str) -> String {
+    if path == "-" {
         let mut buf = String::new();
         if let Err(err) = io::stdin().read_to_string(&mut buf) {
             fail(&format!("stdin: {err}"));
@@ -185,8 +229,27 @@ fn load_and_check(path: &str) -> Program {
             Ok(s) => s,
             Err(err) => fail(&format!("{path}: {err}")),
         }
-    };
-    let label = if path == "-" { "<stdin>" } else { path };
+    }
+}
+
+/// Name of the source in error messages.
+fn source_label(path: &str) -> &str {
+    if path == "-" {
+        "<stdin>"
+    } else {
+        path
+    }
+}
+
+/// Prints a parse or check error at its line and column, then exits 1.
+fn report(src: &str, label: &str, diag: &logos::Diag) -> ! {
+    let (line, col) = logos::line_col(src, diag.span.start);
+    fail(&format!("{label}:{line}:{col}: {}", diag.message));
+}
+
+fn load_and_check(path: &str) -> Program {
+    let src = read_source(path);
+    let label = source_label(path);
     let ast = match logos::parser::parse(&src) {
         Ok(m) => m,
         Err(diag) => {

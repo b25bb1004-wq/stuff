@@ -24,6 +24,7 @@ fn int_fn(name: &str, params: u32, regs: Vec<Ty>, insts: Vec<Inst>) -> Func {
         ret: Ty::Int,
         layers: 0,
         regs,
+        bindings: Vec::new(),
         body: Body::Code { insts, spans },
     }
 }
@@ -252,6 +253,7 @@ fn random_ir(r: &mut Rng) -> Program {
             ret,
             layers: 0,
             regs,
+            bindings: Vec::new(),
             body,
         });
     }

@@ -164,6 +164,7 @@ fn single(regs: Vec<Ty>, params: u32, insts: Vec<Inst>) -> Program {
             ret: Ty::Int,
             layers: 0,
             regs,
+            bindings: Vec::new(),
             body: Body::Code { insts, spans },
         }],
         tests: vec![],
@@ -402,6 +403,7 @@ fn extern_bodies_untouched() {
         ret: Ty::Int,
         layers: 0,
         regs: vec![],
+        bindings: Vec::new(),
         body: Body::Extern(String::from("host.x")),
     });
     let before = p.clone();

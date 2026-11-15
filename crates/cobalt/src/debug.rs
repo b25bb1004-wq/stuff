@@ -25,7 +25,7 @@ pub struct Debug {
 pub struct FuncDebug {
     /// Elysium function name.
     pub name: String,
-    /// Named locals (parameters so far; `let` bindings are not recorded yet).
+    /// Named locals: parameters, then `let`/`var` bindings in definition order.
     pub locals: Vec<LocalVar>,
 }
 
@@ -57,7 +57,8 @@ pub enum Step {
 
 /// Compiles `p` like `compile`, and records the line table of `src` and the parameter names.
 ///
-/// `src` must be the text `p` was checked from. Parameter names come from re-parsing `src`.
+/// `src` must be the text `p` was checked from. Parameter names come from re-parsing `src`;
+/// `let`/`var` names and ranges come from the logos bindings in `p`.
 pub fn compile_with_source(p: &Program, src: &str) -> Compiled {
     let mut c = crate::compile(p);
     c.debug.line_starts = line_starts(src);
@@ -81,7 +82,8 @@ pub fn compile_with_source(p: &Program, src: &str) -> Compiled {
         let Some(fd) = debug.functions.get_mut(idx) else {
             continue;
         };
-        fd.locals = def
+        // Parameters go first, then the `let`/`var` bindings recorded by logos.
+        let mut locals: Vec<LocalVar> = def
             .params
             .iter()
             .enumerate()
@@ -92,6 +94,8 @@ pub fn compile_with_source(p: &Program, src: &str) -> Compiled {
                 to_pc,
             })
             .collect();
+        locals.append(&mut fd.locals);
+        fd.locals = locals;
     }
     c
 }

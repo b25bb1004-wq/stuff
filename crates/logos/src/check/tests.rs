@@ -170,6 +170,7 @@ fn validate_catches_invalid_ir() {
             ret: Ty::Unit,
             layers: 0,
             regs: vec![Ty::Unit],
+            bindings: Vec::new(),
             body: Body::Code {
                 insts: vec![Inst::Lit(0, Lit::Unit), Inst::Ret(0)],
                 spans: vec![Span { start: 0, end: 0 }; 2],

@@ -16,7 +16,7 @@ The sections list each tool's `--help` text, shortened; the notes mark the tools
 | elysium | elysium | Verifies, disassembles and runs MBC1 bytecode | `verify`, `dis`, `run` |
 | mercury | mercury | HTTP/1.1 parser, static file server and client | `parse`, `serve`, `get` |
 | helios | helios | Deterministic game runner and input replay | `run`, `record`, `replay` |
-| cobalt | cobalt | Logos IR, optimiser and Elysium bytecode compiler | `ir`, `opt`, `build` |
+| cobalt | cobalt | Logos IR, optimiser and Elysium bytecode compiler | `check`, `fmt`, `ir`, `opt`, `build` |
 | logos | cobalt | Logos runner: run a program or its tests | `run`, `test` |
 | odyssey | odyssey | Small HTML tokeniser, DOM viewer and PNG renderer | `tokens`, `tree`, `select`, `render` |
 | aurum | aurum | Chain, Merkle and transfer CLI | `keygen`, `tx`, `merkle`, `verify`, `demo` |
@@ -91,6 +91,8 @@ Example: `helios run game.logos --ticks 180 --seed 42`
 
 Build: `cargo build --release -p cobalt --bin cobalt`
 
+- `check FILE.logos`: type-check only; prints nothing on success.
+- `fmt FILE.logos`: print the file in canonical form. It refuses files that contain comments.
 - `ir FILE.logos`: print typed Logos IR.
 - `opt FILE.logos`: optimise the IR and print it with stats.
 - `build FILE.logos -o OUT.mbc`: compile and verify an Elysium bytecode module (`-` as OUT.mbc writes stdout).
