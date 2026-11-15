@@ -18,7 +18,11 @@ pub(super) struct Display {
 impl Display {
     /// Allocate a zeroed `width * height * 4` RGBA framebuffer.
     pub(super) fn new(width: u32, height: u32) -> Self {
-        let bytes = usize::try_from(u64::from(width) * u64::from(height) * 4).unwrap_or(0);
+        let bytes = u64::from(width)
+            .checked_mul(u64::from(height))
+            .and_then(|px| px.checked_mul(4))
+            .and_then(|b| usize::try_from(b).ok())
+            .unwrap_or(0);
         Self {
             width,
             height,
