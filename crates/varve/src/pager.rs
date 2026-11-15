@@ -116,6 +116,15 @@ impl<S: Storage> Pager<S> {
             return Err(Error::Misuse);
         }
         if let Some(tx) = &self.tx {
+            if n == 0 {
+                // Page 0 as this transaction would commit it (counter bumps only at commit).
+                return Ok(encode_page0(Page0Meta {
+                    page_count: tx.page_count,
+                    free_head: tx.free_head,
+                    root: tx.root,
+                    change_counter: self.committed.change_counter,
+                }));
+            }
             if let Some(page) = tx.dirty.get(&n) {
                 return Ok(*page);
             }
@@ -373,6 +382,39 @@ impl<S: Storage> Pager<S> {
     /// Consume the pager and return `(main, log)` without performing any I/O.
     pub fn into_storage(self) -> (S, S) {
         (self.main, self.log)
+    }
+
+    pub(crate) fn ensure_tx(&self) -> Result<(), Error> {
+        if self.poisoned {
+            return Err(Error::Io);
+        }
+        if self.tx.is_none() {
+            return Err(Error::Misuse);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn view_page_count(&self, at: Option<Snapshot>) -> Result<u64, Error> {
+        if self.poisoned {
+            return Err(Error::Io);
+        }
+        match at {
+            None => Ok(self.page_count()),
+            Some(snap) => {
+                if snap.pager_id != self.pager_id {
+                    return Err(Error::Misuse);
+                }
+                let state = self.active_snapshots.get(&snap.id).ok_or(Error::Misuse)?;
+                Ok(state.page_count)
+            }
+        }
+    }
+
+    pub(crate) fn read_view(&mut self, at: Option<Snapshot>, n: u64) -> Result<Page, Error> {
+        match at {
+            None => self.read(n),
+            Some(snap) => self.read_snapshot(snap, n),
+        }
     }
 
     fn read_committed_page(&mut self, n: u64) -> Result<Page, Error> {

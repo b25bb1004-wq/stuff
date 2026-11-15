@@ -6,6 +6,7 @@ mod crc;
 mod format;
 mod pager;
 mod storage;
+mod tree;
 mod wal;
 
 use std::fmt;
@@ -13,6 +14,7 @@ use std::fmt;
 pub use crash::CrashStorage;
 pub use pager::{Pager, Snapshot};
 pub use storage::{FileStorage, MemStorage, Storage};
+pub use tree::Tree;
 
 /// Page size in bytes (4 KiB).
 pub const PAGE: usize = 4096;

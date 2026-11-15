@@ -20,12 +20,12 @@
 - [x] T14 onyx Cinnabar PASS (first try)
 - [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
 - [x] T39 varve pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
-- [ ] T34 tremor: brief + tremor_leader.rs ready (handshake model from onyx primitives, own lossy simulator); dispatch hydrogen-high when a lane frees
+- [>] T34 tremor: brief + tremor_leader.rs (handshake model from onyx primitives, own lossy simulator), dispatched (hydrogen-high)
 - [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
 - [x] T31 quartz H extension: brief + hyp_leader.rs (own two-stage model, coverage 22% ok / 46% pf / 31% gpf), dispatched (argon-high)
-- [>] T40 varve B+tree: brief + tree_leader.rs (own page parser), dispatched (hydrogen-high)
+- [x] T40 varve B+tree: brief + tree_leader.rs (own page parser), dispatched (hydrogen-high)
 - [ ] Argon (released to 5%, ask % after T31): then D4 MANTLE.md + T25, then T66
 
 ## Goal
@@ -106,13 +106,13 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | PASS |
 | T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
 | T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
-| T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | hydrogen-high | T04 T20 D2 | TODO |
+| T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | hydrogen-high | T04 T20 D2 | RUNNING |
 | T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
 | T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
 | T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | PASS |
 | T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | PASS |
-| T40 | P3 | varve | B+tree with range scans | hydrogen-high | T39 | RUNNING |
+| T40 | P3 | varve | B+tree with range scans | hydrogen-high | T39 | PASS |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
@@ -223,3 +223,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 07:49 T40 brief + leader check written (lint vs stub), retagged hydrogen-high (merge rule + hostile pages).
 - 2026-11-15 07:55 T34 brief + leader check written (model self-run OK, lint vs stub). Model uses onyx in Rust instead of Python: same independence, no extra tooling.
 - 2026-11-15 08:12 T31 quartz H PASS (argon-high, first run): leader check 8/8 + fresh seed, gate PASS. T40 dispatched (hydrogen-high). Argon % to ask.
+- 2026-11-15 08:26 T40 varve B+tree PASS (hydrogen-high): check 5/5 + fresh seed after leader fix to T39 pager read(0) in a txn (stale page 0); regression test added to pager_leader. T34 dispatched.

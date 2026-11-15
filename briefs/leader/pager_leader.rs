@@ -779,3 +779,29 @@ fn leader_file_storage() {
     assert_eq!(std::fs::metadata(&a).unwrap().len(), 2 * PAGE as u64);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn leader_page0_shows_the_transaction() {
+    let mut p = Pager::open(MemStorage::new(), MemStorage::new()).unwrap();
+    p.begin().unwrap();
+    let a = p.alloc().unwrap();
+    p.alloc().unwrap();
+    p.set_root(a).unwrap();
+    let h = p.read(0).unwrap();
+    assert_eq!(
+        (u64_at(&h, 12), u64_at(&h, 28)),
+        (3, a),
+        "page count and root inside the txn"
+    );
+    p.commit().unwrap();
+    p.begin().unwrap();
+    p.free(a).unwrap();
+    let h = p.read(0).unwrap();
+    assert_eq!(u64_at(&h, 20), a, "free head inside the txn");
+    p.rollback();
+    assert_eq!(
+        u64_at(&p.read(0).unwrap(), 20),
+        0,
+        "rollback restores page 0"
+    );
+}
