@@ -1,6 +1,7 @@
 //! The chain: genesis, validator rotation, block proposal, and validated append.
 
 use crate::block::{Block, Header};
+use crate::contract::Receipt;
 use crate::merkle::merkle_root;
 use crate::state::State;
 use crate::tx::Tx;
@@ -13,6 +14,8 @@ pub struct Chain {
     genesis: Block,
     /// Blocks after genesis; `blocks[i]` has height `i + 1`.
     blocks: Vec<Block>,
+    /// Receipts for each block after genesis; `receipts[i]` corresponds to `blocks[i]`.
+    receipts: Vec<Vec<Receipt>>,
     state: State,
     validators: Vec<Address>,
 }
@@ -37,6 +40,7 @@ impl Chain {
                 txs: Vec::new(),
             },
             blocks: Vec::new(),
+            receipts: Vec::new(),
             state,
             validators: validators.to_vec(),
         }
@@ -70,6 +74,26 @@ impl Chain {
     /// `(balance, nonce)` of `address`; `(0, 0)` if unknown.
     pub fn account(&self, address: &Address) -> (u64, u64) {
         self.state.account(address)
+    }
+
+    /// Transaction receipts for the block at `height`; `None` for genesis or unknown height.
+    pub fn receipts(&self, height: u64) -> Option<&[Receipt]> {
+        if height == 0 {
+            return None;
+        }
+        usize::try_from(height - 1)
+            .ok()
+            .and_then(|index| self.receipts.get(index).map(Vec::as_slice))
+    }
+
+    /// The Mica source code deployed at `contract`, if any.
+    pub fn code(&self, contract: &Address) -> Option<&str> {
+        self.state.code(contract)
+    }
+
+    /// The value stored under `key` in `contract`'s storage, if present.
+    pub fn storage(&self, contract: &Address, key: &[u8]) -> Option<&[u8]> {
+        self.state.storage(contract, key)
     }
 
     /// The Merkle root of the current account state.
@@ -141,12 +165,13 @@ impl Chain {
             return Err(BlockError::BadTxRoot);
         }
         let mut state = self.state.clone();
-        apply_all(&mut state, &block.txs, &header.proposer)?;
+        let receipts = apply_all(&mut state, &block.txs, &header.proposer)?;
         if header.state_root != state.root() {
             return Err(BlockError::BadStateRoot);
         }
         self.state = state;
         self.blocks.push(block);
+        self.receipts.push(receipts);
         Ok(())
     }
 
@@ -163,11 +188,17 @@ fn tx_root(txs: &[Tx]) -> Hash {
 }
 
 /// Apply `txs` in order, reporting the first failure with its index.
-fn apply_all(state: &mut State, txs: &[Tx], proposer: &Address) -> Result<(), BlockError> {
+fn apply_all(
+    state: &mut State,
+    txs: &[Tx],
+    proposer: &Address,
+) -> Result<Vec<Receipt>, BlockError> {
+    let mut receipts = Vec::with_capacity(txs.len());
     for (index, tx) in txs.iter().enumerate() {
-        state
+        let receipt = state
             .apply(tx, proposer)
             .map_err(|error| BlockError::BadTx { index, error })?;
+        receipts.push(receipt);
     }
-    Ok(())
+    Ok(receipts)
 }

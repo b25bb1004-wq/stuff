@@ -4,12 +4,14 @@
 mod block;
 mod chain;
 mod codec;
+mod contract;
 mod merkle;
 mod state;
 mod tx;
 
 pub use block::{Block, Header};
 pub use chain::Chain;
+pub use contract::{contract_address, Receipt, DEPLOY, FUEL_PER_FEE};
 pub use merkle::{merkle_proof, merkle_root, merkle_verify};
 pub use tx::Tx;
 

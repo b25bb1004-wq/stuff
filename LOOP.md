@@ -125,7 +125,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T46 | P3 | cairn | manifest, versions, dependency solver, lock file | hydrogen |  | PASS |
 | T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | PASS |
 | T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | haiku | T04 | PASS |
-| T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | RUNNING |
+| T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | PASS |
 | T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
 | T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
@@ -244,3 +244,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 13:16 | T70a | hydrogen | agy quota | PASS | audio_leader 4/4 both seeds; gates pass
 - 2026-11-15 13:21 | T24 | haiku | 138,160 | PASS | flint_leader 5/5; gates pass
 - 2026-11-15 13:28 | T41b | hydrogen-high | agy quota | PASS | join_leader 3/3 both seeds; leader fixed one obsolete T41a test; T41 closed (T41a+T41b)
+- 2026-11-15 13:37 | T49 | hydrogen | agy quota | PASS | contracts_leader 2/2 both seeds, seam_leader 8/8; gates pass
