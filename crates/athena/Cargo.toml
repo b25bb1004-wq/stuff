@@ -8,6 +8,10 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "athena"
+path = "src/bin/athena.rs"
+
 [dependencies]
 calliope = { path = "../calliope" }
 cobalt = { path = "../cobalt" }

@@ -5,6 +5,10 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[[bin]]
+name = "iris"
+path = "src/bin/iris.rs"
+
 [dependencies]
 pigment = { path = "../pigment" }
 indium = { path = "../indium" }
