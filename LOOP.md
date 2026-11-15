@@ -110,7 +110,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T24 | P2 | lithium | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | haiku | T22 T23 | PASS |
 | T25 | P2 | titan | Rust kernel: boot shim, traps, Sv39, heap (midas), console | argon-high | T23 T16 T13a | PASS |
 | T26 | P2 | titan | processes, user mode, syscalls, scheduler (kairos), ELF loading | opus-high | T25 T05 | PASS |
-| T27 | P2 | titan | block driver, hades mounted, file syscalls | argon | T26 T07 | TODO |
+| T27 | P2 | titan | block driver, hades mounted, file syscalls | hydrogen-high | T26 T07 | RUNNING |
 | T28 | P2 | titan | userland: init, shell (krypton), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
 | T29 | P2 | cobalt | Logos IR to RV64 code, linear-scan registers, ELF out | opus-high | T10 T22 | PASS |
 | T29a | P2 | cobalt | (T29a) integer subset Logos IR to RV64, stack slots, runs on Silicon | hydrogen-high | T10 T22 | PASS |
@@ -153,10 +153,10 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T63 | P4 | iris | compositor: windows, tiling and floating, damage, input, animated moves | hydrogen-high | T62 | PASS |
 | T64 | P4 | iris | client protocol + apps: terminal (krypton), editor (calliope), files | hydrogen-high | T63 T57 T55 | PASS |
 | T65 | P4 | odyssey | HTML and CSS parsers | hydrogen |  | PASS |
-| T66 | P4 | odyssey | cascade, block and inline layout, flex subset | opus-high | T65 T60 | TODO |
+| T66 | P4 | odyssey | cascade, block and inline layout, flex subset | opus-high | T65 T60 | PASS (split T66a T66b) |
 | T66b | P4 | odyssey | flex layout subset | haiku | T66a | PASS |
 | T66a | P4 | odyssey | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | PASS |
-| T67 | P4 | odyssey | paint, fetch over HTTP, page scripts in Logos, browser shell in indium | argon | T66 T62 T18 T37 | TODO |
+| T67 | P4 | odyssey | paint, fetch over HTTP, page scripts in Logos, browser shell in indium | hydrogen-high | T66 T62 T18 T37 | RUNNING |
 | T68 | P4 | helios | entity system, fixed time step, maths | haiku |  | PASS |
 | T69 | P4 | helios | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
 | T70a | P4 | helios | audio mixer, scene stack, input record and replay | hydrogen | T69 | PASS |
