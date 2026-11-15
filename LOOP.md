@@ -160,7 +160,8 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen | T42 T50 T47 | TODO |
 | T78 | P6 | bench | load tools and numbers for outcrop, varve, tremor, seam in `docs/BENCH.md` | hydrogen | T77 | TODO |
 | T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
-| T79a | P6 | fuzz | soak of idle crates (outcrop chisel geode drillcore cairn crust shale tremor mica pigment quartz) | hydrogen | - | RUNNING |
+| T79a | P6 | fuzz | soak outcrop | hydrogen | - | PASS |
+| T79b | P6 | fuzz | soak one crate per lane run: chisel geode drillcore cairn crust shale tremor mica pigment quartz | hydrogen | - | TODO |
 | T80 | P6 | review | security review of every crate, one report each | argon | all | TODO |
 | T81 | P6 | docs | README and runnable example per system, architecture book | flash | all | TODO |
 | T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | PASS |
@@ -252,3 +253,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 13:44 | T61 | hydrogen | agy quota | PASS | glint_leader 3/3 both seeds; two silent brief points taken from worker; gates pass
 - 2026-11-15 13:54 | T66a | haiku | 206,836 | PASS | layout_leader 2/2 both seeds; empty anon block not generated (aligned to worker); gates pass
 - 2026-11-15 14:00 | dispatch | 5 hydrogen + 2 haiku | - | RUNNING | T29a T50a hydrogen-high; T42 T70b T79a hydrogen; T62 T66b haiku
+- 2026-11-15 14:08 | T79a | hydrogen | agy quota | PASS | outcrop soak 7.4M cases fresh seed; lane is single-crate, rest split to T79b
