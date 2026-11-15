@@ -167,7 +167,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect | hydrogen | T17 T72 | TODO |
 | T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | claude | T71 | TODO |
 | T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
-| T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen-high | T42 T50 T47 | RUNNING |
+| T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen-high | T42 T50 T47 | PASS |
 | T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen-high | (T77 dropped: loopback only) | PASS |
 | T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
 | T79a | P6 | fuzz | soak mercury | hydrogen | - | PASS |
@@ -369,3 +369,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T71 neon | hydrogen-high | n/a | PASS | wasm Silicon+Titan page and Logos playground; leader Chrome check: session equals native transcript, 360 px ok
 - 2026-11-16 | T78 bench | hydrogen-high | n/a | PASS | 15 self-checking benches; full run twice within 8%; broken check exits 1; docs/BENCH.md by leader
 - 2026-11-16 | T72 athena | hydrogen-high | n/a | PASS | browser IDE on docs/FRONT.md; leader Chrome script check: run, tests, diagnostics, file CRUD persists, titan terminal equals native, 360 px, light theme
+- 2026-11-16 | T77 deploy | hydrogen-high | n/a | PASS | 4 static binaries, 3 scratch images, compose; leader docker run: 5 healthy, aurum consensus, iridium persists, stop 2.1 s all exit 0

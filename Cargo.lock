@@ -87,6 +87,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "deploy"
+version = "0.1.0"
+dependencies = [
+ "argo",
+ "assay",
+ "aurum",
+ "iridium",
+ "mercury",
+ "sphinx",
+]
+
+[[package]]
 name = "elysium"
 version = "0.1.0"
 dependencies = [

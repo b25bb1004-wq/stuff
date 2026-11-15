@@ -1,0 +1,116 @@
+name: monolith
+
+services:
+  iridium:
+    build:
+      context: ../../..
+      dockerfile: crates/deploy/docker/Dockerfile
+      target: iridium
+    command: ["--listen", "0.0.0.0:7400", "--data", "/data"]
+    ports:
+      - "127.0.0.1:7400:7400"
+    volumes:
+      - iridium-data:/data
+    read_only: true
+    stop_grace_period: 10s
+    healthcheck:
+      test: ["CMD", "/healthcheck", "tcp", "127.0.0.1:7400"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 1s
+
+  registry:
+    build:
+      context: ../../..
+      dockerfile: crates/deploy/docker/Dockerfile
+      target: registry
+    command: ["--listen", "0.0.0.0:7500"]
+    ports:
+      - "127.0.0.1:7500:7500"
+    read_only: true
+    stop_grace_period: 10s
+    healthcheck:
+      test: ["CMD", "/healthcheck", "http", "127.0.0.1:7500", "/index"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 1s
+
+  aurum1:
+    build:
+      context: ../../..
+      dockerfile: crates/deploy/docker/Dockerfile
+      target: aurum
+    command:
+      [
+        "--id", "1",
+        "--listen", "0.0.0.0:7700",
+        "--health", "0.0.0.0:7600",
+        "--validators", "3",
+        "--peer", "2@aurum2:7700",
+        "--peer", "3@aurum3:7700",
+      ]
+    ports:
+      - "127.0.0.1:7601:7600"
+    read_only: true
+    stop_grace_period: 10s
+    healthcheck:
+      test: ["CMD", "/healthcheck", "http", "127.0.0.1:7600", "/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 1s
+
+  aurum2:
+    build:
+      context: ../../..
+      dockerfile: crates/deploy/docker/Dockerfile
+      target: aurum
+    command:
+      [
+        "--id", "2",
+        "--listen", "0.0.0.0:7700",
+        "--health", "0.0.0.0:7600",
+        "--validators", "3",
+        "--peer", "1@aurum1:7700",
+        "--peer", "3@aurum3:7700",
+      ]
+    ports:
+      - "127.0.0.1:7602:7600"
+    read_only: true
+    stop_grace_period: 10s
+    healthcheck:
+      test: ["CMD", "/healthcheck", "http", "127.0.0.1:7600", "/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 1s
+
+  aurum3:
+    build:
+      context: ../../..
+      dockerfile: crates/deploy/docker/Dockerfile
+      target: aurum
+    command:
+      [
+        "--id", "3",
+        "--listen", "0.0.0.0:7700",
+        "--health", "0.0.0.0:7600",
+        "--validators", "3",
+        "--peer", "1@aurum1:7700",
+        "--peer", "2@aurum2:7700",
+      ]
+    ports:
+      - "127.0.0.1:7603:7600"
+    read_only: true
+    stop_grace_period: 10s
+    healthcheck:
+      test: ["CMD", "/healthcheck", "http", "127.0.0.1:7600", "/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 1s
+
+volumes:
+  iridium-data:
