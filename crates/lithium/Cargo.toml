@@ -5,6 +5,10 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[[bin]]
+name = "lithium"
+path = "src/bin/lithium.rs"
+
 [dependencies]
 silicon = { path = "../silicon" }
 chisel = { path = "../chisel" }
