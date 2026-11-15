@@ -442,6 +442,12 @@ fn leader_self_modifying_code() {
 
 #[test]
 fn leader_remap_and_physical_rewrite() {
+    remap(false);
+    remap(true);
+}
+
+/// The S-mode code page is remapped after the first ecall and rewritten physically after the second.
+fn remap(via_satp: bool) {
     let (v, r, w, x, a, d) = (1u64, 2u64, 4u64, 8u64, 64u64, 128u64);
     let pte = |pa: u64, flags: u64| ((pa >> 12) << 10) | flags;
     let mut p = B::new();
@@ -503,14 +509,24 @@ fn leader_remap_and_physical_rewrite() {
         rs2: 5,
         imm: 0,
     });
-    p.li(T1, pte(RAM_BASE + 0x5000, v | r | x | a));
-    p.addr(T2, 0x3000);
-    p.i(Inst::Sd {
-        rs1: T2,
-        rs2: T1,
-        imm: 0,
-    });
-    p.i(Inst::SfenceVma { rs1: 0, rs2: 0 });
+    if via_satp {
+        // switch to a second root table, no sfence.vma: the uncached path has no TLB
+        p.li(T1, (8 << 60) | ((RAM_BASE + 0x6000) >> 12));
+        p.i(Inst::Csrrw {
+            rd: 0,
+            rs1: T1,
+            csr: 0x180,
+        });
+    } else {
+        p.li(T1, pte(RAM_BASE + 0x5000, v | r | x | a));
+        p.addr(T2, 0x3000);
+        p.i(Inst::Sd {
+            rs1: T2,
+            rs2: T1,
+            imm: 0,
+        });
+        p.i(Inst::SfenceVma { rs1: 0, rs2: 0 });
+    }
     p.i(Inst::Csrrw {
         rd: 0,
         rs1: 0,
@@ -570,10 +586,14 @@ fn leader_remap_and_physical_rewrite() {
     p.pad_to(0x5000);
     p.i(addi_a0(100));
     p.i(Inst::Ecall);
+    p.data64(0x6000, pte(RAM_BASE + 0x7000, v));
+    p.data64(0x7000, pte(RAM_BASE + 0x8000, v));
+    p.data64(0x8000, pte(RAM_BASE + 0x5000, v | r | x | a));
+    let what = format!("remap via_satp={via_satp}");
     let (mut ma, mut mb) = pair(&p.b, Vec::new());
-    assert_eq!(lockstep(&mut ma, &mut mb, 20_000, "remap"), Exit::Pass);
-    assert_eq!(ma.cpu.x[A0 as usize], 1101, "S-mode saw stale code");
-    same_world(&mut ma, &mut mb, 0x6000, "remap");
+    assert_eq!(lockstep(&mut ma, &mut mb, 20_000, &what), Exit::Pass);
+    assert_eq!(ma.cpu.x[A0 as usize], 1101, "{what}: S-mode saw stale code");
+    same_world(&mut ma, &mut mb, 0x9000, &what);
 }
 
 #[test]

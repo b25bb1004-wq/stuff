@@ -86,7 +86,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T30 | P2 | sinter | constant folding, dead code, copy propagation | hydrogen | T29 | TODO |
 | T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | TODO |
 | T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
-| T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | RUNNING |
+| T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
 | T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | argon-high | T04 T20 D2 | TODO |
 | T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
@@ -186,3 +186,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 02:43 T65 PASS (hydrogen): spelunk HTML tokenizer/tree, CSS syntax, selectors; 7/7 leader checks (3000 CSS strings + 1300 sheets/decl lists vs tinycss2, 2000 docs vs html.parser, 35 trees, 3000 queries vs soupsieve), fresh seeds green. Leader fixes: tokenizer panicked slicing inside a multi-byte char in comments; leading whitespace of a mixed text run before body content now processed on its own (WHATWG). Check fixes: lone-surrogate escape removed, tinycss2 two-char match tokens split, soupsieve document-as-parent quirk patched.
 - 2026-11-15 02:55 T13a PASS (hydrogen-high, 1 run): leader check 9/9 after leader fixture fix (rvc.S trap handler at 2 mod 4 made mtvec mode 2; now .balign 4); fresh seed ok. drillcore remote_leader failed once under load in the workspace gate, passed 3/3 alone and on gate rerun: flake to look at.
 - 2026-11-15 03:00 T46 PASS (hydrogen, 1 run): leader check 11/11 incl. 6000 solver cases equal to the normative model and brute force, 500-chain on 128 KiB stack, fresh seeds ok. Leader fixes: case generator was mostly unsolvable (deps named absent packages), floors set from measured mix; clippy lints in check.
+- 2026-11-15 06:00 T33 PASS (hydrogen + leader fixes): leader check 4/4 incl. satp-switch remap; bench RAM override removed, inline(always) on step/tick restored cache-off to ~6% below pre-cache (accepted, test mode); bench total 1.55x.

@@ -24,6 +24,18 @@ fn page_fault(access: Access, vaddr: u64) -> Trap {
 }
 
 impl Cpu {
+    /// True when instruction fetches use Bare (physical) addressing.
+    #[inline]
+    pub(crate) fn is_fetch_bare(&self) -> bool {
+        self.mode == Mode::Machine || self.csr.satp >> 60 != 8
+    }
+
+    /// Current `satp` CSR value.
+    #[inline]
+    pub(crate) fn satp(&self) -> u64 {
+        self.csr.satp
+    }
+
     /// Translate `vaddr` for an access of kind `access` in the current mode. MPRV in M-mode
     /// makes loads and stores translate as the mode in MPP.
     pub fn translate(
@@ -41,6 +53,27 @@ impl Cpu {
         bus: &mut impl Bus,
         vaddr: u64,
         access: Access,
+    ) -> Result<u64, Trap> {
+        self.translate_inner(bus, vaddr, access, None)
+    }
+
+    /// Translation for cached instruction fetch, recording page-table page numbers in `pt_mask`.
+    pub(crate) fn translate_fetch_tracked(
+        &self,
+        bus: &mut impl Bus,
+        vaddr: u64,
+        pt_mask: &mut u64,
+    ) -> Result<u64, Trap> {
+        self.translate_inner(bus, vaddr, Access::Fetch, Some(pt_mask))
+    }
+
+    /// Shared translation implementation.
+    fn translate_inner(
+        &self,
+        bus: &mut impl Bus,
+        vaddr: u64,
+        access: Access,
+        mut pt_mask: Option<&mut u64>,
     ) -> Result<u64, Trap> {
         let st = self.csr.mstatus;
         let eff = if access != Access::Fetch && (st & MPRV) != 0 && self.mode == Mode::Machine {
@@ -60,6 +93,9 @@ impl Cpu {
         for level in (0..3u32).rev() {
             let index = (vaddr >> (12 + 9 * level)) & 0x1ff;
             let pte_addr = table.wrapping_add(index << 3);
+            if let Some(mask) = pt_mask.as_deref_mut() {
+                *mask |= 1u64 << ((pte_addr >> 12) & 63);
+            }
             let pte = bus
                 .read(pte_addr, 8)
                 .map_err(|_| page_fault(access, vaddr))?;

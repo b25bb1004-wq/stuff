@@ -13,6 +13,7 @@ struct Effect {
     mode: Option<Mode>,
     reservation: Option<Option<u64>>,
     wfi: bool,
+    sfence: bool,
 }
 
 impl Effect {
@@ -25,6 +26,7 @@ impl Effect {
             mode: None,
             reservation: None,
             wfi: false,
+            sfence: false,
         }
     }
 
@@ -82,12 +84,23 @@ fn branch(pc: u64, next: u64, taken: bool, imm: i64) -> Outcome {
     Ok(Effect::at(target))
 }
 
+/// Sideband flags from `step_inner_with`.
+pub(crate) struct StepFlags {
+    pub(crate) wfi: bool,
+    pub(crate) sfence: bool,
+}
+
 impl Cpu {
-    /// Execute one instruction and commit it. Returns true if it was WFI.
-    pub(crate) fn step_inner(&mut self, bus: &mut impl Bus) -> Result<bool, Trap> {
+    /// Execute one instruction using `fetch_fn` and commit it.
+    #[inline(always)]
+    pub(crate) fn step_inner_with<B: Bus>(
+        &mut self,
+        bus: &mut B,
+        fetch_fn: impl FnOnce(&Self, &mut B, u64) -> Result<(Inst, u32, u64), Trap>,
+    ) -> Result<StepFlags, Trap> {
         let pc = self.pc;
         check_pc(pc)?;
-        let (inst, word, len) = self.fetch(bus, pc)?;
+        let (inst, word, len) = fetch_fn(self, bus, pc)?;
         let next = pc.wrapping_add(len);
         let eff = self.execute(inst, word, next, bus)?;
         if let Some((rd, value)) = eff.rd {
@@ -105,16 +118,27 @@ impl Cpu {
         self.pc = eff.pc;
         self.instret = self.instret.wrapping_add(1);
         self.csr.mcycle = self.csr.mcycle.wrapping_add(1);
-        Ok(eff.wfi)
+        Ok(StepFlags {
+            wfi: eff.wfi,
+            sfence: eff.sfence,
+        })
+    }
+
+    /// Execute one instruction and commit it. Returns true if it was WFI.
+    #[allow(dead_code)]
+    pub(crate) fn step_inner(&mut self, bus: &mut impl Bus) -> Result<bool, Trap> {
+        self.step_inner_with(bus, |cpu, bus, pc| cpu.fetch(bus, pc))
+            .map(|f| f.wfi)
     }
 
     /// Execute the instruction at `pc`. On `Err`, pc, registers and CSRs are unchanged.
     pub fn step(&mut self, bus: &mut impl Bus) -> Result<(), Trap> {
-        self.step_inner(bus).map(|_| ())
+        self.step_inner_with(bus, |cpu, bus, pc| cpu.fetch(bus, pc))
+            .map(|_| ())
     }
 
     /// Fetch and decode one 16-bit compressed or 32-bit instruction at `pc`.
-    fn fetch(&self, bus: &mut impl Bus, pc: u64) -> Result<(Inst, u32, u64), Trap> {
+    pub(crate) fn fetch(&self, bus: &mut impl Bus, pc: u64) -> Result<(Inst, u32, u64), Trap> {
         let pa0 = self.translate_with(bus, pc, Access::Fetch)?;
         let lo = bus.read(pa0, 2).map_err(|_| Trap::FetchFault(pc))? as u16;
         if lo & 3 != 3 {
@@ -124,6 +148,28 @@ impl Cpu {
         } else {
             let pc2 = pc.wrapping_add(2);
             let pa1 = self.translate_with(bus, pc2, Access::Fetch)?;
+            let hi = bus.read(pa1, 2).map_err(|_| Trap::FetchFault(pc2))? as u16;
+            let word = u32::from(lo) | (u32::from(hi) << 16);
+            let inst = decode(word).ok_or(Trap::IllegalInstruction(word))?;
+            Ok((inst, word, 4))
+        }
+    }
+
+    /// Fetch and decode one instruction at `pc` with a known contiguous `pa0`.
+    pub(crate) fn fetch_at_pa(
+        &self,
+        bus: &mut impl Bus,
+        pc: u64,
+        pa0: u64,
+    ) -> Result<(Inst, u32, u64), Trap> {
+        let lo = bus.read(pa0, 2).map_err(|_| Trap::FetchFault(pc))? as u16;
+        if lo & 3 != 3 {
+            let word = u32::from(lo);
+            let inst = decode_c(lo).ok_or(Trap::IllegalInstruction(word))?;
+            Ok((inst, word, 2))
+        } else {
+            let pc2 = pc.wrapping_add(2);
+            let pa1 = pa0.wrapping_add(2);
             let hi = bus.read(pa1, 2).map_err(|_| Trap::FetchFault(pc2))? as u16;
             let word = u32::from(lo) | (u32::from(hi) << 16);
             let inst = decode(word).ok_or(Trap::IllegalInstruction(word))?;
@@ -278,7 +324,10 @@ impl Cpu {
                 if trapped {
                     return Err(illegal);
                 }
-                Ok(Effect::at(next))
+                Ok(Effect {
+                    sfence: true,
+                    ..Effect::at(next)
+                })
             }
             _ => Ok(Effect {
                 rd: self.alu(inst, pc),

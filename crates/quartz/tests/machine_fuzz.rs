@@ -27,6 +27,7 @@ fn mmio_fuzz_never_panics() {
             disk: vec![0u8; 1024],
             fb_width: 8,
             fb_height: 8,
+            ..Config::default()
         });
         for _ in 0..100 {
             let base = if rng.chance(1, 10) {

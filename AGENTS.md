@@ -28,9 +28,10 @@ Follow `briefs/_RULES.md`. One brief, one crate, one short report.
 4. Verdict: `PASS`, `RETRY` (add one specific defect to the brief; max 2 retries), or
    `ESCALATE` (leader fixes it, or the operator decides).
 5. On PASS: `bash tools/check.sh` for the whole workspace, then
-   `git add -A && git commit -m "<id>: <what>"`, then `git push` (origin is the private
-   GitHub repository `b25bb1004-wq/stuff`, set up by the operator on 2026-11-14). Never force
-   push, never change its visibility, never push anywhere else.
+   `git add -A && git commit -m "<id>: <what>"`, then `git push` (origin is the GitHub
+   repository `b25bb1004-wq/stuff`, PUBLIC since 2026-11-15 by the operator's decision). Never
+   force push, never change its visibility, never push anywhere else, and never commit secrets,
+   keys, local credentials or personal notes: everything here is public.
 6. Append one line to the round log in `LOOP.md` for every verdict, with the date and time.
 7. Stop rules: all tasks PASS; the round budget is spent; two rounds with no new PASS; any
    usage-limit warning; anything that needs keys, money, publishing or deleting. On stop, write

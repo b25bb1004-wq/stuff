@@ -54,18 +54,34 @@ impl Cpu {
     /// instruction and takes its trap. A trap or interrupt goes to the handler, so the pc
     /// changes; `Step` reports what happened.
     pub fn tick(&mut self, bus: &mut impl Bus) -> Step {
+        self.tick_with(bus, |cpu, bus, pc| cpu.fetch(bus, pc)).0
+    }
+
+    /// Like `tick`, using `fetch_fn` and returning `(Step, sfence_executed)`.
+    #[inline(always)]
+    pub(crate) fn tick_with<B: Bus>(
+        &mut self,
+        bus: &mut B,
+        fetch_fn: impl FnOnce(&Self, &mut B, u64) -> Result<(crate::inst::Inst, u32, u64), Trap>,
+    ) -> (Step, bool) {
         if let Some(code) = self.pending_interrupt() {
             self.enter(code, true, 0);
-            return Step::Interrupt(code);
+            return (Step::Interrupt(code), false);
         }
-        match self.step_inner(bus) {
-            Ok(true) if self.csr.mip & self.csr.mie == 0 => Step::Wfi,
-            Ok(_) => Step::Retired,
+        match self.step_inner_with(bus, fetch_fn) {
+            Ok(flags) => {
+                let step = if flags.wfi && self.csr.mip & self.csr.mie == 0 {
+                    Step::Wfi
+                } else {
+                    Step::Retired
+                };
+                (step, flags.sfence)
+            }
             Err(trap) => {
                 let (code, tval) = trap.cause(self.mode);
                 let tval = if trap == Trap::Ebreak { self.pc } else { tval };
                 self.enter(code, false, tval);
-                Step::Exception(trap)
+                (Step::Exception(trap), false)
             }
         }
     }

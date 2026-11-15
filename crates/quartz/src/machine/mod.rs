@@ -1,5 +1,6 @@
 //! RISC-V "virt"-style machine board: RAM, test finisher, CLINT, PLIC, UART, block, keys and display.
 mod block;
+mod cache;
 mod clint;
 mod display;
 mod finisher;
@@ -9,9 +10,11 @@ mod uart;
 
 use alloc::vec::Vec;
 
-use crate::{Bus, Cpu, Fault, Ram, Step};
+use crate::inst::Inst;
+use crate::{Bus, Cpu, Fault, Ram, Step, Trap};
 
 use block::{Block, BLOCK_SIZE};
+use cache::DecodeCache;
 use clint::{Clint, CLINT_SIZE};
 use display::{Display, DISPLAY_SIZE};
 use finisher::Finisher;
@@ -47,6 +50,8 @@ pub struct Config {
     pub fb_width: u32,
     /// Display height in pixels.
     pub fb_height: u32,
+    /// Enable the decoded-instruction cache.
+    pub decode_cache: bool,
 }
 
 impl Default for Config {
@@ -56,6 +61,7 @@ impl Default for Config {
             disk: Vec::new(),
             fb_width: 320,
             fb_height: 240,
+            decode_cache: true,
         }
     }
 }
@@ -83,11 +89,13 @@ pub struct Board {
     block: Block,
     keys: Keys,
     display: Display,
+    cache: Option<DecodeCache>,
 }
 
 impl Board {
     fn new(cfg: Config) -> Self {
         let ram = Ram::new(RAM_BASE, cfg.ram_size);
+        let cache = cfg.decode_cache.then(DecodeCache::new);
         Self {
             ram,
             ram_size: cfg.ram_size,
@@ -98,7 +106,18 @@ impl Board {
             block: Block::new(cfg.disk),
             keys: Keys::default(),
             display: Display::new(cfg.fb_width, cfg.fb_height),
+            cache,
         }
+    }
+
+    /// True if `[pa, pa + len)` lies completely within guest RAM.
+    #[inline]
+    fn ram_contains(&self, pa: u64, len: u64) -> bool {
+        let Some(off) = pa.checked_sub(RAM_BASE) else {
+            return false;
+        };
+        off.checked_add(len)
+            .is_some_and(|end| end <= self.ram_size as u64)
     }
 
     /// Queue bytes for the guest to read from the UART RX FIFO (unbounded).
@@ -201,9 +220,15 @@ impl Bus for Board {
             return self.uart.write(addr, off, size, value);
         }
         if let Some(off) = in_window(addr, BLOCK_BASE, BLOCK_SIZE) {
-            return self
+            let res = self
                 .block
                 .write(addr, off, size, value, &mut self.ram, self.ram_size);
+            if res.is_ok() && off == 0x14 && size == 4 && (value as u32) == 1 {
+                if let Some(cache) = &mut self.cache {
+                    cache.invalidate_all();
+                }
+            }
+            return res;
         }
         if let Some(off) = in_window(addr, KEYS_BASE, KEYS_SIZE) {
             return self.keys.write(addr, off, size, value);
@@ -214,7 +239,11 @@ impl Bus for Board {
         if let Some(off) = in_window(addr, FB_BASE, self.display.fb_len()) {
             return self.display.write_fb(addr, off, size, value);
         }
-        self.ram.write(addr, size, value)
+        self.ram.write(addr, size, value)?;
+        if let Some(cache) = &mut self.cache {
+            cache.invalidate_write(addr, usize::from(size));
+        }
+        Ok(())
     }
 }
 
@@ -238,7 +267,11 @@ impl Machine {
 
     /// Copy `data` into guest RAM at `addr`.
     pub fn load(&mut self, addr: u64, data: &[u8]) -> Result<(), Fault> {
-        self.board.ram.load(addr, data)
+        self.board.ram.load(addr, data)?;
+        if let Some(cache) = &mut self.board.cache {
+            cache.invalidate_write(addr, data.len());
+        }
+        Ok(())
     }
 
     /// One tick: `mtime += 1`; sample every device's interrupt line into the PLIC; set the hart's
@@ -252,7 +285,17 @@ impl Machine {
         self.cpu.set_pending(11, self.board.plic.has_eligible(0));
         self.cpu.set_pending(9, self.board.plic.has_eligible(1));
         self.cpu.csr_write(0xC01, self.board.mtime());
-        let step = self.cpu.tick(&mut self.board);
+        let step = if self.board.cache.is_some() {
+            let (step, sfence) = self.cpu.tick_with(&mut self.board, fetch_cached);
+            if sfence {
+                if let Some(cache) = &mut self.board.cache {
+                    cache.flush_itlb();
+                }
+            }
+            step
+        } else {
+            self.cpu.tick(&mut self.board)
+        };
         self.cpu.csr_write(0xC01, self.board.mtime());
         step
     }
@@ -267,4 +310,43 @@ impl Machine {
         }
         Exit::OutOfSteps
     }
+}
+
+/// Fetch and decode one instruction at `pc`, using the board's ITLB and decode cache.
+fn fetch_cached(cpu: &Cpu, board: &mut Board, pc: u64) -> Result<(Inst, u32, u64), Trap> {
+    if (pc & 0xFFF) == 0xFFE {
+        return cpu.fetch(board, pc);
+    }
+    let pa = if cpu.is_fetch_bare() {
+        pc
+    } else {
+        let vpage = pc >> 12;
+        let satp = cpu.satp();
+        let mode = cpu.mode;
+        if let Some(ppage) = board
+            .cache
+            .as_ref()
+            .and_then(|c| c.lookup_itlb(vpage, satp, mode))
+        {
+            ppage | (pc & 0xFFF)
+        } else {
+            let mut pt_mask = 0u64;
+            let pa = cpu.translate_fetch_tracked(board, pc, &mut pt_mask)?;
+            if let Some(cache) = &mut board.cache {
+                cache.pt_pages_mask |= pt_mask;
+                cache.insert_itlb(vpage, satp, mode, pa & !0xFFF);
+            }
+            pa
+        }
+    };
+    if let Some(hit) = board.cache.as_ref().and_then(|c| c.lookup_inst(pa)) {
+        return Ok(hit);
+    }
+    let res = cpu.fetch_at_pa(board, pc, pa)?;
+    if board.ram_contains(pa, res.2) {
+        if let Some(cache) = &mut board.cache {
+            cache.insert_inst(pa, res.0, res.1, res.2);
+        }
+    }
+    Ok(res)
 }
