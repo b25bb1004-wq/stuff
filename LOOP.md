@@ -167,7 +167,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect | hydrogen | T17 T72 | TODO |
 | T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | claude | T71 | TODO |
 | T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
-| T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen | T42 T50 T47 | TODO |
+| T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen-high | T42 T50 T47 | RUNNING |
 | T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen-high | (T77 dropped: loopback only) | PASS |
 | T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
 | T79a | P6 | fuzz | soak mercury | hydrogen | - | PASS |
