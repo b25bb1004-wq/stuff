@@ -1,6 +1,6 @@
 //! CSS Selectors Level 4 parser and matcher.
 
-mod matcher;
+pub(crate) mod matcher;
 mod parser;
 
 pub use matcher::select;

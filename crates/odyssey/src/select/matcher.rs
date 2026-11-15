@@ -1,14 +1,68 @@
 //! CSS Selectors Level 4 matching engine.
 
+use std::collections::{HashMap, HashSet};
+
 use crate::dom::{Data, Document, NodeId};
 
 use super::parser::{
     parse_selectors, AttrOp, Combinator, Compound, Selector, SelectorError, Simple, TypeSel,
 };
 
+/// Sibling positions of one element: 1-based index and count among all element siblings,
+/// and the same among siblings with the same tag name. Zero when the element has no parent.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct Sib {
+    idx: i32,
+    total: i32,
+    type_idx: i32,
+    type_total: i32,
+}
+
+/// Sibling positions of every node, indexed by `NodeId`, computed in one pass over the tree.
+pub(crate) fn sibling_table(doc: &Document) -> Vec<Sib> {
+    let mut table = vec![Sib::default(); doc.nodes.len()];
+    for node in &doc.nodes {
+        let kids: Vec<(NodeId, &str)> = node
+            .children
+            .iter()
+            .filter_map(|&cid| match doc.nodes.get(cid).map(|n| &n.data) {
+                Some(Data::Element { name, .. }) => Some((cid, name.as_str())),
+                _ => None,
+            })
+            .collect();
+        let mut counts: HashMap<&str, i32> = HashMap::new();
+        for (_, name) in &kids {
+            *counts.entry(name).or_insert(0) += 1;
+        }
+        let total = kids.len() as i32;
+        let mut seen: HashMap<&str, i32> = HashMap::new();
+        for (i, (cid, name)) in kids.iter().enumerate() {
+            let run = seen.entry(name).or_insert(0);
+            *run += 1;
+            if let Some(slot) = table.get_mut(*cid) {
+                *slot = Sib {
+                    idx: i as i32 + 1,
+                    total,
+                    type_idx: *run,
+                    type_total: counts[name],
+                };
+            }
+        }
+    }
+    table
+}
+
+/// Failed (combinator index, node) pairs for one match call; each pair is memoised once.
+type Failed = HashSet<(usize, NodeId)>;
+
 impl Selector {
     /// Return `true` if element `el` in `doc` matches this selector.
     pub fn matches(&self, doc: &Document, el: NodeId) -> bool {
+        self.matches_with(doc, el, None)
+    }
+
+    /// Match with sibling positions precomputed by [`sibling_table`] (`None` scans siblings).
+    pub(crate) fn matches_with(&self, doc: &Document, el: NodeId, sib: Option<&[Sib]>) -> bool {
         if !matches!(
             doc.nodes.get(el).map(|n| &n.data),
             Some(Data::Element { .. })
@@ -21,89 +75,113 @@ impl Selector {
         } else {
             &self.rest[len - 1].1
         };
-        if !matches_compound(doc, el, last_comp) {
+        if !matches_compound(doc, el, last_comp, sib) {
             return false;
         }
         if len == 0 {
             return true;
         }
-
-        // Explicit backtracking stack: (combinator_index_to_resolve, current_node)
-        let mut stack: Vec<(usize, NodeId)> = vec![(len - 1, el)];
-        while let Some((comb_idx, cur)) = stack.pop() {
-            let (comb, _) = &self.rest[comb_idx];
-            let target_comp = if comb_idx == 0 {
-                &self.first
-            } else {
-                &self.rest[comb_idx - 1].1
-            };
-
-            match comb {
-                Combinator::Child => {
-                    if let Some(parent) = element_parent(doc, cur) {
-                        if matches_compound(doc, parent, target_comp) {
-                            if comb_idx == 0 {
-                                return true;
-                            }
-                            stack.push((comb_idx - 1, parent));
-                        }
-                    }
-                }
-                Combinator::NextSibling => {
-                    if let Some(prev) = prev_element_sibling(doc, cur) {
-                        if matches_compound(doc, prev, target_comp) {
-                            if comb_idx == 0 {
-                                return true;
-                            }
-                            stack.push((comb_idx - 1, prev));
-                        }
-                    }
-                }
-                Combinator::Descendant => {
-                    let mut p = element_parent(doc, cur);
-                    let mut candidates = Vec::new();
-                    while let Some(anc) = p {
-                        if matches_compound(doc, anc, target_comp) {
-                            if comb_idx == 0 {
-                                return true;
-                            }
-                            candidates.push((comb_idx - 1, anc));
-                        }
-                        p = element_parent(doc, anc);
-                    }
-                    for c in candidates.into_iter().rev() {
-                        stack.push(c);
-                    }
-                }
-                Combinator::SubsequentSibling => {
-                    let mut p = prev_element_sibling(doc, cur);
-                    let mut candidates = Vec::new();
-                    while let Some(sib) = p {
-                        if matches_compound(doc, sib, target_comp) {
-                            if comb_idx == 0 {
-                                return true;
-                            }
-                            candidates.push((comb_idx - 1, sib));
-                        }
-                        p = prev_element_sibling(doc, sib);
-                    }
-                    for c in candidates.into_iter().rev() {
-                        stack.push(c);
-                    }
-                }
-            }
-        }
-
-        false
+        let mut failed = Failed::new();
+        chain_matches(doc, self, len - 1, el, sib, &mut failed)
     }
+}
+
+/// Return `true` if the compound left of combinator `rest[k]` can be matched by a node
+/// reached from `cur` through that combinator, with everything to its left also matching.
+/// The result for a given `(k, cur)` never depends on the caller, so failures are memoised.
+/// Recursion depth is at most the compound cap enforced by the parser.
+fn chain_matches(
+    doc: &Document,
+    sel: &Selector,
+    k: usize,
+    cur: NodeId,
+    sib: Option<&[Sib]>,
+    failed: &mut Failed,
+) -> bool {
+    if failed.contains(&(k, cur)) {
+        return false;
+    }
+    let found = match sel.rest[k].0 {
+        Combinator::Child => {
+            element_parent(doc, cur).is_some_and(|p| step(doc, sel, k, p, sib, failed))
+        }
+        Combinator::NextSibling => {
+            prev_element_sibling(doc, cur).is_some_and(|p| step(doc, sel, k, p, sib, failed))
+        }
+        Combinator::Descendant => {
+            // Every ancestor of a failed ancestor has already been ruled out, so the walk
+            // stops there and the nodes walked on this failure are recorded as failed too.
+            let mut walked = Vec::new();
+            let mut hit = false;
+            let mut p = element_parent(doc, cur);
+            while let Some(anc) = p {
+                if step(doc, sel, k, anc, sib, failed) {
+                    hit = true;
+                    break;
+                }
+                walked.push(anc);
+                if failed.contains(&(k, anc)) {
+                    break;
+                }
+                p = element_parent(doc, anc);
+            }
+            if !hit {
+                failed.extend(walked.into_iter().map(|w| (k, w)));
+            }
+            hit
+        }
+        Combinator::SubsequentSibling => {
+            let mut walked = Vec::new();
+            let mut hit = false;
+            let mut p = prev_element_sibling(doc, cur);
+            while let Some(s) = p {
+                if step(doc, sel, k, s, sib, failed) {
+                    hit = true;
+                    break;
+                }
+                walked.push(s);
+                if failed.contains(&(k, s)) {
+                    break;
+                }
+                p = prev_element_sibling(doc, s);
+            }
+            if !hit {
+                failed.extend(walked.into_iter().map(|w| (k, w)));
+            }
+            hit
+        }
+    };
+    if !found {
+        failed.insert((k, cur));
+    }
+    found
+}
+
+/// Check candidate `cand` against the compound left of `rest[k]`, then the chain beyond it.
+fn step(
+    doc: &Document,
+    sel: &Selector,
+    k: usize,
+    cand: NodeId,
+    sib: Option<&[Sib]>,
+    failed: &mut Failed,
+) -> bool {
+    let target = if k == 0 {
+        &sel.first
+    } else {
+        &sel.rest[k - 1].1
+    };
+    matches_compound(doc, cand, target, sib)
+        && (k == 0 || chain_matches(doc, sel, k - 1, cand, sib, failed))
 }
 
 /// Return all element node IDs in `doc` matching any selector in `selectors`, in document order.
 pub fn select(doc: &Document, selectors: &str) -> Result<Vec<NodeId>, SelectorError> {
     let parsed = parse_selectors(selectors)?;
+    let sib = sibling_table(doc);
     let mut out = Vec::new();
     for el in doc.elements() {
-        if parsed.iter().any(|s| s.matches(doc, el)) {
+        if parsed.iter().any(|s| s.matches_with(doc, el, Some(&sib))) {
             out.push(el);
         }
     }
@@ -133,7 +211,7 @@ fn prev_element_sibling(doc: &Document, el: NodeId) -> Option<NodeId> {
     None
 }
 
-fn matches_compound(doc: &Document, el: NodeId, comp: &Compound) -> bool {
+fn matches_compound(doc: &Document, el: NodeId, comp: &Compound, sib: Option<&[Sib]>) -> bool {
     let Some(node) = doc.nodes.get(el) else {
         return false;
     };
@@ -146,14 +224,20 @@ fn matches_compound(doc: &Document, el: NodeId, comp: &Compound) -> bool {
         }
     }
     for simple in &comp.simples {
-        if !matches_simple(doc, el, name, simple) {
+        if !matches_simple(doc, el, name, simple, sib) {
             return false;
         }
     }
     true
 }
 
-fn matches_simple(doc: &Document, el: NodeId, el_name: &str, simple: &Simple) -> bool {
+fn matches_simple(
+    doc: &Document,
+    el: NodeId,
+    el_name: &str,
+    simple: &Simple,
+    sib: Option<&[Sib]>,
+) -> bool {
     match simple {
         Simple::Id(id) => doc.attr(el, "id") == Some(id.as_str()),
         Simple::Class(cls) => doc
@@ -182,42 +266,59 @@ fn matches_simple(doc: &Document, el: NodeId, el_name: &str, simple: &Simple) ->
             }
         }
         Simple::Root => doc.nodes.get(el).and_then(|n| n.parent) == Some(0),
-        Simple::FirstChild => sibling_index(doc, el, None).0 == 1,
+        Simple::FirstChild => sibling_index(doc, el, None, sib).0 == 1,
         Simple::LastChild => {
-            let (idx, total) = sibling_index(doc, el, None);
+            let (idx, total) = sibling_index(doc, el, None, sib);
             idx > 0 && idx == total
         }
         Simple::OnlyChild => {
-            let (idx, total) = sibling_index(doc, el, None);
+            let (idx, total) = sibling_index(doc, el, None, sib);
             idx == 1 && total == 1
         }
-        Simple::FirstOfType => sibling_index(doc, el, Some(el_name)).0 == 1,
+        Simple::FirstOfType => sibling_index(doc, el, Some(el_name), sib).0 == 1,
         Simple::LastOfType => {
-            let (idx, total) = sibling_index(doc, el, Some(el_name));
+            let (idx, total) = sibling_index(doc, el, Some(el_name), sib);
             idx > 0 && idx == total
         }
         Simple::Empty => is_empty_element(doc, el),
         Simple::NthChild(a, b) => {
-            let (idx, _) = sibling_index(doc, el, None);
+            let (idx, _) = sibling_index(doc, el, None, sib);
             matches_an_plus_b(idx, *a, *b)
         }
         Simple::NthLastChild(a, b) => {
-            let (idx, total) = sibling_index(doc, el, None);
+            let (idx, total) = sibling_index(doc, el, None, sib);
             idx > 0 && matches_an_plus_b(total - idx + 1, *a, *b)
         }
         Simple::NthOfType(a, b) => {
-            let (idx, _) = sibling_index(doc, el, Some(el_name));
+            let (idx, _) = sibling_index(doc, el, Some(el_name), sib);
             matches_an_plus_b(idx, *a, *b)
         }
         Simple::NthLastOfType(a, b) => {
-            let (idx, total) = sibling_index(doc, el, Some(el_name));
+            let (idx, total) = sibling_index(doc, el, Some(el_name), sib);
             idx > 0 && matches_an_plus_b(total - idx + 1, *a, *b)
         }
-        Simple::Not(inner) => !matches_compound(doc, el, inner),
+        Simple::Not(inner) => !matches_compound(doc, el, inner, sib),
     }
 }
 
-fn sibling_index(doc: &Document, el: NodeId, of_type: Option<&str>) -> (i32, i32) {
+/// Return `(index, count)` of `el` among its element siblings (same tag only when `of_type`).
+/// Uses the precomputed table when given, otherwise scans the siblings.
+fn sibling_index(
+    doc: &Document,
+    el: NodeId,
+    of_type: Option<&str>,
+    sib: Option<&[Sib]>,
+) -> (i32, i32) {
+    if let Some(table) = sib {
+        let Some(s) = table.get(el) else {
+            return (0, 0);
+        };
+        return if of_type.is_some() {
+            (s.type_idx, s.type_total)
+        } else {
+            (s.idx, s.total)
+        };
+    }
     let Some(pid) = doc.nodes.get(el).and_then(|n| n.parent) else {
         return (0, 0);
     };

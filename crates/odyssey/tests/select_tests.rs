@@ -1,6 +1,9 @@
 //! Integration tests for CSS Selectors Level 4 parsing and matching.
 #![allow(clippy::unwrap_used)]
 
+use std::time::{Duration, Instant};
+
+use odyssey::dom::Data;
 use odyssey::html::parse;
 use odyssey::select::{parse_selectors, select, SelectorError};
 
@@ -88,4 +91,70 @@ fn selector_matching() {
     assert_eq!(names("p.a ~ span"), vec!["span"]);
     assert_eq!(names("div > :not(p)"), vec!["span"]);
     assert_eq!(names("p.a, #s1"), vec!["p", "span"]);
+}
+
+#[test]
+fn selector_size_caps() {
+    let compounds = |n: usize| vec!["a"; n].join(" ");
+    assert!(parse_selectors(&compounds(32)).is_ok());
+    assert_eq!(parse_selectors(&compounds(33)), Err(SelectorError));
+    let long = format!("p{}", " , p".repeat(300));
+    assert!(long.len() > 1024);
+    assert_eq!(parse_selectors(&long), Err(SelectorError));
+}
+
+#[test]
+fn descendant_chain_on_deep_tree_is_linear() {
+    let depth = 2000;
+    let mut html = "<div>".repeat(depth);
+    html.push_str("<span>x</span>");
+    let doc = parse(&html);
+    let sel = vec!["*"; 30].join(" ");
+
+    let start = Instant::now();
+    let hits = select(&doc, &sel).unwrap();
+    let elapsed = start.elapsed();
+    assert!(elapsed < Duration::from_secs(1), "took {elapsed:?}");
+    assert!(hits.len() >= depth - 100, "hits={}", hits.len());
+}
+
+#[test]
+fn descendant_failure_on_deep_tree_is_linear() {
+    // Every ancestor matches the middle compounds, so only memoisation keeps this bounded.
+    let depth = 2000;
+    let mut html = "<div>".repeat(depth);
+    html.push_str("<span>x</span>");
+    let doc = parse(&html);
+    let sel = format!("#nope{} span", " *".repeat(30));
+    assert!(parse_selectors(&sel).is_ok());
+
+    let start = Instant::now();
+    let hits = select(&doc, &sel).unwrap();
+    let elapsed = start.elapsed();
+    assert!(hits.is_empty());
+    assert!(elapsed < Duration::from_secs(1), "took {elapsed:?}");
+}
+
+#[test]
+fn nth_child_on_wide_list_is_linear() {
+    let mut html = String::from("<style>li:nth-child(2n){color:red}</style><ul>");
+    html.push_str(&"<li></li>".repeat(5000));
+    html.push_str("</ul>");
+    let doc = parse(&html);
+
+    let start = Instant::now();
+    let hits = select(&doc, "li:nth-child(2n)").unwrap();
+    let styles = odyssey::style::compute(&doc);
+    let elapsed = start.elapsed();
+    assert!(elapsed < Duration::from_secs(1), "took {elapsed:?}");
+    assert_eq!(hits.len(), 2500);
+
+    let lis: Vec<usize> = doc
+        .elements()
+        .into_iter()
+        .filter(|&id| matches!(&doc.nodes[id].data, Data::Element { name, .. } if name == "li"))
+        .collect();
+    let color = |id: usize| styles[id].as_ref().map(|c| c.color);
+    assert_ne!(color(lis[1]), color(lis[0]));
+    assert_eq!(color(lis[1]), color(lis[3]));
 }

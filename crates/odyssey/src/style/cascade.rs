@@ -2,6 +2,7 @@
 
 use crate::css::{parse_declarations, parse_stylesheet, Declaration, Rule, Token, Value};
 use crate::dom::{Data, Document, NodeId};
+use crate::select::matcher::{sibling_table, Sib};
 use crate::select::{parse_selectors, Selector};
 
 use super::flex::{Flex, FLEX_INITIAL};
@@ -40,9 +41,10 @@ pub(crate) fn compute_all(doc: &Document) -> Vec<Option<(Computed, Flex)>> {
             collect(&child_text(doc, id), 1, &mut entries);
         }
     }
+    let sib = sibling_table(doc);
     let mut out: Vec<Option<(Computed, Flex)>> = vec![None; doc.nodes.len()];
     for id in doc.elements() {
-        let winners = winners(doc, id, &entries);
+        let winners = winners(doc, id, &entries, &sib);
         let parent = doc
             .nodes
             .get(id)
@@ -94,13 +96,13 @@ fn collect(text: &str, origin: u8, entries: &mut Vec<Entry>) {
 }
 
 /// Keep, per slot, the declaration with the highest cascade key among those that parse.
-fn winners(doc: &Document, id: NodeId, entries: &[Entry]) -> Winners {
+fn winners(doc: &Document, id: NodeId, entries: &[Entry], sib: &[Sib]) -> Winners {
     let mut best: Winners = [None; SLOTS];
     for (ei, entry) in entries.iter().enumerate() {
         let spec = entry
             .selectors
             .iter()
-            .filter(|s| s.matches(doc, id))
+            .filter(|s| s.matches_with(doc, id, Some(sib)))
             .map(Selector::specificity)
             .max();
         let Some(spec) = spec else {

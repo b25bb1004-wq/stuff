@@ -2,6 +2,11 @@
 
 use crate::css::{tokenize, Token};
 
+/// Longest selector list accepted, in bytes; longer input is a parse error.
+const MAX_SELECTOR_BYTES: usize = 1024;
+/// Most compound selectors allowed in one complex selector (bounds matching work and recursion).
+const MAX_COMPOUNDS: usize = 32;
+
 /// Error returned when parsing an invalid selector string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SelectorError;
@@ -103,6 +108,9 @@ fn compound_specificity(c: &Compound) -> (u32, u32, u32) {
 
 /// Parse a comma-separated list of CSS selectors.
 pub fn parse_selectors(input: &str) -> Result<Vec<Selector>, SelectorError> {
+    if input.len() > MAX_SELECTOR_BYTES {
+        return Err(SelectorError);
+    }
     let tokens = tokenize(input);
     let mut pos = 0usize;
     let mut selectors = Vec::new();
@@ -162,6 +170,9 @@ fn parse_complex(tokens: &[Token], pos: &mut usize) -> Result<Selector, Selector
             _ if had_ws => Combinator::Descendant,
             _ => return Err(SelectorError),
         };
+        if rest.len() + 2 > MAX_COMPOUNDS {
+            return Err(SelectorError);
+        }
         let next_comp = parse_compound(tokens, pos, false)?;
         rest.push((comb, next_comp));
     }
