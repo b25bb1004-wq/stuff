@@ -15,11 +15,11 @@ const CLAIM_CTX1_OFF: u64 = 0x20_1004;
 /// PLIC with sources 1..=31 and two contexts (0 = M, 1 = S).
 #[derive(Debug, Clone, Default)]
 pub(super) struct Plic {
-    priority: [u8; 32],
-    pending: u32,
-    in_flight: u32,
-    enable: [u32; 2],
-    threshold: [u32; 2],
+    pub(super) priority: [u8; 32],
+    pub(super) pending: u32,
+    pub(super) in_flight: u32,
+    pub(super) enable: [u32; 2],
+    pub(super) threshold: [u32; 2],
 }
 
 impl Plic {

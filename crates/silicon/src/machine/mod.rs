@@ -6,6 +6,7 @@ mod display;
 mod finisher;
 mod keys;
 mod plic;
+mod snapshot;
 mod uart;
 
 use alloc::vec::Vec;
@@ -22,6 +23,8 @@ use finisher::Finisher;
 use keys::{Keys, KEYS_SIZE};
 use plic::{Plic, PLIC_SIZE};
 use uart::{Uart, UART_SIZE};
+
+pub use snapshot::{CpuState, DeviceState, Page, Region, Snapshot, SnapshotError, PAGE_SIZE};
 
 /// Base physical address of guest RAM.
 pub const RAM_BASE: u64 = 0x8000_0000;

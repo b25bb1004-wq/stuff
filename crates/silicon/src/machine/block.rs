@@ -13,15 +13,15 @@ const SECTOR_SIZE: u64 = 512;
 /// Block device with DMA against guest RAM.
 #[derive(Debug, Clone, Default)]
 pub(super) struct Block {
-    disk: Vec<u8>,
-    sector: u64,
-    dma_addr: u64,
-    count: u32,
-    status: u32,
-    irq_enable: u32,
-    done: bool,
-    reads: u64,
-    writes: u64,
+    pub(super) disk: Vec<u8>,
+    pub(super) sector: u64,
+    pub(super) dma_addr: u64,
+    pub(super) count: u32,
+    pub(super) status: u32,
+    pub(super) irq_enable: u32,
+    pub(super) done: bool,
+    pub(super) reads: u64,
+    pub(super) writes: u64,
 }
 
 impl Block {

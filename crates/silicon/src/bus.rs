@@ -27,6 +27,16 @@ pub struct Ram {
 }
 
 impl Ram {
+    /// Backing bytes, lowest address first (used by snapshots).
+    pub(crate) fn bytes(&self) -> &[u8] {
+        &self.mem
+    }
+
+    /// Mutable backing bytes (used by snapshot restore).
+    pub(crate) fn bytes_mut(&mut self) -> &mut [u8] {
+        &mut self.mem
+    }
+
     /// Zeroed RAM of `size` bytes mapped at `base`.
     pub fn new(base: u64, size: usize) -> Ram {
         Ram {

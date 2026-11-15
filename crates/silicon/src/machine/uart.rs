@@ -10,14 +10,14 @@ pub(super) const UART_SIZE: u64 = 8;
 /// 16550 UART subset.
 #[derive(Debug, Clone, Default)]
 pub(super) struct Uart {
-    rx: VecDeque<u8>,
-    tx: Vec<u8>,
-    ier: u8,
-    lcr: u8,
-    mcr: u8,
-    scr: u8,
-    in_bytes: u64,
-    out_bytes: u64,
+    pub(super) rx: VecDeque<u8>,
+    pub(super) tx: Vec<u8>,
+    pub(super) ier: u8,
+    pub(super) lcr: u8,
+    pub(super) mcr: u8,
+    pub(super) scr: u8,
+    pub(super) in_bytes: u64,
+    pub(super) out_bytes: u64,
 }
 
 impl Uart {

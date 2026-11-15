@@ -6,7 +6,7 @@ use super::Exit;
 /// Test finisher MMIO device.
 #[derive(Debug, Clone, Default)]
 pub(super) struct Finisher {
-    exit: Option<Exit>,
+    pub(super) exit: Option<Exit>,
 }
 
 impl Finisher {

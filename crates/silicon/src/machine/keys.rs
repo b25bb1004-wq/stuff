@@ -10,8 +10,8 @@ const MAX_KEYS: usize = 64;
 /// 64-deep key FIFO.
 #[derive(Debug, Clone, Default)]
 pub(super) struct Keys {
-    fifo: VecDeque<u32>,
-    irq_enable: u32,
+    pub(super) fifo: VecDeque<u32>,
+    pub(super) irq_enable: u32,
 }
 
 impl Keys {

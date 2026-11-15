@@ -12,7 +12,7 @@ pub(super) const DISPLAY_SIZE: u64 = 0x1000;
 pub(super) struct Display {
     width: u32,
     height: u32,
-    fb: Vec<u8>,
+    pub(super) fb: Vec<u8>,
 }
 
 impl Display {

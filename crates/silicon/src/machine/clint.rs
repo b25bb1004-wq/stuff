@@ -11,9 +11,9 @@ const MTIME_OFF: u64 = 0xBFF8;
 /// CLINT state: `msip`, `mtimecmp`, and `mtime`.
 #[derive(Debug, Clone)]
 pub(super) struct Clint {
-    msip: bool,
-    mtimecmp: u64,
-    mtime: u64,
+    pub(super) msip: bool,
+    pub(super) mtimecmp: u64,
+    pub(super) mtime: u64,
 }
 
 impl Default for Clint {
