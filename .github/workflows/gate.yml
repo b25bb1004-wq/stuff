@@ -1,5 +1,5 @@
 # T82: runs the Strata gate (tools/check.sh: fmt, clippy -D warnings, all tests, zero-dependency rule).
-# Windows to match the development machine. Some leader tests shell out to python (+ Pillow), git, bash.
+# Windows and Rust 1.98.0 to match the development machine (newer clippy adds lints). Some leader tests shell out to python (+ Pillow), git, bash.
 name: gate
 on:
   push:
@@ -12,12 +12,12 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: python -m pip install --disable-pip-version-check pillow
-      - run: rustup toolchain install stable --profile minimal -c rustfmt,clippy && rustup default stable
+      - run: rustup toolchain install 1.98.0 --profile minimal -c rustfmt,clippy && rustup default 1.98.0
         shell: bash
       - run: git config --global user.name ci && git config --global user.email ci@example.invalid
         shell: bash
