@@ -104,6 +104,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T27 | P2 | mantle | block driver, shale mounted, file syscalls | argon | T26 T07 | TODO |
 | T28 | P2 | mantle | userland: init, shell (crust), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
 | T29 | P2 | sinter | Mica IR to RV64 code, linear-scan registers, ELF out | argon-high | T10 T22 | TODO |
+| T29a | P2 | sinter | (T29a) integer subset Mica IR to RV64, stack slots, runs on Quartz | hydrogen-high | T10 T22 | RUNNING |
 | T30 | P2 | sinter | constant folding, dead code, copy propagation | hydrogen | T29 | TODO |
 | T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | PASS |
 | T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
@@ -118,7 +119,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | PASS |
 | T41a | P3 | varve | SQL core: parser, catalog, single-table DML and SELECT, indexes maintained, transactions | hydrogen-high | T40 | PASS |
 | T41b | P3 | varve | joins, index use in plans, EXPLAIN | hydrogen-high | T41a | PASS |
-| T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
+| T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | RUNNING |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
 | T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | PASS |
@@ -127,6 +128,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | haiku | T04 | PASS |
 | T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | PASS |
 | T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
+| T50a | P3 | seam | node: block pool, fork choice, reorgs, sync messages, mempool | hydrogen-high | T49 | RUNNING |
 | T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
 | T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
@@ -137,17 +139,18 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | PASS |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | PASS |
 | T61 | P4 | glint | widget tree, flex layout, events, focus, themes | hydrogen | T60 | PASS |
-| T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | hydrogen | T61 | TODO |
+| T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | haiku | T61 | RUNNING |
 | T63 | P4 | facet | compositor: windows, tiling and floating, damage, input, animated moves | argon | T62 | TODO |
 | T64 | P4 | facet | client protocol + apps: terminal (crust), editor (slate), files | hydrogen | T63 T57 T55 | TODO |
 | T65 | P4 | spelunk | HTML and CSS parsers | hydrogen |  | PASS |
 | T66 | P4 | spelunk | cascade, block and inline layout, flex subset | argon-high | T65 T60 | TODO |
+| T66b | P4 | spelunk | flex layout subset | haiku | T66a | RUNNING |
 | T66a | P4 | spelunk | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | PASS |
 | T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
 | T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | PASS |
 | T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
 | T70a | P4 | tectonic | audio mixer, scene stack, input record and replay | hydrogen | T69 | PASS |
-| T70 | P4 | tectonic | (T70b) Mica scripting, one original small game | hydrogen | T70a T18 | TODO |
+| T70 | P4 | tectonic | (T70b) Mica scripting, one original small game | hydrogen | T70a T18 | RUNNING |
 | T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Quartz + Mantle on a canvas, Mica playground | argon | T28 T18 | TODO |
 | T72 | P5 | lapidary | IDE shell: editor, file tree, terminal, run, test | claude | T71 T55 | TODO |
 | T73 | P5 | lapidary | language service: errors, hover, go to definition, format | hydrogen | T10 T72 | TODO |
@@ -157,6 +160,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen | T42 T50 T47 | TODO |
 | T78 | P6 | bench | load tools and numbers for outcrop, varve, tremor, seam in `docs/BENCH.md` | hydrogen | T77 | TODO |
 | T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
+| T79a | P6 | fuzz | soak of idle crates (outcrop chisel geode drillcore cairn crust shale tremor mica pigment quartz) | hydrogen | - | RUNNING |
 | T80 | P6 | review | security review of every crate, one report each | argon | all | TODO |
 | T81 | P6 | docs | README and runnable example per system, architecture book | flash | all | TODO |
 | T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | PASS |
