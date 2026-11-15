@@ -78,7 +78,7 @@ impl Fx {
         let base = self.0 >> 16;
         let frac = self.0 & 0xFFFF;
         let up = frac > 0x8000 || (frac == 0x8000 && self.0 >= 0);
-        Fx((base + i64::from(up)) << 16)
+        sat((i128::from(base) + i128::from(up)) << 16)
     }
 
     /// Whole part, rounded down.

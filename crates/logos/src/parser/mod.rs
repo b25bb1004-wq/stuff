@@ -150,15 +150,19 @@ impl P {
     }
 
     fn enter(&mut self) -> Result<(), Diag> {
-        self.depth += 1;
-        if self.depth > MAX_DEPTH {
+        if self.depth >= MAX_DEPTH {
             return Err(self.fail(self.span(), "nesting too deep (limit is 200 levels)"));
         }
+        self.depth += 1;
         Ok(())
     }
 
     fn leave(&mut self) {
         self.depth = self.depth.saturating_sub(1);
+    }
+
+    fn leave_n(&mut self, n: u32) {
+        self.depth = self.depth.saturating_sub(n);
     }
 
     fn skip_terms(&mut self) {

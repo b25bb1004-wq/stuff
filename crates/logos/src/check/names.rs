@@ -6,11 +6,14 @@ use crate::ast::{
 use crate::ir::{Builtin, FuncId, Lit, Ty, TypeId, TypeInfo, TypeKind};
 use crate::span::{Diag, Span};
 use alloc::boxed::Box;
+use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 
 pub(super) const BUILTIN_LAYERS: [&str; 7] = ["io", "fs", "net", "time", "rand", "chain", "sys"];
+const MAX_CONST_STR_BYTES: usize = 1024 * 1024;
+const MAX_TOTAL_CONST_STR_BYTES: usize = 16 * 1024 * 1024;
 type ConstRes = Result<(Lit, Ty), Diag>;
 
 pub(super) fn resolve_builtin(name: &str) -> Option<Builtin> {
@@ -55,9 +58,14 @@ impl Env {
             layers: BUILTIN_LAYERS.iter().map(|s| String::from(*s)).collect(),
             types: Vec::new(),
             type_names: Vec::new(),
+            type_map: BTreeMap::new(),
             variants: Vec::new(),
+            variant_map: BTreeMap::new(),
             consts: Vec::new(),
+            const_map: BTreeMap::new(),
             funcs: Vec::new(),
+            func_map: BTreeMap::new(),
+            const_str_bytes: 0,
             main: None,
         };
         let (mut type_defs, mut const_defs, mut fn_defs) = (Vec::new(), Vec::new(), Vec::new());
@@ -78,6 +86,7 @@ impl Env {
                     }
                     let id = env.types.len() as TypeId;
                     env.type_names.push((t.name.name.clone(), id));
+                    env.type_map.insert(t.name.name.clone(), id);
                     let kind = TypeKind::Record(Vec::new());
                     env.types.push(TypeInfo {
                         name: t.name.name.clone(),
@@ -88,8 +97,9 @@ impl Env {
                 Item::Const(c) => {
                     env.check_top_value_name(&c.name)?;
                     let name = c.name.name.clone();
+                    let idx = env.consts.len();
+                    env.const_map.insert(name, idx);
                     env.consts.push(ConstEntry {
-                        name,
                         ty: Ty::Unit,
                         lit: Lit::Unit,
                     });
@@ -102,6 +112,7 @@ impl Env {
                         matches!(f.body, FnBody::Extern { .. }),
                     );
                     let name = f.name.name.clone();
+                    env.func_map.insert(name.clone(), id as usize);
                     env.funcs.push(FuncEntry {
                         name,
                         id,
@@ -129,9 +140,10 @@ impl Env {
             let tid = i as TypeId;
             let kind = match &t.body {
                 TypeBody::Record(fields) => {
-                    let mut out: Vec<(String, Ty)> = Vec::with_capacity(fields.len());
+                    let (mut seen_fields, mut out) =
+                        (BTreeSet::new(), Vec::with_capacity(fields.len()));
                     for f in fields {
-                        if out.iter().any(|(n, _)| n == &f.name.name) {
+                        if !seen_fields.insert(f.name.name.as_str()) {
                             return err(f.name.span, format!("duplicate field '{}'", f.name.name));
                         }
                         out.push((f.name.name.clone(), self.resolve_ty(&f.ty, 0)?));
@@ -153,11 +165,12 @@ impl Env {
                         }
                         let name = v.name.name.clone();
                         let ve = VariantEntry {
-                            name: name.clone(),
                             type_id: tid,
                             tag: tag as u32,
                             fields: f_tys.clone(),
                         };
+                        let v_idx = self.variants.len();
+                        self.variant_map.insert(name.clone(), v_idx);
                         self.variants.push(ve);
                         out.push((name, f_tys));
                     }
@@ -171,15 +184,14 @@ impl Env {
 
     fn resolve_all_funcs(&mut self, fn_defs: &[&FnDef]) -> Result<(), Diag> {
         for (i, f) in fn_defs.iter().enumerate() {
-            let (mut seen, mut params) = (Vec::new(), Vec::with_capacity(f.params.len()));
+            let (mut seen, mut params) = (BTreeSet::new(), Vec::with_capacity(f.params.len()));
             for p in &f.params {
-                if p.name.name != "_" && seen.contains(&p.name.name.as_str()) {
+                if p.name.name != "_" && !seen.insert(p.name.name.as_str()) {
                     return err(
                         p.name.span,
                         format!("duplicate parameter '{}'", p.name.name),
                     );
                 }
-                seen.push(p.name.name.as_str());
                 params.push(self.resolve_ty(&p.ty, 0)?);
             }
             let ret = f
@@ -322,7 +334,7 @@ impl Env {
             Expr::Str { value, .. } => Ok((Lit::Str(value.clone()), Ty::Str)),
             Expr::Unit { .. } => Ok((Lit::Unit, Ty::Unit)),
             Expr::Name(id) => {
-                let Some(c_idx) = self.consts.iter().position(|c| c.name == id.name) else {
+                let Some(&c_idx) = self.const_map.get(&id.name) else {
                     return err(
                         id.span,
                         format!("'{}' is not a constant in constant expression", id.name),
@@ -344,7 +356,7 @@ impl Env {
             Expr::Binary { op, lhs, rhs, span } => {
                 let (l, lty) = self.eval_const_expr(lhs, defs, st, d + 1)?;
                 let (r, rty) = self.eval_const_expr(rhs, defs, st, d + 1)?;
-                eval_const_bin(*op, l, lty, r, rty, *span)
+                eval_const_bin(*op, l, lty, r, rty, *span, &mut self.const_str_bytes)
             }
             _ => err(
                 expr_span(e),
@@ -354,7 +366,15 @@ impl Env {
     }
 }
 
-fn eval_const_bin(op: BinOp, l: Lit, lty: Ty, r: Lit, rty: Ty, span: Span) -> ConstRes {
+fn eval_const_bin(
+    op: BinOp,
+    l: Lit,
+    lty: Ty,
+    r: Lit,
+    rty: Ty,
+    span: Span,
+    const_str_bytes: &mut usize,
+) -> ConstRes {
     if lty != rty {
         return err(span, "type mismatch in constant binary expression");
     }
@@ -370,7 +390,16 @@ fn eval_const_bin(op: BinOp, l: Lit, lty: Ty, r: Lit, rty: Ty, span: Span) -> Co
             _ => err(span, "invalid operator on bool in constant"),
         },
         (Lit::Str(a), Lit::Str(b)) => match op {
-            BinOp::Add => Ok((Lit::Str(format!("{a}{b}")), Ty::Str)),
+            BinOp::Add => {
+                let new_len = a.len().saturating_add(b.len());
+                if new_len > MAX_CONST_STR_BYTES
+                    || const_str_bytes.saturating_add(new_len) > MAX_TOTAL_CONST_STR_BYTES
+                {
+                    return err(span, "constant string exceeds size limit");
+                }
+                *const_str_bytes += new_len;
+                Ok((Lit::Str(format!("{a}{b}")), Ty::Str))
+            }
             BinOp::Eq => boolean(a == b),
             BinOp::Ne => boolean(a != b),
             BinOp::Lt => boolean(a < b),

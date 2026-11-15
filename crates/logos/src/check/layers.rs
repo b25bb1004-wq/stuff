@@ -6,6 +6,7 @@ use crate::ast::{Block, Expr, FnBody, Item, Module, Stmt};
 use crate::ir::{Builtin, FuncId, Inst, Reg, Ty};
 use crate::span::{Diag, Span};
 use alloc::boxed::Box;
+use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -19,34 +20,51 @@ impl LayerGraph {
     pub(super) fn build(env: &Env, m: &Module) -> Self {
         let n = env.funcs.len();
         let mut direct_calls = alloc::vec![Vec::new(); n];
+        let mut callers = alloc::vec![Vec::new(); n];
         let mut trans_layers: Vec<u64> = env.funcs.iter().map(|f| f.layers).collect();
         let mut fn_idx = 0usize;
         for item in &m.items {
             if let Item::Fn(f) = item {
                 if let FnBody::Block(b) = &f.body {
-                    let mut calls = Vec::new();
-                    let mut locals: Vec<String> =
-                        f.params.iter().map(|p| p.name.name.clone()).collect();
+                    let mut calls = BTreeSet::new();
+                    let mut locals: BTreeMap<String, usize> = BTreeMap::new();
+                    for p in &f.params {
+                        *locals.entry(p.name.name.clone()).or_insert(0) += 1;
+                    }
                     scan_block(env, b, &mut locals, &mut calls, 0);
-                    direct_calls[fn_idx] = calls;
+                    let list: Vec<FuncId> = calls.into_iter().collect();
+                    for &callee in &list {
+                        callers[callee as usize].push(fn_idx as FuncId);
+                    }
+                    direct_calls[fn_idx] = list;
                 }
                 fn_idx += 1;
             }
         }
-        for _ in 0..n {
-            let mut changed = false;
-            for i in 0..n {
-                let mut mask = trans_layers[i];
-                for &callee in &direct_calls[i] {
-                    mask |= trans_layers[callee as usize];
-                }
-                if mask != trans_layers[i] {
-                    trans_layers[i] = mask;
-                    changed = true;
-                }
+        let mut queue = Vec::new();
+        let mut in_queue = alloc::vec![false; n];
+        for (i, &mask) in trans_layers.iter().enumerate() {
+            if mask != 0 {
+                queue.push(i as FuncId);
+                in_queue[i] = true;
             }
-            if !changed {
-                break;
+        }
+        let mut head = 0usize;
+        while head < queue.len() {
+            let v = queue[head] as usize;
+            head += 1;
+            in_queue[v] = false;
+            let v_mask = trans_layers[v];
+            for &u in &callers[v] {
+                let ui = u as usize;
+                let new_mask = trans_layers[ui] | v_mask;
+                if new_mask != trans_layers[ui] {
+                    trans_layers[ui] = new_mask;
+                    if !in_queue[ui] {
+                        in_queue[ui] = true;
+                        queue.push(u);
+                    }
+                }
             }
         }
         Self {
@@ -342,16 +360,37 @@ pub(super) fn check_assignable(env: &Env, act: &Ty, exp: &Ty, span: Span) -> Res
     )
 }
 
-fn scan_block(env: &Env, b: &Block, locals: &mut Vec<String>, calls: &mut Vec<FuncId>, d: u32) {
+fn push_local(locals: &mut BTreeMap<String, usize>, name: &str) {
+    *locals.entry(String::from(name)).or_insert(0) += 1;
+}
+
+fn pop_local(locals: &mut BTreeMap<String, usize>, name: &str) {
+    if let Some(count) = locals.get_mut(name) {
+        if *count <= 1 {
+            locals.remove(name);
+        } else {
+            *count -= 1;
+        }
+    }
+}
+
+fn scan_block(
+    env: &Env,
+    b: &Block,
+    locals: &mut BTreeMap<String, usize>,
+    calls: &mut BTreeSet<FuncId>,
+    d: u32,
+) {
     if d > super::MAX_DEPTH {
         return;
     }
-    let saved = locals.len();
+    let mut added = Vec::new();
     for s in &b.stmts {
         match s {
             Stmt::Let { name, value, .. } => {
                 scan_expr(env, value, locals, calls, d + 1);
-                locals.push(name.name.clone());
+                push_local(locals, &name.name);
+                added.push(name.name.clone());
             }
             Stmt::Return { value: Some(e), .. } | Stmt::Expr { expr: e, .. } => {
                 scan_expr(env, e, locals, calls, d + 1)
@@ -365,10 +404,9 @@ fn scan_block(env: &Env, b: &Block, locals: &mut Vec<String>, calls: &mut Vec<Fu
                 var, iter, body, ..
             } => {
                 scan_expr(env, iter, locals, calls, d + 1);
-                let n = locals.len();
-                locals.push(var.name.clone());
+                push_local(locals, &var.name);
                 scan_block(env, body, locals, calls, d + 1);
-                locals.truncate(n);
+                pop_local(locals, &var.name);
             }
             Stmt::Assert { cond, msg, .. } => {
                 scan_expr(env, cond, locals, calls, d + 1);
@@ -382,19 +420,25 @@ fn scan_block(env: &Env, b: &Block, locals: &mut Vec<String>, calls: &mut Vec<Fu
             }
         }
     }
-    locals.truncate(saved);
+    for name in added {
+        pop_local(locals, &name);
+    }
 }
 
-fn scan_expr(env: &Env, e: &Expr, locals: &mut Vec<String>, calls: &mut Vec<FuncId>, d: u32) {
+fn scan_expr(
+    env: &Env,
+    e: &Expr,
+    locals: &mut BTreeMap<String, usize>,
+    calls: &mut BTreeSet<FuncId>,
+    d: u32,
+) {
     if d > super::MAX_DEPTH {
         return;
     }
     let mut rec = |id: &crate::ast::Ident| {
-        if !locals.iter().any(|l| l == &id.name) {
+        if !locals.contains_key(&id.name) {
             if let Some(f) = env.find_func(&id.name) {
-                if !calls.contains(&f.id) {
-                    calls.push(f.id);
-                }
+                calls.insert(f.id);
             }
         }
     };

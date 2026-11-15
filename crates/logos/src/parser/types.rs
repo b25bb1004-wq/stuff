@@ -22,13 +22,20 @@ impl P {
     fn ty_body(&mut self) -> Result<Type, Diag> {
         let start = self.span();
         let mut t = self.base_type()?;
-        while self.eat(&Tok::Question) {
-            t = Type::Option {
-                inner: Box::new(t),
-                span: self.since(start),
-            };
-        }
-        Ok(t)
+        let mut added = 0u32;
+        let res = (|| {
+            while self.eat(&Tok::Question) {
+                self.enter()?;
+                added += 1;
+                t = Type::Option {
+                    inner: Box::new(t),
+                    span: self.since(start),
+                };
+            }
+            Ok(t)
+        })();
+        self.leave_n(added);
+        res
     }
 
     fn base_type(&mut self) -> Result<Type, Diag> {

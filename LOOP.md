@@ -109,7 +109,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T23 | P2 | silicon | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
 | T24 | P2 | lithium | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | haiku | T22 T23 | PASS |
 | T25 | P2 | titan | Rust kernel: boot shim, traps, Sv39, heap (midas), console | argon-high | T23 T16 T13a | PASS |
-| T26 | P2 | titan | processes, user mode, syscalls, scheduler (kairos), ELF loading | opus-high | T25 T05 | RUNNING |
+| T26 | P2 | titan | processes, user mode, syscalls, scheduler (kairos), ELF loading | opus-high | T25 T05 | TODO |
 | T27 | P2 | titan | block driver, hades mounted, file syscalls | argon | T26 T07 | TODO |
 | T28 | P2 | titan | userland: init, shell (krypton), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
 | T29 | P2 | cobalt | Logos IR to RV64 code, linear-scan registers, ELF out | opus-high | T10 T22 | PASS |
@@ -214,8 +214,8 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T80i | P6 | review | security review silicon, findings proven by tests | hydrogen-high | - | PASS |
 | T80j | P6 | review | security review hades, findings proven by tests | hydrogen-high | - | RUNNING |
 | T80k | P6 | review | security review sphinx + medusa, findings proven by tests | hydrogen-high | - | PASS |
-| T80l | P6 | review | security review logos, findings proven by tests | hydrogen-high | - | RUNNING |
-| T80m | P6 | review | security review helios, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80l | P6 | review | security review logos, findings proven by tests | hydrogen-high | - | PASS |
+| T80m | P6 | review | security review helios, findings proven by tests | hydrogen-high | - | PASS |
 | T81i | P6 | docs | README + demo elysium logos | haiku | - | PASS |
 | T81j | P6 | docs | README + demo sphinx pigment | haiku | - | PASS |
 | T81k | P6 | docs | README + demo midas silicon | haiku | - | PASS |
@@ -351,3 +351,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-15 | T80g | agy hydrogen-high | - | PASS | elysium: no findings, 10 attack tests
 - 2026-11-15 | T80k | agy hydrogen-high | - | PASS | sphinx: ed25519 accepted small-order public keys (forgery); fixed, proven
 - 2026-11-15 | T80i | agy hydrogen-high | - | PASS | silicon: display size u64 overflow panic; fixed, proven
+- 2026-11-15 | T26 | agy opus-high | - | STOPPED | agy opus quota 429, resets ~4h50m; partial titan edits left uncommitted
+- 2026-11-15 | T80l | agy hydrogen-high | - | PASS | logos: parser depth, exhaustiveness hang, const str OOM; proven (perf rewrite not proven)
+- 2026-11-15 | T80m | agy hydrogen-high | - | PASS | helios: tone alloc, script log, Fx::round; proven

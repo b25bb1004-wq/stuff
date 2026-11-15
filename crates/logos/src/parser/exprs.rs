@@ -73,15 +73,22 @@ impl P {
     pub(super) fn expr_body(&mut self) -> Result<Expr, Diag> {
         let start = self.span();
         let mut lhs = self.binary(1)?;
-        while self.eat(&Tok::PipeArrow) {
-            let rhs = self.postfix()?;
-            lhs = Expr::Pipe {
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-                span: self.since(start),
-            };
-        }
-        Ok(lhs)
+        let mut added = 0u32;
+        let res = (|| {
+            while self.eat(&Tok::PipeArrow) {
+                self.enter()?;
+                added += 1;
+                let rhs = self.postfix()?;
+                lhs = Expr::Pipe {
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                    span: self.since(start),
+                };
+            }
+            Ok(lhs)
+        })();
+        self.leave_n(added);
+        res
     }
 
     fn binary(&mut self, min: u8) -> Result<Expr, Diag> {
@@ -89,31 +96,38 @@ impl P {
         let mut lhs = self.unary()?;
         // Comparisons and ranges do not chain: a second operator of the same level stops here.
         let mut chained: Option<u8> = None;
-        while let Some((prec, op)) = binop(self.tok()) {
-            if prec < min || chained == Some(prec) {
-                break;
+        let mut added = 0u32;
+        let res = (|| {
+            while let Some((prec, op)) = binop(self.tok()) {
+                if prec < min || chained == Some(prec) {
+                    break;
+                }
+                self.enter()?;
+                added += 1;
+                self.bump();
+                let rhs = self.binary(prec + 1)?;
+                let span = self.since(start);
+                lhs = match op {
+                    Op::Bin(b) => Expr::Binary {
+                        op: b,
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
+                        span,
+                    },
+                    Op::Range => Expr::Range {
+                        start: Box::new(lhs),
+                        end: Box::new(rhs),
+                        span,
+                    },
+                };
+                if prec == 3 || prec == 4 {
+                    chained = Some(prec);
+                }
             }
-            self.bump();
-            let rhs = self.binary(prec + 1)?;
-            let span = self.since(start);
-            lhs = match op {
-                Op::Bin(b) => Expr::Binary {
-                    op: b,
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                    span,
-                },
-                Op::Range => Expr::Range {
-                    start: Box::new(lhs),
-                    end: Box::new(rhs),
-                    span,
-                },
-            };
-            if prec == 3 || prec == 4 {
-                chained = Some(prec);
-            }
-        }
-        Ok(lhs)
+            Ok(lhs)
+        })();
+        self.leave_n(added);
+        res
     }
 
     fn unary(&mut self) -> Result<Expr, Diag> {
@@ -159,64 +173,76 @@ impl P {
     }
 
     fn postfix_rest(&mut self, start: Span, mut e: Expr) -> Result<Expr, Diag> {
-        loop {
-            match *self.tok() {
-                Tok::LParen => {
-                    self.bump();
-                    let args = self.normal(|p| {
-                        p.list(
-                            &Tok::RParen,
-                            "')' to close the call",
-                            "expression",
-                            true,
-                            true,
-                            |p| p.expr(),
-                        )
-                    })?;
-                    e = Expr::Call {
-                        callee: Box::new(e),
-                        args,
-                        span: self.since(start),
-                    };
-                }
-                Tok::LBracket => {
-                    self.bump();
-                    let index = self.normal(|p| p.expr())?;
-                    self.expect(&Tok::RBracket, "']' to close the index")?;
-                    e = Expr::Index {
-                        base: Box::new(e),
-                        index: Box::new(index),
-                        span: self.since(start),
-                    };
-                }
-                Tok::Dot => {
-                    self.bump();
-                    match self.tok().clone() {
-                        Tok::LIdent(name) => {
-                            let t = self.bump();
-                            e = Expr::Field {
-                                base: Box::new(e),
-                                name: Ident { name, span: t.span },
-                                span: self.since(start),
-                            };
-                        }
-                        Tok::Int(v) => {
-                            let t = self.bump();
-                            let index = u32::try_from(v)
-                                .map_err(|_| self.fail(t.span, "tuple index is out of range"))?;
-                            e = Expr::TupleField {
-                                base: Box::new(e),
-                                index,
-                                span: self.since(start),
-                            };
-                        }
-                        _ => return Err(self.expected("field name or tuple index after '.'")),
+        let mut added = 0u32;
+        let res = (|| {
+            loop {
+                match *self.tok() {
+                    Tok::LParen => {
+                        self.enter()?;
+                        added += 1;
+                        self.bump();
+                        let args = self.normal(|p| {
+                            p.list(
+                                &Tok::RParen,
+                                "')' to close the call",
+                                "expression",
+                                true,
+                                true,
+                                |p| p.expr(),
+                            )
+                        })?;
+                        e = Expr::Call {
+                            callee: Box::new(e),
+                            args,
+                            span: self.since(start),
+                        };
                     }
+                    Tok::LBracket => {
+                        self.enter()?;
+                        added += 1;
+                        self.bump();
+                        let index = self.normal(|p| p.expr())?;
+                        self.expect(&Tok::RBracket, "']' to close the index")?;
+                        e = Expr::Index {
+                            base: Box::new(e),
+                            index: Box::new(index),
+                            span: self.since(start),
+                        };
+                    }
+                    Tok::Dot => {
+                        self.enter()?;
+                        added += 1;
+                        self.bump();
+                        match self.tok().clone() {
+                            Tok::LIdent(name) => {
+                                let t = self.bump();
+                                e = Expr::Field {
+                                    base: Box::new(e),
+                                    name: Ident { name, span: t.span },
+                                    span: self.since(start),
+                                };
+                            }
+                            Tok::Int(v) => {
+                                let t = self.bump();
+                                let index = u32::try_from(v).map_err(|_| {
+                                    self.fail(t.span, "tuple index is out of range")
+                                })?;
+                                e = Expr::TupleField {
+                                    base: Box::new(e),
+                                    index,
+                                    span: self.since(start),
+                                };
+                            }
+                            _ => return Err(self.expected("field name or tuple index after '.'")),
+                        }
+                    }
+                    _ => break,
                 }
-                _ => break,
             }
-        }
-        Ok(e)
+            Ok(e)
+        })();
+        self.leave_n(added);
+        res
     }
 
     fn primary(&mut self) -> Result<Expr, Diag> {

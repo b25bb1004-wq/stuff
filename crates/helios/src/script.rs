@@ -3,7 +3,6 @@
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::fmt::Write as _;
 
 use elysium::{Heap, Host, Limits, Obj, Trap, Value, Vm};
 use logos::ir::{Body, Ty};
@@ -15,6 +14,7 @@ use crate::scene::{Command, Scene};
 const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
 const FNV_PRIME: u64 = 0x0100_0000_01b3;
 const SLOT_COUNT: usize = 256;
+const MAX_LOG_BYTES: usize = 64 * 1024;
 
 const HOST_NAMES: &[&str] = &[
     "game.keys",
@@ -66,6 +66,18 @@ impl ScriptHost {
             log: String::new(),
             quit_requested: false,
         }
+    }
+
+    fn push_log(&mut self, s: &str) {
+        let avail = MAX_LOG_BYTES.saturating_sub(self.log.len());
+        if avail == 0 {
+            return;
+        }
+        let mut end = avail.min(s.len());
+        while !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        self.log.push_str(&s[..end]);
     }
 
     fn rand_below(&mut self, n: i64) -> i64 {
@@ -171,7 +183,7 @@ impl Host for ScriptHost {
                 };
                 match heap.get(h)? {
                     Obj::Str(s) => {
-                        self.log.push_str(s);
+                        self.push_log(s);
                         Ok(Value::Unit)
                     }
                     _ => Err(Trap::TypeError),
@@ -273,7 +285,10 @@ impl ScriptScene {
     }
 
     fn record_trap(&mut self, trap: &Trap, out: &mut Vec<Command>) {
-        let _ = writeln!(self.host.log, "trap: {trap:?}");
+        if self.host.log.len() < MAX_LOG_BYTES {
+            let msg = format!("trap: {trap:?}\n");
+            self.host.push_log(&msg);
+        }
         out.push(Command::Pop);
     }
 }

@@ -4,6 +4,7 @@ use crate::ir::{
     Body, Func, FuncId, Inst, Lit, Program, Prop, Reg, Ty, TypeId, TypeInfo, TypeKind,
 };
 use crate::span::{Diag, Span};
+use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -25,7 +26,6 @@ pub(super) type ExprRes = Result<(Reg, Ty, bool), Diag>;
 
 #[derive(Clone)]
 pub(super) struct VariantEntry {
-    pub name: String,
     pub type_id: TypeId,
     pub tag: u32,
     pub fields: Vec<Ty>,
@@ -33,7 +33,6 @@ pub(super) struct VariantEntry {
 
 #[derive(Clone)]
 pub(super) struct ConstEntry {
-    pub name: String,
     pub ty: Ty,
     pub lit: Lit,
 }
@@ -52,27 +51,29 @@ pub(super) struct Env {
     pub layers: Vec<String>,
     pub types: Vec<TypeInfo>,
     pub type_names: Vec<(String, TypeId)>,
+    pub type_map: BTreeMap<String, TypeId>,
     pub variants: Vec<VariantEntry>,
+    pub variant_map: BTreeMap<String, usize>,
     pub consts: Vec<ConstEntry>,
+    pub const_map: BTreeMap<String, usize>,
     pub funcs: Vec<FuncEntry>,
+    pub func_map: BTreeMap<String, usize>,
+    pub const_str_bytes: usize,
     pub main: Option<FuncId>,
 }
 
 impl Env {
     pub(super) fn find_type(&self, name: &str) -> Option<TypeId> {
-        self.type_names
-            .iter()
-            .find(|(n, _)| n == name)
-            .map(|(_, id)| *id)
+        self.type_map.get(name).copied()
     }
     pub(super) fn find_variant(&self, name: &str) -> Option<&VariantEntry> {
-        self.variants.iter().find(|v| v.name == name)
+        self.variant_map.get(name).map(|&i| &self.variants[i])
     }
     pub(super) fn find_const(&self, name: &str) -> Option<&ConstEntry> {
-        self.consts.iter().find(|c| c.name == name)
+        self.const_map.get(name).map(|&i| &self.consts[i])
     }
     pub(super) fn find_func(&self, name: &str) -> Option<&FuncEntry> {
-        self.funcs.iter().find(|f| f.name == name)
+        self.func_map.get(name).map(|&i| &self.funcs[i])
     }
 }
 
@@ -183,15 +184,14 @@ fn check_test_def(env: &Env, lg: &LayerGraph, t: &TestDef) -> Result<Func, Diag>
 }
 
 fn check_prop_def(env: &Env, lg: &LayerGraph, p: &PropDef) -> Result<(Option<Func>, Func), Diag> {
-    let (mut seen, mut p_tys) = (Vec::new(), Vec::with_capacity(p.params.len()));
+    let (mut seen, mut p_tys) = (BTreeSet::new(), Vec::with_capacity(p.params.len()));
     for param in &p.params {
-        if param.name.name != "_" && seen.contains(&param.name.name.as_str()) {
+        if param.name.name != "_" && !seen.insert(param.name.name.as_str()) {
             return err(
                 param.name.span,
                 format!("duplicate parameter '{}'", param.name.name),
             );
         }
-        seen.push(param.name.name.as_str());
         p_tys.push(env.resolve_ty(&param.ty, 0)?);
     }
     let guard_fn = if let Some(cond) = &p.cond {
@@ -305,9 +305,12 @@ const WILD_PAT: Pattern = Pattern::Wild {
     span: Span { start: 0, end: 0 },
 };
 
+const MAX_EXHAUSTIVE_STEPS: usize = 50_000;
+
 pub(super) fn is_exhaustive(types: &[TypeInfo], ty: &Ty, pats: &[&Pattern], depth: u32) -> bool {
     let rows: Vec<Vec<&Pattern>> = pats.iter().map(|&p| alloc::vec![p]).collect();
-    is_exhaustive_rows(types, core::slice::from_ref(ty), &rows, depth)
+    let mut steps = 0usize;
+    is_exhaustive_rows(types, core::slice::from_ref(ty), &rows, depth, &mut steps)
 }
 
 fn is_wild(p: &Pattern) -> bool {
@@ -319,16 +322,26 @@ fn expand<'a>(mut prefix: Vec<&'a Pattern>, rest: &[&'a Pattern]) -> Vec<&'a Pat
     prefix
 }
 
-fn is_exhaustive_rows(types: &[TypeInfo], tys: &[Ty], rows: &[Vec<&Pattern>], d: u32) -> bool {
-    if rows.is_empty() || d > 64 {
+fn is_exhaustive_rows(
+    types: &[TypeInfo],
+    tys: &[Ty],
+    rows: &[Vec<&Pattern>],
+    d: u32,
+    steps: &mut usize,
+) -> bool {
+    *steps += 1;
+    if *steps > MAX_EXHAUSTIVE_STEPS || rows.is_empty() || d > 64 {
         return false;
     }
     let Some((first_ty, rest_tys)) = tys.split_first() else {
         return true;
     };
+    if rows.iter().any(|r| r.iter().all(|p| is_wild(p))) {
+        return true;
+    }
     if rows.iter().all(|r| is_wild(r[0])) {
         let next: Vec<Vec<&Pattern>> = rows.iter().map(|r| r[1..].to_vec()).collect();
-        return is_exhaustive_rows(types, rest_tys, &next, d + 1);
+        return is_exhaustive_rows(types, rest_tys, &next, d + 1, steps);
     }
     match first_ty {
         Ty::Bool => [true, false].into_iter().all(|b| {
@@ -339,7 +352,7 @@ fn is_exhaustive_rows(types: &[TypeInfo], tys: &[Ty], rows: &[Vec<&Pattern>], d:
                 })
                 .map(|r| r[1..].to_vec())
                 .collect();
-            is_exhaustive_rows(types, rest_tys, &sub, d + 1)
+            is_exhaustive_rows(types, rest_tys, &sub, d + 1, steps)
         }),
         Ty::Opt(inner) => {
             let n_rows: Vec<Vec<&Pattern>> = rows
@@ -358,8 +371,8 @@ fn is_exhaustive_rows(types: &[TypeInfo], tys: &[Ty], rows: &[Vec<&Pattern>], d:
                     _ => None,
                 })
                 .collect();
-            is_exhaustive_rows(types, rest_tys, &n_rows, d + 1)
-                && is_exhaustive_rows(types, &s_tys, &s_rows, d + 1)
+            is_exhaustive_rows(types, rest_tys, &n_rows, d + 1, steps)
+                && is_exhaustive_rows(types, &s_tys, &s_rows, d + 1, steps)
         }
         Ty::Named(tid) => match &types[*tid as usize].kind {
             TypeKind::Variants(vars) => vars.iter().all(|(vname, vfields)| {
@@ -376,7 +389,7 @@ fn is_exhaustive_rows(types: &[TypeInfo], tys: &[Ty], rows: &[Vec<&Pattern>], d:
                         _ => None,
                     })
                     .collect();
-                is_exhaustive_rows(types, &vtys, &vrows, d + 1)
+                is_exhaustive_rows(types, &vtys, &vrows, d + 1, steps)
             }),
             TypeKind::Record(_) => false,
         },
@@ -392,7 +405,7 @@ fn is_exhaustive_rows(types: &[TypeInfo], tys: &[Ty], rows: &[Vec<&Pattern>], d:
                     _ => None,
                 })
                 .collect();
-            is_exhaustive_rows(types, &ttys, &trows, d + 1)
+            is_exhaustive_rows(types, &ttys, &trows, d + 1, steps)
         }
         _ => {
             let w: Vec<Vec<&Pattern>> = rows
@@ -400,7 +413,7 @@ fn is_exhaustive_rows(types: &[TypeInfo], tys: &[Ty], rows: &[Vec<&Pattern>], d:
                 .filter(|r| is_wild(r[0]))
                 .map(|r| r[1..].to_vec())
                 .collect();
-            is_exhaustive_rows(types, rest_tys, &w, d + 1)
+            is_exhaustive_rows(types, rest_tys, &w, d + 1, steps)
         }
     }
 }
@@ -421,16 +434,21 @@ pub(crate) fn validate(p: &Program) -> Result<(), Diag> {
             {
                 return err(dummy, "invalid code body terminator or spans");
             }
-            let (mut defined, mut used, nr) = (Vec::new(), Vec::new(), func.regs.len() as u32);
+            let (mut defined, mut used, nr) =
+                (BTreeSet::new(), BTreeSet::new(), func.regs.len() as u32);
             for inst in insts {
                 if !valid_inst_regs(inst, &func.regs, nr) {
                     return err(dummy, "invalid register or binop in IR");
                 }
                 match inst {
-                    Inst::Label(l) if defined.contains(l) => return err(dummy, "duplicate label"),
-                    Inst::Label(l) => defined.push(*l),
-                    Inst::Jump(l) => used.push(*l),
-                    Inst::Branch(_, l1, l2) => used.extend_from_slice(&[*l1, *l2]),
+                    Inst::Label(l) if !defined.insert(*l) => return err(dummy, "duplicate label"),
+                    Inst::Jump(l) => {
+                        used.insert(*l);
+                    }
+                    Inst::Branch(_, l1, l2) => {
+                        used.insert(*l1);
+                        used.insert(*l2);
+                    }
                     _ => {}
                 }
             }

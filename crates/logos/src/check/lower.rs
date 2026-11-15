@@ -5,13 +5,13 @@ use super::{check_pattern_ty, is_exhaustive, Env, ExprRes, MAX_DEPTH};
 use crate::ast::{Arm, BinOp, Block, Expr, Ident, Pattern, UnOp};
 use crate::ir::{Body, Builtin, Func, FuncId, Inst, Label, Lit, Reg, Ty, TypeKind};
 use crate::span::{Diag, Span};
+use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 
 #[derive(Clone)]
 pub(super) struct LocalVar {
-    pub name: String,
     pub reg: Reg,
     pub ty: Ty,
     pub mutable: bool,
@@ -29,7 +29,8 @@ pub(super) struct FnBuilder<'a> {
     pub insts: Vec<Inst>,
     pub spans: Vec<Span>,
     pub next_label: Label,
-    pub scopes: Vec<Vec<LocalVar>>,
+    pub scopes: Vec<Vec<String>>,
+    pub local_map: BTreeMap<String, Vec<(usize, LocalVar)>>,
     pub loops: Vec<(Label, Label)>,
     pub depth: u32,
 }
@@ -56,6 +57,7 @@ impl<'a> FnBuilder<'a> {
             spans: Vec::new(),
             next_label: 0,
             scopes: alloc::vec![Vec::new()],
+            local_map: BTreeMap::new(),
             loops: Vec::new(),
             depth: 0,
         }
@@ -110,7 +112,16 @@ impl<'a> FnBuilder<'a> {
     }
 
     pub(super) fn pop_scope(&mut self) {
-        self.scopes.pop();
+        if let Some(names) = self.scopes.pop() {
+            for name in names {
+                if let Some(stack) = self.local_map.get_mut(&name) {
+                    stack.pop();
+                    if stack.is_empty() {
+                        self.local_map.remove(&name);
+                    }
+                }
+            }
+        }
     }
 
     pub(super) fn define_local(
@@ -123,28 +134,26 @@ impl<'a> FnBuilder<'a> {
         if id.name == "_" {
             return Ok(());
         }
+        let depth = self.scopes.len().saturating_sub(1);
+        let stack = self.local_map.entry(id.name.clone()).or_default();
+        if stack.last().is_some_and(|(d, _)| *d == depth) {
+            return err(
+                id.span,
+                format!("duplicate variable '{}' in the same block", id.name),
+            );
+        }
+        stack.push((depth, LocalVar { reg, ty, mutable }));
         if let Some(cur) = self.scopes.last_mut() {
-            if cur.iter().any(|v| v.name == id.name) {
-                return err(
-                    id.span,
-                    format!("duplicate variable '{}' in the same block", id.name),
-                );
-            }
-            cur.push(LocalVar {
-                name: id.name.clone(),
-                reg,
-                ty,
-                mutable,
-            });
+            cur.push(id.name.clone());
         }
         Ok(())
     }
 
     pub(super) fn lookup_local(&self, name: &str) -> Option<&LocalVar> {
-        self.scopes
-            .iter()
-            .rev()
-            .find_map(|s| s.iter().rev().find(|v| v.name == name))
+        self.local_map
+            .get(name)
+            .and_then(|stack| stack.last())
+            .map(|(_, v)| v)
     }
 
     pub(super) fn expect_ty(

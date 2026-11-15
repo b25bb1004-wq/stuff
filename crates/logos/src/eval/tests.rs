@@ -102,7 +102,7 @@ fn main() uses io {
         "",
     );
     assert_eq!(out.result, Ok(()));
-    assert_eq!(out.output, "hi logos #7 len=10");
+    assert_eq!(out.output, "hi logos #7 len=11");
 }
 
 #[test]
