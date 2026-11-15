@@ -557,7 +557,9 @@ fn spring_case(rng: &mut Rng) {
     };
     let dt = rng.range(1, 17) as u32;
     // Integer state cannot creep below one unit, so the residual is bounded, not zero.
-    for _ in 0..1_000_000 {
+    // Overdamped extremes (stiffness 1, damping 900, dt 1) creep at the 1-unit nudge: about
+    // 1.9M steps across the 2M span, so 1M was too tight (T79 soak, 2026-11-16).
+    for _ in 0..4_000_000 {
         if s.settled() {
             break;
         }

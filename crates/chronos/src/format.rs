@@ -154,6 +154,10 @@ fn parse_tz(tz: &str) -> Result<i32, Error> {
         b'-' => true,
         _ => return Err(Error::Corrupt),
     };
+    // Byte-slicing below needs ASCII; a multibyte char here used to panic (T79 soak).
+    if !b[1..].iter().all(u8::is_ascii_digit) {
+        return Err(Error::Corrupt);
+    }
     let hh: i32 = tz[1..3].parse().map_err(|_| Error::Corrupt)?;
     let mm: i32 = tz[3..5].parse().map_err(|_| Error::Corrupt)?;
     if !(0..60).contains(&mm) {
