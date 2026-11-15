@@ -24,7 +24,8 @@
 - [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
-- [ ] Argon tasks (released to 5%): T31 quartz hypervisor brief + check first (quartz free), then D4 MANTLE.md + T25, then T66
+- [>] T31 quartz H extension: brief + hyp_leader.rs (own two-stage model, coverage 22% ok / 46% pf / 31% gpf), dispatched (argon-high)
+- [ ] Argon (released to 5%, ask % after T31): then D4 MANTLE.md + T25, then T66
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
@@ -101,7 +102,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T28 | P2 | mantle | userland: init, shell (crust), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
 | T29 | P2 | sinter | Mica IR to RV64 code, linear-scan registers, ELF out | argon-high | T10 T22 | TODO |
 | T30 | P2 | sinter | constant folding, dead code, copy propagation | hydrogen | T29 | TODO |
-| T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | TODO |
+| T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | RUNNING |
 | T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
 | T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
 | T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | hydrogen-high | T04 T20 D2 | TODO |
@@ -217,3 +218,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 07:20 T13 quartz PASS (hydrogen, 1 run): 110/110 riscv-tests, misaligned byte-wise, counter-write precedence, PMP storage; leader check 6/6 + fresh seed, workspace gate. Brief miss: 2 T12 tests asserted PMP reads 0; leader updated them to the T13 rule.
 - 2026-11-15 07:29 T39 dispatched (hydrogen-high). Operator released Argon down to 5%.
 - 2026-11-15 07:43 T39 varve PASS (hydrogen-high): leader check 9/9 + fresh seed, gate PASS; check fixed (fixed-length page contents).
+- 2026-11-15 07:45 T31 brief + leader check written (model self-test on two seeds), dispatched argon-high.
