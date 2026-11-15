@@ -202,8 +202,8 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
 | T84 | P6 | deploy | one public web image: site at /, Athena at /athena/, /healthz; services stay private; README public hosting | hydrogen-high | T75a T77 | PASS |
 | T85 | P5 | athena | proper app: VS Code-style workbench (activity bar, tabs, palette, panel, status bar), installable PWA, offline | hydrogen-high | T73 | PASS |
-| T86 | P6 | tools | a command-line tool per system, conventions in docs/APPS.md (D7), batches T86a-e | hydrogen-high | - | sphinx, argo, chronos, calliope, kairos, midas, silicon, hades, mercury, elysium PASS; T86g odyssey, T86m cobalt RUNNING; T86h-l, T86n-p queued |
-| T87 | P6 | apps | app kit, launcher /apps/, one installable app per system with an existing demo | hydrogen-high | T75b | RUNNING |
+| T86 | P6 | tools | a command-line tool per system, conventions in docs/APPS.md (D7), batches T86a-e | hydrogen-high | - | sphinx, argo, chronos, calliope, kairos, midas, silicon, hades, mercury, elysium PASS; odyssey, cobalt PASS; T86h-l running or judged next; T86n-p queued |
+| T87 | P6 | apps | app kit, launcher /apps/, one installable app per system with an existing demo | hydrogen-high | T75b | PASS |
 | T88 | P6 | apps | remaining apps with T75c visual demos | hydrogen-high | T87 T75c | TODO |
 | T79s | P6 | fuzz | soak aurum | haiku | - | PASS |
 | T79t | P6 | fuzz | soak indium | haiku | - | PASS |
@@ -386,3 +386,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T86d hades tool | hydrogen-high | n/a | PASS | leader image round trip mkfs/mkdir/put stdin/ls/cat/rm, fsck ok, missing file exit 1 (Git Bash needs MSYS_NO_PATHCONV=1 for /paths)
 - 2026-11-16 | T86e mercury tool | hydrogen-high | n/a | PASS | leader: serve site-web, get 200, wasm content type, parse stdin request, https exit 1
 - 2026-11-16 | T86f elysium tool | hydrogen-high | n/a | PASS | leader: junk and truncated modules exit 1, unknown command exit 2; good-module run waits for cobalt build (T86m)
+- 2026-11-16 | T87 apps | hydrogen-high | n/a | PASS | 17 apps + launcher; leader Chrome: all 3 examples in 10 apps (incl. error cases), history 3 stored/3 shown and click restores, input persists, mobile 356/356 with Input/Output tabs, server stopped: calliope and titan still load and run from the service worker; leader fix: chisel app had no launcher link (added under the grid, launcher stays 25 cards); bundle 4.7 MB
+- 2026-11-16 | T86g odyssey tool | hydrogen-high | n/a | PASS | leader: tree, select by class and id, bad selector exit 1, render of site index to an 800x330 PNG (non-ASCII glyphs draw as boxes)
+- 2026-11-16 | T86m cobalt tool | hydrogen-high | n/a | PASS | leader: cobalt build then elysium verify/run gives 25 (also closes the T86f good-module check); logos check/fmt left out (brief did not allow main.rs)

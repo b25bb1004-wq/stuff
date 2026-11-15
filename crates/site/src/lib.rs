@@ -4,6 +4,8 @@
 
 pub mod demos;
 #[cfg(not(target_arch = "wasm32"))]
+mod icons;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod pack;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;

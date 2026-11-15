@@ -29,6 +29,7 @@ kairos = { path = "../kairos", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 athena = { path = "../athena" }
+pigment = { path = "../pigment" }
 
 [dev-dependencies]
 assay = { path = "../assay" }

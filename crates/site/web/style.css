@@ -150,6 +150,18 @@ body {
   max-width: 66ch;
 }
 
+.hero-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-app {
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
 .story-grid {
   display: grid;
   grid-template-columns: 1fr;

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e1013">
+  <title>Monolith Apps</title>
+  <link rel="stylesheet" href="../_kit/kit.css">
+</head>
+<body>
+  <header class="kit-titlebar">
+    <div class="kit-titlebar-brand">
+      <span class="kit-titlebar-name">Monolith Apps</span>
+    </div>
+    <div class="kit-titlebar-actions">
+      <a class="kit-link-btn" href="../">Site</a>
+      <button type="button" id="launcher-theme" aria-label="Toggle color theme">Auto</button>
+    </div>
+  </header>
+
+  <main class="launcher-shell">
+    <div class="launcher-head">
+      <div>
+        <p class="launcher-eyebrow">25 systems · standalone web apps · offline ready</p>
+        <h1 class="launcher-title">Monolith App Launcher</h1>
+        <p class="launcher-sub">
+          Installable single-system tools running locally on WebAssembly and the Silicon RV64 emulator.
+        </p>
+      </div>
+    </div>
+
+    <div class="launcher-grid" id="launcher-grid">
+      <a class="app-card" href="../titan/" data-system="titan">
+        <img class="app-card-icon" src="../titan/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Titan</h2>
+            <span class="app-card-badge">01 · app</span>
+          </div>
+          <p class="app-card-line">Rust no_std kernel + userland on the Monolith CPU. The thick layer everything rides on.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../iridium/" data-system="iridium">
+        <img class="app-card-icon" src="../iridium/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Iridium</h2>
+            <span class="app-card-badge">02 · app</span>
+          </div>
+          <p class="app-card-line">Paged B+tree, write-ahead log, SQL subset, server. A layer of sediment laid down in order.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../elysium/" data-system="elysium">
+        <img class="app-card-icon" src="../elysium/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Elysium</h2>
+            <span class="app-card-badge">03 · app</span>
+          </div>
+          <p class="app-card-line">Bytecode VM with garbage collector. A sealed world inside a plain rock.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../mercury/" data-system="mercury">
+        <img class="app-card-icon" src="../mercury/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Mercury</h2>
+            <span class="app-card-badge">04 · app</span>
+          </div>
+          <p class="app-card-line">HTTP/1.1 server on our own thread pool. Where the rock breaks the surface and the world can see it.</p>
+        </div>
+      </a>
+
+      <div class="app-card is-soon" data-system="helios">
+        <img class="app-card-icon" src="icons/helios.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Helios</h2>
+            <span class="app-card-badge">coming soon</span>
+          </div>
+          <p class="app-card-line">ECS, software renderer, physics, audio. The thing that moves worlds.</p>
+        </div>
+      </div>
+
+      <a class="app-card" href="../cobalt/" data-system="cobalt">
+        <img class="app-card-icon" src="../cobalt/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Cobalt</h2>
+            <span class="app-card-badge">06 · app</span>
+          </div>
+          <p class="app-card-line">Logos to RV64 machine code and to bytecode. Sintering fuses loose powder into solid metal.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../logos/" data-system="logos">
+        <img class="app-card-icon" src="../logos/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Logos</h2>
+            <span class="app-card-badge">07 · app</span>
+          </div>
+          <p class="app-card-line">Lexer, parser, type checker, IR. Logos splits into perfect thin layers, like its effect system.</p>
+        </div>
+      </a>
+
+      <div class="app-card is-soon" data-system="odyssey">
+        <img class="app-card-icon" src="icons/odyssey.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Odyssey</h2>
+            <span class="app-card-badge">coming soon</span>
+          </div>
+          <p class="app-card-line">HTML + CSS parser, layout, paint. Spelunking is exploring caves.</p>
+        </div>
+      </div>
+
+      <a class="app-card" href="../aurum/" data-system="aurum">
+        <img class="app-card-icon" src="../aurum/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Aurum</h2>
+            <span class="app-card-badge">09 · app</span>
+          </div>
+          <p class="app-card-line">Proof-of-stake chain, contracts on Elysium, stored in Iridium. One unbroken vein of ore.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../sphinx/" data-system="sphinx">
+        <img class="app-card-icon" src="../sphinx/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Sphinx + Medusa</h2>
+            <span class="app-card-badge">10 · app</span>
+          </div>
+          <p class="app-card-line">Sphinx: standard primitives proven on vectors. Medusa: our own experimental cipher, never the default.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../silicon/" data-system="silicon">
+        <img class="app-card-icon" src="../silicon/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Silicon</h2>
+            <span class="app-card-badge">11 · app</span>
+          </div>
+          <p class="app-card-line">RV64 emulator with MMU, traps, devices. The crystal that keeps time for every real processor.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../hades/" data-system="hades">
+        <img class="app-card-icon" src="../hades/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Hades</h2>
+            <span class="app-card-badge">12 · app</span>
+          </div>
+          <p class="app-card-line">Journaled, checksummed, extent-based. Hades splits into flat pages.</p>
+        </div>
+      </a>
+
+      <div class="app-card is-soon" data-system="pandora">
+        <img class="app-card-icon" src="icons/pandora.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Pandora</h2>
+            <span class="app-card-badge">coming soon</span>
+          </div>
+          <p class="app-card-line">Linux namespaces, cgroups v2, pivot_root. A small sealed cavity in rock.</p>
+        </div>
+      </div>
+
+      <a class="app-card" href="../argo/" data-system="argo">
+        <img class="app-card-icon" src="../argo/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Argo</h2>
+            <span class="app-card-badge">14 · app</span>
+          </div>
+          <p class="app-card-line">Signed packages, version solver, registry. A stack of stones that marks the trail.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../krypton/" data-system="krypton">
+        <img class="app-card-icon" src="../krypton/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Krypton</h2>
+            <span class="app-card-badge">15 · app</span>
+          </div>
+          <p class="app-card-line">POSIX-style shell. The outermost shell of the planet.</p>
+        </div>
+      </a>
+
+      <div class="app-card is-soon" data-system="iris">
+        <img class="app-card-icon" src="icons/iris.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Iris</h2>
+            <span class="app-card-badge">coming soon</span>
+          </div>
+          <p class="app-card-line">Compositing window manager. Each window is one face of the cut stone.</p>
+        </div>
+      </div>
+
+      <div class="app-card is-soon" data-system="indium">
+        <img class="app-card-icon" src="icons/indium.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Indium</h2>
+            <span class="app-card-badge">coming soon</span>
+          </div>
+          <p class="app-card-line">Widgets, layout, text, animation. What a polished surface gives back.</p>
+        </div>
+      </div>
+
+      <a class="app-card" href="../calliope/" data-system="calliope">
+        <img class="app-card-icon" src="../calliope/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Calliope</h2>
+            <span class="app-card-badge">18 · app</span>
+          </div>
+          <p class="app-card-line">Rope-based modal editor. The first thing people wrote on.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../athena/" data-system="athena">
+        <img class="app-card-icon" src="icons/athena.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Athena</h2>
+            <span class="app-card-badge">19 · IDE</span>
+          </div>
+          <p class="app-card-line">Browser IDE: editor + compiler + emulator + debugger. The workshop where stones are cut.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../chronos/" data-system="chronos">
+        <img class="app-card-icon" src="../chronos/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Chronos</h2>
+            <span class="app-card-badge">20 · app</span>
+          </div>
+          <p class="app-card-line">Content-addressed commits, branches, 3-way merge. A core sample is history you can read layer by layer.</p>
+        </div>
+      </a>
+
+      <div class="app-card is-soon" data-system="xenon">
+        <img class="app-card-icon" src="icons/xenon.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Xenon</h2>
+            <span class="app-card-badge">coming soon</span>
+          </div>
+          <p class="app-card-line">Encrypted reliable transport over UDP. Signals that travel through the earth.</p>
+        </div>
+      </div>
+
+      <a class="app-card" href="../lithium/" data-system="lithium">
+        <img class="app-card-icon" src="../lithium/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Lithium</h2>
+            <span class="app-card-badge">22 · app</span>
+          </div>
+          <p class="app-card-line">A small kernel in pure RV64 assembly. Small, hard, makes the first spark.</p>
+        </div>
+      </a>
+
+      <a class="app-card" href="../kairos/" data-system="kairos">
+        <img class="app-card-icon" src="../kairos/icon-192.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Kairos</h2>
+            <span class="app-card-badge">23 · app</span>
+          </div>
+          <p class="app-card-line">Fair scheduler core + work-stealing pool. Erupts on schedule.</p>
+        </div>
+      </a>
+
+      <div class="app-card is-soon" data-system="midas">
+        <img class="app-card-icon" src="icons/midas.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Midas</h2>
+            <span class="app-card-badge">coming soon</span>
+          </div>
+          <p class="app-card-line">Buddy + slab allocator. Where blocks are cut.</p>
+        </div>
+      </div>
+
+      <div class="app-card is-soon" data-system="zeus">
+        <img class="app-card-icon" src="icons/zeus.png" alt="" width="48" height="48">
+        <div class="app-card-body">
+          <div class="app-card-head">
+            <h2 class="app-card-name">Zeus</h2>
+            <span class="app-card-badge">coming soon</span>
+          </div>
+          <p class="app-card-line">Type-1 hypervisor on the H extension. Nothing sits lower.</p>
+        </div>
+      </div>
+    </div>
+    <p class="app-card-line">Also: <a href="../chisel/">Chisel</a>, the RV64 assembler that builds Silicon's programs.</p>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+      const btn = document.getElementById("launcher-theme");
+      const key = "monolith.launcher.theme";
+      function apply(theme) {
+        if (theme === "light" || theme === "dark") {
+          document.documentElement.setAttribute("data-theme", theme);
+          btn.textContent = theme === "light" ? "Light" : "Dark";
+          try { window.localStorage.setItem(key, theme); } catch (_e) {}
+        } else {
+          document.documentElement.removeAttribute("data-theme");
+          btn.textContent = "Auto";
+          try { window.localStorage.removeItem(key); } catch (_e) {}
+        }
+      }
+      try { apply(window.localStorage.getItem(key)); } catch (_e) {}
+      btn.addEventListener("click", () => {
+        const cur = document.documentElement.getAttribute("data-theme");
+        const prefersLight =
+          window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+        if (!cur) {
+          apply(prefersLight ? "dark" : "light");
+        } else if (cur === "light") {
+          apply("dark");
+        } else {
+          apply("light");
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

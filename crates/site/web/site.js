@@ -141,6 +141,11 @@
     label.setAttribute("for", inputId);
     const status = createEl("span", "demo-status", "ready");
     bar.appendChild(label);
+    if (isSub) {
+      const subApp = createEl("a", "btn-link btn-app", "Open app");
+      subApp.href = `${demoId}/`;
+      bar.appendChild(subApp);
+    }
     bar.appendChild(status);
 
     const textarea = document.createElement("textarea");
@@ -491,6 +496,11 @@
       head.appendChild(createEl("h2", "system-title", sys.name));
       head.appendChild(createEl("span", "system-what", sys.what));
       head.appendChild(createEl("code", "system-src", sys.source));
+      if (sys.demo) {
+        const appLink = createEl("a", "btn-link btn-app", "Open app");
+        appLink.href = `${sys.id}/`;
+        head.appendChild(appLink);
+      }
 
       const line = createEl("p", "system-line", sys.line);
 
