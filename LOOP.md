@@ -163,9 +163,9 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T70 | P4 | helios | (T70b) Logos scripting, one original small game | hydrogen | T70a T18 | PASS |
 | T71 | P5 | neon | WebAssembly builds with our own glue (no wasm-bindgen): Silicon + Titan on a canvas, Logos playground | argon | T28 T18 | PASS |
 | T72 | P5 | athena | IDE shell: editor, file tree, terminal, run, test | hydrogen-high (design docs/FRONT.md by leader) | T71 T55 | PASS |
-| T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen-high | T10 T72 | RUNNING |
+| T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen-high | T10 T72 | PASS |
 | T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect | hydrogen | T17 T72 | TODO |
-| T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | RUNNING (T75a) |
+| T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | T75a PASS, T75b/c TODO |
 | T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen-high | T42 T50 T47 | PASS |
 | T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen-high | (T77 dropped: loopback only) | PASS |
@@ -200,6 +200,8 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T81h | P6 | docs | README + demo: chronos | hydrogen | - | PASS |
 | T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | PASS |
 | T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
+| T84 | P6 | deploy | one public web image: site at /, Athena at /athena/, /healthz; services stay private; README public hosting | hydrogen-high | T75a T77 | RUNNING |
+| T85 | P5 | athena | proper app: VS Code-style workbench (activity bar, tabs, palette, panel, status bar), installable PWA, offline | hydrogen-high | T73 | RUNNING |
 | T79s | P6 | fuzz | soak aurum | haiku | - | PASS |
 | T79t | P6 | fuzz | soak indium | haiku | - | PASS |
 | T79u | P6 | fuzz | soak kairos | haiku | - | PASS |
@@ -370,3 +372,5 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T78 bench | hydrogen-high | n/a | PASS | 15 self-checking benches; full run twice within 8%; broken check exits 1; docs/BENCH.md by leader
 - 2026-11-16 | T72 athena | hydrogen-high | n/a | PASS | browser IDE on docs/FRONT.md; leader Chrome script check: run, tests, diagnostics, file CRUD persists, titan terminal equals native, 360 px, light theme
 - 2026-11-16 | T77 deploy | hydrogen-high | n/a | PASS | 4 static binaries, 3 scratch images, compose; leader docker run: 5 healthy, aurum consensus, iridium persists, stop 2.1 s all exit 0
+- 2026-11-16 | T75a site | hydrogen-high | n/a | PASS | 25 sections, 8 live demos; leader Chrome: every demo output, titan session, light/dark, no external requests, 360 px, Athena link 200
+- 2026-11-16 | T73 athena | hydrogen-high | n/a | PASS | leader Chrome: F12 call and shadowed let (inner and outer), Ctrl+I hover signature, Format plus undo, comment refusal, 360 px

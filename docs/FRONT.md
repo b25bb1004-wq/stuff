@@ -29,7 +29,7 @@ purpose: workers follow it exactly, the leader changes it.
 - Motion: `--t-fast: 120ms` (hover, press), `--t-med: 240ms` (panels, tabs), `--t-slow: 600ms` (site
   reveals). Easing `cubic-bezier(.2,.7,.2,1)`. Animate only `opacity` and `transform`.
 
-## Athena (T72): the workshop
+## Athena (T72): the workshop (layout replaced by `briefs/T85.md`: VS Code-style workbench, PWA)
 - Layout (desktop): top bar (name, Run, Test, theme toggle) / left file tree 220 px / editor / right or
   bottom output pane with tabs `Output`, `Tests`, `Terminal`. Panes resize with a drag handle (keyboard:
   focus the handle, arrows). Mobile: one column, a tab strip switches Files / Editor / Output / Terminal.
