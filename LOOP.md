@@ -21,6 +21,7 @@
 - [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
 - [x] T39 varve pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
 - [>] T34 tremor: brief + tremor_leader.rs (handshake model from onyx primitives, own lossy simulator), dispatched (hydrogen-high)
+- [ ] T55 slate app: brief + app_leader.rs (edit/motion tables, screens, scroll, files, Mica highlight, fuzz undo-all) ready; dispatch hydrogen when a lane frees
 - [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
