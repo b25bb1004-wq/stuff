@@ -136,7 +136,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | PASS |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | PASS |
-| T61 | P4 | glint | widget tree, flex layout, events, focus, themes | hydrogen | T60 | RUNNING |
+| T61 | P4 | glint | widget tree, flex layout, events, focus, themes | hydrogen | T60 | PASS |
 | T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | hydrogen | T61 | TODO |
 | T63 | P4 | facet | compositor: windows, tiling and floating, damage, input, animated moves | argon | T62 | TODO |
 | T64 | P4 | facet | client protocol + apps: terminal (crust), editor (slate), files | hydrogen | T63 T57 T55 | TODO |
@@ -245,3 +245,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 13:21 | T24 | haiku | 138,160 | PASS | flint_leader 5/5; gates pass
 - 2026-11-15 13:28 | T41b | hydrogen-high | agy quota | PASS | join_leader 3/3 both seeds; leader fixed one obsolete T41a test; T41 closed (T41a+T41b)
 - 2026-11-15 13:37 | T49 | hydrogen | agy quota | PASS | contracts_leader 2/2 both seeds, seam_leader 8/8; gates pass
+- 2026-11-15 13:44 | T61 | hydrogen | agy quota | PASS | glint_leader 3/3 both seeds; two silent brief points taken from worker; gates pass
