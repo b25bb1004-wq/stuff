@@ -175,6 +175,7 @@ export function createDebugUi(deps) {
       session.paused = true;
       view = st;
       summary.textContent = `Paused at ${session.file}:${st.line}`;
+      deps.setStatus(`Paused at ${session.file}:${st.line}`, false);
       renderPanels(st);
       refresh();
       return;
@@ -195,6 +196,7 @@ export function createDebugUi(deps) {
     const bps = (breakpoints[s.file] || []).join("\n");
     const st = parseState(deps.readAthenaLast(deps.withBytes(encoder.encode(bps), (p, n) => w.athena_debug_step(mode, p, n))));
     if (st.status === "budget") {
+      if (!s.running) deps.setStatus(`Running ${s.file}…`, false);
       s.running = true;
       showOutput(st);
       summary.textContent = `Running ${s.file}…`;

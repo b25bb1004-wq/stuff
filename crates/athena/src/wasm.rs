@@ -10,7 +10,7 @@ pub use neon::wasm::{
 
 use crate::debug;
 use crate::lang::{definition, format as format_source, hover};
-use crate::service::{check, highlight, run_tests, Style};
+use crate::service::{check, check_input_len, highlight, run_tests, Style};
 
 static ATHENA_LAST_BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 /// Buffers from `athena_alloc` that are not freed yet. Athena reads only pairs recorded here.
@@ -112,6 +112,9 @@ pub extern "C" fn athena_last_len() -> usize {
 /// Parse and type-check Logos source at `(ptr, len)`, writing `line:col:end_line:end_col:message` lines.
 #[no_mangle]
 pub extern "C" fn athena_check(ptr: *const u8, len: usize) -> usize {
+    if let Err(msg) = check_input_len(len) {
+        return set_last(format!("1:1:1:1:{msg}").into_bytes());
+    }
     let Some(bytes) = copy_slice_from_guest(ptr, len) else {
         return set_last(b"1:1:1:1:invalid source pointer".to_vec());
     };
@@ -136,6 +139,10 @@ pub extern "C" fn athena_check(ptr: *const u8, len: usize) -> usize {
 /// Highlight Logos source at `(ptr, len)`, writing `start len class` lines.
 #[no_mangle]
 pub extern "C" fn athena_highlight(ptr: *const u8, len: usize) -> usize {
+    // Highlight runs have no error record, so an oversized input gets no runs.
+    if check_input_len(len).is_err() {
+        return set_last(Vec::new());
+    }
     let Some(bytes) = copy_slice_from_guest(ptr, len) else {
         return set_last(Vec::new());
     };
@@ -154,6 +161,9 @@ pub extern "C" fn athena_highlight(ptr: *const u8, len: usize) -> usize {
 /// Run all unit and property tests in Logos source at `(ptr, len)` with `fuel`.
 #[no_mangle]
 pub extern "C" fn athena_test(ptr: *const u8, len: usize, fuel: u64) -> usize {
+    if let Err(msg) = check_input_len(len) {
+        return set_last(format!("error: 1:1: {msg}").into_bytes());
+    }
     let Some(bytes) = copy_slice_from_guest(ptr, len) else {
         return set_last(b"error: 1:1: invalid source pointer".to_vec());
     };
@@ -184,6 +194,9 @@ pub extern "C" fn athena_test(ptr: *const u8, len: usize, fuel: u64) -> usize {
 /// Resolve the declaration byte range `start end` for the identifier at `offset`.
 #[no_mangle]
 pub extern "C" fn athena_definition(ptr: *const u8, len: usize, offset: usize) -> usize {
+    if check_input_len(len).is_err() {
+        return set_last(Vec::new());
+    }
     let Some(bytes) = copy_slice_from_guest(ptr, len) else {
         return set_last(Vec::new());
     };
@@ -197,6 +210,9 @@ pub extern "C" fn athena_definition(ptr: *const u8, len: usize, offset: usize) -
 /// Return hover text for the identifier or literal at `offset` in Logos source at `(ptr, len)`.
 #[no_mangle]
 pub extern "C" fn athena_hover(ptr: *const u8, len: usize, offset: usize) -> usize {
+    if check_input_len(len).is_err() {
+        return set_last(Vec::new());
+    }
     let Some(bytes) = copy_slice_from_guest(ptr, len) else {
         return set_last(Vec::new());
     };
@@ -210,6 +226,9 @@ pub extern "C" fn athena_hover(ptr: *const u8, len: usize, offset: usize) -> usi
 /// Start the debug session for Logos source at `(ptr, len)`, paused before `main`; writes the debug state text.
 #[no_mangle]
 pub extern "C" fn athena_debug_start(ptr: *const u8, len: usize) -> usize {
+    if let Err(msg) = check_input_len(len) {
+        return set_last(debug::error_text(&msg).into_bytes());
+    }
     let Some(bytes) = copy_slice_from_guest(ptr, len) else {
         return set_last(debug::error_text("invalid source pointer").into_bytes());
     };
@@ -220,6 +239,9 @@ pub extern "C" fn athena_debug_start(ptr: *const u8, len: usize) -> usize {
 /// Step the debug session: mode 0 continue, 1 over, 2 into, 3 out; breakpoint lines are the digit runs at `(bp_ptr, bp_len)`.
 #[no_mangle]
 pub extern "C" fn athena_debug_step(mode: u32, bp_ptr: *const u8, bp_len: usize) -> usize {
+    if let Err(msg) = check_input_len(bp_len) {
+        return set_last(debug::error_text(&msg).into_bytes());
+    }
     let text = copy_slice_from_guest(bp_ptr, bp_len)
         .map(|b| String::from_utf8_lossy(b).into_owned())
         .unwrap_or_default();
@@ -242,6 +264,9 @@ pub extern "C" fn athena_debug_stop() {
 /// Format Logos source at `(ptr, len)`, writing `ok\n<text>` or `error: <message>`.
 #[no_mangle]
 pub extern "C" fn athena_format(ptr: *const u8, len: usize) -> usize {
+    if let Err(msg) = check_input_len(len) {
+        return set_last(format!("error: {msg}").into_bytes());
+    }
     let Some(bytes) = copy_slice_from_guest(ptr, len) else {
         return set_last(b"error: invalid source pointer".to_vec());
     };

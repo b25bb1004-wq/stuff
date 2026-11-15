@@ -5,6 +5,18 @@ use logos::eval::{Outcome, Trap};
 
 const PROP_SEED: u64 = 1;
 const PROP_CASES: u32 = 100;
+/// Largest source or breakpoint text the wasm exports take, in bytes (the site demos use the same cap).
+pub const MAX_INPUT_BYTES: usize = 64 * 1024;
+
+/// Refuse an input longer than [`MAX_INPUT_BYTES`] before any work is done on it.
+pub fn check_input_len(len: usize) -> Result<(), String> {
+    if len > MAX_INPUT_BYTES {
+        return Err(format!(
+            "input too large: {len} bytes, the limit is {MAX_INPUT_BYTES} bytes"
+        ));
+    }
+    Ok(())
+}
 
 /// A 1-based source diagnostic produced by parsing or type-checking Logos code.
 #[derive(Debug, Clone, PartialEq, Eq)]

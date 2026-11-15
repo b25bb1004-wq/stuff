@@ -7,6 +7,7 @@ const TABS_KEY = "athena.tabs.v1";
 const ACTIVE_KEY = "athena.active.v1";
 const STEPS_PER_FRAME = 2000000n;
 const LOGOS_FUEL = 1000000n;
+const MAX_SOURCE_BYTES = 64 * 1024;
 const DEBOUNCE_MS = 300;
 const LINE_HEIGHT_PX = 20;
 
@@ -727,8 +728,14 @@ function runActiveFile() {
   if (!wasm || !activeFile) return;
   workbench.setPanelTab("output");
   runOut.classList.remove("is-error");
-  runOut.textContent = "running…";
   const src = codeInput.value;
+  // Same cap as the Rust exports (service::MAX_INPUT_BYTES): a huge paste would hang the tab.
+  if (encoder.encode(src).length > MAX_SOURCE_BYTES) {
+    runOut.classList.add("is-error");
+    runOut.textContent = `error: input too large, the limit is ${MAX_SOURCE_BYTES} bytes`;
+    return;
+  }
+  runOut.textContent = "running…";
   runLine.start();
   afterPaint(() => {
     const text = readNeonLast(withBytes(encoder.encode(src), (ptr, len) => wasm.logos_run(ptr, len, LOGOS_FUEL)));
