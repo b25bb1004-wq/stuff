@@ -50,6 +50,7 @@ extern "C" {
     fn execve(path: *const c_char, argv: *const *const c_char, envp: *const *const c_char)
         -> c_int;
     fn waitpid(pid: c_int, status: *mut c_int, options: c_int) -> c_int;
+    fn kill(pid: c_int, sig: c_int) -> c_int;
     fn pipe(fds: *mut c_int) -> c_int;
     fn read(fd: c_int, buf: *mut c_void, n: usize) -> isize;
     fn write(fd: c_int, buf: *const c_void, n: usize) -> isize;
@@ -184,7 +185,24 @@ fn stage_and_exec(p: &Prepared) -> ! {
 
 static SERIAL: AtomicU32 = AtomicU32::new(0);
 
-pub(crate) fn run(spec: &Spec, cgroup_base: &Path) -> io::Result<i32> {
+pub(crate) fn kill_proc(pid: i32, sig: i32) -> io::Result<()> {
+    if pid <= 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "pid must be positive",
+        ));
+    }
+    // SAFETY: `pid` is positive and `sig` is passed directly to POSIX `kill(2)`.
+    if unsafe { kill(pid, sig) } != 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
+}
+
+pub(crate) fn run_with_pid<F>(spec: &Spec, cgroup_base: &Path, on_pid: F) -> io::Result<i32>
+where
+    F: FnOnce(i32) -> io::Result<()>,
+{
     spec.validate()
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))?;
     fs::create_dir_all(spec.rootfs.join("proc"))?;
@@ -210,39 +228,77 @@ pub(crate) fn run(spec: &Spec, cgroup_base: &Path) -> io::Result<i32> {
         )
     };
     let (mut up, mut down) = ([0 as c_int; 2], [0 as c_int; 2]);
-    // SAFETY: each array has room for the two descriptors pipe writes.
-    if unsafe { pipe(up.as_mut_ptr()) } != 0 || unsafe { pipe(down.as_mut_ptr()) } != 0 {
+    // SAFETY: each array has room for the two descriptors `pipe` writes.
+    if unsafe { pipe(up.as_mut_ptr()) } != 0 {
         return Err(io::Error::last_os_error());
+    }
+    // SAFETY: `down` has room for two descriptors; close `up` on failure.
+    if unsafe { pipe(down.as_mut_ptr()) } != 0 {
+        let err = io::Error::last_os_error();
+        // SAFETY: `up` holds valid open descriptors from `pipe` above.
+        unsafe {
+            close(up[0]);
+            close(up[1]);
+        }
+        return Err(err);
     }
     let flags =
         CLONE_NEWUSER | CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWUTS | CLONE_NEWIPC | CLONE_NEWNET;
     // SAFETY: the child (pid 0) only makes async-signal-safe calls on memory prepared before the fork.
     let a = unsafe { fork() };
     if a < 0 {
-        return Err(io::Error::last_os_error());
+        let err = io::Error::last_os_error();
+        // SAFETY: `up` and `down` hold valid open descriptors from `pipe` above.
+        unsafe {
+            close(up[0]);
+            close(up[1]);
+            close(down[0]);
+            close(down[1]);
+        }
+        return Err(err);
     }
     if a == 0 {
         let mut byte = 0u8;
-        // SAFETY: descriptors come from pipe above; `byte` is a valid one-byte buffer.
+        // SAFETY: descriptors come from pipe above; `byte` and `pid_bytes` are valid stack buffers.
         unsafe {
             close(up[0]);
             close(down[1]);
             if unshare(flags) != 0 {
+                close(up[1]);
+                close(down[0]);
                 die(b"pandora: unshare failed (user namespaces blocked?)\n", 125);
             }
             write(up[1], (&byte as *const u8).cast(), 1);
-            close(up[1]);
             if read(down[0], (&mut byte as *mut u8).cast(), 1) != 1 {
+                close(up[1]);
+                close(down[0]);
                 _exit(125); // parent could not write the id maps and has already reported why
             }
             close(down[0]);
             let b = fork();
             if b < 0 {
+                close(up[1]);
                 die(b"pandora: fork failed\n", 125);
             }
             if b == 0 {
+                close(up[1]);
                 stage_and_exec(&p);
             }
+            let b_pid: i32 = b;
+            let pid_bytes = b_pid.to_le_bytes();
+            let mut off = 0usize;
+            while off < pid_bytes.len() {
+                let n = write(
+                    up[1],
+                    pid_bytes[off..].as_ptr().cast(),
+                    pid_bytes.len() - off,
+                );
+                if n <= 0 {
+                    break;
+                }
+                off += n as usize;
+            }
+            close(up[1]);
             let mut status = 0;
             if waitpid(b, &mut status, 0) != b {
                 _exit(125);
@@ -258,8 +314,6 @@ pub(crate) fn run(spec: &Spec, cgroup_base: &Path) -> io::Result<i32> {
     let mut byte = 0u8;
     // SAFETY: valid one-byte buffer and descriptor.
     let got = unsafe { read(up[0], (&mut byte as *mut u8).cast(), 1) };
-    // SAFETY: done with the read end.
-    unsafe { close(up[0]) };
     let setup = (|| -> io::Result<()> {
         if got != 1 {
             return Err(io::Error::other(
@@ -282,12 +336,42 @@ pub(crate) fn run(spec: &Spec, cgroup_base: &Path) -> io::Result<i32> {
     }
     // SAFETY: closing the write end; the child sees EOF if setup failed and exits.
     unsafe { close(down[1]) };
+    let mut pid_cb_res = Ok(());
+    if setup.is_ok() {
+        let mut pid_buf = [0u8; 4];
+        let mut off = 0usize;
+        while off < 4 {
+            // SAFETY: `pid_buf[off..]` has `4 - off` writable bytes and `up[0]` is open.
+            let n = unsafe { read(up[0], pid_buf[off..].as_mut_ptr().cast(), 4 - off) };
+            if n < 0 {
+                let err = io::Error::last_os_error();
+                if err.kind() == io::ErrorKind::Interrupted {
+                    continue;
+                }
+                break;
+            }
+            if n == 0 {
+                break;
+            }
+            off += n as usize;
+        }
+        if off == 4 {
+            let child_b_pid = i32::from_le_bytes(pid_buf);
+            if let Err(e) = on_pid(child_b_pid) {
+                let _ = kill_proc(child_b_pid, 9);
+                pid_cb_res = Err(e);
+            }
+        }
+    }
+    // SAFETY: done with the read end.
+    unsafe { close(up[0]) };
     let mut status = 0;
     // SAFETY: `a` is our child; status is a valid out pointer.
     if unsafe { waitpid(a, &mut status, 0) } != a {
         return Err(io::Error::last_os_error());
     }
     setup?;
+    pid_cb_res?;
     drop(cg);
     Ok(exit_code(status))
 }

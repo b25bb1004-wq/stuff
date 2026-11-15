@@ -6,7 +6,11 @@
 //! This crate may use `unsafe` (docs/SPEC.md rule 3): only in `sys`, and every block has a `// SAFETY:` line.
 
 pub mod cgroup;
+#[forbid(unsafe_code)]
+pub mod image;
 pub mod spec;
+#[forbid(unsafe_code)]
+pub mod state;
 
 #[cfg(target_os = "linux")]
 mod sys;
@@ -17,14 +21,48 @@ pub use spec::{parse_size, Spec, SpecError};
 /// Run the container described by `spec` and return its exit code (128 + signal number when killed).
 /// `cgroup_base` is the cgroup v2 directory the container's group is created in (`/sys/fs/cgroup` normally);
 /// it is only touched when the spec has limits.
-#[cfg(target_os = "linux")]
 pub fn run(spec: &Spec, cgroup_base: &std::path::Path) -> std::io::Result<i32> {
-    sys::run(spec, cgroup_base)
+    run_with_pid(spec, cgroup_base, |_| Ok(()))
+}
+
+/// Run the container described by `spec`, invoking `on_pid` with the host PID of container PID 1 before waiting.
+#[cfg(target_os = "linux")]
+pub fn run_with_pid<F>(
+    spec: &Spec,
+    cgroup_base: &std::path::Path,
+    on_pid: F,
+) -> std::io::Result<i32>
+where
+    F: FnOnce(i32) -> std::io::Result<()>,
+{
+    sys::run_with_pid(spec, cgroup_base, on_pid)
 }
 
 /// Containers need Linux namespaces; on other systems this always returns `Unsupported`.
 #[cfg(not(target_os = "linux"))]
-pub fn run(_spec: &Spec, _cgroup_base: &std::path::Path) -> std::io::Result<i32> {
+pub fn run_with_pid<F>(
+    _spec: &Spec,
+    _cgroup_base: &std::path::Path,
+    _on_pid: F,
+) -> std::io::Result<i32>
+where
+    F: FnOnce(i32) -> std::io::Result<()>,
+{
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "pandora needs Linux namespaces",
+    ))
+}
+
+/// Send signal `sig` to host process `pid` via `kill(2)`.
+#[cfg(target_os = "linux")]
+pub fn kill(pid: i32, sig: i32) -> std::io::Result<()> {
+    sys::kill_proc(pid, sig)
+}
+
+/// Process signaling requires Linux; on other systems this always returns `Unsupported`.
+#[cfg(not(target_os = "linux"))]
+pub fn kill(_pid: i32, _sig: i32) -> std::io::Result<()> {
     Err(std::io::Error::new(
         std::io::ErrorKind::Unsupported,
         "pandora needs Linux namespaces",

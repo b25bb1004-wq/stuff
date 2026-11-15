@@ -140,7 +140,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T50a | P3 | aurum | node: block pool, fork choice, reorgs, sync messages, mempool | hydrogen-high | T49 | PASS |
 | T50b | P3 | aurum | gossip over xenon: sans-IO peers, stream framing, sync ticks | hydrogen-high | T50a T35 | PASS |
 | T51 | P3 | pandora | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | opus-high |  | PASS |
-| T52 | P3 | pandora | images as argo packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | RUNNING |
+| T52 | P3 | pandora | images as argo packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | PASS |
 | T53 | P3 | krypton | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
 | T57 | P3 | krypton | executor, pipes, redirects, builtins, job control | hydrogen | T53 | PASS |
 | T54 | P3 | calliope | buffer (piece table), undo tree, multi-cursor, own regex engine | hydrogen-high |  | PASS |
@@ -363,3 +363,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T51 | leader (opus) | - | PASS | pandora: namespaces, pivot_root, cgroup v2; real containers tested in WSL; cgroup limits untested (needs root)
 - 2026-11-16 | T27 | agy hydrogen-high | - | PASS | titan: block driver, hades at /, file syscalls, 41-line transcript; leader corruption fuzz 16/16
 - 2026-11-16 | T67 | agy hydrogen-high | - | PASS | odyssey paint/fetch/script/shell, 137 tests; leader mutated-response fuzz
+- 2026-11-16 | T52 | agy hydrogen-high | - | PASS | pandora images via argo, run -d, ps, kill, rm; leader fixed .so exec bit (design gap), stale-state checks; WSL green

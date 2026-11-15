@@ -6,9 +6,11 @@ license = "MIT"
 publish = false
 
 [dependencies]
+argo = { path = "../argo" }
 
 [dev-dependencies]
 assay = { path = "../assay" }
+sphinx = { path = "../sphinx" }
 
 [lints]
 workspace = true
