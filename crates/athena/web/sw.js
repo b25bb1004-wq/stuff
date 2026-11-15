@@ -1,4 +1,5 @@
 const CACHE_NAME = "__ATHENA_CACHE_NAME__";
+const CACHE_PREFIX = "athena-";
 const ASSETS = "__ATHENA_ASSETS__";
 
 self.addEventListener("install", (event) => {
@@ -10,6 +11,7 @@ self.addEventListener("install", (event) => {
   );
 });
 
+// Only Athena's own caches are ours to delete; other apps share this origin's cache storage.
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -17,7 +19,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== CACHE_NAME)
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
             .map((key) => caches.delete(key))
         )
       )
@@ -35,19 +37,21 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) {
-        return cached;
-      }
-      if (req.mode === "navigate" || url.pathname.endsWith("/")) {
-        return caches.match("index.html").then((indexResp) => {
-          if (indexResp) {
-            return indexResp;
-          }
-          return fetch(req);
-        });
-      }
-      return fetch(req);
-    })
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.match(req).then((cached) => {
+        if (cached) {
+          return cached;
+        }
+        if (req.mode === "navigate" || url.pathname.endsWith("/")) {
+          return cache.match("index.html").then((indexResp) => {
+            if (indexResp) {
+              return indexResp;
+            }
+            return fetch(req);
+          });
+        }
+        return fetch(req);
+      })
+    )
   );
 });

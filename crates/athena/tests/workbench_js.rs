@@ -137,3 +137,17 @@ fn palette_commands_have_handlers_and_shortcut_labels() {
         "palette command ids do not match required set"
     );
 }
+
+#[test]
+fn service_worker_only_touches_its_own_caches() {
+    let web_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("web");
+    let sw = std::fs::read_to_string(web_dir.join("sw.js")).unwrap();
+    assert!(
+        sw.contains("key.startsWith(CACHE_PREFIX)"),
+        "sw.js must delete only caches with Athena's prefix on activate"
+    );
+    assert!(
+        !sw.contains("caches.match("),
+        "sw.js must answer from its own opened cache, never the origin-wide caches.match("
+    );
+}
