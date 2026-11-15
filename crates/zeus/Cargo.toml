@@ -5,14 +5,16 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[[bin]]
+name = "zeusctl"
+path = "src/bin/zeusctl.rs"
+
 [dependencies]
 
 [target.'cfg(not(target_os = "none"))'.dependencies]
 chisel = { path = "../chisel" }
-silicon = { path = "../silicon" }
-
-[target.'cfg(not(target_os = "none"))'.dev-dependencies]
 lithium = { path = "../lithium" }
+silicon = { path = "../silicon" }
 
 [lints]
 workspace = true
