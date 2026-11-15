@@ -1,10 +1,10 @@
-//! Leader check for T40 (B+tree). Copied to crates/varve/tests/tree_leader.rs.
-//! The page parser below is the leader's own reading of docs/VARVE.md section 2 and briefs/T40.md.
+//! Leader check for T40 (B+tree). Copied to crates/iridium/tests/tree_leader.rs.
+//! The page parser below is the leader's own reading of docs/IRIDIUM.md section 2 and briefs/T40.md.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Bound;
-use varve::{Error, MemStorage, Pager, Tree, USABLE};
+use iridium::{Error, MemStorage, Pager, Tree, USABLE};
 
 type P = Pager<MemStorage>;
 type Model = BTreeMap<Vec<u8>, Vec<u8>>;

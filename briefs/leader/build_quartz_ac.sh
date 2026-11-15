@@ -3,8 +3,8 @@
 # amo_sem.bin (self-checking programs), smoke.bin (rustc-compiled Rust, compressed + atomics).
 # Run from the repo root after gen_quartz_ac.py. Needs riscv64gc-unknown-none-elf, llvm-objcopy.
 set -e
-D=crates/quartz/tests/fixtures/ac
-M=crates/quartz/tests/fixtures/machine
+D=crates/silicon/tests/fixtures/ac
+M=crates/silicon/tests/fixtures/machine
 T=$(mktemp -d)
 RC="rustc --edition 2021 --target riscv64gc-unknown-none-elf -C opt-level=2 -C panic=abort"
 cat > "$T/link.ld" <<'LD'

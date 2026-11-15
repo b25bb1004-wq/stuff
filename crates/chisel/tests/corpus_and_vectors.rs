@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use chisel::assemble;
-use quartz::inst::{decode, Inst};
+use silicon::inst::{decode, Inst};
 
 fn manifest_path(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(rel)
@@ -166,7 +166,7 @@ fn corpus_matches_llvm_bin_and_syms() {
 #[test]
 fn all_c_pairs_match_llvm() {
     let txt =
-        std::fs::read_to_string(manifest_path("../quartz/tests/fixtures/ac/c_pairs.txt")).unwrap();
+        std::fs::read_to_string(manifest_path("../silicon/tests/fixtures/ac/c_pairs.txt")).unwrap();
     for (idx, line) in txt.lines().enumerate() {
         let lno = idx + 1;
         let (left, right) = line.split_once('|').unwrap();
@@ -197,7 +197,7 @@ fn all_c_pairs_match_llvm() {
 #[test]
 fn all_amo_vectors_match() {
     let txt =
-        std::fs::read_to_string(manifest_path("../quartz/tests/fixtures/ac/amo.txt")).unwrap();
+        std::fs::read_to_string(manifest_path("../silicon/tests/fixtures/ac/amo.txt")).unwrap();
     for (idx, line) in txt.lines().enumerate() {
         let lno = idx + 1;
         let parts: Vec<&str> = line.split_whitespace().collect();

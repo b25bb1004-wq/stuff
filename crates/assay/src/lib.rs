@@ -1,6 +1,6 @@
-//! assay: the shared test helpers for every Strata crate.
+//! assay: the shared test helpers for every Monolith crate.
 //!
-//! Strata takes no external crates, so this is our own small property-testing kit:
+//! Monolith takes no external crates, so this is our own small property-testing kit:
 //! a deterministic random generator, a `forall` runner that prints the failing seed,
 //! and hex helpers for published test vectors.
 #![forbid(unsafe_code)]

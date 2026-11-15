@@ -1,10 +1,10 @@
-//! Leader check for T48: seam blocks, Merkle tree, transactions, state and validation.
-//! Its own model (Merkle, encodings, signing, state) is built from onyx primitives only.
+//! Leader check for T48: aurum blocks, Merkle tree, transactions, state and validation.
+//! Its own model (Merkle, encodings, signing, state) is built from sphinx primitives only.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use onyx::ed25519;
-use onyx::sha256::digest as sha;
-use seam::{
+use sphinx::ed25519;
+use sphinx::sha256::digest as sha;
+use aurum::{
     merkle_proof, merkle_root, merkle_verify, Block, BlockError, Chain, DecodeError, Header, Tx,
     TxError, MAX_DATA, MAX_TXS,
 };
@@ -106,7 +106,7 @@ fn tx_enc(t: &Tx) -> Vec<u8> {
     v
 }
 fn tx_msg(t: &Tx) -> Vec<u8> {
-    let mut m = b"seam-tx\0".to_vec();
+    let mut m = b"aurum-tx\0".to_vec();
     m.extend(tx_body(t));
     m
 }
@@ -135,7 +135,7 @@ fn hdr_enc(h: &Header) -> Vec<u8> {
     v
 }
 fn hdr_sign(h: &mut Header, s: &[u8; 32]) {
-    let mut m = b"seam-blk".to_vec();
+    let mut m = b"aurum-blk".to_vec();
     m.extend_from_slice(&hdr_enc(h)[..144]);
     h.sig = ed25519::sign(s, &m);
 }

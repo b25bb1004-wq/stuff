@@ -1,4 +1,4 @@
-# Strata: rules for every agent, and how to lead when the leader is away
+# Monolith: rules for every agent, and how to lead when the leader is away
 
 Read this file, then `LOOP.md`. Leaders also read `docs/PLAN.md` (the complete plan).
 

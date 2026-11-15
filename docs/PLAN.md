@@ -1,4 +1,4 @@
-# Strata: the complete plan
+# Monolith: the complete plan
 Written by Claude Fable on 2026-11-14 for whoever steers next (Claude Opus, or the Gemini
 Orchestrator). Read order for a fresh session: `LOOP.md` (state), this file (what and how),
 `AGENTS.md` (rules), then only the brief you are about to dispatch. `docs/SPEC.md` holds the
@@ -6,11 +6,11 @@ rules of the stack and the names of the 25 systems; do not re-plan it.
 
 ## 1. What is being built
 All 25 "build your own X" systems as ONE stack, written in Rust with zero outside crates:
-a RISC-V machine (Quartz) that runs our kernels (Flint in assembly, Mantle in Rust) under our
-hypervisor (Bedrock), with our file system, scheduler and allocator inside, our language (Mica)
-compiled by our compiler (Sinter) and run by our VM (Geode), our network protocol, web server,
+a RISC-V machine (Silicon) that runs our kernels (Lithium in assembly, Titan in Rust) under our
+hypervisor (Zeus), with our file system, scheduler and allocator inside, our language (Logos)
+compiled by our compiler (Cobalt) and run by our VM (Elysium), our network protocol, web server,
 database, version control, package manager, blockchain, containers, shell, editor, graphics
-stack, browser and game engine on top, and a browser IDE (Lapidary) plus a site that shows it
+stack, browser and game engine on top, and a browser IDE (Athena) plus a site that shows it
 all running live as WebAssembly. Each system must work alone and inside the stack.
 
 ## 2. Who does what (operator rules, 2026-11-14)
@@ -61,10 +61,10 @@ Stop and write the reason in `LOOP.md` State when: a usage-limit warning appears
 a row end in ESCALATE, or a task needs keys, money, publishing or deleting.
 
 ## 4. Where things stand (2026-11-14 16:10)
-PASS: T00 assay, T01 onyx (SHA-2, HMAC, HKDF, ChaCha20-Poly1305), T02 quarry, T03 quartz
-RV64IM, T06 shale core, T08 Mica and bytecode designs, T11 geode module and verifier.
-Half done: T09 mica parser (lexer finished with 18 tests, parser tests missing; the Claude
-worker stopped at the usage limit). RUNNING: T05 geyser on Hydrogen, the first agy trial.
+PASS: T00 assay, T01 sphinx (SHA-2, HMAC, HKDF, ChaCha20-Poly1305), T02 midas, T03 silicon
+RV64IM, T06 hades core, T08 Logos and bytecode designs, T11 elysium module and verifier.
+Half done: T09 logos parser (lexer finished with 18 tests, parser tests missing; the Claude
+worker stopped at the usage limit). RUNNING: T05 kairos on Hydrogen, the first agy trial.
 Claude worker tokens spent: 948k. Leader files kept ready: `briefs/leader/asym_leader.rs`
 (Python-made vectors for T04).
 
@@ -76,63 +76,63 @@ when its needs are PASS.
 ### P1 Cores
 | Id | System | Deliverable | Lane | Needs | Check |
 |---|---|---|---|---|---|
-| T05 | geyser | fair scheduler core + simulator | H | | own simulator, new seed |
-| T09 | mica | finish parser, printer, corpus, fuzz (files exist: read them first) | H | T08 | programs written from `docs/MICA.md`; fuzz with new seed |
-| T04 | onyx | X25519, Ed25519 (brief written) | A | T01 | copy `briefs/leader/asym_leader.rs` to `crates/onyx/tests/` |
-| T17 | geode | interpreter, heap, mark-sweep GC, fuel, `Host` trait | A | T11 | hand-built modules; fuel and heap limits hold; fuzzed valid modules never panic |
-| T10 | mica | type checker, layer checker, IR | A+ | T09 | reject-corpus: one program per rule in `docs/MICA.md` |
-| T18 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | A | T10 T17 | example programs give expected output; `test` and `prop` blocks run |
-| T07 | shale | journal, fsck, crash injection at every write | A | T06 | cut power at each block write: mount always gives old or new state |
-| T12 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | A+ | T03 | LLVM-assembled privilege tests (generator in section 6) |
-| T13 | quartz | A and C extensions, official riscv-tests as data | H | T12 | all rv64ui, um, ua, uc, mi, si tests pass |
-| T16 | quarry | const constructor, global allocator, big alignments, `check()` | H | T02 | shadow model re-run; Miri-style stress under threads |
-| T15 | geyser | work-stealing thread pool on std threads, driven by the core | H | T05 | 1M tasks, no loss, no deadlock, clean shutdown |
-| T14 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | H | T01 D1 | avalanche and bias statistics; never the default |
-| T20 | onyx | ChaCha20 random generator, sealed-box helper | H | T04 | known-answer vectors from Python |
+| T05 | kairos | fair scheduler core + simulator | H | | own simulator, new seed |
+| T09 | logos | finish parser, printer, corpus, fuzz (files exist: read them first) | H | T08 | programs written from `docs/LOGOS.md`; fuzz with new seed |
+| T04 | sphinx | X25519, Ed25519 (brief written) | A | T01 | copy `briefs/leader/asym_leader.rs` to `crates/sphinx/tests/` |
+| T17 | elysium | interpreter, heap, mark-sweep GC, fuel, `Host` trait | A | T11 | hand-built modules; fuel and heap limits hold; fuzzed valid modules never panic |
+| T10 | logos | type checker, layer checker, IR | A+ | T09 | reject-corpus: one program per rule in `docs/LOGOS.md` |
+| T18 | cobalt | Logos IR to Elysium bytecode; `logos run`, `logos test` commands | A | T10 T17 | example programs give expected output; `test` and `prop` blocks run |
+| T07 | hades | journal, fsck, crash injection at every write | A | T06 | cut power at each block write: mount always gives old or new state |
+| T12 | silicon | Zicsr, M/S/U modes, traps, Sv39 paging | A+ | T03 | LLVM-assembled privilege tests (generator in section 6) |
+| T13 | silicon | A and C extensions, official riscv-tests as data | H | T12 | all rv64ui, um, ua, uc, mi, si tests pass |
+| T16 | midas | const constructor, global allocator, big alignments, `check()` | H | T02 | shadow model re-run; Miri-style stress under threads |
+| T15 | kairos | work-stealing thread pool on std threads, driven by the core | H | T05 | 1M tasks, no loss, no deadlock, clean shutdown |
+| T14 | sphinx | Medusa: own cipher from `docs/MEDUSA.md`, labelled experimental | H | T01 D1 | avalanche and bias statistics; never the default |
+| T20 | sphinx | ChaCha20 random generator, sealed-box helper | H | T04 | known-answer vectors from Python |
 
 ### P2 Machine
 | Id | System | Deliverable | Lane | Needs | Check |
 |---|---|---|---|---|---|
 | T21 | chisel | RV64IMAC assembler: text, labels, directives | H | T13 | every word equal to LLVM for a 2000-line corpus |
-| T22 | chisel | ELF64 writer and loader | H | T21 | `llvm-readelf` accepts it; Quartz boots it |
-| T23 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | A | T12 | device register tests; a ROM that echoes UART |
-| T24 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | A | T22 T23 | golden boot transcript, 1M instructions deterministic |
-| T25 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | A+ | T23 T16 | boots to a banner on Quartz; page-fault tests |
-| T26 | mantle | processes, user mode, syscalls, scheduler (geyser), ELF loading | A+ | T25 T05 | 3 user programs run and exit; kill and wait work |
-| T27 | mantle | block driver, shale mounted, file syscalls | A | T26 T07 | write, reboot, read back; power cut mid-write |
-| T28 | mantle | userland: init, shell (crust), ls cat echo mkdir rm ps | H | T27 T57 | scripted session transcript |
-| T29 | sinter | Mica IR to RV64 code, linear-scan registers, ELF out | A+ | T10 T22 | same program, same output on Geode and on Quartz (quality bar 7) |
-| T30 | sinter | constant folding, dead code, copy propagation | H | T29 | differential test: optimised equals unoptimised on 5000 random programs |
-| T31 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | A+ | T13 | LLVM-assembled H tests |
-| T32 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | A+ | T31 T24 T26 | both guests run; one guest cannot read the other's memory |
-| T33 | quartz | speed: decoded-block cache, benchmark | H | T23 | same trace with cache on and off; MIPS in `docs/BENCH.md` |
+| T22 | chisel | ELF64 writer and loader | H | T21 | `llvm-readelf` accepts it; Silicon boots it |
+| T23 | silicon | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | A | T12 | device register tests; a ROM that echoes UART |
+| T24 | lithium | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | A | T22 T23 | golden boot transcript, 1M instructions deterministic |
+| T25 | titan | Rust kernel: boot shim, traps, Sv39, heap (midas), console | A+ | T23 T16 | boots to a banner on Silicon; page-fault tests |
+| T26 | titan | processes, user mode, syscalls, scheduler (kairos), ELF loading | A+ | T25 T05 | 3 user programs run and exit; kill and wait work |
+| T27 | titan | block driver, hades mounted, file syscalls | A | T26 T07 | write, reboot, read back; power cut mid-write |
+| T28 | titan | userland: init, shell (krypton), ls cat echo mkdir rm ps | H | T27 T57 | scripted session transcript |
+| T29 | cobalt | Logos IR to RV64 code, linear-scan registers, ELF out | A+ | T10 T22 | same program, same output on Elysium and on Silicon (quality bar 7) |
+| T30 | cobalt | constant folding, dead code, copy propagation | H | T29 | differential test: optimised equals unoptimised on 5000 random programs |
+| T31 | silicon | hypervisor extension: HS, VS, VU, two-stage paging | A+ | T13 | LLVM-assembled H tests |
+| T32 | zeus | hypervisor: 2 guests (lithium + titan), virtual console and timer, isolation | A+ | T31 T24 T26 | both guests run; one guest cannot read the other's memory |
+| T33 | silicon | speed: decoded-block cache, benchmark | H | T23 | same trace with cache on and off; MIPS in `docs/BENCH.md` |
 
 ### P3 Services
 | Id | System | Deliverable | Lane | Needs | Check |
 |---|---|---|---|---|---|
-| T34 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | A+ | T04 T20 D2 | simulator: loss, reorder, duplicate, corruption up to 30 percent |
-| T35 | tremor | UDP transport, echo and file-transfer tools | H | T34 | 100 MB transfer over a lossy local link, hash equal |
-| T36 | outcrop | HTTP/1.1 parser and writer, no I/O inside | H | | request corpus + fuzz with new seed |
-| T37 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | H | T36 T15 | own load tool: 10k connections, no leak, slow-client attack bounded |
-| T38 | outcrop | WebSocket, ranges, chunked bodies | H | T37 | protocol vectors; fuzz |
-| T39 | varve | pager, write-ahead log, crash recovery | A+ | D3 | crash at every write: committed data survives, uncommitted is gone |
-| T40 | varve | B+tree with range scans | H | T39 | against `BTreeMap` shadow, 1M operations |
-| T41 | varve | SQL: parser, planner, executor, indexes, transactions | A+ | T40 | 300 queries compared with SQLite by the leader (Python) |
-| T42 | varve | server, client tool, one writer and many readers | H | T41 T37 | concurrent bank-transfer test, sum is constant |
-| T43 | drillcore | objects, refs, index, commit, log, branch, checkout | H | T01 | round trip of a 2000-file tree |
-| T44 | drillcore | diff (Myers), 3-way merge, status | A | T43 | merge cases compared with `git merge-file` |
-| T45 | drillcore | push and pull over HTTP (outcrop) | H | T44 T37 | clone, change both sides, sync |
-| T46 | cairn | manifest, versions, dependency solver, lock file | A | | solver against brute force on small random graphs |
-| T47 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | H | T46 T04 T37 | tampered package is refused |
-| T48 | seam | blocks, Merkle tree, signed transactions, state, validation | A | T04 | invalid-block corpus all rejected |
-| T49 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | H | T48 T18 | same contract, same state root on 3 nodes |
-| T50 | seam | node: gossip over tremor, sync, fork choice | A+ | T49 T35 | 7-node simulation with partitions converges |
-| T51 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | A+ | | rootless run in WSL: own PID 1, no host files visible |
-| T52 | vug | images as cairn packages, `run`, `ps`, `kill` | H | T51 T47 | start 50 containers, stop them, nothing left behind |
-| T53 | crust | shell language: parser, expansion, globbing | H | | script corpus compared with `bash` output |
-| T57 | crust | executor, pipes, redirects, builtins, job control | H | T53 | scripted sessions on Windows, WSL and (later) Mantle |
-| T54 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | A | | regex against Python `re` on 5000 cases; edit shadow model |
-| T55 | slate | terminal interface, key maps, files, Mica highlighting | H | T54 T09 | scripted key sessions give golden screens |
+| T34 | xenon | protocol core from `docs/XENON.md`, no I/O inside | A+ | T04 T20 D2 | simulator: loss, reorder, duplicate, corruption up to 30 percent |
+| T35 | xenon | UDP transport, echo and file-transfer tools | H | T34 | 100 MB transfer over a lossy local link, hash equal |
+| T36 | mercury | HTTP/1.1 parser and writer, no I/O inside | H | | request corpus + fuzz with new seed |
+| T37 | mercury | server: thread pool, keep-alive, static files, routes, limits, graceful stop | H | T36 T15 | own load tool: 10k connections, no leak, slow-client attack bounded |
+| T38 | mercury | WebSocket, ranges, chunked bodies | H | T37 | protocol vectors; fuzz |
+| T39 | iridium | pager, write-ahead log, crash recovery | A+ | D3 | crash at every write: committed data survives, uncommitted is gone |
+| T40 | iridium | B+tree with range scans | H | T39 | against `BTreeMap` shadow, 1M operations |
+| T41 | iridium | SQL: parser, planner, executor, indexes, transactions | A+ | T40 | 300 queries compared with SQLite by the leader (Python) |
+| T42 | iridium | server, client tool, one writer and many readers | H | T41 T37 | concurrent bank-transfer test, sum is constant |
+| T43 | chronos | objects, refs, index, commit, log, branch, checkout | H | T01 | round trip of a 2000-file tree |
+| T44 | chronos | diff (Myers), 3-way merge, status | A | T43 | merge cases compared with `git merge-file` |
+| T45 | chronos | push and pull over HTTP (mercury) | H | T44 T37 | clone, change both sides, sync |
+| T46 | argo | manifest, versions, dependency solver, lock file | A | | solver against brute force on small random graphs |
+| T47 | argo | registry on mercury, signed packages (Ed25519), install, remove | H | T46 T04 T37 | tampered package is refused |
+| T48 | aurum | blocks, Merkle tree, signed transactions, state, validation | A | T04 | invalid-block corpus all rejected |
+| T49 | aurum | contracts: Logos on Elysium, fuel as gas, `chain` layer | H | T48 T18 | same contract, same state root on 3 nodes |
+| T50 | aurum | node: gossip over xenon, sync, fork choice | A+ | T49 T35 | 7-node simulation with partitions converges |
+| T51 | pandora | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | A+ | | rootless run in WSL: own PID 1, no host files visible |
+| T52 | pandora | images as argo packages, `run`, `ps`, `kill` | H | T51 T47 | start 50 containers, stop them, nothing left behind |
+| T53 | krypton | shell language: parser, expansion, globbing | H | | script corpus compared with `bash` output |
+| T57 | krypton | executor, pipes, redirects, builtins, job control | H | T53 | scripted sessions on Windows, WSL and (later) Titan |
+| T54 | calliope | buffer (piece table), undo tree, multi-cursor, own regex engine | A | | regex against Python `re` on 5000 cases; edit shadow model |
+| T55 | calliope | terminal interface, key maps, files, Logos highlighting | H | T54 T09 | scripted key sessions give golden screens |
 
 ### P4 Pixels
 | Id | System | Deliverable | Lane | Needs | Check |
@@ -140,32 +140,32 @@ when its needs are PASS.
 | T58 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | H | | golden images, pixel exact |
 | T59 | pigment | inflate, deflate, PNG read and write | A | T58 | files open in Python PIL; PIL files open in Pigment |
 | T60 | pigment | own bitmap font, text layout, wrapping | H | T58 | golden images |
-| T61 | glint | widget tree, flex layout, events, focus, themes | A | T60 | layout cases against expected boxes |
-| T62 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | H | T61 | golden frames at fixed times |
-| T63 | facet | compositor: windows, tiling and floating, damage, input, animated moves | A | T62 | damage equals changed pixels; scripted sessions |
-| T64 | facet | client protocol + apps: terminal (crust), editor (slate), files | H | T63 T57 T55 | scripted desktop session, golden frames |
-| T65 | spelunk | HTML and CSS parsers | H | | fuzz; tree dumps for a page corpus |
-| T66 | spelunk | cascade, block and inline layout, flex subset | A+ | T65 T60 | layout boxes for 60 test pages |
-| T67 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | A | T66 T62 T18 T37 | loads the Strata docs site served by Outcrop |
-| T68 | tectonic | entity system, fixed time step, maths | H | | determinism: same inputs, same world hash |
-| T69 | tectonic | 2D renderer, collisions and impulse physics | A | T68 T58 | energy bound, no tunnelling in stress scene |
-| T70 | tectonic | audio mixer, scenes, Mica scripting, one original small game | H | T69 T18 | recorded input replays to the same end state |
+| T61 | indium | widget tree, flex layout, events, focus, themes | A | T60 | layout cases against expected boxes |
+| T62 | indium | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | H | T61 | golden frames at fixed times |
+| T63 | iris | compositor: windows, tiling and floating, damage, input, animated moves | A | T62 | damage equals changed pixels; scripted sessions |
+| T64 | iris | client protocol + apps: terminal (krypton), editor (calliope), files | H | T63 T57 T55 | scripted desktop session, golden frames |
+| T65 | odyssey | HTML and CSS parsers | H | | fuzz; tree dumps for a page corpus |
+| T66 | odyssey | cascade, block and inline layout, flex subset | A+ | T65 T60 | layout boxes for 60 test pages |
+| T67 | odyssey | paint, fetch over HTTP, page scripts in Logos, browser shell in indium | A | T66 T62 T18 T37 | loads the Monolith docs site served by Mercury |
+| T68 | helios | entity system, fixed time step, maths | H | | determinism: same inputs, same world hash |
+| T69 | helios | 2D renderer, collisions and impulse physics | A | T68 T58 | energy bound, no tunnelling in stress scene |
+| T70 | helios | audio mixer, scenes, Logos scripting, one original small game | H | T69 T18 | recorded input replays to the same end state |
 
 ### P5 Front
 | Id | System | Deliverable | Lane | Needs | Check |
 |---|---|---|---|---|---|
-| T71 | web | WebAssembly builds with our own glue (no wasm-bindgen): Quartz + Mantle on a canvas, Mica playground | A | T28 T18 | boots to the shell in Chrome; same transcript as native |
-| T72 | lapidary | IDE shell: editor, file tree, terminal, run, test | Claude | T71 T55 | section 8 design pass, screenshots desktop and mobile |
-| T73 | lapidary | language service: errors, hover, go to definition, format | H | T10 T72 | scripted editor sessions |
-| T74 | lapidary | debugger for Geode: breakpoints, step, inspect | H | T17 T72 | scripted debug session |
-| T75 | site | the Strata site: 25 systems, each with a live demo, scroll-driven motion | Claude | T71 | section 8; reduced-motion and mobile pass |
+| T71 | web | WebAssembly builds with our own glue (no wasm-bindgen): Silicon + Titan on a canvas, Logos playground | A | T28 T18 | boots to the shell in Chrome; same transcript as native |
+| T72 | athena | IDE shell: editor, file tree, terminal, run, test | Claude | T71 T55 | section 8 design pass, screenshots desktop and mobile |
+| T73 | athena | language service: errors, hover, go to definition, format | H | T10 T72 | scripted editor sessions |
+| T74 | athena | debugger for Elysium: breakpoints, step, inspect | H | T17 T72 | scripted debug session |
+| T75 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | Claude | T71 | section 8; reduced-motion and mobile pass |
 | T76 | site | accessibility, performance, cross-browser pass | Claude | T75 | Lighthouse numbers recorded |
 
 ### P6 Scale and hardening
 | Id | System | Deliverable | Lane | Needs | Check |
 |---|---|---|---|---|---|
 | T77 | deploy | static binaries, container images, compose file, health checks | H | T42 T50 T47 | images start, stop cleanly on SIGTERM |
-| T78 | bench | load tools and numbers for outcrop, varve, tremor, seam in `docs/BENCH.md` | H | T77 | leader re-runs one number of each |
+| T78 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | H | T77 | leader re-runs one number of each |
 | T79 | fuzz | one-hour soak of every parser and decoder with new seeds | H | all | findings fixed, seeds added as tests |
 | T80 | review | security review of every crate, one report each | A | all | leader reads and files fixes |
 | T81 | docs | README and runnable example per system, architecture book | F | all | every example runs in the gate |
@@ -178,23 +178,23 @@ when its needs are PASS.
 - CPU and assembler: write assembly, build it with
   `rustc --target riscv64gc-unknown-none-elf --emit obj` using `global_asm!(include_str!(..))`,
   extract with `llvm-objcopy -O binary -j .text`, compare words. See
-  `crates/quartz/tests/llvm_leader.rs`.
+  `crates/silicon/tests/llvm_leader.rs`.
 - State machines (allocator, file system, scheduler, database, editor): a small shadow model
   written by the leader that uses only the public API, with a fresh seed. See
-  `crates/shale/tests/leader.rs` and `crates/quarry/tests/leader.rs`.
+  `crates/hades/tests/leader.rs` and `crates/midas/tests/leader.rs`.
 - Hostile input: `forall` with random bytes, bit flips and truncation, then decode and
-  re-encode. See `crates/geode/tests/leader.rs`.
+  re-encode. See `crates/elysium/tests/leader.rs`.
 - Known trap: a bash heredoc that contains a single quote fails in this harness. Write Rust
   files with the Write tool.
 
 ## 7. Designs the architect still owes (ask the operator to switch to Fable for these)
 | Id | File | Decides |
 |---|---|---|
-| D1 | `docs/CINNABAR.md` | the experimental cipher: structure, rounds, test plan |
-| D2 | `docs/TREMOR.md` | handshake, packet format, streams, loss recovery, congestion control |
-| D3 | `docs/VARVE.md` | page format, log format, SQL subset, isolation level |
-| D4 | `docs/MANTLE.md` | memory map, syscall table, process model, driver model |
-| D5 | `docs/SEAM.md` | block and transaction format, consensus rule, gas table |
+| D1 | `docs/MEDUSA.md` | the experimental cipher: structure, rounds, test plan |
+| D2 | `docs/XENON.md` | handshake, packet format, streams, loss recovery, congestion control |
+| D3 | `docs/IRIDIUM.md` | page format, log format, SQL subset, isolation level |
+| D4 | `docs/TITAN.md` | memory map, syscall table, process model, driver model |
+| D5 | `docs/AURUM.md` | block and transaction format, consensus rule, gas table |
 | D6 | `docs/FRONT.md` | look and motion of the site and the IDE |
 Opus may write a design itself when Fable is not available; keep it to one page and mark it
 "v1, written by the leader".
@@ -223,26 +223,26 @@ the index of every installed skill). Core set:
 
 ## 9. Start prompts
 Claude Opus, after `/clear` and `/model`:
-> You are the leader of Strata in C:\Users\ADMIN\strata. Read LOOP.md, then docs/PLAN.md, then
+> You are the leader of Monolith in C:\Users\ADMIN\strata. Read LOOP.md, then docs/PLAN.md, then
 > AGENTS.md. Continue the loop from the first open task: one worker at a time through
 > tools/lane.sh, judge with your own check, commit and push on PASS. Stop on any stop rule.
 
 Gemini Orchestrator (when Claude is out, or as second judge), run in this folder:
-> `agy --model gemini-pro-orchestrator-g1-pro -i "You are the stand-in leader of Strata. Read AGENTS.md, LOOP.md and docs/PLAN.md, write your name in the LEADER line of LOOP.md, and continue the loop."`
+> `agy --model gemini-pro-orchestrator-g1-pro -i "You are the stand-in leader of Monolith. Read AGENTS.md, LOOP.md and docs/PLAN.md, write your name in the LEADER line of LOOP.md, and continue the loop."`
 
 ## 10. Honest limits
 - This is 80 or so tasks. At one worker at a time it is weeks of sessions, not days.
-- Not real: TLS (Outcrop speaks plain HTTP; put a proxy in front), a full web platform in
-  Spelunk (subset of HTML and CSS, Mica instead of JavaScript), real hardware drivers (the
-  machine is our emulator), Windows containers (Vug is Linux only, tested in WSL).
-- Cinnabar is a learning cipher. Nothing may depend on it for safety.
+- Not real: TLS (Mercury speaks plain HTTP; put a proxy in front), a full web platform in
+  Odyssey (subset of HTML and CSS, Logos instead of JavaScript), real hardware drivers (the
+  machine is our emulator), Windows containers (Pandora is Linux only, tested in WSL).
+- Medusa is a learning cipher. Nothing may depend on it for safety.
 - The Gemini lanes are unproven on this code as of this writing; T05 is the first trial.
 
 ## 11. agy facts learned on 2026-11-14 (do not rediscover)
 - The CLI is `C:\Users\ADMIN\.gemini\bin\agy.exe` (installed 15:40). `agy models` lists lanes.
 - `--mode auto` is not available on this account. Print mode with `--mode accept-edits` lets a
   worker edit files; every shell command is denied unless an allow rule matches it EXACTLY:
-  `{"permissions":{"allow":["command(cargo test -p geyser)"]}}`. Wildcards do not match.
+  `{"permissions":{"allow":["command(cargo test -p kairos)"]}}`. Wildcards do not match.
   `tools/lane.sh` writes that list per crate. Never use `--dangerously-skip-permissions`.
 - Process `agy.exe --hub ...` belongs to the operator's Antigravity window. Never kill it.
 - If a worker needs a command that is not on its list, add the exact command to `CMDS` in

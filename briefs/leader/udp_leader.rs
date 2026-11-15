@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
-use tremor::*;
+use xenon::*;
 
 fn sock() -> UdpSocket {
     UdpSocket::bind("127.0.0.1:0").unwrap()
@@ -282,7 +282,7 @@ fn lossy_file_4mb() {
 }
 
 #[test]
-#[ignore = "release only: cargo test --release -p tremor --test udp_leader -- --ignored"]
+#[ignore = "release only: cargo test --release -p xenon --test udp_leader -- --ignored"]
 fn lossy_file_100mb() {
     transfer(
         100 << 20,

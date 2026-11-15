@@ -1,11 +1,11 @@
 # Benchmarks
 
-## quartz
+## silicon
 
 Command:
 
 ```sh
-cargo run --release -p quartz --example bench
+cargo run --release -p silicon --example bench
 ```
 
 Measured 2026-11-15 on an AMD Ryzen 5 7600X, Windows 11, release build, one run (other runs within 3%):

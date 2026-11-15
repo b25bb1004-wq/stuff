@@ -1,6 +1,6 @@
 //! Encoder for RV64IMA, Zicsr, Zifencei, privileged, and pseudo instructions.
 
-use quartz::inst::{encode, Inst};
+use silicon::inst::{encode, Inst};
 
 use crate::encode_c::eval_rel_target;
 use crate::expr::{Expr, RelocKind};

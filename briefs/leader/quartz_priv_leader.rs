@@ -5,8 +5,8 @@
 //! ecall to M, delegated ecall to S, ecall from S, Sv39 with gigapages built here, a U page
 //! touched from S without SUM, and a timer interrupt woken from wfi.
 #![allow(clippy::unwrap_used)]
-use quartz::inst::{decode, encode, Inst, Inst::*};
-use quartz::{Bus, Cpu, Mode, Ram, Step, Trap};
+use silicon::inst::{decode, encode, Inst, Inst::*};
+use silicon::{Bus, Cpu, Mode, Ram, Step, Trap};
 
 const CASES: &[(&str, u32, Inst)] = &[
     (

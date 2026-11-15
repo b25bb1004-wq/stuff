@@ -9,9 +9,9 @@
 )]
 use assay::Rng;
 use pigment::Rgba;
-use tectonic::rng::Pcg32;
-use tectonic::scene::{replay, Command, Recorder, Scene, Stage};
-use tectonic::script::{render, Draw, ScriptScene, GAME_SRC};
+use helios::rng::Pcg32;
+use helios::scene::{replay, Command, Recorder, Scene, Stage};
+use helios::script::{render, Draw, ScriptScene, GAME_SRC};
 
 const EXTERNS: &str = r#"
 fn g_keys() -> int = extern "game.keys"

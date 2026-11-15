@@ -144,7 +144,7 @@ fn leader_draw_box_and_sample() {
     c.draw_text(
         4,
         60,
-        "Strata: the quick brown fox",
+        "Monolith: the quick brown fox",
         Rgba(120, 200, 255, 255),
         2,
         512,

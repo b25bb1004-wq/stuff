@@ -7,8 +7,8 @@
     clippy::cast_sign_loss
 )]
 use assay::Rng;
-use glint::anim::{ease, tween, Ease, Spring};
-use glint::widgets::{FieldState, ListState, MenuItem, MenuState, Nav, ScrollState, TabsState};
+use indium::anim::{ease, tween, Ease, Spring};
+use indium::widgets::{FieldState, ListState, MenuItem, MenuState, Nav, ScrollState, TabsState};
 
 fn ri(r: &mut Rng, lo: i64, hi: i64) -> i64 {
     lo + r.below((hi - lo) as usize) as i64

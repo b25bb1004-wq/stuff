@@ -2,8 +2,8 @@
 //! subshell, LC_ALL=C, a temp dir for globs), parser shapes, errors and `incomplete`.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use crust::ast::{Command, Script};
-use crust::{expand, parse, Env};
+use krypton::ast::{Command, Script};
+use krypton::{expand, parse, Env};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command as Proc;
@@ -134,7 +134,7 @@ fn sh_quote(s: &str) -> String {
 
 #[test]
 fn leader_expansion_matches_bash() {
-    let dir = std::env::temp_dir().join(format!("crust-leader-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("krypton-leader-{}", std::process::id()));
     std::fs::create_dir_all(dir.join("d")).unwrap();
     for f in [
         "a.txt",
@@ -223,7 +223,7 @@ fn leader_expansion_matches_bash() {
         };
         if got != lines[i] {
             bad.push(format!(
-                "IFS={ifs:?} {w}\n   bash {}\n  crust {got}",
+                "IFS={ifs:?} {w}\n   bash {}\n  krypton {got}",
                 lines[i]
             ));
         }

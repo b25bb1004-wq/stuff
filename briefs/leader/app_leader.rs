@@ -1,7 +1,7 @@
-//! Leader check for T55: the slate modal editor app, written from briefs/T55.md.
+//! Leader check for T55: the calliope modal editor app, written from briefs/T55.md.
 #![allow(clippy::unwrap_used, clippy::type_complexity)]
 use assay::Rng;
-use slate::{ansi, decode_keys, highlight, parse_keys, App, Key, Mode, Style};
+use calliope::{ansi, decode_keys, highlight, parse_keys, App, Key, Mode, Style};
 
 const W: usize = 40;
 const H: usize = 6;
@@ -407,7 +407,7 @@ fn mark(exp: &mut [Style], src: &str, needle: &str, nth: usize, style: Style) {
 fn highlighting() {
     let src = "fn main() {\n  let x = 42 // hi\n  let p: Point = \"s\"\n}\n";
     assert_eq!(highlight("a.txt", src), vec![Style::Plain; src.len()]);
-    assert_eq!(highlight("mica", src), vec![Style::Plain; src.len()]);
+    assert_eq!(highlight("logos", src), vec![Style::Plain; src.len()]);
     let mut exp = vec![Style::Plain; src.len()];
     mark(&mut exp, src, "fn", 0, Style::Keyword);
     mark(&mut exp, src, "let", 0, Style::Keyword);
@@ -416,15 +416,15 @@ fn highlighting() {
     mark(&mut exp, src, "// hi", 0, Style::Comment);
     mark(&mut exp, src, "Point", 0, Style::Type);
     mark(&mut exp, src, "\"s\"", 0, Style::String);
-    assert_eq!(highlight("a.mica", src), exp);
+    assert_eq!(highlight("a.logos", src), exp);
 
     let bad = "let s = \"abc\nfn";
     let mut exp = vec![Style::Plain; bad.len()];
     mark(&mut exp, bad, "let", 0, Style::Keyword);
     mark(&mut exp, bad, "\"abc", 0, Style::Error);
-    assert_eq!(highlight("b.mica", bad), exp);
+    assert_eq!(highlight("b.logos", bad), exp);
 
-    let mut app = App::with_text("m.mica", "let x = 1", 20, 3);
+    let mut app = App::with_text("m.logos", "let x = 1", 20, 3);
     let scr = app.render();
     let row = &scr.styles[0];
     assert!(row[..3].iter().all(|s| *s == Style::Keyword), "{row:?}");
@@ -505,7 +505,7 @@ fn strip_sgr(s: &str) -> String {
 
 #[test]
 fn ansi_shape() {
-    let mut app = App::with_text("m.mica", "let x = 1\n\tfn", 16, 4);
+    let mut app = App::with_text("m.logos", "let x = 1\n\tfn", 16, 4);
     keys(&mut app, "j$");
     let scr = app.render();
     let s = ansi(&scr);
@@ -574,7 +574,7 @@ fn fuzz_never_panics_and_undo_all_restores() {
         let mut r = Rng::new(0x55_f022_0000 + seed);
         let orig = "fn main() {\n\tlet x = 42 // hi\n}\nabc def\n\n  last line here";
         let (mut w, mut h) = (12, 5);
-        let name = if seed % 2 == 0 { "f.mica" } else { "f.txt" };
+        let name = if seed % 2 == 0 { "f.logos" } else { "f.txt" };
         let mut app = App::with_text(name, orig, w, h);
         let mut prev_digit = false;
         for step in 0..3000 {

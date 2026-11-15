@@ -3,8 +3,8 @@
 #![allow(clippy::unwrap_used, clippy::panic, clippy::cast_possible_truncation)]
 use assay::Rng;
 use std::cmp::Ordering;
-use varve::sql::{decode_record, encode_key, encode_record, Db, Value};
-use varve::{Error, MemStorage};
+use iridium::sql::{decode_record, encode_key, encode_record, Db, Value};
+use iridium::{Error, MemStorage};
 
 const CASES: &str = include_str!("sql_cases.txt");
 

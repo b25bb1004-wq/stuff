@@ -1,9 +1,9 @@
 //! Leader check for T20: keystream against RFC 8439 A.1 and `chacha20::xor`, split reads, bias at
 //! a modulus where naive `%` is far off, and the sealed box rebuilt byte for byte from its spec.
 #![allow(clippy::unwrap_used)]
-use onyx::rng::ChaChaRng;
-use onyx::sealed::{open, seal, OVERHEAD};
-use onyx::{aead, chacha20, hkdf, x25519};
+use sphinx::rng::ChaChaRng;
+use sphinx::sealed::{open, seal, OVERHEAD};
+use sphinx::{aead, chacha20, hkdf, x25519};
 
 fn hex(s: &str) -> Vec<u8> {
     (0..s.len())
@@ -106,7 +106,7 @@ fn leader_sealed_matches_spec_and_rejects_tampering() {
     let rsec = [0x11u8; 32];
     let rpub = x25519::public_key(&rsec);
     let esec = [0x22u8; 32];
-    let msg = b"meet at the quarry";
+    let msg = b"meet at the midas";
     let boxed = seal(&rpub, &esec, msg);
     assert_eq!(boxed.len(), msg.len() + OVERHEAD);
 
@@ -117,7 +117,7 @@ fn leader_sealed_matches_spec_and_rejects_tampering() {
     ctx.extend_from_slice(&rpub);
     let prk = hkdf::extract(&ctx, &shared);
     let mut key = [0u8; 32];
-    hkdf::expand(&prk, b"strata sealed v1", &mut key).unwrap();
+    hkdf::expand(&prk, b"monolith sealed v1", &mut key).unwrap();
     let mut want = epub.to_vec();
     want.extend(aead::seal(&key, &[0; 12], &ctx, msg));
     assert_eq!(boxed, want, "box differs from the spec formula");

@@ -1,10 +1,10 @@
-//! Leader check for T46 (cairn). The leader copies it to crates/cairn/tests/leader.rs.
+//! Leader check for T46 (argo). The leader copies it to crates/argo/tests/leader.rs.
 #![allow(clippy::unwrap_used)]
 use assay::{forall, Rng};
-use cairn::lock;
-use cairn::manifest::Manifest;
-use cairn::solve::{solve, Index, Solution};
-use cairn::version::{Req, Version};
+use argo::lock;
+use argo::manifest::Manifest;
+use argo::solve::{solve, Index, Solution};
+use argo::version::{Req, Version};
 use std::collections::BTreeMap;
 use std::time::Instant;
 
@@ -781,14 +781,14 @@ fn leader_lock() {
                 ver((r.range(0, 30), r.range(0, 30), r.u64() >> r.below(64))),
             );
         }
-        let mut want = String::from("# cairn lock v1\n");
+        let mut want = String::from("# argo lock v1\n");
         for (k, v) in &s {
             want.push_str(&format!("{k} = \"{v}\"\n"));
         }
         let text = lock::write(&s);
         assert_eq!(text, want);
         assert_eq!(lock::read(&text), Ok(s.clone()));
-        let mut spaced = String::from("# cairn lock v1\n");
+        let mut spaced = String::from("# argo lock v1\n");
         for (k, v) in &s {
             if r.chance(1, 2) {
                 spaced.push('\n');
@@ -800,12 +800,12 @@ fn leader_lock() {
     for bad in [
         "",
         "a = \"1.0.0\"\n",
-        "# cairn lock v2\n",
-        "# cairn lock v1\na = 1.0.0\n",
-        "# cairn lock v1\na = \"1.0\"\n",
-        "# cairn lock v1\na = \"1.0.0\"\na = \"1.0.0\"\n",
-        "# cairn lock v1\ngarbage\n",
-        "\n# cairn lock v1\n",
+        "# argo lock v2\n",
+        "# argo lock v1\na = 1.0.0\n",
+        "# argo lock v1\na = \"1.0\"\n",
+        "# argo lock v1\na = \"1.0.0\"\na = \"1.0.0\"\n",
+        "# argo lock v1\ngarbage\n",
+        "\n# argo lock v1\n",
     ] {
         assert!(lock::read(bad).is_err(), "lock::read({bad:?}) should fail");
     }
@@ -841,7 +841,7 @@ fn leader_parser_fuzz() {
         if let Ok(m) = Manifest::parse(&wrapped) {
             assert_eq!(Manifest::parse(&m.to_string()), Ok(m.clone()));
         }
-        let wl = format!("# cairn lock v1\n{s}\n");
+        let wl = format!("# argo lock v1\n{s}\n");
         if let Ok(l) = lock::read(&wl) {
             assert_eq!(lock::read(&lock::write(&l)), Ok(l.clone()));
         }

@@ -2,8 +2,8 @@
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
 use chisel::assemble;
-use quartz::inst::{encode, AmoOp, Inst};
-use quartz::machine::{Config, Exit, Machine, RAM_BASE};
+use silicon::inst::{encode, AmoOp, Inst};
+use silicon::machine::{Config, Exit, Machine, RAM_BASE};
 use std::time::Instant;
 
 const BASE: u64 = 0x8000_0000;
@@ -11,9 +11,9 @@ const CORPUS: &str = include_str!("fixtures/corpus.s");
 const CORPUS_BIN: &[u8] = include_bytes!("fixtures/corpus.bin");
 const MAP: &str = include_str!("fixtures/corpus.map");
 const SYMS: &str = include_str!("fixtures/corpus.syms");
-const C_PAIRS: &str = include_str!("../../quartz/tests/fixtures/ac/c_pairs.txt");
-const AMO: &str = include_str!("../../quartz/tests/fixtures/ac/amo.txt");
-const COMMON: &str = include_str!("../../quartz/tests/fixtures/machine/common.inc");
+const C_PAIRS: &str = include_str!("../../silicon/tests/fixtures/ac/c_pairs.txt");
+const AMO: &str = include_str!("../../silicon/tests/fixtures/ac/amo.txt");
+const COMMON: &str = include_str!("../../silicon/tests/fixtures/machine/common.inc");
 
 const ABI: [&str; 32] = [
     "zero", "ra", "sp", "gp", "tp", "t0", "t1", "t2", "s0", "s1", "a0", "a1", "a2", "a3", "a4",
@@ -605,64 +605,64 @@ fn leader_quartz_fixtures_run_the_same() {
     let fx = [
         Fx {
             name: "hello",
-            src: include_str!("../../quartz/tests/fixtures/machine/hello.S"),
-            bin: include_bytes!("../../quartz/tests/fixtures/machine/hello.bin"),
+            src: include_str!("../../silicon/tests/fixtures/machine/hello.S"),
+            bin: include_bytes!("../../silicon/tests/fixtures/machine/hello.bin"),
             extra: "",
             max: 200_000,
         },
         Fx {
             name: "timer",
-            src: include_str!("../../quartz/tests/fixtures/machine/timer.S"),
-            bin: include_bytes!("../../quartz/tests/fixtures/machine/timer.bin"),
+            src: include_str!("../../silicon/tests/fixtures/machine/timer.S"),
+            bin: include_bytes!("../../silicon/tests/fixtures/machine/timer.bin"),
             extra: "",
             max: 400_000,
         },
         Fx {
             name: "echo_irq",
-            src: include_str!("../../quartz/tests/fixtures/machine/echo_irq.S"),
-            bin: include_bytes!("../../quartz/tests/fixtures/machine/echo_irq.bin"),
+            src: include_str!("../../silicon/tests/fixtures/machine/echo_irq.S"),
+            bin: include_bytes!("../../silicon/tests/fixtures/machine/echo_irq.bin"),
             extra: "",
             max: 200_000,
         },
         Fx {
             name: "block",
-            src: include_str!("../../quartz/tests/fixtures/machine/block.S"),
-            bin: include_bytes!("../../quartz/tests/fixtures/machine/block.bin"),
+            src: include_str!("../../silicon/tests/fixtures/machine/block.S"),
+            bin: include_bytes!("../../silicon/tests/fixtures/machine/block.bin"),
             extra: "",
             max: 400_000,
         },
         Fx {
             name: "fb",
-            src: include_str!("../../quartz/tests/fixtures/machine/fb.S"),
-            bin: include_bytes!("../../quartz/tests/fixtures/machine/fb.bin"),
+            src: include_str!("../../silicon/tests/fixtures/machine/fb.S"),
+            bin: include_bytes!("../../silicon/tests/fixtures/machine/fb.bin"),
             extra: "",
             max: 400_000,
         },
         Fx {
             name: "keys_s",
-            src: include_str!("../../quartz/tests/fixtures/machine/keys_s.S"),
-            bin: include_bytes!("../../quartz/tests/fixtures/machine/keys_s.bin"),
+            src: include_str!("../../silicon/tests/fixtures/machine/keys_s.S"),
+            bin: include_bytes!("../../silicon/tests/fixtures/machine/keys_s.bin"),
             extra: "",
             max: 200_000,
         },
         Fx {
             name: "msi",
-            src: include_str!("../../quartz/tests/fixtures/machine/msi.S"),
-            bin: include_bytes!("../../quartz/tests/fixtures/machine/msi.bin"),
+            src: include_str!("../../silicon/tests/fixtures/machine/msi.S"),
+            bin: include_bytes!("../../silicon/tests/fixtures/machine/msi.bin"),
             extra: "",
             max: 200_000,
         },
         Fx {
             name: "rvc",
-            src: include_str!("../../quartz/tests/fixtures/ac/rvc.S"),
-            bin: include_bytes!("../../quartz/tests/fixtures/ac/rvc.bin"),
+            src: include_str!("../../silicon/tests/fixtures/ac/rvc.S"),
+            bin: include_bytes!("../../silicon/tests/fixtures/ac/rvc.bin"),
             extra: ".option rvc\n.option arch, +a\n",
             max: 200_000,
         },
         Fx {
             name: "amo_sem",
-            src: include_str!("../../quartz/tests/fixtures/ac/amo_sem.S"),
-            bin: include_bytes!("../../quartz/tests/fixtures/ac/amo_sem.bin"),
+            src: include_str!("../../silicon/tests/fixtures/ac/amo_sem.S"),
+            bin: include_bytes!("../../silicon/tests/fixtures/ac/amo_sem.bin"),
             extra: "",
             max: 200_000,
         },

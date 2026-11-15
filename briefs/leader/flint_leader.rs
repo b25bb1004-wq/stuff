@@ -1,7 +1,7 @@
 //! Leader check for T24: golden transcript properties, determinism, U-mode isolation, the
 //! panic path, the unknown-syscall return, and the kernel being assembly only.
 #![allow(clippy::unwrap_used, clippy::panic)]
-use quartz::machine::{Config, Exit, Machine, RAM_BASE};
+use silicon::machine::{Config, Exit, Machine, RAM_BASE};
 
 fn task_a_body(src: &str) -> u64 {
     let out = chisel::assemble(src, RAM_BASE).unwrap();
@@ -26,7 +26,7 @@ fn run_src(src: &str, patch: Option<[u8; 4]>, steps: u64) -> (Exit, String, Mach
 
 fn check_transcript(t: &str) {
     assert!(
-        t.starts_with("flint: boot\n") && t.ends_with("flint: halt\n"),
+        t.starts_with("lithium: boot\n") && t.ends_with("lithium: halt\n"),
         "{t:?}"
     );
     let lines: Vec<&str> = t.lines().collect();
@@ -50,7 +50,7 @@ fn check_transcript(t: &str) {
 
 #[test]
 fn golden_and_deterministic() {
-    let (exit, t) = flint::run(1_000_000);
+    let (exit, t) = lithium::run(1_000_000);
     assert_eq!(exit, Exit::Pass);
     check_transcript(&String::from_utf8(t.clone()).unwrap());
     assert_eq!(
@@ -58,10 +58,10 @@ fn golden_and_deterministic() {
         include_bytes!("golden.txt").to_vec(),
         "golden.txt differs"
     );
-    let (e2, t2, m) = run_src(flint::KERNEL_SRC, None, 1_000_000);
+    let (e2, t2, m) = run_src(lithium::KERNEL_SRC, None, 1_000_000);
     assert_eq!((e2, t2.into_bytes()), (exit, t));
     assert!(m.board.mtime() < 200_000, "took {} steps", m.board.mtime());
-    let img = flint::image().unwrap();
+    let img = lithium::image().unwrap();
     assert!(!img.is_empty() && img.len() < 64 * 1024);
 }
 
@@ -69,30 +69,30 @@ fn golden_and_deterministic() {
 fn user_mode_cannot_touch_machine_csrs() {
     // csrr t0, mstatus as task A's first instruction: illegal in U-mode
     let (exit, t, _) = run_src(
-        flint::KERNEL_SRC,
+        lithium::KERNEL_SRC,
         Some(0x3000_22f3u32.to_le_bytes()),
         1_000_000,
     );
-    assert!(t.contains("flint: panic 0x2\n"), "{t:?}");
+    assert!(t.contains("lithium: panic 0x2\n"), "{t:?}");
     assert_eq!(exit, Exit::Fail(1));
 }
 
 #[test]
 fn illegal_instruction_panics() {
-    let (exit, t, _) = run_src(flint::KERNEL_SRC, Some([0; 4]), 1_000_000);
+    let (exit, t, _) = run_src(lithium::KERNEL_SRC, Some([0; 4]), 1_000_000);
     assert!(
-        t.starts_with("flint: boot\n") && t.contains("flint: panic 0x2\n"),
+        t.starts_with("lithium: boot\n") && t.contains("lithium: panic 0x2\n"),
         "{t:?}"
     );
-    assert!(!t.contains("flint: halt"));
+    assert!(!t.contains("lithium: halt"));
     assert_eq!(exit, Exit::Fail(1));
 }
 
 #[test]
 fn unknown_syscall_returns_minus_one() {
     let probe = "task_a_body:\n    li a7, 99\n    ecall\n    li t0, -1\n    beq a0, t0, leader_ok\n    .word 0\nleader_ok:\n";
-    assert_eq!(flint::KERNEL_SRC.matches("task_a_body:\n").count(), 1);
-    let src = flint::KERNEL_SRC.replace("task_a_body:\n", probe);
+    assert_eq!(lithium::KERNEL_SRC.matches("task_a_body:\n").count(), 1);
+    let src = lithium::KERNEL_SRC.replace("task_a_body:\n", probe);
     let (exit, t, _) = run_src(&src, None, 1_000_000);
     assert_eq!(exit, Exit::Pass, "{t:?}");
     check_transcript(&t);

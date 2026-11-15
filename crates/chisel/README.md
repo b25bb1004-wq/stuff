@@ -1,6 +1,6 @@
 # chisel
 
-`chisel` is a two-pass RV64IMAC assembler and ELF64 helper library in Rust with no external runtime dependencies beyond `quartz`. It turns RISC-V assembly source text into flat machine code bytes and symbol tables matching LLVM 19 encoding, and provides an in-memory ELF64 writer, reader, and loader for running assembled programs on a `quartz` machine.
+`chisel` is a two-pass RV64IMAC assembler and ELF64 helper library in Rust with no external runtime dependencies beyond `silicon`. It turns RISC-V assembly source text into flat machine code bytes and symbol tables matching LLVM 19 encoding, and provides an in-memory ELF64 writer, reader, and loader for running assembled programs on a `silicon` machine.
 
 ## Features
 
@@ -8,7 +8,7 @@
 - Pseudo-instructions such as `li` and branch aliases, along with named labels and numeric local labels (`1:`, `1f`, `1b`).
 - Constant definitions via `.equ` and `.set`, and arithmetic expressions evaluated at assembly time.
 - Data and alignment directives: `.byte`, `.half`/`.2byte`, `.word`/`.4byte`/`.long`, `.dword`/`.8byte`/`.quad`, `.zero`, `.space`, `.ascii`, `.asciz`/`.string`, `.balign`, `.p2align`, and `.align`.
-- Little-endian RV64 ELF64 serialization (`elf::write`), parsing (`elf::read`), and loading into `quartz::machine::Machine` (`elf::load`) with `PT_LOAD` segments and symbol tables.
+- Little-endian RV64 ELF64 serialization (`elf::write`), parsing (`elf::read`), and loading into `silicon::machine::Machine` (`elf::load`) with `PT_LOAD` segments and symbol tables.
 - Line-numbered error reporting via `AsmError` and structured ELF validation errors via `ElfError`.
 
 ## Public API
@@ -24,7 +24,7 @@
 | `elf::ElfError` | ELF64 parsing error (`Truncated`, `BadMagic`, `Unsupported`, `BadSegment`) |
 | `elf::write(img)` | Serialize an `Image` to little-endian RV64 ELF64 bytes |
 | `elf::read(bytes)` | Parse little-endian RV64 ELF64 bytes into `Result<Image, ElfError>` |
-| `elf::load(img, m)` | Load `Image` segments into a `quartz::machine::Machine` and set `pc` |
+| `elf::load(img, m)` | Load `Image` segments into a `silicon::machine::Machine` and set `pc` |
 
 ## Demo
 

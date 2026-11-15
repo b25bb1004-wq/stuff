@@ -11,11 +11,11 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
-use varve::net::{decode_rows, encode_rows, Server};
-use varve::sql::{Rows, Value};
+use iridium::net::{decode_rows, encode_rows, Server};
+use iridium::sql::{Rows, Value};
 
 fn files(tag: &str) -> (PathBuf, PathBuf) {
-    let d = std::env::temp_dir().join(format!("varve-net-leader-{tag}-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("iridium-net-leader-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     (d.join("main.db"), d.join("main.log"))
@@ -350,7 +350,7 @@ fn hostile_frames() {
         good.ok(&format!("INSERT INTO t (v) VALUES ({i})"));
     }
     assert_eq!(count(&mut Raw::new(addr), "t"), 5);
-    let c = varve::net::Client::connect(addr).unwrap();
+    let c = iridium::net::Client::connect(addr).unwrap();
     let mut c = c;
     let got = c.execute("SELECT v FROM t ORDER BY v").unwrap().unwrap();
     assert_eq!(got.rows.len(), 5);

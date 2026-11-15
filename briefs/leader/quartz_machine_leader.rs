@@ -3,8 +3,8 @@
 //! device, framebuffer and keys on a `Machine`; register-level PLIC/CLINT/UART rules; MMIO fuzz.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use quartz::machine::{Config, Exit, Machine, RAM_BASE};
-use quartz::{Bus, Fault, Mode};
+use silicon::machine::{Config, Exit, Machine, RAM_BASE};
+use silicon::{Bus, Fault, Mode};
 
 const LOOP: [u8; 4] = 0x0000_006fu32.to_le_bytes(); // j .
 

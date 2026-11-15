@@ -1,9 +1,9 @@
-//! Leader check for T33 (decoded-instruction cache). Copied to crates/quartz/tests/cache_leader.rs.
+//! Leader check for T33 (decoded-instruction cache). Copied to crates/silicon/tests/cache_leader.rs.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use quartz::inst::{decode, decode_c, encode, AmoOp, Inst};
-use quartz::machine::{Config, Exit, Machine, RAM_BASE};
-use quartz::Bus;
+use silicon::inst::{decode, decode_c, encode, AmoOp, Inst};
+use silicon::machine::{Config, Exit, Machine, RAM_BASE};
+use silicon::Bus;
 
 const T1: u8 = 6;
 const T2: u8 = 7;
@@ -119,7 +119,7 @@ fn leader_fixtures_lockstep() {
     }
 }
 
-/// Tiny program builder over quartz's own encoder.
+/// Tiny program builder over silicon's own encoder.
 struct B {
     b: Vec<u8>,
 }

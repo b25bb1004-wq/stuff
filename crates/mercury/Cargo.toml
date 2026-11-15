@@ -1,0 +1,19 @@
+[package]
+name = "mercury"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[features]
+default = ["std"]
+std = ["dep:kairos"]
+
+[dependencies]
+kairos = { path = "../kairos", optional = true }
+
+[dev-dependencies]
+assay = { path = "../assay" }
+
+[lints]
+workspace = true

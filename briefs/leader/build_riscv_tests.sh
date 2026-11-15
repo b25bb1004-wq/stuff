@@ -3,11 +3,11 @@
 # RV64 I M A C + the S and M privileged suites into flat binaries at 0x80000000.
 # Source: a clone of github.com/riscv-software-src/riscv-tests (+ env submodule) in $SRC.
 # Compiles with WSL clang (rustc's and mingw's toolchains have no RISC-V C front end), links
-# with rustc's rust-lld, flattens with llvm-objcopy. Writes crates/quartz/tests/fixtures/riscv-tests/:
+# with rustc's rust-lld, flattens with llvm-objcopy. Writes crates/silicon/tests/fixtures/riscv-tests/:
 # <test>.bin, index.txt ("<test> <tohost hex> <size>"), SKIPPED (tests that do not build), LICENSE, SOURCE.
 set -e
 SRC="${SRC:-/c/Users/ADMIN/strata-ext/riscv-tests}"
-OUT=crates/quartz/tests/fixtures/riscv-tests
+OUT=crates/silicon/tests/fixtures/riscv-tests
 T=$(mktemp -d)
 LLD="$(ls "$(rustc --print sysroot)"/lib/rustlib/*/bin/rust-lld.exe | head -1)"
 mkdir -p "$OUT"

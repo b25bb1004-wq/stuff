@@ -2,10 +2,10 @@
 //! determinism with per-entity insertion order permuted, stale handles.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use tectonic::ecs::{Entity, World};
-use tectonic::fx::{Fx, Vec2};
-use tectonic::rng::Pcg32;
-use tectonic::Clock;
+use helios::ecs::{Entity, World};
+use helios::fx::{Fx, Vec2};
+use helios::rng::Pcg32;
+use helios::Clock;
 
 const S: f64 = 65536.0;
 

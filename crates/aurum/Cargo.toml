@@ -1,0 +1,19 @@
+[package]
+name = "aurum"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+elysium = { path = "../elysium" }
+logos = { path = "../logos" }
+sphinx = { path = "../sphinx" }
+cobalt = { path = "../cobalt" }
+xenon = { path = "../xenon" }
+
+[dev-dependencies]
+assay = { path = "../assay" }
+
+[lints]
+workspace = true

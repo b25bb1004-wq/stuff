@@ -1,4 +1,4 @@
-# T13a leader fixtures. Writes crates/quartz/tests/fixtures/ac/{c_pairs,amo}.s for LLVM:
+# T13a leader fixtures. Writes crates/silicon/tests/fixtures/ac/{c_pairs,amo}.s for LLVM:
 # c_pairs: each case is one explicit c.* instruction (2 bytes) then its expansion (4 bytes).
 # amo: one A-extension instruction per line; amo_fields.txt records what each line was given.
 # Run from the repo root: python -I briefs/leader/gen_quartz_ac.py (then build_quartz_ac.sh).
@@ -87,16 +87,16 @@ def case():
 
 
 cases = [case() for _ in range(2500)]
-with open("crates/quartz/tests/fixtures/ac/c_pairs.s", "w", newline="\n") as f:
+with open("crates/silicon/tests/fixtures/ac/c_pairs.s", "w", newline="\n") as f:
     for c, e in cases:
         f.write(f".option rvc\n{c}\n.option norvc\n{e}\n")
-with open("crates/quartz/tests/fixtures/ac/c_pairs_src.txt", "w", newline="\n") as f:
+with open("crates/silicon/tests/fixtures/ac/c_pairs_src.txt", "w", newline="\n") as f:
     for c, e in cases:
         f.write(f"{c} | {e}\n")
 
 OPS = ['swap', 'add', 'xor', 'and', 'or', 'min', 'max', 'minu', 'maxu']
-with open("crates/quartz/tests/fixtures/ac/amo.s", "w", newline="\n") as f, \
-        open("crates/quartz/tests/fixtures/ac/amo_fields.txt", "w", newline="\n") as g:
+with open("crates/silicon/tests/fixtures/ac/amo.s", "w", newline="\n") as f, \
+        open("crates/silicon/tests/fixtures/ac/amo_fields.txt", "w", newline="\n") as g:
     f.write(".option norvc\n.option arch, +a\n")
     for _ in range(1200):
         w = random.choice('wd')

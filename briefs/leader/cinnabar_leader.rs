@@ -1,10 +1,10 @@
-//! Leader check for T14 (Cinnabar). Copied to crates/onyx/tests/cinnabar_leader.rs. Known answers
-//! come from briefs/leader/cinnabar_ref.py (an independent Python model of docs/CINNABAR.md).
+//! Leader check for T14 (Medusa). Copied to crates/sphinx/tests/cinnabar_leader.rs. Known answers
+//! come from briefs/leader/cinnabar_ref.py (an independent Python model of docs/MEDUSA.md).
 #![allow(clippy::unwrap_used)]
 use assay::{hex, Rng};
-use onyx::cinnabar::{ctr_xor, Cinnabar, ROUNDS};
+use sphinx::medusa::{ctr_xor, Medusa, ROUNDS};
 
-const VECTORS: &str = include_str!("fixtures/cinnabar.txt");
+const VECTORS: &str = include_str!("fixtures/medusa.txt");
 
 fn arr<const N: usize>(s: &str) -> [u8; N] {
     hex(s).try_into().unwrap()
@@ -38,7 +38,7 @@ fn leader_known_answers() {
         let w: Vec<&str> = l.split(' ').collect();
         match w[0] {
             "block" => {
-                let c = Cinnabar::new(&arr(w[1]));
+                let c = Medusa::new(&arr(w[1]));
                 let (pt, ct): ([u8; 16], [u8; 16]) = (arr(w[2]), arr(w[3]));
                 let mut b = pt;
                 c.encrypt_block(&mut b);
@@ -67,7 +67,7 @@ fn leader_known_answers() {
 fn leader_round_trips() {
     let mut r = Rng::new(0x14_7777_0001);
     for _ in 0..2000 {
-        let c = Cinnabar::new(&key(&mut r));
+        let c = Medusa::new(&key(&mut r));
         let pt = block(&mut r);
         let mut b = pt;
         c.encrypt_block(&mut b);
@@ -85,7 +85,7 @@ fn leader_avalanche() {
     let mut per_bit = [0u32; 128];
     for _ in 0..n {
         let k = key(&mut r);
-        let c = Cinnabar::new(&k);
+        let c = Medusa::new(&k);
         let pt = block(&mut r);
         let mut base = pt;
         c.encrypt_block(&mut base);
@@ -99,7 +99,7 @@ fn leader_avalanche() {
         let mut k2 = k;
         k2[r.below(32)] ^= 1 << r.below(8);
         let mut b2 = pt;
-        Cinnabar::new(&k2).encrypt_block(&mut b2);
+        Medusa::new(&k2).encrypt_block(&mut b2);
         key_total += popcount(&base, &b2);
     }
     let (pa, ka) = (
@@ -146,7 +146,7 @@ fn leader_counter_mode_structure() {
         };
         let data = r.bytes(200);
         // Hand-built keystream from the block function.
-        let c = Cinnabar::new(&k);
+        let c = Medusa::new(&k);
         let mut want = data.clone();
         for (j, chunk) in want.chunks_mut(16).enumerate() {
             let mut b = [0u8; 16];
@@ -173,7 +173,7 @@ fn leader_counter_mode_structure() {
 #[test]
 fn leader_labelled_and_isolated() {
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src");
-    let own = std::fs::read_to_string(format!("{dir}/cinnabar.rs")).unwrap();
+    let own = std::fs::read_to_string(format!("{dir}/medusa.rs")).unwrap();
     assert!(
         own.trim_start().starts_with("//! EXPERIMENTAL"),
         "module doc must start with EXPERIMENTAL"
@@ -181,19 +181,19 @@ fn leader_labelled_and_isolated() {
     for e in std::fs::read_dir(dir).unwrap() {
         let p = e.unwrap().path();
         let name = p.file_name().unwrap().to_string_lossy().to_string();
-        if name == "cinnabar.rs" || p.is_dir() {
+        if name == "medusa.rs" || p.is_dir() {
             continue;
         }
         let text = std::fs::read_to_string(&p).unwrap().to_lowercase();
-        let uses = text.matches("cinnabar").count();
+        let uses = text.matches("medusa").count();
         let allowed = if name == "lib.rs" { 2 } else { 0 };
-        assert!(uses <= allowed, "{name} mentions cinnabar {uses} times");
+        assert!(uses <= allowed, "{name} mentions medusa {uses} times");
     }
-    let at = own.find("pub struct Cinnabar").unwrap();
+    let at = own.find("pub struct Medusa").unwrap();
     let before = &own[at.saturating_sub(120)..at];
     let derive = before.rfind("#[derive(").map(|d| &before[d..]);
     assert!(
         !derive.is_some_and(|d| d.contains("Debug")),
-        "Cinnabar must not derive Debug"
+        "Medusa must not derive Debug"
     );
 }

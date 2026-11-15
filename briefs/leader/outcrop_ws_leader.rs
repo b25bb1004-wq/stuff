@@ -6,9 +6,9 @@
 #![cfg(feature = "std")]
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use outcrop::server::{Config, Router, Server};
-use outcrop::ws::{accept_key, decode_frame, encode_frame, Frame, Message};
-use outcrop::Response;
+use mercury::server::{Config, Router, Server};
+use mercury::ws::{accept_key, decode_frame, encode_frame, Frame, Message};
+use mercury::Response;
 use std::process::Command;
 
 const PY: &str = r#"

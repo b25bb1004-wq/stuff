@@ -1,4 +1,4 @@
-//! Leader check for T49: contracts on seam. Own model of balances, refunds, fees, contract
+//! Leader check for T49: contracts on aurum. Own model of balances, refunds, fees, contract
 //! storage (counter, token, revert probe) and the state root with contract leaves, over a
 //! 30-block random chain on 3 nodes. Merkle and tx helpers copied from seam_leader.rs.
 #![allow(
@@ -10,9 +10,9 @@
     dead_code
 )]
 use assay::Rng;
-use onyx::ed25519;
-use onyx::sha256::digest as sha;
-use seam::{contract_address, Block, Chain, Header, Receipt, Tx, DEPLOY, FUEL_PER_FEE};
+use sphinx::ed25519;
+use sphinx::sha256::digest as sha;
+use aurum::{contract_address, Block, Chain, Header, Receipt, Tx, DEPLOY, FUEL_PER_FEE};
 use std::collections::BTreeMap;
 
 type H = [u8; 32];
@@ -111,7 +111,7 @@ fn tx_enc(t: &Tx) -> Vec<u8> {
     v
 }
 fn tx_msg(t: &Tx) -> Vec<u8> {
-    let mut m = b"seam-tx\0".to_vec();
+    let mut m = b"aurum-tx\0".to_vec();
     m.extend(tx_body(t));
     m
 }
@@ -140,7 +140,7 @@ fn hdr_enc(h: &Header) -> Vec<u8> {
     v
 }
 fn hdr_sign(h: &mut Header, s: &[u8; 32]) {
-    let mut m = b"seam-blk".to_vec();
+    let mut m = b"aurum-blk".to_vec();
     m.extend_from_slice(&hdr_enc(h)[..144]);
     h.sig = ed25519::sign(s, &m);
 }

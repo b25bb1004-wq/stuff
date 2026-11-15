@@ -1,4 +1,4 @@
-//! Leader check for T25 (mantle): boot transcript at several RAM sizes, step bound, decode cache off,
+//! Leader check for T25 (titan): boot transcript at several RAM sizes, step bound, decode cache off,
 //! fresh-seed Sv39 shadow model with remap/unmap edge cases, page-boundary translation, frames never leaking.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
@@ -8,9 +8,9 @@ use std::process::Command;
 use std::sync::OnceLock;
 
 use assay::Rng;
-use mantle::frames::{Error as FErr, FrameAllocator};
-use mantle::sv39::{Error, FramePool, PageTable, Pte, A, D, G, R, U, W, X};
-use quartz::machine::{Config, Exit, Machine};
+use titan::frames::{Error as FErr, FrameAllocator};
+use titan::sv39::{Error, FramePool, PageTable, Pte, A, D, G, R, U, W, X};
+use silicon::machine::{Config, Exit, Machine};
 
 const SEED: u64 = 0x01EA_DE25_0000;
 const MIB: usize = 1024 * 1024;
@@ -19,7 +19,7 @@ fn kernel() -> &'static [u8] {
     static ELF: OnceLock<Vec<u8>> = OnceLock::new();
     ELF.get_or_init(|| {
         let root: PathBuf = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let dir = root.join("target").join("mantle-kernel");
+        let dir = root.join("target").join("titan-kernel");
         let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
         let ok = Command::new(cargo)
             .current_dir(&root)
@@ -27,7 +27,7 @@ fn kernel() -> &'static [u8] {
             .args([
                 "build",
                 "-p",
-                "mantle",
+                "titan",
                 "--bin",
                 "kernel",
                 "--release",
@@ -70,7 +70,7 @@ fn boot(ram: usize, decode_cache: bool) -> u64 {
     let l: Vec<&str> = out.lines().collect();
     assert_eq!(l.len(), 11, "{out}");
     let end = 0x8000_0000u64 + ram as u64;
-    assert_eq!(l[0], "Mantle v0.1");
+    assert_eq!(l[0], "Titan v0.1");
     assert_eq!(
         l[1],
         format!("ram 0x80000000..0x{end:x} ({} MiB)", ram / MIB)

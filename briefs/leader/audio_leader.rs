@@ -6,9 +6,9 @@
     clippy::cast_sign_loss
 )]
 use assay::Rng;
-use tectonic::audio::{tone, wav, Mixer, Sound, VoiceId};
-use tectonic::fx::Fx;
-use tectonic::scene::{replay, Command, Input, Recorder, Scene, Stage};
+use helios::audio::{tone, wav, Mixer, Sound, VoiceId};
+use helios::fx::Fx;
+use helios::scene::{replay, Command, Input, Recorder, Scene, Stage};
 
 struct MVoice {
     id: u64,

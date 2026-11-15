@@ -1,10 +1,10 @@
 //! Leader check for T19: the reference interpreter on programs whose output was worked out by
 //! hand, every trap kind with the span of the trapping code, fuel, call depth, externs and props.
 #![allow(clippy::unwrap_used)]
-use mica::check::check;
-use mica::eval::{run_main, run_prop, run_test, Outcome, Trap};
-use mica::ir::Program;
-use mica::parser::parse;
+use logos::check::check;
+use logos::eval::{run_main, run_prop, run_test, Outcome, Trap};
+use logos::ir::Program;
+use logos::parser::parse;
 
 const SAY: &str = "fn say(s: str) uses io = extern \"io.print\"\n";
 const BIG: u64 = 50_000_000;

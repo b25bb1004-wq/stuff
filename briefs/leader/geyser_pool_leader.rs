@@ -1,7 +1,7 @@
 //! Leader check for T15: seeded soak of the pool with nested spawns and panics, where the exact
 //! set of jobs is known in advance; repeated create/drop while jobs still spawn; stealing.
 #![allow(clippy::unwrap_used)]
-use geyser::pool::{current, Pool};
+use kairos::pool::{current, Pool};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering::SeqCst};
 use std::sync::{Arc, Mutex, Once};

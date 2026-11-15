@@ -1,8 +1,8 @@
-//! Leader-run check for the Geode VM: hand-built modules, exact fuel, GC churn, deep data,
+//! Leader-run check for the Elysium VM: hand-built modules, exact fuel, GC churn, deep data,
 //! limits, and a fuzz run over the public API only. `STRATA_SEED`/`STRATA_CASES` change the run.
 #![allow(clippy::unwrap_used)]
 use assay::{forall, Rng};
-use geode::{
+use elysium::{
     verify, Const, Func, Heap, Host, Limits, LoadError, Module, NoHost, Op, Trap, Value, Vm,
 };
 use Op::*;
@@ -313,7 +313,7 @@ impl Host for Counter {
         if name == "io.len" {
             return Ok(Value::Int(args.len() as i64));
         }
-        let h = heap.alloc(geode::Obj::Str(name.into()))?;
+        let h = heap.alloc(elysium::Obj::Str(name.into()))?;
         Ok(Value::Ref(h))
     }
 }

@@ -9,9 +9,9 @@
     clippy::single_match
 )]
 use assay::Rng;
-use spelunk::dom::Document;
-use spelunk::layout::{layout, BoxRect};
-use spelunk::style::{compute_flex, Flex, FlexAlign, FlexDir, FlexJustify};
+use odyssey::dom::Document;
+use odyssey::layout::{layout, BoxRect};
+use odyssey::style::{compute_flex, Flex, FlexAlign, FlexDir, FlexJustify};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -551,7 +551,7 @@ fn flex_matches_model() {
         let mut html = format!("<html><head><style>{css}</style></head><body style=\"margin: 0\">");
         html_of(&root, &mut html);
         html.push_str("</body></html>");
-        let doc: Document = spelunk::html::parse(&html);
+        let doc: Document = odyssey::html::parse(&html);
         let mut els = Vec::new();
         flatten(&root, &mut els);
         let ids = doc.elements();
@@ -571,7 +571,7 @@ fn flex_matches_model() {
         }
         assert_eq!(got_f[ids[0]], Some(INIT));
         let vw = 100 + r.below(600) as i32;
-        let st = spelunk::style::compute(&doc);
+        let st = odyssey::style::compute(&doc);
         let lay = layout(&doc, &st, vw);
         let mut m = Lay {
             els: &els,
@@ -635,8 +635,8 @@ fn flex_fuzz_never_panics() {
     ];
     for _ in 0..3000 {
         let s: String = (0..r.below(25)).map(|_| *r.pick(&bits)).collect();
-        let doc = spelunk::html::parse(&s);
-        let st = spelunk::style::compute(&doc);
+        let doc = odyssey::html::parse(&s);
+        let st = odyssey::style::compute(&doc);
         let _ = compute_flex(&doc);
         for vw in [-1, 0, 50, i32::MAX] {
             let _ = layout(&doc, &st, vw);

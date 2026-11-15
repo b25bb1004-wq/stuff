@@ -5,10 +5,10 @@
 #![cfg(feature = "std")]
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use drillcore::remote::{clone, decode_pack, encode_pack, serve, RemoteError};
-use drillcore::{decode_commit, encode_commit, to_hex, Commit, Kind, MemStore, Repo, Signature};
-use outcrop::server::{Config, Router, Server};
-use outcrop::{parse_response, Limits};
+use chronos::remote::{clone, decode_pack, encode_pack, serve, RemoteError};
+use chronos::{decode_commit, encode_commit, to_hex, Commit, Kind, MemStore, Repo, Signature};
+use mercury::server::{Config, Router, Server};
+use mercury::{parse_response, Limits};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::{Arc, Mutex};
@@ -26,7 +26,7 @@ type Shared = Arc<Mutex<Repo<MemStore>>>;
 
 fn start() -> (Server, Shared, String) {
     let mut r = Repo::init(MemStore::default());
-    r.add("README", b"strata\n", false).unwrap();
+    r.add("README", b"monolith\n", false).unwrap();
     r.commit("root\n", &who(1)).unwrap();
     let shared = Arc::new(Mutex::new(r));
     let mut router = Router::new();
@@ -62,7 +62,7 @@ fn leader_three_clones_converge() {
     let mut a = clone(&url, MemStore::default()).unwrap();
     let mut b = clone(&url, MemStore::default()).unwrap();
     a.add("a.txt", b"from a\n", false).unwrap();
-    a.add("README", b"strata\nedited by a\n", false).unwrap();
+    a.add("README", b"monolith\nedited by a\n", false).unwrap();
     a.commit("a\n", &who(10)).unwrap();
     a.push(&url, "main").unwrap();
     b.add("b.txt", b"from b\n", true).unwrap();
@@ -88,7 +88,7 @@ fn leader_three_clones_converge() {
         );
     }
     let files = c.files(&tip).unwrap();
-    assert_eq!(files["README"].0, b"strata\nedited by a\n");
+    assert_eq!(files["README"].0, b"monolith\nedited by a\n");
     assert_eq!(files["b.txt"], (b"from b\n".to_vec(), true));
     // New branch push, then a bad name.
     let mut a2 = a;
@@ -183,7 +183,7 @@ fn leader_forged_and_malformed_pushes_rejected() {
         message: "forged\n".into(),
     };
     let data = encode_commit(&forged);
-    let id = drillcore::hash_object(Kind::Commit, &data);
+    let id = chronos::hash_object(Kind::Commit, &data);
     let mut body = format!("{} {} main\n\n", to_hex(&tip), to_hex(&id)).into_bytes();
     body.extend(encode_pack(&[(Kind::Commit, data.clone())]));
     let (st, out) = post(a, "/repo/push", &body);

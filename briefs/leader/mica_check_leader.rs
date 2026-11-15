@@ -1,13 +1,13 @@
-//! Leader check for T10 (public API only): well-typed programs written from docs/MICA.md must
+//! Leader check for T10 (public API only): well-typed programs written from docs/LOGOS.md must
 //! check, and their IR must pass the leader's own validator (labels, registers, call arity,
 //! types of Eq/Ne and Branch, no And/Or, spans inside the file); then spot checks of the type
 //! table, layer bits and constant folding; then one reject program per rule, each an `Err` whose
 //! span lies inside the file, and the layer error worded exactly as the spec says.
 #![allow(clippy::unwrap_used)]
-use mica::ast::BinOp;
-use mica::check::check;
-use mica::ir::{Body, Inst, Lit, Program, Reg, Ty, TypeInfo, TypeKind};
-use mica::parser::parse;
+use logos::ast::BinOp;
+use logos::check::check;
+use logos::ir::{Body, Inst, Lit, Program, Reg, Ty, TypeInfo, TypeKind};
+use logos::parser::parse;
 
 const BUILTIN_LAYERS: [&str; 7] = ["io", "fs", "net", "time", "rand", "chain", "sys"];
 
@@ -333,7 +333,7 @@ fn checked(name: &str, src: &str) -> Program {
     p
 }
 
-fn func<'a>(p: &'a Program, name: &str) -> &'a mica::ir::Func {
+fn func<'a>(p: &'a Program, name: &str) -> &'a logos::ir::Func {
     p.funcs
         .iter()
         .find(|f| f.name == name)

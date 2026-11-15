@@ -5,7 +5,7 @@
 //! of repeated empty groups are engine-specific); the overall match span is always compared.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use slate::{Buffer, Cursor, Editor, Regex};
+use calliope::{Buffer, Cursor, Editor, Regex};
 use std::fmt::Write as _;
 use std::process::Command;
 
@@ -175,7 +175,7 @@ fn leader_regex_matches_python_re() {
                 if only_whole && want[i] != "E" {
                     if s != whole_only(want[i]) {
                         bad.push(format!(
-                            "{p:?} on {t:?} k={k}\n  python {}\n  slate  {s}",
+                            "{p:?} on {t:?} k={k}\n  python {}\n  calliope  {s}",
                             want[i]
                         ));
                     }
@@ -192,7 +192,7 @@ fn leader_regex_matches_python_re() {
         }
         if got != want[i] {
             bad.push(format!(
-                "{p:?} on {t:?} k={k}\n  python {}\n  slate  {got}",
+                "{p:?} on {t:?} k={k}\n  python {}\n  calliope  {got}",
                 want[i]
             ));
         }

@@ -137,7 +137,16 @@ fn py(script: &Path, mode: &str, dir: &Path) -> String {
 
 fn input(r: &mut Rng, i: usize) -> Vec<u8> {
     let words: &[&str] = &[
-        "the ", "strata ", "of ", "rock ", "and ", "deflate ", "window ", "huffman ", "\n", "x",
+        "the ",
+        "monolith ",
+        "of ",
+        "rock ",
+        "and ",
+        "deflate ",
+        "window ",
+        "huffman ",
+        "\n",
+        "x",
     ];
     match i % 3 {
         0 => (0..r.below(4000)).map(|_| r.below(256) as u8).collect(),

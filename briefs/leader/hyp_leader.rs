@@ -1,9 +1,9 @@
-//! Leader check for T31 (hypervisor extension). Copied to crates/quartz/tests/hyp_leader.rs.
+//! Leader check for T31 (hypervisor extension). Copied to crates/silicon/tests/hyp_leader.rs.
 //! The two-stage translation model below is the leader's own reading of briefs/T31.md.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use quartz::inst::{encode, Inst};
-use quartz::{Access, Bus, Cpu, Mode, Ram, Step, Trap};
+use silicon::inst::{encode, Inst};
+use silicon::{Access, Bus, Cpu, Mode, Ram, Step, Trap};
 
 const RAM: usize = 4 << 20;
 const PPN: u64 = (1 << 44) - 1;

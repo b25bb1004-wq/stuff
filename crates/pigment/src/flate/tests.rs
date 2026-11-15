@@ -219,7 +219,7 @@ fn multi_block_and_large_window_round_trip() {
 
 #[test]
 fn forall_fuzz_inflate_never_panics() {
-    let sample = zlib_compress(b"Hello Strata world! Hello Strata world! 1234567890", 6);
+    let sample = zlib_compress(b"Hello Monolith world! Hello Monolith world! 1234567890", 6);
     forall(1000, 0x59_F022_0002, |r| {
         if r.chance(1, 2) {
             let garbage = r.bytes(256);

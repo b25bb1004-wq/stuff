@@ -1,6 +1,6 @@
 # pigment
 
-pigment is the 2D drawing crate of Strata. It draws into an RGBA canvas: rectangles, lines,
+pigment is the 2D drawing crate of Monolith. It draws into an RGBA canvas: rectangles, lines,
 anti-aliased polygons, source-over blending and text from a built-in 8x16 font. It can save the
 canvas as PNG or PPM and includes DEFLATE, zlib, CRC-32 and Adler-32 for the PNG path. Every
 operation uses integer maths, so the same input gives the same pixels on any machine. The crate

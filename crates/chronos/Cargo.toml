@@ -1,0 +1,20 @@
+[package]
+name = "chronos"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[features]
+default = ["std"]
+std = ["dep:mercury"]
+
+[dependencies]
+sphinx = { path = "../sphinx" }
+mercury = { path = "../mercury", optional = true }
+
+[dev-dependencies]
+assay = { path = "../assay" }
+
+[lints]
+workspace = true

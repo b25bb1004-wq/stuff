@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use assay::Rng;
 use chisel::assemble;
 use chisel::elf::{load, read, write, Image, Segment, PF_R, PF_W, PF_X};
-use quartz::machine::{Config, Machine, RAM_BASE};
+use silicon::machine::{Config, Machine, RAM_BASE};
 
 const DEFAULT_SEED: u64 = 0x05EE_D793;
 const DEFAULT_MS: u64 = 300;

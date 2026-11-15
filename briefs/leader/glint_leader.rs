@@ -7,7 +7,7 @@
     clippy::cast_sign_loss
 )]
 use assay::Rng;
-use glint::*;
+use indium::*;
 use std::collections::BTreeMap;
 
 #[derive(Clone)]

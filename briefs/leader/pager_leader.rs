@@ -1,13 +1,13 @@
-//! Leader check for T39 (varve pager, log, recovery). Copied to crates/varve/tests/pager_leader.rs.
+//! Leader check for T39 (iridium pager, log, recovery). Copied to crates/iridium/tests/pager_leader.rs.
 //! Its own disk keeps unsynced writes pending and, at a crash, keeps or loses each 512-byte sector
-//! of them independently (docs/VARVE.md section 1). `set_len` here also makes earlier writes
+//! of them independently (docs/IRIDIUM.md section 1). `set_len` here also makes earlier writes
 //! durable (more lenient than the doc; the pager only calls it on a broken log header).
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
-use varve::{Error, FileStorage, MemStorage, Page, Pager, Storage, PAGE, USABLE};
+use iridium::{Error, FileStorage, MemStorage, Page, Pager, Storage, PAGE, USABLE};
 
 fn crc32(d: &[u8]) -> u32 {
     let mut c = !0u32;
@@ -416,7 +416,7 @@ fn leader_formats_byte_exact() {
     let mut p = Pager::open(m, l).unwrap();
     let main0 = sh.borrow().files[0].cur.clone();
     assert_eq!(main0.len(), PAGE, "fresh main file is page 0");
-    assert_eq!(&main0[..8], b"VARVE\0v1");
+    assert_eq!(&main0[..8], b"IRIDIUM\0v1");
     assert_eq!(u32_at(&main0, 8), 4096);
     assert_eq!(
         (
@@ -431,7 +431,7 @@ fn leader_formats_byte_exact() {
     assert_eq!(u32_at(&main0, USABLE), crc32(&main0[..USABLE]));
     let log0 = sh.borrow().files[1].cur.clone();
     assert_eq!(log0.len(), 32, "fresh log is a header");
-    assert_eq!(&log0[..8], b"VARVEWAL");
+    assert_eq!(&log0[..8], b"IRIDIWAL");
     assert_eq!(
         (u32_at(&log0, 8), u32_at(&log0, 12), u64_at(&log0, 16)),
         (1, 4096, 1)
@@ -477,7 +477,7 @@ fn leader_formats_byte_exact() {
             "page CRC in frame {k}"
         );
         if pn == 0 {
-            assert_eq!(&img[..8], b"VARVE\0v1");
+            assert_eq!(&img[..8], b"IRIDIUM\0v1");
             assert_eq!(
                 (u64_at(img, 12), u64_at(img, 20), u64_at(img, 36)),
                 (2, 0, 1)
@@ -530,7 +530,7 @@ fn leader_formats_byte_exact() {
     assert_eq!(u32_at(&main, PAGE + USABLE), crc32(&a));
     assert_eq!((u64_at(&main, 12), u64_at(&main, 36)), (2, 1));
     let log = sh.borrow().files[1].cur.clone();
-    assert_eq!((&log[..8], u64_at(&log, 16)), (&b"VARVEWAL"[..], 2));
+    assert_eq!((&log[..8], u64_at(&log, 16)), (&b"IRIDIWAL"[..], 2));
     assert_eq!(u32_at(&log, 28), crc32(&log[..28]));
     p.begin().unwrap();
     p.write(1, &page_of(&z)).unwrap();
@@ -751,7 +751,7 @@ fn leader_hostile_log_and_main() {
 
 #[test]
 fn leader_file_storage() {
-    let dir = std::env::temp_dir().join(format!("varve-leader-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("iridium-leader-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let (a, b) = (dir.join("db"), dir.join("db-wal"));
     let c = vec![0x42u8; USABLE];

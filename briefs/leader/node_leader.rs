@@ -7,9 +7,9 @@
     clippy::needless_range_loop
 )]
 use assay::Rng;
-use onyx::ed25519;
-use seam::node::{Msg, Node};
-use seam::{Address, Block, Chain, Hash, Tx};
+use sphinx::ed25519;
+use aurum::node::{Msg, Node};
+use aurum::{Address, Block, Chain, Hash, Tx};
 use std::collections::{BTreeSet, VecDeque};
 
 fn seed(n: u8) -> [u8; 32] {
@@ -75,7 +75,7 @@ fn universe(r: &mut Rng, n: usize) -> (Vec<(Block, Chain)>, Vec<Block>) {
             child.header.parent = bad.hash();
             child.header.height += 1;
             child.header.time += 1;
-            child.header.tx_root = seam::merkle_root(&[]);
+            child.header.tx_root = aurum::merkle_root(&[]);
             let nxt = c.expected_proposer();
             let ns = *VALS.iter().find(|&&v| addr(v) == nxt).unwrap_or(&vs);
             child.header.proposer = addr(ns);

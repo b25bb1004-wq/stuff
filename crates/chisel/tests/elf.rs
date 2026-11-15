@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use assay::{forall, Rng};
 use chisel::assemble;
 use chisel::elf::{load, read, write, ElfError, Image, Segment, PF_R, PF_W, PF_X};
-use quartz::machine::{Config, Exit, Machine, RAM_BASE};
-use quartz::Fault;
+use silicon::machine::{Config, Exit, Machine, RAM_BASE};
+use silicon::Fault;
 
 fn u16_le(b: &[u8], off: usize) -> u16 {
     u16::from_le_bytes([b[off], b[off + 1]])

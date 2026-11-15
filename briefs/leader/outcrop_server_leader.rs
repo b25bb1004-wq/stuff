@@ -2,8 +2,8 @@
 //! forms, slow clients against a small connection cap, error statuses, and stop under load.
 #![cfg(feature = "std")]
 #![allow(clippy::unwrap_used)]
-use outcrop::server::{Config, Router, Server};
-use outcrop::{parse_response, Limits, Request, Response};
+use mercury::server::{Config, Router, Server};
+use mercury::{parse_response, Limits, Request, Response};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::atomic::{AtomicU64, Ordering::SeqCst};
@@ -141,7 +141,7 @@ fn leader_mixed_load_with_body_echo() {
 #[test]
 fn leader_static_traversal_never_escapes() {
     watchdog(60, "static");
-    let root = std::env::temp_dir().join(format!("outcrop-leader-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("mercury-leader-{}", std::process::id()));
     let pubd = root.join("pub");
     std::fs::create_dir_all(pubd.join("sub")).unwrap();
     std::fs::write(root.join("secret.txt"), "TOPSECRET").unwrap();

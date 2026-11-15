@@ -1,9 +1,9 @@
 //! Leader check for T57: builtin-only scripts (fixed corpus + generated) against real
-//! `bash --posix` on stdout and exit status, the crust binary as external command, binary modes.
+//! `bash --posix` on stdout and exit status, the krypton binary as external command, binary modes.
 #![cfg(feature = "std")]
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use crust::exec::Shell;
+use krypton::exec::Shell;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -134,8 +134,8 @@ fn case_dir(root: &Path, i: usize) -> PathBuf {
     d
 }
 
-/// One script in a fresh crust Shell, with a watchdog; None on timeout.
-fn crust(dir: PathBuf, src: String) -> Option<(String, i32)> {
+/// One script in a fresh krypton Shell, with a watchdog; None on timeout.
+fn krypton(dir: PathBuf, src: String) -> Option<(String, i32)> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let mut sh = Shell::new();
@@ -185,13 +185,13 @@ fn differential(name: &str, scripts: &[String]) {
         case_dir(&rb, i);
     }
     let want = bash(&rb, scripts);
-    let rc = root(&format!("{name}-crust"));
+    let rc = root(&format!("{name}-krypton"));
     let mut bad = Vec::new();
     for (i, sc) in scripts.iter().enumerate() {
-        let got = crust(case_dir(&rc, i), sc.clone());
+        let got = krypton(case_dir(&rc, i), sc.clone());
         if got.as_ref() != Some(&want[i]) {
             bad.push(format!(
-                "case {i}: {sc:?}\n  bash  {:?}\n  crust {got:?}",
+                "case {i}: {sc:?}\n  bash  {:?}\n  krypton {got:?}",
                 want[i]
             ));
         }
@@ -220,7 +220,7 @@ fn leader_generated_match_bash() {
 
 #[test]
 fn leader_externals_and_binary() {
-    let exe = env!("CARGO_BIN_EXE_crust");
+    let exe = env!("CARGO_BIN_EXE_krypton");
     let r = root("t57-ext");
     let cases: &[(&str, &str)] = &[
         ("\"$C\" -c 'echo hi; exit 3'; echo $?", "hi\n3\n"),
@@ -237,7 +237,7 @@ fn leader_externals_and_binary() {
         ("x=$(\"$C\" -c 'echo sub'); echo \"[$x]\"", "[sub]\n"),
     ];
     for (i, (sc, want)) in cases.iter().enumerate() {
-        let got = crust(case_dir(&r, i), format!("C='{exe}'\n{sc}"));
+        let got = krypton(case_dir(&r, i), format!("C='{exe}'\n{sc}"));
         assert_eq!(got.map(|g| g.0), Some(want.to_string()), "case {i}: {sc}");
     }
     let o = Command::new(exe)

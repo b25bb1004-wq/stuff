@@ -5,9 +5,9 @@
 //! from the same source. Plus a reference model for random AMOs and fetch at the end of memory.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use quartz::inst::{decode, decode_c, encode, AmoOp, Inst};
-use quartz::machine::{Config, Exit, Machine, RAM_BASE};
-use quartz::{Bus, Cpu, Fault, Ram, Trap};
+use silicon::inst::{decode, decode_c, encode, AmoOp, Inst};
+use silicon::machine::{Config, Exit, Machine, RAM_BASE};
+use silicon::{Bus, Cpu, Fault, Ram, Trap};
 
 mod smoke {
     include!("fixtures/ac/smoke_core.rs");

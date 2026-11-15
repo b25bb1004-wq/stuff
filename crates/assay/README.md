@@ -1,6 +1,6 @@
 # assay
 
-assay is the shared test kit for every Strata crate. Strata takes no external crates, so instead of
+assay is the shared test kit for every Monolith crate. Monolith takes no external crates, so instead of
 a property-testing library it ships a small one: a deterministic random generator, a `forall` runner
 that reports the seed of a failing case, and hex helpers for published test vectors. Every value comes
 from a seed, so a failure found on one machine can be replayed exactly on another.

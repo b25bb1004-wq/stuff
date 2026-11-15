@@ -2,7 +2,7 @@
 //! `git diff --no-index -U3`, diff minimality with a fresh seed, repository merge scenarios.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use drillcore::{diff, merge3, unified, Edit, MemStore, MergeError, Repo, Signature};
+use chronos::{diff, merge3, unified, Edit, MemStore, MergeError, Repo, Signature};
 use std::path::Path;
 use std::process::Command;
 
@@ -237,7 +237,7 @@ fn leader_repo_merge_scenarios() {
     assert_eq!(files["f"].0, b"1\nTWO\n3\n4\nFIVE\n");
     assert_eq!(files["g"].0, b"new\n");
     let (_, data) = r.get(&m).unwrap();
-    let c = drillcore::decode_commit(&data).unwrap();
+    let c = chronos::decode_commit(&data).unwrap();
     assert_eq!(c.parents, vec![c2, c3]);
     // Conflict: both sides change line 3; HEAD and index stay as they were.
     r.add("f", b"1\nTWO\nmain3\n4\nFIVE\n", false).unwrap();

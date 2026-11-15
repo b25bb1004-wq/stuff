@@ -1,11 +1,11 @@
-//! Leader check for T34 (tremor protocol core). Copied to crates/tremor/tests/tremor_leader.rs.
-//! The handshake model is the leader's own reading of docs/TREMOR.md section 2 and briefs/T34.md,
-//! built from onyx primitives.
+//! Leader check for T34 (xenon protocol core). Copied to crates/xenon/tests/tremor_leader.rs.
+//! The handshake model is the leader's own reading of docs/XENON.md section 2 and briefs/T34.md,
+//! built from sphinx primitives.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use onyx::{aead, hkdf, rng::ChaChaRng, sha256, x25519};
+use sphinx::{aead, hkdf, rng::ChaChaRng, sha256, x25519};
 use std::collections::{BTreeMap, VecDeque};
-use tremor::{Config, Connection, Error, Server, MAX_DATAGRAM};
+use xenon::{Config, Connection, Error, Server, MAX_DATAGRAM};
 
 const MS: u64 = 1000;
 const SEC: u64 = 1_000_000;
@@ -75,12 +75,12 @@ fn model(
     let cid = rng.next_u64();
     let ec_pub = x25519::public_key(&e_c);
     let mut h = sha256::Sha256::new();
-    h.update(b"tremor/1");
+    h.update(b"xenon/1");
     h.update(&s_pub);
     h.update(&ec_pub);
     let h0 = h.finalize();
     let es = x25519::shared_secret(&e_c, &s_pub).unwrap();
-    let prk1 = hkdf::extract(b"tremor/1", &es);
+    let prk1 = hkdf::extract(b"xenon/1", &es);
     let k_init = expand(&prk1, b"init", &h0);
     let hdr = header(1, cid, 0);
     let mut aad = hdr.clone();

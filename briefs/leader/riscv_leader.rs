@@ -1,10 +1,10 @@
 //! Leader check for T13 (official riscv-tests, misaligned access, counter writes, PMP storage).
-//! Copied to crates/quartz/tests/riscv_leader.rs.
+//! Copied to crates/silicon/tests/riscv_leader.rs.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use quartz::inst::{encode, AmoOp, Inst};
-use quartz::machine::{Config, Machine, RAM_BASE};
-use quartz::{Bus, Cpu, Mode, Ram, Trap};
+use silicon::inst::{encode, AmoOp, Inst};
+use silicon::machine::{Config, Machine, RAM_BASE};
+use silicon::{Bus, Cpu, Mode, Ram, Trap};
 
 const DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/riscv-tests");
 

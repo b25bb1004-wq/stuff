@@ -1,4 +1,4 @@
-//! Leader check for T69: properties of tectonic::phys and the renderer.
+//! Leader check for T69: properties of helios::phys and the renderer.
 #![allow(
     clippy::unwrap_used,
     clippy::type_complexity,
@@ -6,9 +6,9 @@
 )]
 use assay::Rng;
 use pigment::{Canvas, Rgba};
-use tectonic::draw::{draw_world, to_screen, Camera};
-use tectonic::fx::{Fx, Vec2};
-use tectonic::phys::*;
+use helios::draw::{draw_world, to_screen, Camera};
+use helios::fx::{Fx, Vec2};
+use helios::phys::*;
 
 fn fx(x: f64) -> Fx {
     Fx((x * 65536.0).round() as i64)

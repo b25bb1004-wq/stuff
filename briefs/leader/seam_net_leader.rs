@@ -1,4 +1,4 @@
-//! Leader check for T50b: peers gossip over tremor in a simulated lossy, duplicating, reordering
+//! Leader check for T50b: peers gossip over xenon in a simulated lossy, duplicating, reordering
 //! network with a partition that heals and a late joiner; every peer must end on the leader's own
 //! fork-choice tip with the same state root. Garbage datagrams, garbage and oversize streams from
 //! a fake peer, and determinism.
@@ -9,10 +9,10 @@
     clippy::type_complexity
 )]
 use assay::Rng;
-use onyx::ed25519;
-use seam::node::net::{Peer, PeerId, MAX_MSG, SYNC_INTERVAL_US};
-use seam::node::{Msg, Node};
-use seam::{Address, Block, Chain, Hash, Tx};
+use sphinx::ed25519;
+use aurum::node::net::{Peer, PeerId, MAX_MSG, SYNC_INTERVAL_US};
+use aurum::node::{Msg, Node};
+use aurum::{Address, Block, Chain, Hash, Tx};
 use std::collections::{BTreeSet, VecDeque};
 
 fn seed(n: u8) -> [u8; 32] {
@@ -77,7 +77,7 @@ fn universe(r: &mut Rng, n: usize) -> (Vec<(Block, Chain)>, Vec<Block>) {
             child.header.parent = bad.hash();
             child.header.height += 1;
             child.header.time += 1;
-            child.header.tx_root = seam::merkle_root(&[]);
+            child.header.tx_root = aurum::merkle_root(&[]);
             let nxt = c.expected_proposer();
             let ns = *VALS.iter().find(|&&v| addr(v) == nxt).unwrap_or(&vs);
             child.header.proposer = addr(ns);
@@ -377,7 +377,7 @@ fn deterministic_runs() {
     assert_converged(&a, &valid, &invalid, "determinism run");
 }
 
-/// A fake peer (a raw tremor server with id 9, dialled by real peer 0) sends a garbage stream,
+/// A fake peer (a raw xenon server with id 9, dialled by real peer 0) sends a garbage stream,
 /// then a stream larger than MAX_MSG, then a valid block on the same link: the block must still
 /// be accepted and the link must stay up.
 #[test]
@@ -385,11 +385,11 @@ fn garbage_and_oversize_streams_are_dropped() {
     let mut r = Rng::new(0x50B_0003);
     let (valid, _) = universe(&mut r, 2);
     let first = valid[0].0.clone();
-    let cfg = tremor::Config {
+    let cfg = xenon::Config {
         max_streams: 1 << 40,
-        ..tremor::Config::default()
+        ..xenon::Config::default()
     };
-    let mut fake = tremor::Server::new([7; 32], [8; 32], cfg);
+    let mut fake = xenon::Server::new([7; 32], [8; 32], cfg);
     let mut p = Peer::new(0, Node::new(&genesis(), &validators()), key(0), [200; 32]);
     p.add_peer(9, fake.public_key(), 0);
     let mut now = 0u64;

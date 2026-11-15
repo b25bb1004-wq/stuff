@@ -2,7 +2,7 @@
 //! `STRATA_SEED` and `STRATA_CASES` change the run without editing the file.
 #![allow(clippy::unwrap_used)]
 use assay::{forall, Rng};
-use geyser::{Class, Config, Scheduler, State, TaskId};
+use kairos::{Class, Config, Scheduler, State, TaskId};
 
 fn env(name: &str, default: u64) -> u64 {
     std::env::var(name)

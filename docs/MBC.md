@@ -1,4 +1,4 @@
-# MBC: Mica bytecode and the Strata VM (version 1)
+# MBC: Logos bytecode and the Monolith VM (version 1)
 
 The VM is a register machine. It runs untrusted code (smart contracts, downloaded packages), so
 three rules shape everything: a module is **verified before it runs**, every operation is
@@ -26,7 +26,7 @@ pub struct Func { pub name: String, pub params: u16, pub regs: u16, pub code: Ve
 `regs` is the frame size; parameters arrive in registers `0..params`; `params <= regs <= 4096`.
 `imports` are host function names such as `io.print`. The embedder decides which names it
 provides; a module that imports a name the host does not provide is refused at load. This is how
-Mica layers are enforced at run time.
+Logos layers are enforced at run time.
 
 ## Instructions (`Op`)
 `d a b` are register numbers (`u16`), `k` a constant index, `f` a function index, `h` an import
@@ -101,7 +101,7 @@ pub struct Vm;   // Vm::new(module, host_names) -> Result<Vm, LoadError>   (veri
   collection pass a threshold, and before reporting `OutOfMemory`. Handles of freed slots are
   reused; a collection never moves objects. `Heap` exposes `alloc`, `get`, `get_mut`,
   `live_objects()`, `live_bytes()` for hosts and tests.
-- The interpreter loop is iterative (its own frame stack), never recursive, so deep Mica
+- The interpreter loop is iterative (its own frame stack), never recursive, so deep Logos
   recursion cannot overflow the Rust stack.
 
 ## Binary format (`encode(&Module) -> Vec<u8>`, `decode(&[u8]) -> Result<Module, DecodeError>`)

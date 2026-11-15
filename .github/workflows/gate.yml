@@ -1,5 +1,5 @@
-# T82: runs the Strata gate (tools/check.sh: fmt, clippy -D warnings, all tests, zero-dependency rule).
-# Linux (the crust tests compare against Linux bash, which the dev PC runs through WSL) and Rust
+# T82: runs the Monolith gate (tools/check.sh: fmt, clippy -D warnings, all tests, zero-dependency rule).
+# Linux (the krypton tests compare against Linux bash, which the dev PC runs through WSL) and Rust
 # 1.98.0 like the local gate (newer clippy adds lints). Some leader tests shell out to python (+ Pillow), git, bash.
 name: gate
 on:

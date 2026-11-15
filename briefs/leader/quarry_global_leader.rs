@@ -1,9 +1,9 @@
-//! Leader check for T16: quarry as the real `#[global_allocator]` of this test binary, with 8
+//! Leader check for T16: midas as the real `#[global_allocator]` of this test binary, with 8
 //! threads driving std collections (growth goes through realloc) and raw over-aligned blocks.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
 use core::alloc::{GlobalAlloc, Layout};
-use quarry::{Heap, Locked, MAX_ALIGN};
+use midas::{Heap, Locked, MAX_ALIGN};
 use std::collections::HashMap;
 
 const LEN: usize = 128 << 20;
@@ -76,9 +76,9 @@ fn leader_quarry_as_global_allocator_under_threads() {
         .collect();
     let total: u64 = hs.into_iter().map(|h| h.join().unwrap()).sum();
     let used = Q_HEAP.0.lock().used_bytes();
-    eprintln!("threads done: total {total}, quarry used_bytes {used}");
+    eprintln!("threads done: total {total}, midas used_bytes {used}");
     assert!(total > 100_000, "workers did too little: {total}");
-    assert!(used > 0, "quarry holds nothing, so it is not the allocator");
+    assert!(used > 0, "midas holds nothing, so it is not the allocator");
     let ok = Q_HEAP.0.lock().check();
     assert!(ok, "check failed after the threads");
 }

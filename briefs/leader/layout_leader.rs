@@ -9,9 +9,9 @@
     clippy::type_complexity
 )]
 use assay::Rng;
-use spelunk::dom::{Data, Document, NodeId};
-use spelunk::layout::{layout, BoxRect, TextRun};
-use spelunk::style::{compute, Computed, Display, Len};
+use odyssey::dom::{Data, Document, NodeId};
+use odyssey::layout::{layout, BoxRect, TextRun};
+use odyssey::style::{compute, Computed, Display, Len};
 use std::collections::BTreeMap;
 
 // ---------- generated pages ----------
@@ -831,7 +831,7 @@ fn cascade_and_layout_match_model() {
         let (html, rules, body) = page(&mut r);
         let mut list = Vec::new();
         flatten(&body, &mut list);
-        let doc = spelunk::html::parse(&html);
+        let doc = odyssey::html::parse(&html);
         let els = doc.elements();
         assert_eq!(
             els.len(),
@@ -906,7 +906,7 @@ fn fuzz_never_panics() {
     ];
     for _ in 0..3000 {
         let s: String = (0..r.below(30)).map(|_| *r.pick(&bits)).collect();
-        let doc = spelunk::html::parse(&s);
+        let doc = odyssey::html::parse(&s);
         let st = compute(&doc);
         for vw in [-5, 0, 1, 300, i32::MAX] {
             let _ = layout(&doc, &st, vw);

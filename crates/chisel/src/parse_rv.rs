@@ -1,6 +1,6 @@
 //! Parser for RV64IMA, Zifencei, privileged, and basic ALU pseudo instructions.
 
-use quartz::inst::{encode, AmoOp, Inst};
+use silicon::inst::{encode, AmoOp, Inst};
 
 use crate::encode_rv::{Imm12Kind, RvInst, ShiftKind};
 use crate::expr::{parse_expr, Expr};

@@ -1,4 +1,4 @@
-"""T14 leader reference for docs/CINNABAR.md. Writes crates/onyx/tests/fixtures/cinnabar.txt and
+"""T14 leader reference for docs/MEDUSA.md. Writes crates/sphinx/tests/fixtures/medusa.txt and
 prints design statistics (diffusion per round, avalanche, keystream bias). Run: python -I cinnabar_ref.py"""
 import random, sys
 M = 0xffffffff
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         ctrv = [0, 1, 0xfffffffe, rnd.randrange(1 << 32)][i % 4]
         data = bytes(rnd.randrange(256) for _ in range(rnd.randrange(0, 100)))
         lines.append(f"ctr {key.hex()} {nonce.hex()} {ctrv} {data.hex() or '-'} {ctr(key, nonce, ctrv, data).hex() or '-'}")
-    open(sys.argv[1] if len(sys.argv) > 1 else "cinnabar.txt", "w", newline="\n").write("\n".join(lines) + "\n")
+    open(sys.argv[1] if len(sys.argv) > 1 else "medusa.txt", "w", newline="\n").write("\n".join(lines) + "\n")
     # Diffusion: rounds until every output bit depends on every input bit (one-bit flips, 64 keys).
     for rounds in range(1, 7):
         full = True

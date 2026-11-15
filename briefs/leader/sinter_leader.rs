@@ -1,10 +1,10 @@
-//! Leader check for T18: Sinter's Geode output against the `mica::eval` oracle on the corpus and
-//! on programs the worker has not seen; verify and round trip; trap spans; the `mica` binary.
+//! Leader check for T18: Cobalt's Elysium output against the `logos::eval` oracle on the corpus and
+//! on programs the worker has not seen; verify and round trip; trap spans; the `logos` binary.
 #![allow(clippy::unwrap_used)]
-use mica::check::check;
-use mica::eval;
-use mica::ir::Program;
-use mica::parser::parse;
+use logos::check::check;
+use logos::eval;
+use logos::ir::Program;
+use logos::parser::parse;
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -19,21 +19,21 @@ fn build(src: &str) -> Program {
 /// Compile, verify, round trip, and compare main, every test and every prop with the oracle.
 fn same(name: &str, src: &str, input: &str) -> eval::Outcome {
     let p = build(src);
-    let c = sinter::compile(&p);
-    geode::verify(&c.module).unwrap_or_else(|e| panic!("{name}: verify {e:?}"));
+    let c = cobalt::compile(&p);
+    elysium::verify(&c.module).unwrap_or_else(|e| panic!("{name}: verify {e:?}"));
     assert_eq!(
-        geode::decode(&geode::encode(&c.module)),
+        elysium::decode(&elysium::encode(&c.module)),
         Ok(c.module.clone()),
         "{name}: round trip"
     );
     assert_eq!(c.tests.len(), p.tests.len(), "{name}: tests");
     assert_eq!(c.props.len(), p.props.len(), "{name}: props");
     let want = eval::run_main(&p, input, F);
-    let got = sinter::run_main(&c, input, F);
+    let got = cobalt::run_main(&c, input, F);
     assert_eq!(got, want, "{name}: main differs from the oracle");
     for i in 0..p.tests.len() {
         assert_eq!(
-            sinter::run_test(&c, i, F),
+            cobalt::run_test(&c, i, F),
             eval::run_test(&p, i, F),
             "{name}: test {i}"
         );
@@ -41,7 +41,7 @@ fn same(name: &str, src: &str, input: &str) -> eval::Outcome {
     for i in 0..p.props.len() {
         for seed in [1u64, 2, 0xdead, 77, 1 << 40] {
             assert_eq!(
-                sinter::run_prop(&c, i, seed, 60, F),
+                cobalt::run_prop(&c, i, seed, 60, F),
                 eval::run_prop(&p, i, seed, 60, F),
                 "{name}: prop {i} seed {seed}"
             );
@@ -52,7 +52,7 @@ fn same(name: &str, src: &str, input: &str) -> eval::Outcome {
 
 #[test]
 fn leader_corpus_matches_oracle() {
-    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../mica/tests/typed");
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../logos/tests/typed");
     let mut n = 0;
     for e in std::fs::read_dir(dir).unwrap() {
         let path = e.unwrap().path();
@@ -187,11 +187,11 @@ fn leader_traps_and_spans_match_oracle() {
     for (i, body) in progs.iter().enumerate() {
         let src = format!("{SAY}{body}");
         let p = build(&src);
-        let c = sinter::compile(&p);
+        let c = cobalt::compile(&p);
         let fuel = if i == 5 { 100_000 } else { F };
         let want = eval::run_main(&p, "", fuel);
         assert!(want.result.is_err(), "program {i} must trap in the oracle");
-        let got = sinter::run_main(&c, "", fuel);
+        let got = cobalt::run_main(&c, "", fuel);
         assert_eq!(got.output, want.output, "program {i}: output");
         let (wt, ws) = want.result.unwrap_err();
         let (gt, gs) = got.result.unwrap_err();
@@ -202,8 +202,8 @@ fn leader_traps_and_spans_match_oracle() {
     }
 }
 
-fn mica(args: &[&str], stdin: &str) -> (i32, String, String) {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_mica"))
+fn logos(args: &[&str], stdin: &str) -> (i32, String, String) {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_logos"))
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -226,7 +226,7 @@ fn mica(args: &[&str], stdin: &str) -> (i32, String, String) {
 
 #[test]
 fn leader_binary_run_and_test() {
-    let dir = std::env::temp_dir().join(format!("sinter-leader-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("cobalt-leader-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let file = |n: &str, s: &str| {
         let p = dir.join(n);
@@ -234,50 +234,50 @@ fn leader_binary_run_and_test() {
         p.display().to_string()
     };
     let echo = file(
-        "echo.mica",
+        "echo.logos",
         &format!(
             "{SAY}fn line() -> str? uses io = extern \"io.read_line\"\nfn main() uses io {{\n  match line() {{ some(s) => say(\"got \" + s), none => say(\"eof\") }}\n}}\n"
         ),
     );
     assert_eq!(
-        mica(&["run", &echo], "hi\n"),
+        logos(&["run", &echo], "hi\n"),
         (0, "got hi".into(), String::new())
     );
-    assert_eq!(mica(&["run", &echo], "").1, "eof");
+    assert_eq!(logos(&["run", &echo], "").1, "eof");
 
     let trap = file(
-        "trap.mica",
+        "trap.logos",
         &format!("{SAY}fn main() uses io {{\n  say(\"a\")\n  assert 1 == 2\n}}\n"),
     );
-    let (code, out, err) = mica(&["run", &trap], "");
+    let (code, out, err) = logos(&["run", &trap], "");
     assert_eq!((code, out.as_str()), (1, "a"));
     assert!(
         err.contains("trap") && err.contains("4:3"),
         "stderr {err:?}"
     );
 
-    let spin = file("spin.mica", "fn main() { while true { } }\n");
-    let (code, _, err) = mica(&["run", &spin, "--fuel", "1000"], "");
+    let spin = file("spin.logos", "fn main() { while true { } }\n");
+    let (code, _, err) = logos(&["run", &spin, "--fuel", "1000"], "");
     assert_eq!(code, 1, "{err}");
 
-    let bad = file("bad.mica", "fn main() { let x = }\n");
-    let (code, _, err) = mica(&["run", &bad], "");
+    let bad = file("bad.logos", "fn main() { let x = }\n");
+    let (code, _, err) = logos(&["run", &bad], "");
     assert_eq!(code, 2);
-    assert!(err.contains("bad.mica:1:"), "stderr {err:?}");
+    assert!(err.contains("bad.logos:1:"), "stderr {err:?}");
 
     let tests = file(
-        "t.mica",
+        "t.logos",
         "fn add(a: int, b: int) -> int { a + b }\ntest \"two\" { assert add(1, 1) == 2 }\ntest \"bad\" { assert add(1, 1) == 3 }\nprop \"sym\" (a: int, b: int) where a > -9 && a < 9 && b > -9 && b < 9 { assert add(a, b) == add(b, a) }\n",
     );
-    let (code, out, _) = mica(&["test", &tests], "");
+    let (code, out, _) = logos(&["test", &tests], "");
     assert_eq!(code, 1);
     assert!(out.contains("ok two") && out.contains("FAIL bad") && out.contains("ok sym"));
     assert_eq!(out.trim_end().lines().last(), Some("2 passed, 1 failed"));
     let good = file(
-        "g.mica",
+        "g.logos",
         "test \"one\" { assert 1 == 1 }\nprop \"p\" (x: int) { assert x == x }\n",
     );
-    let (code, out, _) = mica(&["test", &good, "--seed", "9", "--cases", "50"], "");
+    let (code, out, _) = logos(&["test", &good, "--seed", "9", "--cases", "50"], "");
     assert_eq!(
         (code, out.trim_end().lines().last()),
         (0, Some("2 passed, 0 failed"))

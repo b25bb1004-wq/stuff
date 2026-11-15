@@ -1,6 +1,6 @@
-//! Leader check for T30 (sinter::opt): 5000 rv64-generator programs, optimised vs unoptimised under the evaluator, Geode and (every 10th) RV64; idempotence, span parity, regs and params kept.
+//! Leader check for T30 (cobalt::opt): 5000 rv64-generator programs, optimised vs unoptimised under the evaluator, Elysium and (every 10th) RV64; idempotence, span parity, regs and params kept.
 //! Bool parameters and results, calls, recursion near the depth limit, overflow and division
-//! traps) run on Quartz through `sinter::rv64::run` and on Geode; result and trap class must
+//! traps) run on Silicon through `cobalt::rv64::run` and on Elysium; result and trap class must
 //! match. Plus random IR (in and out of range) that must never panic `emit_asm`.
 #![allow(
     clippy::unwrap_used,
@@ -8,9 +8,9 @@
     clippy::cast_possible_wrap
 )]
 use assay::Rng;
-use geode::{Heap, Host, Limits, Trap as GTrap, Value, Vm};
-use mica::ir::{Body, Program, Ty};
-use sinter::rv64::run;
+use elysium::{Heap, Host, Limits, Trap as GTrap, Value, Vm};
+use logos::ir::{Body, Program, Ty};
+use cobalt::rv64::run;
 
 struct NoHost;
 impl Host for NoHost {
@@ -19,9 +19,9 @@ impl Host for NoHost {
     }
 }
 
-/// Geode outcome: Ok(value), Err(trap class), or None when fuel ran out (case skipped).
-fn geode(p: &Program) -> Option<Result<i64, u32>> {
-    let c = sinter::compile(p);
+/// Elysium outcome: Ok(value), Err(trap class), or None when fuel ran out (case skipped).
+fn elysium(p: &Program) -> Option<Result<i64, u32>> {
+    let c = cobalt::compile(p);
     let mut vm = Vm::new(c.module, &[]).unwrap();
     let lim = Limits {
         fuel: 3_000_000,
@@ -35,7 +35,7 @@ fn geode(p: &Program) -> Option<Result<i64, u32>> {
         Err(GTrap::AssertFailed(_)) => Some(Err(3)),
         Err(GTrap::StackOverflow) => Some(Err(4)),
         Err(GTrap::OutOfFuel) => None,
-        other => panic!("unexpected geode result {other:?}"),
+        other => panic!("unexpected elysium result {other:?}"),
     }
 }
 
@@ -327,14 +327,14 @@ fn program(r: &mut Rng) -> String {
 }
 
 fn ir(src: &str) -> Program {
-    let ast = mica::parser::parse(src).unwrap_or_else(|d| panic!("parse: {d:?}\n{src}"));
-    mica::check::check(&ast).unwrap_or_else(|d| panic!("check: {d:?}\n{src}"))
+    let ast = logos::parser::parse(src).unwrap_or_else(|d| panic!("parse: {d:?}\n{src}"));
+    logos::check::check(&ast).unwrap_or_else(|d| panic!("check: {d:?}\n{src}"))
 }
 
 fn eval(p: &Program) -> Option<(String, Result<(), String>)> {
-    let o = mica::eval::run_main(p, "", 20_000_000);
+    let o = logos::eval::run_main(p, "", 20_000_000);
     match o.result {
-        Err((mica::eval::Trap::OutOfFuel, _)) => None,
+        Err((logos::eval::Trap::OutOfFuel, _)) => None,
         r => Some((o.output, r.map_err(|(t, _)| format!("{t:?}")))),
     }
 }
@@ -361,8 +361,8 @@ fn optimised_programs_agree_on_every_back_end() {
         let src = program(&mut r);
         let p = ir(&src);
         let mut o = p.clone();
-        let st = sinter::opt::optimize(&mut o);
-        if st != sinter::opt::Stats::default() {
+        let st = cobalt::opt::optimize(&mut o);
+        if st != cobalt::opt::Stats::default() {
             changed += 1;
         }
         assert_eq!(
@@ -382,16 +382,16 @@ fn optimised_programs_agree_on_every_back_end() {
         }
         let mut again = o.clone();
         assert_eq!(
-            sinter::opt::optimize(&mut again),
-            sinter::opt::Stats::default(),
+            cobalt::opt::optimize(&mut again),
+            cobalt::opt::Stats::default(),
             "case {case}: not idempotent\n{src}"
         );
         if let (Some(a), Some(b)) = (eval(&p), eval(&o)) {
             assert_eq!(a, b, "case {case}: evaluator differs after optimize\n{src}");
             checked += 1;
         }
-        if let (Some(a), Some(b)) = (geode(&p), geode(&o)) {
-            assert_eq!(a, b, "case {case}: geode differs after optimize\n{src}");
+        if let (Some(a), Some(b)) = (elysium(&p), elysium(&o)) {
+            assert_eq!(a, b, "case {case}: elysium differs after optimize\n{src}");
         }
         if case % 10 == 0 {
             assert_eq!(

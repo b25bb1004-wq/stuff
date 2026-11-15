@@ -1,6 +1,6 @@
 //! 64-bit `li` immediate synthesis matching LLVM 19's instruction-count rules.
 
-use quartz::inst::{encode, Inst};
+use silicon::inst::{encode, Inst};
 
 /// Synthesize a minimal RV64I instruction sequence loading `val` into `rd`.
 pub(crate) fn synth_li(rd: u8, val: i64) -> Vec<u32> {

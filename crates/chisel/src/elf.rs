@@ -1,4 +1,4 @@
-//! ELF64 writer, reader, and quartz machine loader for RV64 executables.
+//! ELF64 writer, reader, and silicon machine loader for RV64 executables.
 
 use std::fmt;
 
@@ -421,7 +421,7 @@ fn read_u64(bytes: &[u8], off: usize) -> Result<u64, ElfError> {
 }
 
 /// Load `img`'s segments into `m` (zeroing BSS) and set `m.cpu.pc` to `img.entry`.
-pub fn load(img: &Image, m: &mut quartz::machine::Machine) -> Result<(), quartz::Fault> {
+pub fn load(img: &Image, m: &mut silicon::machine::Machine) -> Result<(), silicon::Fault> {
     let zeros = [0u8; 4096];
     for seg in &img.segments {
         m.load(seg.vaddr, &seg.data)?;
@@ -430,14 +430,14 @@ pub fn load(img: &Image, m: &mut quartz::machine::Machine) -> Result<(), quartz:
             let mut addr = seg
                 .vaddr
                 .checked_add(data_len)
-                .ok_or(quartz::Fault::Unmapped(seg.vaddr))?;
+                .ok_or(silicon::Fault::Unmapped(seg.vaddr))?;
             let mut rem = seg.mem_size - data_len;
             while rem > 0 {
                 let chunk = usize::try_from(rem.min(zeros.len() as u64)).unwrap_or(zeros.len());
                 m.load(addr, &zeros[..chunk])?;
                 addr = addr
                     .checked_add(chunk as u64)
-                    .ok_or(quartz::Fault::Unmapped(addr))?;
+                    .ok_or(silicon::Fault::Unmapped(addr))?;
                 rem -= chunk as u64;
             }
         }

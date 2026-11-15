@@ -5,7 +5,7 @@
 #![allow(clippy::unwrap_used)]
 use assay::{forall, Rng};
 use core::alloc::Layout;
-use quarry::{Buddy, Heap, Locked, MAX_ALIGN, PAGE};
+use midas::{Buddy, Heap, Locked, MAX_ALIGN, PAGE};
 
 fn env(name: &str, default: u64) -> u64 {
     std::env::var(name)

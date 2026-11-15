@@ -1,7 +1,7 @@
 //! Leader-run vectors from an independent implementation (Python cryptography 49). Generated; do not edit.
 #![allow(clippy::unwrap_used)]
 use assay::hex;
-use onyx::{ed25519, x25519};
+use sphinx::{ed25519, x25519};
 
 fn a32(s: &str) -> [u8; 32] {
     hex(s).try_into().unwrap()

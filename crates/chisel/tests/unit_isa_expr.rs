@@ -2,7 +2,7 @@
 #![allow(clippy::unwrap_used)]
 
 use chisel::assemble;
-use quartz::inst::{decode, encode, AmoOp, Inst};
+use silicon::inst::{decode, encode, AmoOp, Inst};
 
 fn asm_u32(src: &str) -> u32 {
     let out = assemble(src, 0).unwrap_or_else(|e| panic!("failed '{src}': {e}"));

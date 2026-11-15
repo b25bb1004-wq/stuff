@@ -2,7 +2,7 @@
 //! pipelining, keep-alive, and a mutation fuzz whose accepted messages must round trip.
 #![allow(clippy::unwrap_used)]
 use assay::forall;
-use outcrop::{
+use mercury::{
     parse_request, parse_response, write_request, write_response, Error, Limits, Request, Response,
 };
 

@@ -40,6 +40,6 @@ CMDS=("bash tools/check.sh $CRATE" "cargo fmt -p $CRATE" "cargo check -p $CRATE 
 RULES=""; LIST=""
 for c in "${CMDS[@]}"; do RULES="$RULES\"command($c)\","; LIST="$LIST  $c ;"; done
 echo "{\"permissions\":{\"allow\":[${RULES%,}]}}" > ".loop-local/settings.$ID.json"
-PROMPT="You are a worker on the Strata project in this folder. Read briefs/_RULES.md, then briefs/$ID.md, and do exactly that task. Touch only the files the brief lists. You can edit files freely. The ONLY shell commands that will run are these, typed exactly, one per call, with no cd, pipes or extra flags: $LIST every other command is denied. Use them to fix until the last line of 'bash tools/check.sh $CRATE' is CHECK PASS $CRATE. Finish by writing reports/$ID.md (at most 10 lines) and print that report as your final answer."
+PROMPT="You are a worker on the Monolith project in this folder. Read briefs/_RULES.md, then briefs/$ID.md, and do exactly that task. Touch only the files the brief lists. You can edit files freely. The ONLY shell commands that will run are these, typed exactly, one per call, with no cd, pipes or extra flags: $LIST every other command is denied. Use them to fix until the last line of 'bash tools/check.sh $CRATE' is CHECK PASS $CRATE. Finish by writing reports/$ID.md (at most 10 lines) and print that report as your final answer."
 "$AGY" -p "$PROMPT" --model "$M" --mode accept-edits --settings ".loop-local/settings.$ID.json" \
   --print-timeout "${TIMEOUT:-60m}" 2>&1 | tee ".loop-local/$ID.$1.log" | tail -15

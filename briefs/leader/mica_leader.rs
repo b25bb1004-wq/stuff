@@ -1,9 +1,9 @@
-//! Leader-run check: programs written from docs/MICA.md, rejects, and a fuzz run with a new seed.
+//! Leader-run check: programs written from docs/LOGOS.md, rejects, and a fuzz run with a new seed.
 //! `STRATA_SEED` and `STRATA_CASES` change the run without editing the file.
 #![allow(clippy::unwrap_used)]
 use assay::{forall, Rng};
-use mica::parser::parse;
-use mica::print::print;
+use logos::parser::parse;
+use logos::print::print;
 
 fn env(name: &str, default: u64) -> u64 {
     std::env::var(name)

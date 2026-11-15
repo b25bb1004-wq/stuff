@@ -1,0 +1,16 @@
+[package]
+name = "iris"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+pigment = { path = "../pigment" }
+indium = { path = "../indium" }
+
+[dev-dependencies]
+assay = { path = "../assay" }
+
+[lints]
+workspace = true

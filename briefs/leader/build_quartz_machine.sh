@@ -2,7 +2,7 @@
 # Assemble the T23 leader programs with rustc's LLVM (rv64im, no compressed forms) into raw
 # binaries linked at 0x8000_0000. Needs the riscv64gc-unknown-none-elf target and llvm-objcopy.
 set -e
-D=crates/quartz/tests/fixtures/machine
+D=crates/silicon/tests/fixtures/machine
 T=$(mktemp -d)
 for s in "$D"/*.S; do
   n=$(basename "$s" .S)

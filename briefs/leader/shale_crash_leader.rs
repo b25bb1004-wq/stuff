@@ -1,11 +1,11 @@
-//! Leader-run crash check for the Shale journal (public API only, own crash device, fresh seed).
+//! Leader-run crash check for the Hades journal (public API only, own crash device, fresh seed).
 //! Each case runs a random operation sequence with an unmount and remount after every operation,
 //! counting block writes. Then it cuts the power after every possible write: the remounted tree
 //! must be the state after the last finished operation or after the one in progress, and `fsck`
 //! must report nothing. `STRATA_SEED` and `STRATA_CASES` change the run.
 #![allow(clippy::unwrap_used)]
 use assay::{forall, Rng};
-use shale::{fsck, mkfs, BlockDevice, Error, Fs, Kind, MemDisk, MkfsOptions, BLOCK};
+use hades::{fsck, mkfs, BlockDevice, Error, Fs, Kind, MemDisk, MkfsOptions, BLOCK};
 use std::cell::RefCell;
 use std::rc::Rc;
 

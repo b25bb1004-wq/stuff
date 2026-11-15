@@ -2,12 +2,12 @@
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
 use chisel::elf::{self, ElfError, Image, Segment, PF_R, PF_W, PF_X};
-use quartz::machine::{Config, Exit, Machine, RAM_BASE};
+use silicon::machine::{Config, Exit, Machine, RAM_BASE};
 use std::process::Command;
 
 const PROG: &[u8] = include_bytes!("fixtures/elf/prog.elf");
 const PROG_TXT: &str = include_str!("fixtures/elf/prog.txt");
-const COMMON: &str = include_str!("../../quartz/tests/fixtures/machine/common.inc");
+const COMMON: &str = include_str!("../../silicon/tests/fixtures/machine/common.inc");
 
 fn hex(s: &str) -> u64 {
     u64::from_str_radix(s.trim_start_matches("0x"), 16).unwrap()
@@ -404,13 +404,13 @@ fn leader_chisel_programs_run_from_elf() {
     let fx: [(&str, &str, &[u8]); 2] = [
         (
             "hello",
-            include_str!("../../quartz/tests/fixtures/machine/hello.S"),
-            include_bytes!("../../quartz/tests/fixtures/machine/hello.bin"),
+            include_str!("../../silicon/tests/fixtures/machine/hello.S"),
+            include_bytes!("../../silicon/tests/fixtures/machine/hello.bin"),
         ),
         (
             "timer",
-            include_str!("../../quartz/tests/fixtures/machine/timer.S"),
-            include_bytes!("../../quartz/tests/fixtures/machine/timer.bin"),
+            include_str!("../../silicon/tests/fixtures/machine/timer.S"),
+            include_bytes!("../../silicon/tests/fixtures/machine/timer.bin"),
         ),
     ];
     for (name, src, bin) in fx {

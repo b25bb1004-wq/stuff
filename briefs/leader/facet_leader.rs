@@ -1,12 +1,12 @@
-//! Leader check for T63 (facet): random sessions on a fresh seed against a naive full compositor written
+//! Leader check for T63 (iris): random sessions on a fresh seed against a naive full compositor written
 //! from the brief (pixel identity), the damage rule, routing, animation end points and tiling geometry.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 use std::collections::BTreeMap;
 
 use assay::Rng;
-use facet::{Compositor, Layout, Routed, WinId};
-use glint::{Event, Key};
+use iris::{Compositor, Layout, Routed, WinId};
+use indium::{Event, Key};
 use pigment::{Canvas, Rect, Rgba};
 
 const SEED: u64 = 0x0FAC_E763;

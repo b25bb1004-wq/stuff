@@ -13,6 +13,6 @@ cargo fmt $FMT -- --check
 cargo clippy $SEL --all-targets -- -D warnings
 cargo test $SEL -q
 if [ -f Cargo.lock ] && grep -q '^source = ' Cargo.lock; then
-  echo "FAIL: external dependency found in Cargo.lock (Strata is zero-dependency)"; exit 1
+  echo "FAIL: external dependency found in Cargo.lock (Monolith is zero-dependency)"; exit 1
 fi
 echo "CHECK PASS ${1:-workspace}"

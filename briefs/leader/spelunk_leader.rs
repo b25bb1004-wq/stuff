@@ -4,9 +4,9 @@
 //! specificity, deep nesting, speed and no-panic fuzz. Seeds fixed; Python run with -I.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use spelunk::css::{self, Token as C, Value};
-use spelunk::html::{self, Token as H};
-use spelunk::select;
+use odyssey::css::{self, Token as C, Value};
+use odyssey::html::{self, Token as H};
+use odyssey::select;
 use std::fmt::Write as _;
 use std::process::Command;
 

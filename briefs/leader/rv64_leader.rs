@@ -1,6 +1,6 @@
-//! Leader check for T29a: random multi-function integer Mica programs (loops, branches, asserts,
+//! Leader check for T29a: random multi-function integer Logos programs (loops, branches, asserts,
 //! Bool parameters and results, calls, recursion near the depth limit, overflow and division
-//! traps) run on Quartz through `sinter::rv64::run` and on Geode; result and trap class must
+//! traps) run on Silicon through `cobalt::rv64::run` and on Elysium; result and trap class must
 //! match. Plus random IR (in and out of range) that must never panic `emit_asm`.
 #![allow(
     clippy::unwrap_used,
@@ -8,12 +8,12 @@
     clippy::cast_possible_wrap
 )]
 use assay::Rng;
-use geode::{Heap, Host, Limits, Trap as GTrap, Value, Vm};
-use mica::ast::{BinOp, UnOp};
-use mica::ir::{Body, Func, Inst, Lit, Program, Ty};
-use mica::Span;
-use quartz::machine::Exit;
-use sinter::rv64::{emit_asm, run, CodegenError};
+use elysium::{Heap, Host, Limits, Trap as GTrap, Value, Vm};
+use logos::ast::{BinOp, UnOp};
+use logos::ir::{Body, Func, Inst, Lit, Program, Ty};
+use logos::Span;
+use silicon::machine::Exit;
+use cobalt::rv64::{emit_asm, run, CodegenError};
 
 struct NoHost;
 impl Host for NoHost {
@@ -22,9 +22,9 @@ impl Host for NoHost {
     }
 }
 
-/// Geode outcome: Ok(value), Err(trap class), or None when fuel ran out (case skipped).
-fn geode(p: &Program) -> Option<Result<i64, u32>> {
-    let c = sinter::compile(p);
+/// Elysium outcome: Ok(value), Err(trap class), or None when fuel ran out (case skipped).
+fn elysium(p: &Program) -> Option<Result<i64, u32>> {
+    let c = cobalt::compile(p);
     let mut vm = Vm::new(c.module, &[]).unwrap();
     let lim = Limits {
         fuel: 3_000_000,
@@ -38,7 +38,7 @@ fn geode(p: &Program) -> Option<Result<i64, u32>> {
         Err(GTrap::AssertFailed(_)) => Some(Err(3)),
         Err(GTrap::StackOverflow) => Some(Err(4)),
         Err(GTrap::OutOfFuel) => None,
-        other => panic!("unexpected geode result {other:?}"),
+        other => panic!("unexpected elysium result {other:?}"),
     }
 }
 
@@ -330,8 +330,8 @@ fn program(r: &mut Rng) -> String {
 }
 
 fn ir(src: &str) -> Program {
-    let ast = mica::parser::parse(src).unwrap_or_else(|d| panic!("parse: {d:?}\n{src}"));
-    mica::check::check(&ast).unwrap_or_else(|d| panic!("check: {d:?}\n{src}"))
+    let ast = logos::parser::parse(src).unwrap_or_else(|d| panic!("parse: {d:?}\n{src}"));
+    logos::check::check(&ast).unwrap_or_else(|d| panic!("check: {d:?}\n{src}"))
 }
 
 #[test]
@@ -346,7 +346,7 @@ fn random_programs_match_geode() {
             "case {case}: {:?}\n{src}",
             emit_asm(&p, "main")
         );
-        let Some(want) = geode(&p) else {
+        let Some(want) = elysium(&p) else {
             skipped += 1;
             continue;
         };
@@ -380,11 +380,11 @@ fn random_programs_match_geode() {
 
 #[test]
 fn depth_limit_is_exact() {
-    // the limit counts main as one frame, as Geode does; scan both sides of the boundary
+    // the limit counts main as one frame, as Elysium does; scan both sides of the boundary
     for n in 9_995..10_002 {
         let src = format!("{PRELUDE}fn main() -> int {{ deep({n}) }}");
         let p = ir(&src);
-        let want = geode(&p).unwrap();
+        let want = elysium(&p).unwrap();
         let (exit, out) = run(&p, "main", 50_000_000);
         let got = match exit {
             Exit::Pass => Ok(out.trim_end().parse::<i64>().unwrap()),

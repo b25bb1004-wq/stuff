@@ -1,7 +1,7 @@
 //! Leader check for T43: blob, tree and commit ids equal real git's (SHA-256 object format) for
 //! the same history, including git's tree order and exec bits; history, checkout and corruption.
 #![allow(clippy::unwrap_used, clippy::type_complexity)]
-use drillcore::{from_hex, to_hex, Commit, Error, Kind, MemStore, Repo, Signature, Store};
+use chronos::{from_hex, to_hex, Commit, Error, Kind, MemStore, Repo, Signature, Store};
 use std::path::Path;
 use std::process::Command;
 
@@ -10,10 +10,10 @@ fn git(dir: &Path, args: &[&str], date: &str) -> String {
         .args(["-c", "core.autocrlf=false", "-c", "core.filemode=false"])
         .args(args)
         .current_dir(dir)
-        .env("GIT_AUTHOR_NAME", "Ada Quarry")
-        .env("GIT_AUTHOR_EMAIL", "ada@strata.test")
-        .env("GIT_COMMITTER_NAME", "Ada Quarry")
-        .env("GIT_COMMITTER_EMAIL", "ada@strata.test")
+        .env("GIT_AUTHOR_NAME", "Ada Midas")
+        .env("GIT_AUTHOR_EMAIL", "ada@monolith.test")
+        .env("GIT_COMMITTER_NAME", "Ada Midas")
+        .env("GIT_COMMITTER_EMAIL", "ada@monolith.test")
         .env("GIT_AUTHOR_DATE", date)
         .env("GIT_COMMITTER_DATE", date)
         .output()
@@ -28,8 +28,8 @@ fn git(dir: &Path, args: &[&str], date: &str) -> String {
 
 fn who(time: i64, tz: i32) -> Signature {
     Signature {
-        name: "Ada Quarry".into(),
-        email: "ada@strata.test".into(),
+        name: "Ada Midas".into(),
+        email: "ada@monolith.test".into(),
         time,
         tz_minutes: tz,
     }
@@ -97,7 +97,7 @@ fn leader_ids_match_git_sha256() {
             repo.add(p, body.as_bytes(), *exec).unwrap();
             let blob = git(&dir, &["hash-object", "--", p], "");
             assert_eq!(
-                to_hex(&drillcore::hash_object(Kind::Blob, body.as_bytes())),
+                to_hex(&chronos::hash_object(Kind::Blob, body.as_bytes())),
                 blob,
                 "blob {p}"
             );
@@ -120,7 +120,7 @@ fn leader_ids_match_git_sha256() {
         let ours = repo.commit(msg, &who(*t, *tz)).unwrap();
         let theirs_tree = git(&dir, &["rev-parse", "HEAD^{tree}"], "");
         let (_, cdata) = repo.get(&ours).unwrap();
-        let c = drillcore::decode_commit(&cdata).unwrap();
+        let c = chronos::decode_commit(&cdata).unwrap();
         assert_eq!(to_hex(&c.tree), theirs_tree, "step {i}: tree id");
         assert_eq!(
             to_hex(&ours),
@@ -154,7 +154,7 @@ fn leader_ids_match_git_sha256() {
         message: "merge\n".into(),
     };
     assert_eq!(
-        to_hex(&repo.put(Kind::Commit, &drillcore::encode_commit(&c))),
+        to_hex(&repo.put(Kind::Commit, &chronos::encode_commit(&c))),
         merge
     );
     std::fs::remove_dir_all(&dir).ok();

@@ -3,16 +3,36 @@
 version = 4
 
 [[package]]
+name = "argo"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "mercury",
+ "sphinx",
+]
+
+[[package]]
 name = "assay"
 version = "0.1.0"
 
 [[package]]
-name = "cairn"
+name = "aurum"
 version = "0.1.0"
 dependencies = [
  "assay",
- "onyx",
- "outcrop",
+ "cobalt",
+ "elysium",
+ "logos",
+ "sphinx",
+ "xenon",
+]
+
+[[package]]
+name = "calliope"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "logos",
 ]
 
 [[package]]
@@ -20,59 +40,56 @@ name = "chisel"
 version = "0.1.0"
 dependencies = [
  "assay",
- "quartz",
+ "silicon",
 ]
 
 [[package]]
-name = "crust"
+name = "chronos"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "mercury",
+ "sphinx",
 ]
 
 [[package]]
-name = "drillcore"
-version = "0.1.0"
-dependencies = [
- "assay",
- "onyx",
- "outcrop",
-]
-
-[[package]]
-name = "facet"
-version = "0.1.0"
-dependencies = [
- "assay",
- "glint",
- "pigment",
-]
-
-[[package]]
-name = "flint"
+name = "cobalt"
 version = "0.1.0"
 dependencies = [
  "assay",
  "chisel",
- "quartz",
+ "elysium",
+ "logos",
+ "silicon",
 ]
 
 [[package]]
-name = "geode"
+name = "elysium"
 version = "0.1.0"
 dependencies = [
  "assay",
 ]
 
 [[package]]
-name = "geyser"
+name = "hades"
 version = "0.1.0"
 dependencies = [
  "assay",
 ]
 
 [[package]]
-name = "glint"
+name = "helios"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "cobalt",
+ "elysium",
+ "logos",
+ "pigment",
+]
+
+[[package]]
+name = "indium"
 version = "0.1.0"
 dependencies = [
  "assay",
@@ -80,35 +97,79 @@ dependencies = [
 ]
 
 [[package]]
-name = "mantle"
+name = "iridium"
+version = "0.1.0"
+dependencies = [
+ "assay",
+]
+
+[[package]]
+name = "iris"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "indium",
+ "pigment",
+]
+
+[[package]]
+name = "kairos"
+version = "0.1.0"
+dependencies = [
+ "assay",
+]
+
+[[package]]
+name = "krypton"
+version = "0.1.0"
+dependencies = [
+ "assay",
+]
+
+[[package]]
+name = "lithium"
 version = "0.1.0"
 dependencies = [
  "assay",
  "chisel",
- "quarry",
- "quartz",
+ "silicon",
 ]
 
 [[package]]
-name = "mica"
+name = "logos"
 version = "0.1.0"
 dependencies = [
  "assay",
 ]
 
 [[package]]
-name = "onyx"
+name = "mercury"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "kairos",
+]
+
+[[package]]
+name = "midas"
 version = "0.1.0"
 dependencies = [
  "assay",
 ]
 
 [[package]]
-name = "outcrop"
+name = "odyssey"
 version = "0.1.0"
 dependencies = [
  "assay",
- "geyser",
+ "pigment",
+]
+
+[[package]]
+name = "pandora"
+version = "0.1.0"
+dependencies = [
+ "assay",
 ]
 
 [[package]]
@@ -119,94 +180,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "quarry"
+name = "silicon"
 version = "0.1.0"
 dependencies = [
  "assay",
 ]
 
 [[package]]
-name = "quartz"
+name = "sphinx"
 version = "0.1.0"
 dependencies = [
  "assay",
 ]
 
 [[package]]
-name = "seam"
-version = "0.1.0"
-dependencies = [
- "assay",
- "geode",
- "mica",
- "onyx",
- "sinter",
- "tremor",
-]
-
-[[package]]
-name = "shale"
-version = "0.1.0"
-dependencies = [
- "assay",
-]
-
-[[package]]
-name = "sinter"
+name = "titan"
 version = "0.1.0"
 dependencies = [
  "assay",
  "chisel",
- "geode",
- "mica",
- "quartz",
+ "midas",
+ "silicon",
 ]
 
 [[package]]
-name = "slate"
+name = "xenon"
 version = "0.1.0"
 dependencies = [
  "assay",
- "mica",
-]
-
-[[package]]
-name = "spelunk"
-version = "0.1.0"
-dependencies = [
- "assay",
- "pigment",
-]
-
-[[package]]
-name = "tectonic"
-version = "0.1.0"
-dependencies = [
- "assay",
- "geode",
- "mica",
- "pigment",
- "sinter",
-]
-
-[[package]]
-name = "tremor"
-version = "0.1.0"
-dependencies = [
- "assay",
- "onyx",
-]
-
-[[package]]
-name = "varve"
-version = "0.1.0"
-dependencies = [
- "assay",
-]
-
-[[package]]
-name = "vug"
-version = "0.1.0"
-dependencies = [
- "assay",
+ "sphinx",
 ]

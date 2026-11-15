@@ -1,15 +1,15 @@
-//! Leader check for T47 (cairn packages, registry, install). Copied to
-//! crates/cairn/tests/registry_leader.rs.
+//! Leader check for T47 (argo packages, registry, install). Copied to
+//! crates/argo/tests/registry_leader.rs.
 #![allow(clippy::unwrap_used)]
 use assay::Rng;
-use cairn::client::{install, installed, remove, InstallError};
-use cairn::manifest::Manifest;
-use cairn::pkg::{self, Package, PkgError};
-use cairn::registry::Registry;
-use cairn::solve::{solve, Index, Solution};
-use cairn::version::{Req, Version};
-use outcrop::server::{Config, Router, Server};
-use outcrop::{parse_response, write_request, Limits, Request, Response};
+use argo::client::{install, installed, remove, InstallError};
+use argo::manifest::Manifest;
+use argo::pkg::{self, Package, PkgError};
+use argo::registry::Registry;
+use argo::solve::{solve, Index, Solution};
+use argo::version::{Req, Version};
+use mercury::server::{Config, Router, Server};
+use mercury::{parse_response, write_request, Limits, Request, Response};
 use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -21,7 +21,7 @@ const SEED_A: [u8; 32] = [7; 32];
 const SEED_B: [u8; 32] = [9; 32];
 
 fn key(seed: &[u8; 32]) -> [u8; 32] {
-    onyx::ed25519::public_key(seed)
+    sphinx::ed25519::public_key(seed)
 }
 
 fn v(s: &str) -> Version {
@@ -61,7 +61,7 @@ fn my_body(m: &Manifest, files: &[(String, Vec<u8>)]) -> Vec<u8> {
 fn my_blob(seed: &[u8; 32], body: &[u8]) -> Vec<u8> {
     let mut b = b"CAIRNSIG1\n".to_vec();
     b.extend(key(seed));
-    b.extend(onyx::ed25519::sign(seed, body));
+    b.extend(sphinx::ed25519::sign(seed, body));
     b.extend(body);
     b
 }
@@ -406,8 +406,8 @@ fn check_tree(root: &Path, sol: &Solution, all: &BTreeMap<(String, Version), Pac
         );
     }
     want.insert(
-        "cairn.lock".to_string(),
-        Some(cairn::lock::write(sol).into_bytes()),
+        "argo.lock".to_string(),
+        Some(argo::lock::write(sol).into_bytes()),
     );
     let got = snapshot(root);
     for (k, val) in &want {
@@ -495,8 +495,8 @@ fn leader_install_lock_and_remove() {
         vec!["base", "mid"]
     );
     assert_eq!(
-        std::fs::read_to_string(root.join("cairn.lock")).unwrap(),
-        cairn::lock::write(&left)
+        std::fs::read_to_string(root.join("argo.lock")).unwrap(),
+        argo::lock::write(&left)
     );
     s.stop();
     reg.stop();
