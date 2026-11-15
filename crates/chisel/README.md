@@ -22,7 +22,7 @@
 | `elf::Segment` | Loadable `PT_LOAD` segment (`vaddr`, `flags`, `data`, `mem_size`) |
 | `elf::PF_R`, `elf::PF_W`, `elf::PF_X` | Segment permission flags |
 | `elf::ElfError` | ELF64 parsing error (`Truncated`, `BadMagic`, `Unsupported`, `BadSegment`) |
-| `elf::write(img)` | Serialize an `Image` to little-endian RV64 ELF64 bytes |
+| `elf::write(img)` | Serialize an `Image` to little-endian RV64 ELF64 bytes; `Err(ElfError)` for bad segments or symbols |
 | `elf::read(bytes)` | Parse little-endian RV64 ELF64 bytes into `Result<Image, ElfError>` |
 | `elf::load(img, m)` | Load `Image` segments into a `silicon::machine::Machine` and set `pc` |
 

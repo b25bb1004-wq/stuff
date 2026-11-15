@@ -53,7 +53,13 @@ fn main() {
         symbols: out.symbols.clone(),
     };
 
-    let elf_bytes = elf::write(&image);
+    let elf_bytes = match elf::write(&image) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            eprintln!("ELF write failed: {err}");
+            std::process::exit(1);
+        }
+    };
     println!("wrote ELF64 image ({} bytes)", elf_bytes.len());
 
     let parsed = match elf::read(&elf_bytes) {

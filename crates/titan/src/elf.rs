@@ -209,7 +209,12 @@ mod tests {
     use super::*;
     use alloc::vec;
     use assay::forall;
-    use chisel::elf::{write, Image, Segment, PF_R, PF_W, PF_X};
+    use chisel::elf::{Image, Segment, PF_R, PF_W, PF_X};
+
+    /// The writer's checks are chisel's to test; these tests only need valid bytes.
+    fn write(img: &Image) -> Vec<u8> {
+        chisel::elf::write(img).unwrap()
+    }
 
     fn sample_image() -> Image {
         Image {

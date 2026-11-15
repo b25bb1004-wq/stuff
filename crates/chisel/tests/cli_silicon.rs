@@ -40,7 +40,7 @@ fn build_elf(asm: &str, vaddr: u64) -> Vec<u8> {
         }],
         symbols: out.symbols,
     };
-    elf::write(&img)
+    elf::write(&img).unwrap()
 }
 
 fn hi_elf() -> Vec<u8> {

@@ -151,18 +151,18 @@ fn pkg_roundtrip_property_and_byte_flip() {
             },
             files,
         };
-        let body = pkg::encode(&p);
+        let body = pkg::encode(&p).unwrap();
         let decoded = pkg::decode(&body).unwrap();
-        assert_eq!(pkg::encode(&decoded), body);
+        assert_eq!(pkg::encode(&decoded).unwrap(), body);
 
-        let blob = pkg::sign(&p, &seed);
+        let blob = pkg::sign(&p, &seed).unwrap();
         let opened = pkg::open(&blob, &[pk]).unwrap();
         assert_eq!(opened, decoded);
     });
 
     // Flipping each byte of a signed blob must fail, never Ok.
     let p = make_pkg("alpha", "1.0.0", &[], &[("a/b.txt", b"hello world")]);
-    let blob = pkg::sign(&p, &seed);
+    let blob = pkg::sign(&p, &seed).unwrap();
     for i in 0..blob.len() {
         let mut bad = blob.clone();
         bad[i] ^= 0x01;
@@ -194,14 +194,14 @@ fn registry_status_codes_and_index_order() {
 
     // 403 untrusted key
     let p_a = make_pkg("zeta", "1.0.0", &[("alpha", "^1.0")], &[("f.txt", b"hi")]);
-    let bad_key_blob = pkg::sign(&p_a, &untrusted_seed);
+    let bad_key_blob = pkg::sign(&p_a, &untrusted_seed).unwrap();
     assert_eq!(
         http_call(addr, "PUT", "/pkg/zeta/1.0.0", bad_key_blob).status,
         403
     );
 
     // 403 bad signature
-    let mut bad_sig_blob = pkg::sign(&p_a, &seed);
+    let mut bad_sig_blob = pkg::sign(&p_a, &seed).unwrap();
     bad_sig_blob[50] ^= 0x80;
     assert_eq!(
         http_call(addr, "PUT", "/pkg/zeta/1.0.0", bad_sig_blob).status,
@@ -209,7 +209,7 @@ fn registry_status_codes_and_index_order() {
     );
 
     // 400 URL mismatch
-    let good_blob = pkg::sign(&p_a, &seed);
+    let good_blob = pkg::sign(&p_a, &seed).unwrap();
     assert_eq!(
         http_call(addr, "PUT", "/pkg/other/1.0.0", good_blob.clone()).status,
         400
@@ -252,7 +252,7 @@ fn registry_status_codes_and_index_order() {
             addr,
             "PUT",
             "/pkg/alpha/1.1.0",
-            pkg::sign(&p_alpha_2, &seed)
+            pkg::sign(&p_alpha_2, &seed).unwrap()
         )
         .status,
         201
@@ -262,7 +262,7 @@ fn registry_status_codes_and_index_order() {
             addr,
             "PUT",
             "/pkg/alpha/1.0.0",
-            pkg::sign(&p_alpha_1, &seed)
+            pkg::sign(&p_alpha_1, &seed).unwrap()
         )
         .status,
         201
@@ -293,11 +293,23 @@ fn install_lock_preference_and_remove() {
         &[("bin/app", b"app1.0")],
     );
     assert_eq!(
-        http_call(addr, "PUT", "/pkg/lib/1.0.0", pkg::sign(&lib_10, &seed)).status,
+        http_call(
+            addr,
+            "PUT",
+            "/pkg/lib/1.0.0",
+            pkg::sign(&lib_10, &seed).unwrap()
+        )
+        .status,
         201
     );
     assert_eq!(
-        http_call(addr, "PUT", "/pkg/app/1.0.0", pkg::sign(&app_10, &seed)).status,
+        http_call(
+            addr,
+            "PUT",
+            "/pkg/app/1.0.0",
+            pkg::sign(&app_10, &seed).unwrap()
+        )
+        .status,
         201
     );
 
@@ -322,7 +334,13 @@ fn install_lock_preference_and_remove() {
     // Publish lib 1.1.0; reinstalling should keep locked lib 1.0.0.
     let lib_11 = make_pkg("lib", "1.1.0", &[], &[("src/lib.txt", b"v1.1")]);
     assert_eq!(
-        http_call(addr, "PUT", "/pkg/lib/1.1.0", pkg::sign(&lib_11, &seed)).status,
+        http_call(
+            addr,
+            "PUT",
+            "/pkg/lib/1.1.0",
+            pkg::sign(&lib_11, &seed).unwrap()
+        )
+        .status,
         201
     );
     let sol2 = client::install(
@@ -368,13 +386,13 @@ fn malicious_registry_leaves_root_unchanged() {
     // Craft 4 malicious responses:
     // 1. flipped byte
     let p_flip = make_pkg("badflip", "1.0.0", &[], &[("a.txt", b"ok")]);
-    let mut flip_blob = pkg::sign(&p_flip, &good_seed);
+    let mut flip_blob = pkg::sign(&p_flip, &good_seed).unwrap();
     let last = flip_blob.len() - 1;
     flip_blob[last] ^= 0xff;
 
     // 2. untrusted key
     let p_untrusted = make_pkg("untrusted", "1.0.0", &[], &[("a.txt", b"ok")]);
-    let untrusted_blob = pkg::sign(&p_untrusted, &bad_seed);
+    let untrusted_blob = pkg::sign(&p_untrusted, &bad_seed).unwrap();
 
     // 3. validly signed package with "../escape" path (hand-built body)
     let bad_manifest = " [package]\n";
@@ -404,7 +422,7 @@ fn malicious_registry_leaves_root_unchanged() {
 
     // 4. swapped package (validly signed "other" served as "swapped")
     let p_other = make_pkg("other", "1.0.0", &[], &[("a.txt", b"ok")]);
-    let swapped_blob = pkg::sign(&p_other, &good_seed);
+    let swapped_blob = pkg::sign(&p_other, &good_seed).unwrap();
 
     let index_body = b"badflip\t1.0.0\nuntrusted\t1.0.0\ntrav\t1.0.0\nswapped\t1.0.0\n".to_vec();
     let mut router = Router::new();
@@ -513,7 +531,7 @@ fn concurrent_publishers_and_installers() {
         pub_handles.push(thread::spawn(move || {
             let name = format!("worker{i}");
             let p = make_pkg(&name, "1.0.0", &[], &[("data.txt", name.as_bytes())]);
-            let blob = pkg::sign(&p, &seed);
+            let blob = pkg::sign(&p, &seed).unwrap();
             let target = format!("/pkg/{name}/1.0.0");
             let resp = http_call(addr, "PUT", &target, blob);
             assert_eq!(resp.status, 201);

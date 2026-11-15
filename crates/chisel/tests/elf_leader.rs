@@ -165,7 +165,7 @@ fn leader_writer_fields_and_round_trip() {
     let mut r = Rng::new(0x22_e1f0_0001);
     for case in 0..300 {
         let img = random_image(&mut r);
-        let f = elf::write(&img);
+        let f = elf::write(&img).unwrap();
         check_written(&f, &img);
         assert_eq!(elf::read(&f), Ok(img), "case {case}: round trip");
     }
@@ -255,7 +255,7 @@ fn leader_llvm_readelf_accepts_our_files() {
         let mut img = random_image(&mut r);
         img.segments.retain(|s| !s.data.is_empty());
         let path = dir.join(format!("t22-{}-{case}.elf", std::process::id()));
-        std::fs::write(&path, elf::write(&img)).unwrap();
+        std::fs::write(&path, elf::write(&img).unwrap()).unwrap();
         let out = match Command::new("llvm-readelf")
             .args(["-h", "-l", "-s", "-W"])
             .arg(&path)
@@ -331,7 +331,8 @@ fn leader_read_errors() {
             },
         ],
         symbols: vec![("_start".into(), 0x8000_0000)],
-    });
+    })
+    .unwrap();
     assert!(elf::read(&good).is_ok());
     let put = |o: usize, v: &[u8]| {
         let mut b = good.clone();
@@ -438,7 +439,7 @@ fn leader_chisel_programs_run_from_elf() {
             ],
             symbols: out.symbols,
         };
-        let back = elf::read(&elf::write(&img)).unwrap();
+        let back = elf::read(&elf::write(&img).unwrap()).unwrap();
         assert_eq!(back, img, "{name}: round trip");
         let mut m = machine();
         elf::load(&back, &mut m).unwrap();

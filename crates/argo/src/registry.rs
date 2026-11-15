@@ -106,7 +106,10 @@ fn handle_put(req: &Request, store: &RwLock<Store>, publishers: &[[u8; 32]]) -> 
         Err(PkgError::UntrustedKey) | Err(PkgError::BadSignature) => {
             return text_response(403, "Forbidden", b"forbidden");
         }
-        Err(PkgError::Malformed(_)) | Err(PkgError::BadPath(_)) => {
+        Err(PkgError::Malformed(_))
+        | Err(PkgError::BadPath(_))
+        | Err(PkgError::DuplicatePath(_))
+        | Err(PkgError::TooLarge(_)) => {
             return text_response(400, "Bad Request", b"bad package");
         }
     };

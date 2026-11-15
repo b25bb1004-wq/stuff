@@ -119,7 +119,8 @@ fn build_user_elf(manifest_dir: &Path, out_dir: &Path, name: &str) {
         entry,
         segments,
         symbols: out.symbols,
-    });
+    })
+    .expect("chisel elf write");
 
     let dest = out_dir.join(format!("{name}.elf"));
     fs::write(&dest, elf).unwrap_or_else(|e| panic!("failed to write {}: {e}", dest.display()));

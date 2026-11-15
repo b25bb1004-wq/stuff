@@ -18,6 +18,7 @@ fn dummy_zeus_elf() -> Vec<u8> {
         }],
         symbols: Vec::new(),
     })
+    .expect("zeus elf")
 }
 
 fn dummy_guest_elf(vaddr: u64, data: Vec<u8>, mem_size: u64, entry: u64) -> Vec<u8> {
@@ -31,6 +32,7 @@ fn dummy_guest_elf(vaddr: u64, data: Vec<u8>, mem_size: u64, entry: u64) -> Vec<
         }],
         symbols: Vec::new(),
     })
+    .expect("guest elf")
 }
 
 fn read_bytes(board: &mut impl Bus, addr: u64, len: usize) -> Vec<u8> {

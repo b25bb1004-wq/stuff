@@ -160,7 +160,8 @@ fn pkg_decode_rejects_hostile_sizes_and_truncation_without_oom() {
         "1.0.0",
         vec![],
         vec![("a.txt", b"hello")],
-    ));
+    ))
+    .unwrap();
     for len in 0..valid.len() {
         assert!(
             pkg::decode(&valid[..len]).is_err(),
@@ -175,7 +176,7 @@ fn pkg_open_rejects_untrusted_bad_sig_and_noncanonical() {
     let pk = ed25519::public_key(&seed);
     let other_pk = ed25519::public_key(&[0x44u8; 32]);
     let p = make_pkg("demo", "1.0.0", vec![], vec![("a.txt", b"data")]);
-    let blob = pkg::sign(&p, &seed);
+    let blob = pkg::sign(&p, &seed).unwrap();
 
     assert_eq!(pkg::open(&blob, &[other_pk]), Err(PkgError::UntrustedKey));
     assert_eq!(pkg::open(&blob, &[]), Err(PkgError::UntrustedKey));
@@ -186,7 +187,7 @@ fn pkg_open_rejects_untrusted_bad_sig_and_noncanonical() {
     assert_eq!(pkg::open(&tampered, &[pk]), Err(PkgError::BadSignature));
 
     // Re-sign a non-canonical body (trailing byte) using the trusted key: open must still reject!
-    let mut non_canon_body = pkg::encode(&p);
+    let mut non_canon_body = pkg::encode(&p).unwrap();
     non_canon_body.push(0);
     let sig = ed25519::sign(&seed, &non_canon_body);
     let mut non_canon_blob = Vec::new();
@@ -385,8 +386,8 @@ fn install_rejects_index_dependency_mismatch() {
         vec![("bin/app", b"ok")],
     );
     let sec1_pkg = make_pkg("sec", "1.0.0", vec![], vec![("lib/sec", b"old")]);
-    let app_blob = pkg::sign(&app_pkg, &seed);
-    let sec1_blob = pkg::sign(&sec1_pkg, &seed);
+    let app_blob = pkg::sign(&app_pkg, &seed).unwrap();
+    let sec1_blob = pkg::sign(&sec1_pkg, &seed).unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
@@ -745,7 +746,7 @@ fn install_completes_without_waiting_for_slow_peer_eof() {
     let seed = [0x88u8; 32];
     let pk = ed25519::public_key(&seed);
     let pkg = make_pkg("app", "1.0.0", vec![], vec![("bin/app", b"ok")]);
-    let blob = pkg::sign(&pkg, &seed);
+    let blob = pkg::sign(&pkg, &seed).unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();

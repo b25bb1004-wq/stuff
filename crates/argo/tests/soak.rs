@@ -408,7 +408,7 @@ fn soak_pkg_decode() {
 
     while start.elapsed() < budget || cases < 100 {
         let mut valid = gen_package(&mut rng);
-        let encoded = pkg::encode(&valid);
+        let encoded = pkg::encode(&valid).unwrap();
         valid
             .files
             .sort_by(|a, b| a.0.as_bytes().cmp(b.0.as_bytes()));
@@ -417,7 +417,7 @@ fn soak_pkg_decode() {
         let input = if cases.is_multiple_of(2) {
             rng.bytes(4096)
         } else {
-            let other = pkg::encode(&gen_package(&mut rng));
+            let other = pkg::encode(&gen_package(&mut rng)).unwrap();
             mutate_bytes(&mut rng, &encoded, &other)
         };
 
@@ -444,7 +444,7 @@ fn soak_pkg_open() {
 
     while start.elapsed() < budget || cases < 100 {
         let mut valid = gen_package(&mut rng);
-        let signed = pkg::sign(&valid, &signing_seed);
+        let signed = pkg::sign(&valid, &signing_seed).unwrap();
         valid
             .files
             .sort_by(|a, b| a.0.as_bytes().cmp(b.0.as_bytes()));
@@ -453,7 +453,7 @@ fn soak_pkg_open() {
         let input = if cases.is_multiple_of(2) {
             rng.bytes(4096)
         } else {
-            let other = pkg::sign(&gen_package(&mut rng), &signing_seed);
+            let other = pkg::sign(&gen_package(&mut rng), &signing_seed).unwrap();
             mutate_bytes(&mut rng, &signed, &other)
         };
 

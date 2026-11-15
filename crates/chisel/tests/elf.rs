@@ -60,7 +60,7 @@ fn header_and_table_fields() {
         ],
     };
 
-    let bytes = write(&img);
+    let bytes = write(&img).unwrap();
     assert_eq!(&bytes[0..4], b"\x7fELF");
     assert_eq!(bytes[4], 2);
     assert_eq!(bytes[5], 1);
@@ -191,7 +191,7 @@ fn roundtrip_random_images() {
             segments,
             symbols,
         };
-        let bytes = write(&img);
+        let bytes = write(&img).unwrap();
         let max_len = 64
             + 56 * n_seg
             + 4096 * (n_seg + 1)
@@ -222,7 +222,7 @@ fn read_errors() {
         }],
         symbols: vec![("main".into(), 0x8000_0000)],
     };
-    let good = write(&base_img);
+    let good = write(&base_img).unwrap();
 
     // < 64 bytes -> Truncated (even with bad magic)
     assert_eq!(read(&good[..63]), Err(ElfError::Truncated));
@@ -307,7 +307,8 @@ fn read_errors() {
             },
         ],
         symbols: vec![],
-    });
+    })
+    .unwrap();
     b[64 + 56 + 16..64 + 56 + 24].copy_from_slice(&0x8000_0008u64.to_le_bytes());
     assert!(matches!(read(&b), Err(ElfError::BadSegment(_))));
 }
@@ -392,7 +393,7 @@ fn assemble_write_read_and_run_on_quartz() {
         }],
         symbols: out.symbols,
     };
-    let elf_bytes = write(&img);
+    let elf_bytes = write(&img).unwrap();
     let parsed = read(&elf_bytes).unwrap();
     assert_eq!(parsed, img);
 

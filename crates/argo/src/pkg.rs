@@ -31,6 +31,10 @@ pub enum PkgError {
     BadSignature,
     /// The signing public key is not in the trusted key list.
     UntrustedKey,
+    /// Two files share the same path.
+    DuplicatePath(String),
+    /// A length or count does not fit the package format's fixed-width fields.
+    TooLarge(String),
 }
 
 impl fmt::Display for PkgError {
@@ -40,6 +44,8 @@ impl fmt::Display for PkgError {
             PkgError::BadPath(path) => write!(f, "invalid package path: '{path}'"),
             PkgError::BadSignature => write!(f, "invalid package signature"),
             PkgError::UntrustedKey => write!(f, "untrusted package signing key"),
+            PkgError::DuplicatePath(path) => write!(f, "duplicate package path: '{path}'"),
+            PkgError::TooLarge(what) => write!(f, "package field too large: {what}"),
         }
     }
 }
@@ -63,24 +69,24 @@ pub(crate) fn validate_path(path: &str) -> Result<(), PkgError> {
 }
 
 /// Encode a package into its canonical unsigned body bytes (`CAIRNPKG1\n`).
-pub fn encode(p: &Package) -> Vec<u8> {
+pub fn encode(p: &Package) -> Result<Vec<u8>, PkgError> {
     let mut entries: Vec<(&str, &[u8])> = Vec::with_capacity(p.files.len());
     for (path, data) in &p.files {
-        assert!(validate_path(path).is_ok(), "invalid package path: {path}");
+        validate_path(path)?;
         entries.push((path.as_str(), data.as_slice()));
     }
     entries.sort_by(|a, b| a.0.as_bytes().cmp(b.0.as_bytes()));
     for pair in entries.windows(2) {
-        assert!(
-            pair[0].0 != pair[1].0,
-            "duplicate package path: {}",
-            pair[0].0
-        );
+        if pair[0].0 == pair[1].0 {
+            return Err(PkgError::DuplicatePath(pair[0].0.to_string()));
+        }
     }
 
     let manifest_text = p.manifest.to_string();
-    let manifest_len = u32::try_from(manifest_text.len()).expect("manifest too large");
-    let count = u32::try_from(entries.len()).expect("too many package files");
+    let manifest_len = u32::try_from(manifest_text.len())
+        .map_err(|_| PkgError::TooLarge("manifest".to_string()))?;
+    let count =
+        u32::try_from(entries.len()).map_err(|_| PkgError::TooLarge("file count".to_string()))?;
 
     let total_data: usize = entries.iter().map(|(k, v)| 2 + k.len() + 4 + v.len()).sum();
     let mut out = Vec::with_capacity(10 + 4 + manifest_text.len() + 4 + total_data);
@@ -90,14 +96,16 @@ pub fn encode(p: &Package) -> Vec<u8> {
     out.extend_from_slice(&count.to_le_bytes());
 
     for (path, data) in entries {
-        let plen = u16::try_from(path.len()).expect("path length fits in u16");
-        let dlen = u32::try_from(data.len()).expect("file data too large");
+        let plen =
+            u16::try_from(path.len()).map_err(|_| PkgError::TooLarge(format!("path '{path}'")))?;
+        let dlen =
+            u32::try_from(data.len()).map_err(|_| PkgError::TooLarge(format!("file '{path}'")))?;
         out.extend_from_slice(&plen.to_le_bytes());
         out.extend_from_slice(path.as_bytes());
         out.extend_from_slice(&dlen.to_le_bytes());
         out.extend_from_slice(data);
     }
-    out
+    Ok(out)
 }
 
 struct Cursor<'a> {
@@ -193,8 +201,8 @@ pub fn decode(body: &[u8]) -> Result<Package, PkgError> {
 }
 
 /// Encode and sign a package with an Ed25519 `seed`, returning a `CAIRNSIG1\n` blob.
-pub fn sign(p: &Package, seed: &[u8; 32]) -> Vec<u8> {
-    let body = encode(p);
+pub fn sign(p: &Package, seed: &[u8; 32]) -> Result<Vec<u8>, PkgError> {
+    let body = encode(p)?;
     let pk = ed25519::public_key(seed);
     let sig = ed25519::sign(seed, &body);
     let mut blob = Vec::with_capacity(SIG_HEADER_LEN + body.len());
@@ -202,7 +210,7 @@ pub fn sign(p: &Package, seed: &[u8; 32]) -> Vec<u8> {
     blob.extend_from_slice(&pk);
     blob.extend_from_slice(&sig);
     blob.extend_from_slice(&body);
-    blob
+    Ok(blob)
 }
 
 /// Verify and decode a signed package blob against `trusted` public keys.
@@ -233,6 +241,35 @@ mod tests {
     use super::*;
     use crate::version::{Req, Version};
 
+    fn pkg_with_path(path: &str) -> Package {
+        let mut p = sample_pkg();
+        p.files = vec![(path.to_string(), b"x".to_vec())];
+        p
+    }
+
+    #[test]
+    fn encode_and_sign_reject_bad_paths() {
+        let seed = [0x11u8; 32];
+        for bad in ["", "/abs", "a//b", "../x", "a\\b", "C:foo", "a\0b"] {
+            let p = pkg_with_path(bad);
+            assert!(matches!(encode(&p), Err(PkgError::BadPath(_))), "{bad:?}");
+            assert!(
+                matches!(sign(&p, &seed), Err(PkgError::BadPath(_))),
+                "{bad:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn encode_rejects_duplicate_paths() {
+        let mut p = sample_pkg();
+        p.files.push(("a/first.bin".to_string(), b"again".to_vec()));
+        assert_eq!(
+            encode(&p),
+            Err(PkgError::DuplicatePath("a/first.bin".to_string()))
+        );
+    }
+
     fn sample_pkg() -> Package {
         Package {
             manifest: Manifest {
@@ -250,7 +287,7 @@ mod tests {
     #[test]
     fn encode_decode_roundtrip_sorts_paths() {
         let pkg = sample_pkg();
-        let body = encode(&pkg);
+        let body = encode(&pkg).unwrap();
         let decoded = decode(&body).unwrap();
         assert_eq!(decoded.manifest, pkg.manifest);
         assert_eq!(
@@ -260,7 +297,7 @@ mod tests {
                 ("z/last.txt".to_string(), b"last".to_vec()),
             ]
         );
-        assert_eq!(encode(&decoded), body);
+        assert_eq!(encode(&decoded).unwrap(), body);
     }
 
     #[test]
@@ -269,7 +306,7 @@ mod tests {
         let pk = ed25519::public_key(&seed);
         let other_pk = ed25519::public_key(&[0x22u8; 32]);
         let pkg = sample_pkg();
-        let blob = sign(&pkg, &seed);
+        let blob = sign(&pkg, &seed).unwrap();
 
         let opened = open(&blob, &[pk]).unwrap();
         assert_eq!(opened.manifest, pkg.manifest);
@@ -331,7 +368,7 @@ mod tests {
     #[test]
     fn decode_rejects_non_canonical_and_trailing() {
         let pkg = sample_pkg();
-        let mut body = encode(&pkg);
+        let mut body = encode(&pkg).unwrap();
         body.push(0);
         assert!(matches!(decode(&body), Err(PkgError::Malformed(_))));
 

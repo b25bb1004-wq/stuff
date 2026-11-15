@@ -31,7 +31,7 @@ fn hex64(bytes: &[u8; 32]) -> String {
 }
 
 fn publish(addr: SocketAddr, seed: &[u8; 32], p: &Package) {
-    let blob = pkg::sign(p, seed);
+    let blob = pkg::sign(p, seed).expect("sign test package");
     let target = format!("/pkg/{}/{}", p.manifest.name, p.manifest.version);
     let mut msg = format!(
         "PUT {target} HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",

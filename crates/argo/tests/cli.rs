@@ -73,7 +73,7 @@ fn make_signed_pkg(
             .map(|(p, b)| (p.to_string(), b.to_vec()))
             .collect(),
     };
-    pkg::sign(&pkg, seed)
+    pkg::sign(&pkg, seed).unwrap()
 }
 
 #[test]

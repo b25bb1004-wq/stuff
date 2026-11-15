@@ -199,7 +199,7 @@ fn soak_assemble() {
             }],
             symbols: out1.symbols,
         };
-        assert_eq!(read(&write(&img)), Ok(img));
+        assert_eq!(read(&write(&img).unwrap()), Ok(img));
     }
 
     let start = Instant::now();
@@ -235,7 +235,7 @@ fn soak_elf_read() {
     let mut valid_corpus = Vec::new();
     for _ in 0..16 {
         let img = random_valid_image(&mut rng);
-        let bytes = write(&img);
+        let bytes = write(&img).unwrap();
         assert_eq!(read(&bytes), Ok(img));
         valid_corpus.push(bytes);
     }
@@ -271,7 +271,7 @@ fn soak_elf_load() {
 
     let mut valid_corpus = Vec::new();
     for _ in 0..16 {
-        valid_corpus.push(write(&random_valid_image(&mut rng)));
+        valid_corpus.push(write(&random_valid_image(&mut rng)).unwrap());
     }
 
     let mut machine = Machine::new(Config::default());

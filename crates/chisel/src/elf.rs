@@ -86,6 +86,8 @@ pub enum ElfError {
     Unsupported(String),
     /// Invalid or overlapping `PT_LOAD` segment.
     BadSegment(String),
+    /// Symbol name that cannot be stored in the string table.
+    BadSymbol(String),
 }
 
 impl fmt::Display for ElfError {
@@ -95,6 +97,7 @@ impl fmt::Display for ElfError {
             ElfError::BadMagic => write!(f, "invalid ELF magic"),
             ElfError::Unsupported(msg) => write!(f, "unsupported ELF: {msg}"),
             ElfError::BadSegment(msg) => write!(f, "invalid ELF segment: {msg}"),
+            ElfError::BadSymbol(msg) => write!(f, "invalid ELF symbol: {msg}"),
         }
     }
 }
@@ -102,22 +105,34 @@ impl fmt::Display for ElfError {
 impl std::error::Error for ElfError {}
 
 /// Serialize `img` as a little-endian RV64 ELF64 executable.
-pub fn write(img: &Image) -> Vec<u8> {
-    assert!(img.segments.len() <= u16::MAX as usize, "too many segments");
+pub fn write(img: &Image) -> Result<Vec<u8>, ElfError> {
+    if img.segments.len() > u16::MAX as usize {
+        return Err(ElfError::BadSegment(format!(
+            "{} segments exceed the {} limit",
+            img.segments.len(),
+            u16::MAX
+        )));
+    }
     let mut ranges = Vec::with_capacity(img.segments.len());
     for seg in &img.segments {
         let data_len = seg.data.len() as u64;
-        assert!(seg.mem_size >= data_len, "segment mem_size < data.len()");
-        let end = seg
-            .vaddr
-            .checked_add(seg.mem_size)
-            .expect("segment vaddr + mem_size overflow");
+        if seg.mem_size < data_len {
+            return Err(ElfError::BadSegment(format!(
+                "mem_size {} is below data length {data_len}",
+                seg.mem_size
+            )));
+        }
+        let end = seg.vaddr.checked_add(seg.mem_size).ok_or_else(|| {
+            ElfError::BadSegment(format!("vaddr {:#x} + mem_size overflows", seg.vaddr))
+        })?;
         if seg.mem_size > 0 {
             for &(prev_start, prev_end) in &ranges {
-                assert!(
-                    !(seg.vaddr < prev_end && prev_start < end),
-                    "overlapping segments"
-                );
+                if seg.vaddr < prev_end && prev_start < end {
+                    return Err(ElfError::BadSegment(format!(
+                        "segment at {:#x} overlaps another",
+                        seg.vaddr
+                    )));
+                }
             }
             ranges.push((seg.vaddr, end));
         }
@@ -127,9 +142,11 @@ pub fn write(img: &Image) -> Vec<u8> {
     let mut strtab = vec![0u8];
     let mut sym_names = Vec::with_capacity(img.symbols.len());
     for (name, _) in &img.symbols {
-        assert!(!name.is_empty(), "empty symbol name");
-        assert!(!name.as_bytes().contains(&0), "symbol name contains NUL");
-        let off = u32::try_from(strtab.len()).expect("strtab size overflow");
+        if name.is_empty() || name.as_bytes().contains(&0) {
+            return Err(ElfError::BadSymbol(format!("invalid symbol name {name:?}")));
+        }
+        let off = u32::try_from(strtab.len())
+            .map_err(|_| ElfError::BadSymbol("string table too large".to_string()))?;
         sym_names.push(off);
         strtab.extend_from_slice(name.as_bytes());
         strtab.push(0);
@@ -244,7 +261,7 @@ pub fn write(img: &Image) -> Vec<u8> {
         out[base + 48..base + 56].copy_from_slice(&PAGE_ALIGN.to_le_bytes());
     }
 
-    out
+    Ok(out)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -497,6 +514,7 @@ pub fn load(img: &Image, m: &mut silicon::machine::Machine) -> Result<(), silico
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)]
     use super::*;
 
     fn image(syms: usize, name_len: usize, seg_len: usize, segs: usize) -> Image {
@@ -516,10 +534,53 @@ mod tests {
         }
     }
 
+    fn one_segment(vaddr: u64, data_len: usize, mem_size: u64) -> Image {
+        Image {
+            entry: 0x1000,
+            segments: vec![Segment {
+                vaddr,
+                flags: PF_R,
+                data: vec![0; data_len],
+                mem_size,
+            }],
+            symbols: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn write_rejects_too_many_segments() {
+        let img = image(0, 1, 0, 65_536);
+        assert!(matches!(write(&img), Err(ElfError::BadSegment(_))));
+    }
+
+    #[test]
+    fn write_rejects_mem_size_below_data_len() {
+        let img = one_segment(0x1000, 8, 4);
+        assert!(matches!(write(&img), Err(ElfError::BadSegment(_))));
+    }
+
+    #[test]
+    fn write_rejects_address_overflow() {
+        let img = one_segment(u64::MAX - 1, 0, 16);
+        assert!(matches!(write(&img), Err(ElfError::BadSegment(_))));
+    }
+
+    #[test]
+    fn write_rejects_bad_symbol_names() {
+        for name in ["", "a\0b"] {
+            let mut img = image(0, 1, 0, 0);
+            img.symbols.push((name.to_string(), 0x1000));
+            assert!(
+                matches!(write(&img), Err(ElfError::BadSymbol(_))),
+                "{name:?}"
+            );
+        }
+    }
+
     #[test]
     fn symbol_count_over_cap_is_error() {
         // The null entry counts too, so three names make four table entries.
-        let bytes = write(&image(3, 4, 0, 0));
+        let bytes = write(&image(3, 4, 0, 0)).unwrap();
         let tight = Caps {
             symbols: 3,
             ..DEFAULT_CAPS
@@ -538,7 +599,7 @@ mod tests {
     #[test]
     fn symbol_name_bytes_over_cap_is_error() {
         // 1 (null) + 3 * 101 bytes of names: over 250, fits in 1000.
-        let bytes = write(&image(3, 100, 0, 0));
+        let bytes = write(&image(3, 100, 0, 0)).unwrap();
         let tight = Caps {
             name_bytes: 250,
             ..DEFAULT_CAPS
@@ -557,7 +618,7 @@ mod tests {
     #[test]
     fn pt_load_bytes_over_cap_is_error() {
         // Two segments of 100 file bytes each: 200 total.
-        let bytes = write(&image(0, 1, 100, 2));
+        let bytes = write(&image(0, 1, 100, 2)).unwrap();
         let tight = Caps {
             load_bytes: 150,
             ..DEFAULT_CAPS
@@ -575,7 +636,7 @@ mod tests {
 
     #[test]
     fn program_header_count_over_cap_is_error() {
-        let bytes = write(&image(0, 1, 100, 2));
+        let bytes = write(&image(0, 1, 100, 2)).unwrap();
         let tight = Caps {
             phnum: 1,
             ..DEFAULT_CAPS

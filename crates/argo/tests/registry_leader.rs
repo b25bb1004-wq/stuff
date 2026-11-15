@@ -154,10 +154,10 @@ fn leader_format_matches_and_round_trips() {
             files: files.clone(),
         };
         let body = my_body(&m, &files);
-        assert_eq!(pkg::encode(&p), body, "case {i}: encode differs");
+        assert_eq!(pkg::encode(&p).unwrap(), body, "case {i}: encode differs");
         assert_eq!(pkg::decode(&body), Ok(p.clone()), "case {i}: decode");
         let blob = my_blob(&SEED_A, &body);
-        assert_eq!(pkg::sign(&p, &SEED_A), blob, "case {i}: sign");
+        assert_eq!(pkg::sign(&p, &SEED_A).unwrap(), blob, "case {i}: sign");
         assert_eq!(
             pkg::open(&blob, &[key(&SEED_B), key(&SEED_A)]),
             Ok(p.clone())
@@ -304,12 +304,12 @@ fn leader_registry_status_codes() {
         manifest: m.clone(),
         files: vec![("bin/alpha".to_string(), b"A".to_vec())],
     };
-    let blob = pkg::sign(&p, &SEED_A);
+    let blob = pkg::sign(&p, &SEED_A).unwrap();
     assert_eq!(publish(a, &blob, "alpha", "1.1.0"), 400, "version mismatch");
     assert_eq!(publish(a, &blob, "beta", "1.0.0"), 400, "name mismatch");
     assert_eq!(publish(a, b"junk", "alpha", "1.0.0"), 400, "junk");
     assert_eq!(
-        publish(a, &pkg::sign(&p, &SEED_B), "alpha", "1.0.0"),
+        publish(a, &pkg::sign(&p, &SEED_B).unwrap(), "alpha", "1.0.0"),
         403,
         "untrusted"
     );
@@ -333,7 +333,10 @@ fn leader_registry_status_codes() {
         manifest: m2,
         files: vec![],
     };
-    assert_eq!(publish(a, &pkg::sign(&p2, &SEED_A), "alpha", "0.9.0"), 201);
+    assert_eq!(
+        publish(a, &pkg::sign(&p2, &SEED_A).unwrap(), "alpha", "0.9.0"),
+        201
+    );
     let (st, idx) = http(a, "GET", "/index", b"");
     assert_eq!(st, 200);
     let want = format!(
@@ -376,7 +379,10 @@ fn publish_graph(r: &mut Rng, a: SocketAddr) -> (Index, BTreeMap<(String, Versio
                 manifest: m,
                 files: files_for(r, &name),
             };
-            assert_eq!(publish(a, &pkg::sign(&p, &SEED_A), &name, &ver), 201);
+            assert_eq!(
+                publish(a, &pkg::sign(&p, &SEED_A).unwrap(), &name, &ver),
+                201
+            );
             index.add(&name, v(&ver), deps);
             all.insert((name.clone(), v(&ver)), p);
         }
@@ -452,7 +458,10 @@ fn leader_install_lock_and_remove() {
         manifest: manifest("p0", "1.9.9", &[]),
         files: vec![("bin/p0".to_string(), b"new".to_vec())],
     };
-    assert_eq!(publish(a, &pkg::sign(&newer, &SEED_A), "p0", "1.9.9"), 201);
+    assert_eq!(
+        publish(a, &pkg::sign(&newer, &SEED_A).unwrap(), "p0", "1.9.9"),
+        201
+    );
     assert_eq!(
         install(a, &deps, &root, &trusted).unwrap(),
         first,
@@ -475,7 +484,10 @@ fn leader_install_lock_and_remove() {
             manifest: manifest(n, ver, &deps),
             files: vec![(format!("bin/{n}"), n.as_bytes().to_vec())],
         };
-        assert_eq!(publish(s.addr(), &pkg::sign(&p, &SEED_A), n, ver), 201);
+        assert_eq!(
+            publish(s.addr(), &pkg::sign(&p, &SEED_A).unwrap(), n, ver),
+            201
+        );
     }
     install(s.addr(), &[("top".to_string(), req("^1"))], &root, &trusted).unwrap();
     match remove(&root, "base") {
@@ -556,14 +568,16 @@ fn leader_malicious_registry_is_refused() {
     let good_app = pkg::sign(
         &app(vec![("bin/app".to_string(), b"app".to_vec())]),
         &SEED_A,
-    );
+    )
+    .unwrap();
     let mut flipped = good_app.clone();
     let last = flipped.len() - 1;
     flipped[last] ^= 0x20;
     let untrusted = pkg::sign(
         &app(vec![("bin/app".to_string(), b"app".to_vec())]),
         &SEED_B,
-    );
+    )
+    .unwrap();
     let traversal = my_blob(
         &SEED_A,
         &my_body(
@@ -577,7 +591,8 @@ fn leader_malicious_registry_is_refused() {
             files: vec![],
         },
         &SEED_A,
-    );
+    )
+    .unwrap();
     let cases: Vec<(&str, Vec<u8>, ErrTest)> = vec![
         ("flipped byte", flipped, |e| *e == PkgError::BadSignature),
         ("untrusted key", untrusted, |e| *e == PkgError::UntrustedKey),
@@ -595,7 +610,10 @@ fn leader_malicious_registry_is_refused() {
         // Start from an installed lib so "unchanged" means something.
         let pre = evil_server(
             "lib\t1.0.0\n".to_string(),
-            vec![("/pkg/lib/1.0.0".to_string(), pkg::sign(&good, &SEED_A))],
+            vec![(
+                "/pkg/lib/1.0.0".to_string(),
+                pkg::sign(&good, &SEED_A).unwrap(),
+            )],
         );
         install(
             pre.local_addr(),
@@ -609,7 +627,10 @@ fn leader_malicious_registry_is_refused() {
         let srv = evil_server(
             index.clone(),
             vec![
-                ("/pkg/lib/1.0.0".to_string(), pkg::sign(&good, &SEED_A)),
+                (
+                    "/pkg/lib/1.0.0".to_string(),
+                    pkg::sign(&good, &SEED_A).unwrap(),
+                ),
                 ("/pkg/app/1.0.0".to_string(), bad),
             ],
         );
@@ -634,7 +655,10 @@ fn leader_malicious_registry_is_refused() {
     let srv = evil_server(
         index,
         vec![
-            ("/pkg/lib/1.0.0".to_string(), pkg::sign(&good, &SEED_A)),
+            (
+                "/pkg/lib/1.0.0".to_string(),
+                pkg::sign(&good, &SEED_A).unwrap(),
+            ),
             ("/pkg/app/1.0.0".to_string(), good_app),
         ],
     );
@@ -683,7 +707,10 @@ fn leader_concurrent_installers_and_publishers() {
                     manifest: manifest(&name, &ver, &[]),
                     files: vec![("x".to_string(), vec![k as u8; 1000])],
                 };
-                assert_eq!(publish(a, &pkg::sign(&p, &SEED_A), &name, &ver), 201);
+                assert_eq!(
+                    publish(a, &pkg::sign(&p, &SEED_A).unwrap(), &name, &ver),
+                    201
+                );
             }
         }));
     }

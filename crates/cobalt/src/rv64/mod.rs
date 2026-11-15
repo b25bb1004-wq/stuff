@@ -64,7 +64,8 @@ pub fn compile_elf(p: &Program, entry: &str) -> Result<Vec<u8>, CodegenError> {
         }],
         symbols: out.symbols,
     };
-    Ok(chisel::elf::write(&img))
+    chisel::elf::write(&img)
+        .map_err(|e| CodegenError::Unsupported(format!("ELF writer error: {e}")))
 }
 
 /// Compile `p` to an RV64 ELF and run it on Silicon for up to `steps` ticks.

@@ -71,7 +71,7 @@ http = \"^1.0\"
             ("README.txt".to_string(), b"hello argo\n".to_vec()),
         ],
     };
-    let body = pkg::encode(&pkg);
+    let body = pkg::encode(&pkg)?;
     let decoded = pkg::decode(&body)?;
     println!(
         "package encoded {} bytes, decoded {} files",
