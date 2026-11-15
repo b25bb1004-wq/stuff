@@ -4,6 +4,7 @@
 pub mod anim;
 mod events;
 mod layout;
+pub mod motion;
 mod render;
 mod types;
 pub mod widgets;
