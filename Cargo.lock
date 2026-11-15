@@ -161,6 +161,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "neon"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "chisel",
+ "cobalt",
+ "hades",
+ "logos",
+ "silicon",
+]
+
+[[package]]
 name = "odyssey"
 version = "0.1.0"
 dependencies = [

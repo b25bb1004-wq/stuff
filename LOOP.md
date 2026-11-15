@@ -161,7 +161,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T69 | P4 | helios | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
 | T70a | P4 | helios | audio mixer, scene stack, input record and replay | hydrogen | T69 | PASS |
 | T70 | P4 | helios | (T70b) Logos scripting, one original small game | hydrogen | T70a T18 | PASS |
-| T71 | P5 | neon | WebAssembly builds with our own glue (no wasm-bindgen): Silicon + Titan on a canvas, Logos playground | argon | T28 T18 | RUNNING |
+| T71 | P5 | neon | WebAssembly builds with our own glue (no wasm-bindgen): Silicon + Titan on a canvas, Logos playground | argon | T28 T18 | PASS |
 | T72 | P5 | athena | IDE shell: editor, file tree, terminal, run, test | claude | T71 T55 | TODO |
 | T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen | T10 T72 | TODO |
 | T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect | hydrogen | T17 T72 | TODO |
@@ -366,3 +366,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T52 | agy hydrogen-high | - | PASS | pandora images via argo, run -d, ps, kill, rm; leader fixed .so exec bit (design gap), stale-state checks; WSL green
 - 2026-11-16 | T28 | agy hydrogen-high | - | PASS | titan userland: Rust multicall ELF (sh on krypton, ls cat echo mkdir rm ps), argv, redirects, append; leader raw-byte fuzz
 - 2026-11-16 | T32 zeus | hydrogen-high (design by leader) | n/a | PASS | 14 tests + leader GPA scan (4063 faults exact); lithium interleave differs by quantum, accepted
+- 2026-11-16 | T71 neon | hydrogen-high | n/a | PASS | wasm Silicon+Titan page and Logos playground; leader Chrome check: session equals native transcript, 360 px ok

@@ -5,7 +5,18 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
+chisel = { path = "../chisel" }
+cobalt = { path = "../cobalt" }
+hades = { path = "../hades" }
+logos = { path = "../logos" }
+silicon = { path = "../silicon" }
+
+[dev-dependencies]
+assay = { path = "../assay" }
 
 [lints]
 workspace = true
