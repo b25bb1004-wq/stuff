@@ -207,9 +207,14 @@ fn check_png_ihdr(path: &Path, expected_w: u32, expected_h: u32) {
     );
 }
 
-fn extract_sw_assets(sw_text: &str) -> Vec<String> {
-    let marker = "const ASSETS = ";
-    let start = sw_text.find(marker).expect("sw.js missing ASSETS") + marker.len();
+fn extract_sw_string(sw_text: &str, marker: &str) -> String {
+    let start = sw_text.find(marker).expect("sw.js missing constant") + marker.len();
+    let rest = &sw_text[start + 1..];
+    rest[..rest.find('"').expect("unterminated string")].to_owned()
+}
+
+fn extract_sw_assets(sw_text: &str, marker: &str) -> Vec<String> {
+    let start = sw_text.find(marker).expect("sw.js missing asset list") + marker.len();
     let rest = &sw_text[start..];
     let end = rest.find(';').expect("sw.js ASSETS missing ';'");
     let arr_json = parse_json(&rest[..end]);
@@ -293,6 +298,7 @@ fn pack_produces_all_installable_apps_and_launcher() {
         );
     }
 
+    let mut core_names: BTreeSet<String> = BTreeSet::new();
     for (id, title) in expected_apps {
         let app_dir = tmp.join(id);
         assert!(app_dir.is_dir(), "missing app dir {}", app_dir.display());
@@ -338,13 +344,23 @@ fn pack_produces_all_installable_apps_and_launcher() {
 
         let sw_text = std::fs::read_to_string(app_dir.join("sw.js")).unwrap();
         assert!(sw_text.contains(&format!("monolith-{id}-")));
-        let assets = extract_sw_assets(&sw_text);
+        assert!(
+            !sw_text.contains("caches.match("),
+            "{id}/sw.js must not search every cache on the origin"
+        );
+        assert!(sw_text.contains("key.startsWith(CACHE_PREFIX)"));
+        assert!(sw_text.contains("key.startsWith(\"monolith-core-\")"));
+        assert!(
+            !sw_text.contains("athena"),
+            "{id}/sw.js must not touch athena caches"
+        );
+        core_names.insert(extract_sw_string(&sw_text, "const CORE_CACHE = "));
+        let core_assets = extract_sw_assets(&sw_text, "const CORE_ASSETS = ");
+        assert!(core_assets.contains(&String::from("../site.wasm")));
+        assert!(core_assets.contains(&String::from("../titan.elf")));
+        let assets = extract_sw_assets(&sw_text, "const ASSETS = ");
         assert!(!assets.is_empty());
-        assert!(assets.contains(&String::from("../site.wasm")));
-        if id == "titan" {
-            assert!(assets.contains(&String::from("../titan.elf")));
-        }
-        for asset in &assets {
+        for asset in core_assets.iter().chain(assets.iter()) {
             let resolved = app_dir.join(asset);
             assert!(
                 resolved.is_file(),
@@ -353,6 +369,12 @@ fn pack_produces_all_installable_apps_and_launcher() {
             );
         }
     }
+
+    assert_eq!(
+        core_names.len(),
+        1,
+        "every app must share one core cache: {core_names:?}"
+    );
 
     let launcher_dir = tmp.join("apps");
     let launcher_html = std::fs::read_to_string(launcher_dir.join("index.html")).unwrap();

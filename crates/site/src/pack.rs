@@ -10,8 +10,6 @@ struct AppSpec {
     id: &'static str,
     name: &'static str,
     initial: char,
-    uses_demo_app: bool,
-    uses_titan_elf: bool,
 }
 
 const APPS: [AppSpec; 23] = [
@@ -19,162 +17,116 @@ const APPS: [AppSpec; 23] = [
         id: "titan",
         name: "Titan",
         initial: 'T',
-        uses_demo_app: false,
-        uses_titan_elf: true,
     },
     AppSpec {
         id: "iridium",
         name: "Iridium",
         initial: 'I',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "elysium",
         name: "Elysium",
         initial: 'E',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "mercury",
         name: "Mercury",
         initial: 'M',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "helios",
         name: "Helios",
         initial: 'H',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "cobalt",
         name: "Cobalt",
         initial: 'C',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "logos",
         name: "Logos",
         initial: 'L',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "odyssey",
         name: "Odyssey",
         initial: 'O',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "aurum",
         name: "Aurum",
         initial: 'A',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "sphinx",
         name: "Sphinx",
         initial: 'S',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "silicon",
         name: "Silicon",
         initial: 'S',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "chisel",
         name: "Chisel",
         initial: 'C',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "hades",
         name: "Hades",
         initial: 'H',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "pandora",
         name: "Pandora",
         initial: 'P',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "argo",
         name: "Argo",
         initial: 'A',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "krypton",
         name: "Krypton",
         initial: 'K',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "iris",
         name: "Iris",
         initial: 'I',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "indium",
         name: "Indium",
         initial: 'I',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "calliope",
         name: "Calliope",
         initial: 'C',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "chronos",
         name: "Chronos",
         initial: 'C',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "xenon",
         name: "Xenon",
         initial: 'X',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "lithium",
         name: "Lithium",
         initial: 'L',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
     AppSpec {
         id: "kairos",
         name: "Kairos",
         initial: 'K',
-        uses_demo_app: true,
-        uses_titan_elf: false,
     },
 ];
 
@@ -345,27 +297,28 @@ fn build_manifest(name: &str) -> String {
     )
 }
 
-fn build_service_worker(app: &AppSpec, app_out: &Path) -> Result<String, String> {
-    let mut assets: Vec<&'static str> = vec![
-        "index.html",
-        "app.js",
-        "manifest.webmanifest",
-        "icon-192.png",
-        "icon-512.png",
-        "icon-maskable-512.png",
-        "../_kit/kit.css",
-        "../_kit/kit.js",
-    ];
-    if app.uses_demo_app {
-        assets.push("../_kit/demo-app.js");
-    }
-    assets.push("../site.wasm");
-    if app.uses_titan_elf {
-        assets.push("../titan.elf");
-    }
+/// Files every app shares; one core cache serves all apps so each stores them once.
+const CORE_ASSETS: [&str; 5] = [
+    "../site.wasm",
+    "../titan.elf",
+    "../_kit/kit.css",
+    "../_kit/kit.js",
+    "../_kit/demo-app.js",
+];
 
+/// Files that belong to one app alone.
+const APP_ASSETS: [&str; 6] = [
+    "index.html",
+    "app.js",
+    "manifest.webmanifest",
+    "icon-192.png",
+    "icon-512.png",
+    "icon-maskable-512.png",
+];
+
+fn hash_files(app_out: &Path, rels: &[&str]) -> Result<String, String> {
     let mut hash_buf = Vec::new();
-    for rel in &assets {
+    for rel in rels {
         let resolved = app_out.join(rel);
         let bytes = std::fs::read(&resolved).map_err(|e| {
             format!(
@@ -383,72 +336,98 @@ fn build_service_worker(app: &AppSpec, app_out: &Path) -> Result<String, String>
     for b in &final_hash[..8] {
         let _ = write!(hex_tag, "{b:02x}");
     }
+    Ok(hex_tag)
+}
 
-    let cache_prefix = format!("monolith-{}-", app.id);
-    let cache_name = format!("{cache_prefix}{hex_tag}");
-    let mut assets_js = String::from("[\n");
-    for (idx, rel) in assets.iter().enumerate() {
-        let comma = if idx + 1 < assets.len() { "," } else { "" };
-        let _ = writeln!(assets_js, "  \"{rel}\"{comma}");
+fn js_string_array(items: &[&str]) -> String {
+    let mut out = String::from("[\n");
+    for (idx, item) in items.iter().enumerate() {
+        let comma = if idx + 1 < items.len() { "," } else { "" };
+        let _ = writeln!(out, "  \"{item}\"{comma}");
     }
-    assets_js.push(']');
+    out.push(']');
+    out
+}
 
-    Ok(format!(
-        "const CACHE_PREFIX = \"{cache_prefix}\";\n\
-const CACHE_NAME = \"{cache_name}\";\n\
-const ASSETS = {assets_js};\n\
-\n\
-self.addEventListener(\"install\", (event) => {{\n\
-  event.waitUntil(\n\
-    caches\n\
-      .open(CACHE_NAME)\n\
-      .then((cache) => cache.addAll(ASSETS))\n\
-      .then(() => self.skipWaiting())\n\
-  );\n\
-}});\n\
-\n\
-self.addEventListener(\"activate\", (event) => {{\n\
-  event.waitUntil(\n\
-    caches\n\
-      .keys()\n\
-      .then((keys) =>\n\
-        Promise.all(\n\
-          keys\n\
-            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)\n\
-            .map((key) => caches.delete(key))\n\
-        )\n\
-      )\n\
-      .then(() => self.clients.claim())\n\
-  );\n\
-}});\n\
-\n\
-self.addEventListener(\"fetch\", (event) => {{\n\
-  const req = event.request;\n\
-  if (req.method !== \"GET\") {{\n\
-    return;\n\
-  }}\n\
-  const url = new URL(req.url);\n\
-  if (url.origin !== self.location.origin) {{\n\
-    return;\n\
-  }}\n\
-  event.respondWith(\n\
-    caches.match(req, {{ ignoreSearch: true }}).then((cached) => {{\n\
-      if (cached) {{\n\
-        return cached;\n\
-      }}\n\
-      if (req.mode === \"navigate\" || url.pathname.endsWith(\"/\")) {{\n\
-        return caches.match(\"index.html\").then((indexResp) => {{\n\
-          if (indexResp) {{\n\
-            return indexResp;\n\
-          }}\n\
-          return fetch(req);\n\
-        }});\n\
-      }}\n\
-      return fetch(req);\n\
-    }})\n\
-  );\n\
-}});\n"
-    ))
+/// Lookups use only the two caches this worker opens, never the origin-wide `caches.match`.
+const SW_TEMPLATE: &str = r#"const CORE_CACHE = "__CORE_CACHE__";
+const CACHE_PREFIX = "__CACHE_PREFIX__";
+const CACHE_NAME = "__CACHE_NAME__";
+const CORE_ASSETS = __CORE_ASSETS__;
+const ASSETS = __ASSETS__;
+
+function lookup(req) {
+  return Promise.all([caches.open(CORE_CACHE), caches.open(CACHE_NAME)]).then(([core, own]) =>
+    core.match(req, { ignoreSearch: true }).then((hit) => hit || own.match(req, { ignoreSearch: true }))
+  );
+}
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    Promise.all([
+      caches.open(CORE_CACHE).then((cache) => cache.addAll(CORE_ASSETS)),
+      caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)),
+    ])
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter(
+              (key) =>
+                (key.startsWith(CACHE_PREFIX) || key.startsWith("monolith-core-")) &&
+                key !== CACHE_NAME &&
+                key !== CORE_CACHE
+            )
+            .map((key) => caches.delete(key))
+        )
+      )
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  const req = event.request;
+  if (req.method !== "GET") {
+    return;
+  }
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+  event.respondWith(
+    lookup(req).then((cached) => {
+      if (cached) {
+        return cached;
+      }
+      if (req.mode === "navigate" || url.pathname.endsWith("/")) {
+        return caches
+          .open(CACHE_NAME)
+          .then((own) => own.match("index.html"))
+          .then((indexResp) => indexResp || fetch(req));
+      }
+      return fetch(req);
+    })
+  );
+});
+"#;
+
+fn build_service_worker(app: &AppSpec, app_out: &Path) -> Result<String, String> {
+    let core_cache = format!("monolith-core-{}", hash_files(app_out, &CORE_ASSETS)?);
+    let cache_prefix = format!("monolith-{}-", app.id);
+    let cache_name = format!("{cache_prefix}{}", hash_files(app_out, &APP_ASSETS)?);
+    Ok(SW_TEMPLATE
+        .replace("__CORE_CACHE__", &core_cache)
+        .replace("__CACHE_PREFIX__", &cache_prefix)
+        .replace("__CACHE_NAME__", &cache_name)
+        .replace("__CORE_ASSETS__", &js_string_array(&CORE_ASSETS))
+        .replace("__ASSETS__", &js_string_array(&APP_ASSETS)))
 }
 
 fn copy_checked(src: &Path, dst: &Path) -> Result<(), String> {
