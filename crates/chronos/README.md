@@ -36,10 +36,10 @@ cargo run -p chronos --example demo
 
 ```text
 staged changes before commit: 2
-committed a2cd9260a303 on branch Some("main")
-feature commit: dc0ba18a876d
-main commit: acf002a282a6
-merged into d20f60279a6f: 4 commits in log, 2 files in tree
+committed f8f95218eb08 on branch Some("main")
+feature commit: 6865d109174c
+main commit: 4ac77647ff26
+merged into 7dbb9ca554f7: 4 commits in log, 2 files in tree
 unified diff lines: 5
 merge3 conflicts: 0, bytes: 8
 ```

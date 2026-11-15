@@ -47,7 +47,7 @@ canvas 200x120, corner pixel: Some(Rgba(245, 245, 245, 255))
 list selected=Some(2) offset=0
 tween 0->100 at 50 of 100 ms (OutQuad): 75
 ease OutCubic at t=500 of 1000: 875
-spring after 200 steps: pos=152 vel=225 settled=false
+spring after 200 steps: pos=202 vel=201 settled=false
 ```
 
 The demo is in `examples/demo.rs`. It uses no clock and no randomness, so the output is the same on every run.

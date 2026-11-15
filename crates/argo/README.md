@@ -39,7 +39,7 @@ solved 2 packages:
   http = 1.2.0
   log = 0.4.2
 lock roundtrip ok: true
-package encoded 147 bytes, decoded 2 files
+package encoded 146 bytes, decoded 2 files
 ```
 
 ## Tests

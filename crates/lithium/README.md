@@ -33,7 +33,7 @@ example of a guest program that runs on silicon and as a fixed transcript that t
 Real output:
 
 ```
-assembled kernel: 1744 bytes
+assembled kernel: 1750 bytes
 boot: kernel loaded into a default machine
 exit: Pass
 uart: 12 line(s)

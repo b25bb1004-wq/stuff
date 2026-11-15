@@ -48,12 +48,12 @@ Output (program stdout):
 ```
 handshake connected: true after 1 rounds
 server accepted connection 8343168226643167888
-client wrote 17 of 17 bytes on stream 0
+client wrote 16 of 16 bytes on stream 0
 server saw stream 0
-server read 17 bytes: "hello over xenon"
-client read back 17 bytes: "hello over xenon"
+server read 16 bytes: "hello over xenon"
+client read back 16 bytes: "hello over xenon"
 echo matches: true
-client sent 3 packets, cwnd 12062 bytes
+client sent 3 packets, cwnd 12061 bytes
 ```
 
 The demo runs the client and server in one process and passes datagrams by hand

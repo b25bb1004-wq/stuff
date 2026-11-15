@@ -52,7 +52,7 @@ hmac-sha256 = f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8
 hkdf output (16 bytes) = 790773b8093544d7052c18034ec05ddb
 chacha20 ciphertext = 8768864feec8c8bb050d8d98a4e5
 chacha20 after second xor = "attack at dawn"
-aead output: 27 bytes (11 plaintext + 16 tag)
+aead output: 29 bytes (11 plaintext + 16 tag)
 aead open ok: true
 aead tampered: Err(BadTag)
 ed25519 public key = ed4928c628d1c2c6eae90338905995612959273a5c63f93636c14614ac8737d1

@@ -57,4 +57,4 @@ Configure these response headers at the reverse proxy:
 - `Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'`
 
 You can also host `target/site-web` (produced by `cargo run --release --locked -p site --example pack`) directly on any static file host.
-Never expose ports `7400`, `7500`, `7601`-`7603`, or `7700` on a public interface—those services have no authentication and must remain local or internal.
+Never expose ports `7400`, `7500`, `7601`-`7603`, or `7700` on a public interface; those services have no authentication and must remain local or internal.
