@@ -56,7 +56,7 @@ top to bottom, and deployable.
 7. A Logos program compiles to RV64, runs in Monolith OS, and gives the same output on the VM.
 8. Services have a container image, graceful shutdown and a measured load test.
 9. The web front (site + IDE) passes desktop, mobile and reduced-motion checks.
-10. No secret, key or personal data in the repository; pushes go only to the private repo `b25bb1004-wq/stuff`.
+10. No secret, key or personal data in the repository; pushes go only to the public repo `b25bb1004-wq/stuff`.
 
 ## Budget
 - Argon quota is low (41% left on 2026-11-14 18:41, operator). Argon lanes only for the hardest, highest-value tasks (what you would give Opus): compilers, kernels, hypervisor, protocol cores. Everything else: hydrogen / hydrogen-high / hydrogen-xhigh, sonnet or opus via agy, flash or oss for text, Haiku for Claude-lane work. The lane column below is a plan, not a rule; downgrade argon rows when dispatching.

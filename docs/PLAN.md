@@ -56,7 +56,7 @@ Hard rules for the leader:
 6. On PASS: `bash tools/check.sh && git add -A && git commit && git push` chained with `&&`.
    Commit message ends with the `Claude-Session:` line when Claude commits.
 7. Update `heartbeat` in `LOOP.md`. Every 5 tasks update the vault note
-   `C:\Users\ADMIN\spidermonkey-vault\10 Projects\Strata.md`.
+   `<operator-vault>/10 Projects/Strata.md`.
 Stop and write the reason in `LOOP.md` State when: a usage-limit warning appears, two tasks in
 a row end in ESCALATE, or a task needs keys, money, publishing or deleting.
 
@@ -223,7 +223,7 @@ the index of every installed skill). Core set:
 
 ## 9. Start prompts
 Claude Opus, after `/clear` and `/model`:
-> You are the leader of Monolith in C:\Users\ADMIN\strata. Read LOOP.md, then docs/PLAN.md, then
+> You are the leader of Monolith in the repository root. Read LOOP.md, then docs/PLAN.md, then
 > AGENTS.md. Continue the loop from the first open task: one worker at a time through
 > tools/lane.sh, judge with your own check, commit and push on PASS. Stop on any stop rule.
 
@@ -239,7 +239,7 @@ Gemini Orchestrator (when Claude is out, or as second judge), run in this folder
 - The Gemini lanes are unproven on this code as of this writing; T05 is the first trial.
 
 ## 11. agy facts learned on 2026-11-14 (do not rediscover)
-- The CLI is `C:\Users\ADMIN\.gemini\bin\agy.exe` (installed 15:40). `agy models` lists lanes.
+- The CLI is `<home>/.gemini/bin/agy.exe` (installed 15:40). `agy models` lists lanes.
 - `--mode auto` is not available on this account. Print mode with `--mode accept-edits` lets a
   worker edit files; every shell command is denied unless an allow rule matches it EXACTLY:
   `{"permissions":{"allow":["command(cargo test -p kairos)"]}}`. Wildcards do not match.

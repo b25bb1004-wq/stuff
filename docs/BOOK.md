@@ -38,7 +38,7 @@ The stack is read from the bottom up. Each band uses the one below it.
 +--------------------------------------------------------------------------------+
 | APPS AND FRONT END                                                             |
 |   calliope (editor)  indium (widgets)  pigment (pixels)  odyssey (browser)         |
-|   helios (games)  iris (window manager, not built)  athena and site (no crate yet) |
+|   helios (games)  iris (window manager, not built)  athena (web IDE, built)  site (no crate yet) |
 +--------------------------------------------------------------------------------+
 | SERVICES, TOOLS AND LANGUAGE                                                   |
 |   mercury (HTTP)  xenon (transport)  iridium (database)  chronos (git-style)  |
@@ -47,8 +47,8 @@ The stack is read from the bottom up. Each band uses the one below it.
 |   sphinx (crypto)  assay (test kit, used by every crate)                         |
 +--------------------------------------------------------------------------------+
 | KERNEL AND CORE SERVICES                                                       |
-|   lithium (kernel in RV64 assembly, built)  titan (Rust kernel, not built)     |
-|   zeus (hypervisor, not built)  midas (allocator)  kairos (scheduler)     |
+|   lithium (kernel in RV64 assembly, built)  titan (Rust kernel, crate built)  |
+|   zeus (hypervisor, built)  midas (allocator)  kairos (scheduler)     |
 +--------------------------------------------------------------------------------+
 | HARDWARE MODEL (software emulation)                                            |
 |   silicon (RV64IMAC CPU, Zicsr, M/S/U modes, Sv39 paging, devices)            |
@@ -61,7 +61,9 @@ Notes on the diagram:
 - "Hardware model" is an emulator, not silicon. `docs/PLAN.md` section 10 lists real hardware
   drivers as out of scope.
 - `lithium` is the only kernel in `crates/` that has passed its gate. `titan` and `zeus` are named
-  in `docs/SPEC.md` under `machine/` and have no crate here yet.
+  in `docs/SPEC.md` under `machine/`. Both have crates here: `crates/titan` (host-side memory and
+  trap modules; the kernel binary is not part of that demo) and `crates/zeus` (hypervisor, guests
+  and scene). `athena` is the browser IDE in `crates/athena`.
 - `assay` is a dev-dependency of almost every crate, so it is not part of the shipped stack.
 
 ## 3. Crates
@@ -410,18 +412,18 @@ A report from a worker is never a PASS by itself. The leader runs the gate and i
 
 ## 5. Not built yet
 
-These rows are TODO in `LOOP.md` (the board table) and have no finished code. Crates with no
-code yet are marked.
+These rows are TODO in `LOOP.md` (the board table). Where a crate already holds part of the work,
+the row says so.
 
 | Row | System | What it is |
 |---|---|---|
-| T25 | titan | Rust kernel: boot shim, traps, Sv39, heap, console (no crate yet) |
+| T25 | titan | Rust kernel: boot shim, traps, Sv39, heap, console (crate built: frames, sv39, trap; kernel binary and heap/console still to do) |
 | T26 | titan | processes, user mode, syscalls, scheduler, ELF loading |
 | T27 | titan | block driver, hades mounted, file syscalls |
 | T28 | titan | userland: init, shell, ls, cat, echo, mkdir, rm, ps |
 | T29 | cobalt | Logos IR to RV64 code, linear-scan registers, ELF out (T29a RUNNING) |
 | T30 | cobalt | constant folding, dead code, copy propagation |
-| T32 | zeus | hypervisor with two guests (no crate yet) |
+| T32 | zeus | hypervisor with guests and scene (crate built; row still TODO on the board) |
 | T50 | aurum | full node: gossip over xenon, sync, fork choice (T50a PASS, T50b RUNNING) |
 | T51 | pandora | Linux container runtime (`pandora` crate is a stub) |
 | T52 | pandora | images as argo packages, run, ps, kill |
@@ -430,9 +432,9 @@ code yet are marked.
 | T66 | odyssey | cascade and layout as one row (T66a and T66b PASS) |
 | T67 | odyssey | paint, fetch over HTTP, page scripts, browser shell in indium |
 | T71 | web | WebAssembly builds with our own glue (no crate yet) |
-| T72 | athena | IDE shell: editor, file tree, terminal, run, test (no crate yet) |
-| T73 | athena | language service: errors, hover, go to definition, format |
-| T74 | athena | debugger for Elysium: breakpoints, step, inspect |
+| T72 | athena | IDE shell: editor, file tree, terminal, run, test (crate built, `crates/athena`) |
+| T73 | athena | language service: check, hover, go to definition, format (built) |
+| T74 | athena | debugger for Elysium: breakpoints, step, inspect (work in progress, `crates/athena/src/debug.rs`) |
 | T75 | site | the Monolith site with a live demo for each system |
 | T76 | site | accessibility, performance and cross-browser pass |
 | T77 | deploy | static binaries, container images, compose file, health checks |
