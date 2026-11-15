@@ -6,6 +6,8 @@ license = "MIT"
 publish = false
 
 [dependencies]
+pigment = { path = "../pigment" }
+glint = { path = "../glint" }
 
 [dev-dependencies]
 assay = { path = "../assay" }

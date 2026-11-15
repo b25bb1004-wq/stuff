@@ -76,6 +76,10 @@ impl Scheduler {
         } else {
             affinity & self.all_cpus_mask
         };
+        // A mask naming no CPU would leave the task queued forever.
+        if affinity_mask == 0 {
+            return Err(Error::BadCpu);
+        }
         let target_cpu = self.find_target_cpu(affinity_mask);
         let vruntime = match class {
             Class::Normal { .. } => self.min_vruntime_on_cpu(target_cpu).unwrap_or(0),

@@ -6,6 +6,7 @@ extern crate alloc;
 
 mod compile;
 mod meta;
+pub mod opt;
 mod run;
 pub mod rv64;
 

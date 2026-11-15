@@ -54,6 +54,30 @@ fn m_tween(from: i32, to: i32, start: u64, dur: u64, now: u64, e: Ease) -> i32 {
     (i64::from(from) + (i64::from(to) - i64::from(from)) * i64::from(m_ease(e, t)) / 1000) as i32
 }
 
+/// Model of Spring::step (2026-11-15, after T79t): truncating semi-implicit Euler, where a non-zero term that
+/// truncates to 0 moves one unit its way, then a snap to rest within 16 units of the target.
+fn m_spring(m: &mut Spring, dt: u32) {
+    if dt == 0 {
+        return;
+    }
+    let dt = i64::from(dt);
+    let nz = |src: i64| {
+        if src / 1000 == 0 && src != 0 {
+            src.signum()
+        } else {
+            src / 1000
+        }
+    };
+    let pull = nz(m.stiffness.saturating_mul(m.target.saturating_sub(m.pos)));
+    let f = pull.saturating_sub(m.damping.saturating_mul(m.vel) / 1000);
+    m.vel = m.vel.saturating_add(nz(f.saturating_mul(dt)));
+    m.pos = m.pos.saturating_add(nz(m.vel.saturating_mul(dt)));
+    if m.target.saturating_sub(m.pos).unsigned_abs() <= 16 && m.vel.unsigned_abs() <= 16 {
+        m.pos = m.target;
+        m.vel = 0;
+    }
+}
+
 #[test]
 fn anim_exact() {
     for e in EASES {
@@ -96,11 +120,7 @@ fn anim_exact() {
         for _ in 0..400 {
             let dt = r.below(40) as u32;
             a.step(dt);
-            let dt = i64::from(dt);
-            let f = m.stiffness.saturating_mul(m.target.saturating_sub(m.pos)) / 1000
-                - m.damping.saturating_mul(m.vel) / 1000;
-            m.vel = m.vel.saturating_add(f.saturating_mul(dt) / 1000);
-            m.pos = m.pos.saturating_add(m.vel.saturating_mul(dt) / 1000);
+            m_spring(&mut m, dt);
             assert_eq!(a, m);
             assert_eq!(
                 a.settled(),

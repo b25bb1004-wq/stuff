@@ -50,6 +50,18 @@ pub fn tween(from: i32, to: i32, start: u64, dur: u64, now: u64, e: Ease) -> i32
     i32::try_from(v).unwrap_or(to)
 }
 
+/// Return `q`, or one unit in the direction of `src` when `q` truncated to zero but `src` is non-zero.
+fn nudge(q: i64, src: i64) -> i64 {
+    if q == 0 && src != 0 {
+        src.signum()
+    } else {
+        q
+    }
+}
+
+/// Distance and speed (units) under which a stepped spring snaps to rest at its target.
+const SNAP: u64 = 16;
+
 /// Damped spring with integer state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Spring {
@@ -69,14 +81,27 @@ impl Spring {
     /// Advance by `dt_ms` milliseconds (semi-implicit Euler, saturating on overflow).
     pub fn step(&mut self, dt_ms: u32) {
         let dt = i64::from(dt_ms);
-        let pull = self
+        if dt == 0 {
+            return;
+        }
+        // shortcut: a non-zero term that truncates to 0 moves by one unit, else low stiffness stalls short
+        let pull_src = self
             .stiffness
-            .saturating_mul(self.target.saturating_sub(self.pos))
-            / 1000;
+            .saturating_mul(self.target.saturating_sub(self.pos));
+        let pull = nudge(pull_src / 1000, pull_src);
         let drag = self.damping.saturating_mul(self.vel) / 1000;
         let f = pull.saturating_sub(drag);
-        self.vel = self.vel.saturating_add(f.saturating_mul(dt) / 1000);
-        self.pos = self.pos.saturating_add(self.vel.saturating_mul(dt) / 1000);
+        let dv_src = f.saturating_mul(dt);
+        self.vel = self.vel.saturating_add(nudge(dv_src / 1000, dv_src));
+        let dp_src = self.vel.saturating_mul(dt);
+        self.pos = self.pos.saturating_add(nudge(dp_src / 1000, dp_src));
+        // the one-unit nudges can orbit the target; inside this band snap to rest so settled() turns true
+        if self.target.saturating_sub(self.pos).unsigned_abs() <= SNAP
+            && self.vel.unsigned_abs() <= SNAP
+        {
+            self.pos = self.target;
+            self.vel = 0;
+        }
     }
 
     /// True when the spring is within 1 unit of its target and nearly at rest.
