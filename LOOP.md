@@ -116,7 +116,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | PASS |
 | T40 | P3 | varve | B+tree with range scans | hydrogen-high | T39 | PASS |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
-| T41a | P3 | varve | SQL core: parser, catalog, single-table DML and SELECT, indexes maintained, transactions | hydrogen-high | T40 | RUNNING |
+| T41a | P3 | varve | SQL core: parser, catalog, single-table DML and SELECT, indexes maintained, transactions | hydrogen-high | T40 | PASS |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
@@ -145,7 +145,8 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
 | T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | PASS |
 | T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
-| T70 | P4 | tectonic | audio mixer, scenes, Mica scripting, one original small game | hydrogen | T69 T18 | TODO |
+| T70a | P4 | tectonic | audio mixer, scene stack, input record and replay | hydrogen | T69 | RUNNING |
+| T70 | P4 | tectonic | (T70b) Mica scripting, one original small game | hydrogen | T70a T18 | TODO |
 | T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Quartz + Mantle on a canvas, Mica playground | argon | T28 T18 | TODO |
 | T72 | P5 | lapidary | IDE shell: editor, file tree, terminal, run, test | claude | T71 T55 | TODO |
 | T73 | P5 | lapidary | language service: errors, hover, go to definition, format | hydrogen | T10 T72 | TODO |
@@ -237,3 +238,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 12:49 | STATE | - | - | - | T49 T61 T69 workers report CHECK PASS, leader checks to write (contracts_leader, glint_leader, phys_leader). T41a hydrogen-high and T66a haiku running. Haiku 2 (T24 flint) not dispatched yet. Next hydrogen once judged: T62 glint widgets, T50 seam node, T70 tectonic, T29 sinter codegen
 - 2026-11-15 12:51 | T69 tectonic phys | hydrogen | agy quota | RETRY 1 | phys_leader 5/6: stack box 0 sinks 0.0246 > 2*slop; to hydrogen-high
 - 2026-11-15 13:00 | T69 | hydrogen-high | agy quota | PASS | retry 1 fixed stack sink; phys_leader 6/6 both seeds; gates pass
+- 2026-11-15 13:08 | T41a | hydrogen-high | agy quota | PASS | sql_leader vs sqlite3: 418/418 and 428/428 fresh seed; gates pass
