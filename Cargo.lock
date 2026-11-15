@@ -177,7 +177,9 @@ dependencies = [
 name = "pandora"
 version = "0.1.0"
 dependencies = [
+ "argo",
  "assay",
+ "sphinx",
 ]
 
 [[package]]
@@ -209,6 +211,7 @@ dependencies = [
  "chisel",
  "hades",
  "kairos",
+ "krypton",
  "midas",
  "silicon",
 ]
@@ -220,3 +223,7 @@ dependencies = [
  "assay",
  "sphinx",
 ]
+
+[[package]]
+name = "zeus"
+version = "0.1.0"

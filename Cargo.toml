@@ -26,6 +26,7 @@ members = [
     "crates/helios",
     "crates/pandora",
     "crates/lithium",
+    "crates/zeus",
     "crates/titan",
 ]
 
