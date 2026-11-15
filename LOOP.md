@@ -139,7 +139,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T50 | P3 | aurum | node: gossip over xenon, sync, fork choice | opus-high | T49 T35 | PASS |
 | T50a | P3 | aurum | node: block pool, fork choice, reorgs, sync messages, mempool | hydrogen-high | T49 | PASS |
 | T50b | P3 | aurum | gossip over xenon: sans-IO peers, stream framing, sync ticks | hydrogen-high | T50a T35 | PASS |
-| T51 | P3 | pandora | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | opus-high |  | TODO |
+| T51 | P3 | pandora | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | opus-high |  | PASS |
 | T52 | P3 | pandora | images as argo packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
 | T53 | P3 | krypton | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
 | T57 | P3 | krypton | executor, pipes, redirects, builtins, job control | hydrogen | T53 | PASS |
@@ -360,3 +360,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-15 | T80f | agy hydrogen-high | - | PASS | iridium: corrupt record, codec, server stop; retry1; leader dropped page0 range check (broke reopen) and fixed rename magic in pager tests
 - 2026-11-15 | T80h | agy hydrogen-high | - | PASS | aurum: forged tx sig, contract caps, mempool, net stream caps; 5 tests fail on HEAD
 - 2026-11-15 | T26 | agy hydrogen-high | - | PASS | titan: U-mode, syscalls 0-15, ELF, kairos scheduler, 34-line transcript; opus lane hit 429, rerun on hydrogen
+- 2026-11-16 | T51 | leader (opus) | - | PASS | pandora: namespaces, pivot_root, cgroup v2; real containers tested in WSL; cgroup limits untested (needs root)
