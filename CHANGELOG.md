@@ -183,3 +183,21 @@ Draft: the first Monolith release, built from the tasks that passed the loop boa
 ### Deploy
 - Service binaries, health probe, scratch images and compose file (`5239fe4`)
 - One public web image: site at /, Athena at /athena/, /healthz; services stay private (`3950848`)
+
+### Late additions (2026-11-16)
+
+#### Security (review T80, one report per crate in `reports/T80-*.md`)
+- New `entropy` crate: OS random source (`/dev/urandom`, `BCryptGenRandom`), an error where none exists, never a weak fallback (`98950da`)
+- sphinx, xenon and deploy draw keys and seeds from `entropy`; xenon caps total connections (`e0bb27b`)
+- mercury refuses a message with both Content-Length and chunked framing (request smuggling) (`e0769ae`)
+- chronos rejects tree and index names with `\`, `:` or NUL and checks checkout paths stay in the work tree; pushes need a bearer token (`8f4ebea`)
+- odyssey selector matching is memoised and selectors are capped (`e0aa501`)
+- chisel caps ELF symbol and segment bytes, expression depth and macro expansion; logos caps list fills; neon wasm exports accept only live buffers (`4457458`)
+- Site and Athena service workers use only their own caches (`daebe2c`, `ed723e9`)
+
+#### Features
+- Six more site demos and apps: odyssey, indium, iris, helios, xenon, pandora (`1453aa8`)
+- cobalt source-level debug info and stepping (`bd4f10e`); Athena debugger core (`d830ed1`)
+- silicon probe counters (`409fe8d`) and page-delta snapshots (`49eceff`)
+- zeus scene API (`565bb93`), midas safe allocator simulator (`3a83f1b`), indium spring motion presets (`0463c0a`)
+- titan boots from a hades disk image (`a324750`); all 25 tools share one CLI convention (`b11e8db`)
