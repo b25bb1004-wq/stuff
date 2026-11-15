@@ -126,6 +126,39 @@ pub extern "C" fn titan_pump(max_steps: u64) -> i32 {
     }
 }
 
+/// Rewind the active Titan session to `instret`. Returns `0` on success, else `-1` (unbooted, or the
+/// guest exited or waits for input before reaching `instret`; the error text is in the last buffer).
+#[no_mangle]
+pub extern "C" fn titan_seek(instret: u64) -> i32 {
+    let mut sess = SESSION.lock().unwrap_or_else(|p| p.into_inner());
+    let Some(titan) = sess.as_mut() else {
+        return -1;
+    };
+    match titan.seek(instret) {
+        Ok(()) => 0,
+        Err(err) => {
+            set_last(err.into_bytes());
+            -1
+        }
+    }
+}
+
+/// Instructions retired by the active Titan session, or `0` if unbooted.
+#[no_mangle]
+pub extern "C" fn titan_instret() -> u64 {
+    let sess = SESSION.lock().unwrap_or_else(|p| p.into_inner());
+    sess.as_ref().map_or(0, |titan| titan.instret())
+}
+
+/// Number of rewind checkpoints the active Titan session holds, boot base included.
+#[no_mangle]
+pub extern "C" fn titan_checkpoints() -> u32 {
+    let sess = SESSION.lock().unwrap_or_else(|p| p.into_inner());
+    sess.as_ref().map_or(0, |titan| {
+        u32::try_from(titan.checkpoint_count()).unwrap_or(u32::MAX)
+    })
+}
+
 /// Drain pending Titan UART output into the last buffer and return its byte length.
 #[no_mangle]
 pub extern "C" fn titan_output() -> usize {
