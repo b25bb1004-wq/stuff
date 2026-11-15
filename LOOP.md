@@ -19,7 +19,7 @@
 - [x] D1 docs/CINNABAR.md (Python reference, vectors, stats; check validated on a model)
 - [x] T14 onyx Cinnabar PASS (first try)
 - [ ] D2 docs/TREMOR.md, D3 docs/VARVE.md (unblock T34, T39 once Argon allows)
-- [ ] T13 riscv-tests (download approved): fetch, build as quartz data
+- [>] T13 quartz riscv-tests: 110 built (107 pass already), brief + check, dispatched (hydrogen)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
 - [!] T25 mantle, T31, T66: argon-high, held while Argon is at 29%
@@ -83,7 +83,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 T19 | PASS |
 | T07 | P1 | shale | journal, fsck, crash injection at every write | haiku | T06 | PASS |
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
-| T13 | P1 | quartz | official riscv-tests as data (needs download: operator) | hydrogen | T13a | TODO |
+| T13 | P1 | quartz | official riscv-tests as data (needs download: operator) | hydrogen | T13a | RUNNING |
 | T13a | P1 | quartz | A and C extensions, LLVM as oracle (split from T13) | hydrogen-high | T12 | PASS |
 | T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
@@ -210,3 +210,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 06:48 T22 dispatched (hydrogen): LLD fixture prog.elf (runs to Pass, dirty bss fails), elf_leader.rs linted on a stub.
 - 2026-11-15 06:52 D1 written; T14 dispatched (hydrogen). cinnabar_leader.rs passes on a throwaway Rust model (scratchpad), clippy clean.
 - 2026-11-15 06:58 T14 onyx Cinnabar PASS (hydrogen, first try): vectors, avalanche, bias, ctr, label; fresh seeds, workspace gate.
+- 2026-11-15 07:09 T13 dispatched (hydrogen): 110 riscv-tests built as data, 3 fail today (ma_data, instret_overflow, pmpaddr)
