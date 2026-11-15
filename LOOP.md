@@ -74,7 +74,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
 | T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | PASS |
-| T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | TODO |
+| T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | RUNNING |
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | TODO |
 | T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
 | T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | argon | T22 T23 | TODO |
@@ -187,3 +187,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 02:55 T13a PASS (hydrogen-high, 1 run): leader check 9/9 after leader fixture fix (rvc.S trap handler at 2 mod 4 made mtvec mode 2; now .balign 4); fresh seed ok. drillcore remote_leader failed once under load in the workspace gate, passed 3/3 alone and on gate rerun: flake to look at.
 - 2026-11-15 03:00 T46 PASS (hydrogen, 1 run): leader check 11/11 incl. 6000 solver cases equal to the normative model and brute force, 500-chain on 128 KiB stack, fresh seeds ok. Leader fixes: case generator was mostly unsolvable (deps named absent packages), floors set from measured mix; clippy lints in check.
 - 2026-11-15 06:00 T33 PASS (hydrogen + leader fixes): leader check 4/4 incl. satp-switch remap; bench RAM override removed, inline(always) on step/tick restored cache-off to ~6% below pre-cache (accepted, test mode); bench total 1.55x.
+- 2026-11-15 06:12 T21 dispatched hydrogen-high: brief + LLVM corpus (2758 lines, 9312 B, 317 labels validated) + leader check (corpus, c_pairs/amo, 3000 random insts, li64 by execution, fixtures run, errors, alignment, speed).
