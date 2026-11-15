@@ -166,7 +166,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen-high | T10 T72 | PASS |
 | T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect; split T74a elysium core, T74a2 cobalt stepping, T74b UI | hydrogen-high | T17 T72 | T74a PASS, T74a2 RUNNING |
 | T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | T75a PASS, T75b PASS, T75c RUNNING (also builds the T88 apps) |
-| T76 | P5 | site | accessibility, performance, cross-browser pass | haiku | T75 | WAITING (site busy with T75e) |
+| T76 | P5 | site | accessibility, performance, cross-browser pass | haiku | T75 | RUNNING |
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen-high | T42 T50 T47 | PASS |
 | T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen-high | (T77 dropped: loopback only) | PASS |
 | T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | leader | all | RUNNING (17 soak suites, seed 20261116031) |
@@ -188,8 +188,8 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T79p | P6 | fuzz | soak calliope | haiku | - | PASS |
 | T79q | P6 | fuzz | soak helios | haiku | - | PASS |
 | T79r | P6 | fuzz | soak midas | haiku | - | PASS |
-| T80 | P6 | review | security review of every crate, one report each | haiku x3 | all | RUNNING (reports/T80-<crate>.md) |
-| T81 | P6 | docs | README and runnable example per system, architecture book | haiku | all | RUNNING (READMEs and examples exist; checking they run) |
+| T80 | P6 | review | security review of every crate, one report each | haiku x3 | all | DONE (reports; fixes T80f) |
+| T81 | P6 | docs | README and runnable example per system, architecture book | haiku | all | DONE (7 READMEs fixed; BOOK.md stale on titan zeus athena) |
 | T81a | P6 | docs | README + demo: assay mercury | haiku | - | PASS |
 | T81b | P6 | docs | README + demo: indium lithium | haiku | - | PASS |
 | T81c | P6 | docs | README + demo: kairos | haiku | - | PASS |
@@ -410,3 +410,11 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T94 midas Sim | haiku | 130k | PASS | owned arena, generation handles, SAFETY comments
 - 2026-11-16 | T75c six demos + apps | argon | - | 5 of 6 PASS in Chrome | odyssey indium helios xenon pandora ok; iris traps in wasm -> T75d (krypton pid) then T75e RUNNING. Also reproduced REVIEW B2 live: odyssey app served calliope's old 2.0 MB wasm via global caches.match.
 - 2026-11-16 | T74a2 cobalt stepping | haiku (worktree ../strata-wt-t74a2) | 145k | RETRY | stepped by byte offset, locals named r<reg>; retry asks for real lines and Logos names
+- 2026-11-16 | T75c/T75d/T75e site demos + iris wasm | argon + haiku | 111k | PASS | krypton Shell::new skipped env::vars on wasm; all iris examples draw in Chrome
+- 2026-11-16 | T74a2 retry | haiku (worktree) | 178k | PASS | real lines, param names; let names need logos (T74a3)
+- 2026-11-16 | T81 docs | haiku | 156k | PASS | 7 READMEs corrected against real runs
+- 2026-11-16 | T80 review | haiku x3 | 444k | DONE | highs: weak keys (sphinx, xenon), chronos Windows paths, odyssey selector blowup, chisel/logos unbounded alloc and recursion, neon raw-pointer exports
+- 2026-11-16 | entropy crate | leader | - | PASS | OS CSPRNG; sphinx forbids unsafe, so the FFI lives in its own crate
+- 2026-11-16 | T80f mercury, keys, chronos, odyssey | haiku x4 | 560k | PASS (odyssey gate pending chisel edit) | flipped tests pinned the old defects; chronos push token constant-time
+- 2026-11-16 | T89b site service workers | haiku | 120k | PASS | live SW in devtools Chrome: per-app plus shared core cache, odyssey served its own wasm
+- 2026-11-16 | dispatched T80f-bounds (chisel logos neon), T92 silicon snapshots, T74b athena debugger UI, T76 site a11y | haiku x4 | - | RUNNING | Titan video pilot (Fable) running; videos parked by the operator until he wakes
