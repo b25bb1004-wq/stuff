@@ -6,6 +6,8 @@ license = "MIT"
 publish = false
 
 [dependencies]
+onyx = { path = "../onyx" }
+outcrop = { path = "../outcrop" }
 
 [dev-dependencies]
 assay = { path = "../assay" }

@@ -140,7 +140,7 @@ fn publish(addr: SocketAddr, blob: &[u8], name: &str, ver: &str) -> u16 {
 
 #[test]
 fn leader_format_matches_and_round_trips() {
-    let mut r = Rng::new(0x47_f0_0001);
+    let mut r = Rng::new(0x47f0_0001);
     for i in 0..200 {
         let name = format!("p{}", r.below(50));
         let m = manifest(
@@ -387,7 +387,7 @@ fn publish_graph(r: &mut Rng, a: SocketAddr) -> (Index, BTreeMap<(String, Versio
 fn check_tree(root: &Path, sol: &Solution, all: &BTreeMap<(String, Version), Package>) {
     let mut want = BTreeMap::new();
     for (name, ver) in sol {
-        let p = &all[&(name.clone(), ver.clone())];
+        let p = &all[&(name.clone(), *ver)];
         want.insert("pkgs".to_string(), None);
         let dir = format!("pkgs/{name}-{ver}");
         for (path, data) in &p.files {
@@ -419,7 +419,7 @@ fn check_tree(root: &Path, sol: &Solution, all: &BTreeMap<(String, Version), Pac
 
 #[test]
 fn leader_install_lock_and_remove() {
-    let mut r = Rng::new(0x47_1a57_0001);
+    let mut r = Rng::new(0x0047_1a57_0001);
     let reg = Registry::start("127.0.0.1:0", vec![key(&SEED_A)]).unwrap();
     let a = reg.addr();
     let (index, all) = publish_graph(&mut r, a);
@@ -502,6 +502,9 @@ fn leader_install_lock_and_remove() {
     reg.stop();
 }
 
+/// Which `PkgError` a malicious-registry case must produce.
+type ErrTest = fn(&PkgError) -> bool;
+
 /// A registry that serves whatever the leader wants.
 fn evil_server(index: String, blobs: Vec<(String, Vec<u8>)>) -> Server {
     let mut router = Router::new();
@@ -575,7 +578,7 @@ fn leader_malicious_registry_is_refused() {
         },
         &SEED_A,
     );
-    let cases: Vec<(&str, Vec<u8>, fn(&PkgError) -> bool)> = vec![
+    let cases: Vec<(&str, Vec<u8>, ErrTest)> = vec![
         ("flipped byte", flipped, |e| *e == PkgError::BadSignature),
         ("untrusted key", untrusted, |e| *e == PkgError::UntrustedKey),
         ("path traversal", traversal, |e| {
@@ -652,7 +655,7 @@ fn leader_malicious_registry_is_refused() {
 
 #[test]
 fn leader_concurrent_installers_and_publishers() {
-    let mut r = Rng::new(0x47_c0c0_0001);
+    let mut r = Rng::new(0x0047_c0c0_0001);
     let reg = Registry::start("127.0.0.1:0", vec![key(&SEED_A)]).unwrap();
     let a = reg.addr();
     let (index, all) = publish_graph(&mut r, a);
