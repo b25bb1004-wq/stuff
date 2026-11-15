@@ -24,7 +24,7 @@ all running live as WebAssembly. Each system must work alone and inside the stac
 | Cheapest | Gemini Flash 3.8 | Docs, tables, corpus files | `bash tools/lane.sh flash <id>` |
 | Text helper | Nemotron Ultra, MiniMax M3.1 Flash (NVIDIA key in WSL) | Draft prose only, no file access | `tools/probe_models.py` shows the call |
 | Fallback | Claude Haiku (medium), Claude Sonnet | Only after a Gemini lane failed the same check twice | Agent tool, one at a time |
-| Operator | Arnav | Keys, money, making anything public, deleting | ask and stop |
+| Operator | the repository owner | Keys, money, making anything public, deleting | ask and stop |
 
 Facts checked on 2026-11-14 16:05: `agy` 4-series models answer from this PC (Argon, Hydrogen,
 Flash, Orchestrator). There is no model called Carbon in `agy models`; Flash is the cheapest

@@ -14,7 +14,7 @@ Read this file, then `LOOP.md`. Leaders also read `docs/PLAN.md` (the complete p
   One Haiku worker may run beside one Gemini worker, on different crates (operator, 16:35).
 - **One worker at a time.** `tools/lane.sh` holds a lock. Exactly one leader at a time: the
   name in the State block of `LOOP.md`.
-- **Operator (Arnav)**: owns keys, publishing (making anything public), deleting files, and money.
+- **Operator**: owns keys, publishing (making anything public), deleting files, and money.
 
 ## Worker rules
 Follow `briefs/_RULES.md`. One brief, one crate, one short report.
