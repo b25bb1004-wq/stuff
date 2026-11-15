@@ -8,10 +8,12 @@ mod crypto;
 mod recovery;
 mod server;
 mod stream;
+mod udp;
 mod wire;
 
 pub use conn::Connection;
 pub use server::Server;
+pub use udp::*;
 
 use core::fmt;
 

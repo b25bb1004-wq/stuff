@@ -65,6 +65,7 @@ name = "glint"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "pigment",
 ]
 
 [[package]]
@@ -115,7 +116,10 @@ name = "seam"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "geode",
+ "mica",
  "onyx",
+ "sinter",
 ]
 
 [[package]]
@@ -147,6 +151,7 @@ name = "spelunk"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "pigment",
 ]
 
 [[package]]
@@ -154,6 +159,7 @@ name = "tectonic"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "pigment",
 ]
 
 [[package]]

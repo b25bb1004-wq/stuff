@@ -109,13 +109,14 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
 | T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
 | T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | hydrogen-high | T04 T20 D2 | PASS |
-| T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
+| T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | PASS |
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
 | T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
 | T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | PASS |
 | T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | PASS |
 | T40 | P3 | varve | B+tree with range scans | hydrogen-high | T39 | PASS |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
+| T41a | P3 | varve | SQL core: parser, catalog, single-table DML and SELECT, indexes maintained, transactions | hydrogen-high | T40 | RUNNING |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
@@ -123,7 +124,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T46 | P3 | cairn | manifest, versions, dependency solver, lock file | hydrogen |  | PASS |
 | T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | PASS |
 | T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | haiku | T04 | PASS |
-| T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | TODO |
+| T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | RUNNING |
 | T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
 | T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
@@ -134,15 +135,16 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | PASS |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | PASS |
-| T61 | P4 | glint | widget tree, flex layout, events, focus, themes | argon | T60 | TODO |
+| T61 | P4 | glint | widget tree, flex layout, events, focus, themes | hydrogen | T60 | RUNNING |
 | T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | hydrogen | T61 | TODO |
 | T63 | P4 | facet | compositor: windows, tiling and floating, damage, input, animated moves | argon | T62 | TODO |
 | T64 | P4 | facet | client protocol + apps: terminal (crust), editor (slate), files | hydrogen | T63 T57 T55 | TODO |
 | T65 | P4 | spelunk | HTML and CSS parsers | hydrogen |  | PASS |
 | T66 | P4 | spelunk | cascade, block and inline layout, flex subset | argon-high | T65 T60 | TODO |
+| T66a | P4 | spelunk | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | RUNNING |
 | T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
 | T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | PASS |
-| T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | argon | T68 T58 | TODO |
+| T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | hydrogen | T68 T58 | RUNNING |
 | T70 | P4 | tectonic | audio mixer, scenes, Mica scripting, one original small game | hydrogen | T69 T18 | TODO |
 | T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Quartz + Mantle on a canvas, Mica playground | argon | T28 T18 | TODO |
 | T72 | P5 | lapidary | IDE shell: editor, file tree, terminal, run, test | claude | T71 T55 | TODO |
@@ -228,5 +230,7 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 08:26 T40 varve B+tree PASS (hydrogen-high): check 5/5 + fresh seed after leader fix to T39 pager read(0) in a txn (stale page 0); regression test added to pager_leader. T34 dispatched.
 - 2026-11-15 11:57 T22 PASS (hydrogen); T34 PASS retry 1 (hydrogen-high); T55 brief+check ready; drillcore remote_leader flake fixed
 - 2026-11-15 12:35 T48 seam: brief + seam_leader.rs (own Merkle/encoding/state model, 40-block chain, invalid-block corpus with precedence pairs); one Haiku worker (operator). Argon 15%. Skills written: leader-check-assert-property-not-shape, stalled-simulation-state-trace, leader-check-stub-lint
-- 2026-11-15 14:10 | T55 slate app | hydrogen | agy quota | PASS | check 10/10 + fresh seeds, both gates; leader scroll-check fix
-- 2026-11-15 14:40 | T48 seam core | haiku | 161,959 | PASS | check 8/8 + 2 fresh seeds, both gates; leader Merkle duplicate-leaf fix
+- 2026-11-15 12:15 | T55 slate app | hydrogen | agy quota | PASS | check 10/10 + fresh seeds, both gates; leader scroll-check fix
+- 2026-11-15 12:25 | T48 seam core | haiku | 161,959 | PASS | check 8/8 + 2 fresh seeds, both gates; leader Merkle duplicate-leaf fix
+- 2026-11-15 12:32 | ROUND PLAN (operator: 5 hydrogen + 2 haiku at once) | - | budget ~550k Claude (2 Haiku x150k + ~250k leader); hydrogen on agy quota | - | H: T35 tremor UDP, T49 seam contracts, T61 glint, T69 tectonic, T41a varve SQL core (hydrogen-high). Haiku: T66a spelunk cascade+block layout, T24 flint asm kernel. lane.sh cap raised to 7. Hydrogen smoke ok 14:50. DeepSeek v4.1 flash on NVIDIA key4: reviewer only (96 s/call)
+- 2026-11-15 12:49 | T35 tremor UDP | hydrogen | agy quota | PASS | udp_leader 5/5 + fresh seeds + 100 MB release; leader seed fix
