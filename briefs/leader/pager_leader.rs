@@ -223,7 +223,8 @@ fn workload(r: &mut Rng, n: usize) -> (Vec<Step>, Vec<State>) {
                 let live: Vec<u64> = t.pages.keys().copied().collect();
                 if live.is_empty() || r.below(3) == 0 {
                     let p = t.alloc();
-                    let c = r.bytes(USABLE);
+                    let mut c = vec![0u8; USABLE];
+                    r.fill(&mut c);
                     t.pages.insert(p, c.clone());
                     ops.push(Op::Alloc(p, c));
                 } else if r.below(4) == 0 {
@@ -237,7 +238,8 @@ fn workload(r: &mut Rng, n: usize) -> (Vec<Step>, Vec<State>) {
                     ops.push(Op::Root(x));
                 } else {
                     let p = live[r.below(live.len())];
-                    let c = r.bytes(USABLE);
+                    let mut c = vec![0u8; USABLE];
+                    r.fill(&mut c);
                     t.pages.insert(p, c.clone());
                     ops.push(Op::Write(p, c));
                 }
@@ -437,7 +439,8 @@ fn leader_formats_byte_exact() {
     assert_eq!(u32_at(&log0, 24), 0);
     assert_eq!(u32_at(&log0, 28), crc32(&log0[..28]));
 
-    let a = Rng::new(0x39_f0a7_0001).bytes(USABLE);
+    let mut a = vec![0u8; USABLE];
+    Rng::new(0x39_f0a7_0001).fill(&mut a);
     p.begin().unwrap();
     assert_eq!(p.alloc().unwrap(), 1);
     p.write(1, &page_of(&a)).unwrap();
@@ -677,12 +680,14 @@ fn leader_hostile_log_and_main() {
             let live: Vec<u64> = s.pages.keys().copied().collect();
             if live.is_empty() || r.below(2) == 0 {
                 let q = s.alloc();
-                let c = r.bytes(USABLE);
+                let mut c = vec![0u8; USABLE];
+                r.fill(&mut c);
                 s.pages.insert(q, c.clone());
                 ops.push(Op::Alloc(q, c));
             } else {
                 let q = live[r.below(live.len())];
-                let c = r.bytes(USABLE);
+                let mut c = vec![0u8; USABLE];
+                r.fill(&mut c);
                 s.pages.insert(q, c.clone());
                 ops.push(Op::Write(q, c));
             }
@@ -737,7 +742,8 @@ fn leader_hostile_log_and_main() {
     );
     for _ in 0..30 {
         let len = PAGE * (1 + r.below(3));
-        let junk = r.bytes(len);
+        let mut junk = vec![0u8; len];
+        r.fill(&mut junk);
         let (m, l, _) = disks_from(junk, Vec::new());
         assert!(Pager::open(m, l).is_err(), "random main file opened");
     }

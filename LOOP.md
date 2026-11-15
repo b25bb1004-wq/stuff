@@ -19,7 +19,7 @@
 - [x] D1 docs/CINNABAR.md (Python reference, vectors, stats; check validated on a model)
 - [x] T14 onyx Cinnabar PASS (first try)
 - [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
-- [>] T39 varve pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
+- [x] T39 varve pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
 - [ ] T34 tremor: brief + leader check (Python model of the handshake keys)
 - [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
@@ -109,7 +109,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
 | T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
 | T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | PASS |
-| T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | RUNNING |
+| T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | PASS |
 | T40 | P3 | varve | B+tree with range scans | hydrogen | T39 | TODO |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
@@ -216,3 +216,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 07:13 D2 TREMOR.md + D3 VARVE.md v1 written; T34, T39 moved argon-high -> hydrogen-high (precise spec + strong leader check)
 - 2026-11-15 07:20 T13 quartz PASS (hydrogen, 1 run): 110/110 riscv-tests, misaligned byte-wise, counter-write precedence, PMP storage; leader check 6/6 + fresh seed, workspace gate. Brief miss: 2 T12 tests asserted PMP reads 0; leader updated them to the T13 rule.
 - 2026-11-15 07:29 T39 dispatched (hydrogen-high). Operator released Argon down to 5%.
+- 2026-11-15 07:43 T39 varve PASS (hydrogen-high): leader check 9/9 + fresh seed, gate PASS; check fixed (fixed-length page contents).
