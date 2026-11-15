@@ -1,30 +1,48 @@
-//! Single-table SELECT execution: scans, WHERE, GROUP BY, HAVING, DISTINCT, ORDER BY, LIMIT.
+//! SELECT and EXPLAIN execution: validation, planning, nested-loop joins, and final pipeline.
 
-use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet};
-use std::ops::Bound;
+use std::collections::BTreeSet;
 
-use crate::sql::ast::{Expr, ExprKind, SelectItem, SelectStmt, Span};
+use crate::sql::ast::{ExprKind, JoinKind, SelectItem, SelectStmt};
 use crate::sql::catalog::Catalog;
-use crate::sql::codec::{cmp_values, decode_record, decode_rowid_key, encode_key};
+use crate::sql::codec::encode_key;
 use crate::sql::expr::{
-    contains_agg, eval_group, eval_row, to_bool, validate_expr, EvalCtx, RowData,
+    contains_agg, eval_row, to_bool, validate_expr, ColTarget, EvalCtx, RowData, TableRowRef,
+    TableScope,
 };
 use crate::sql::lexer::parse_err;
+use crate::sql::planner::{format_plan, plan_table_access, TableAccessPlan};
+use crate::sql::probe::probe_table;
+use crate::sql::select_group::{
+    compare_order_keys, exec_grouped, exec_ungrouped, to_refs, OwnedJoinedRow, OwnedTableRow,
+    ProjKind, ProjectedCol, ResultEntry,
+};
 use crate::sql::{Rows, Value};
-use crate::{Error, Pager, Storage, Tree};
+use crate::{Error, Pager, Storage};
 
-type ResultEntry = (Vec<Value>, Vec<Value>);
-
-struct OwnedRow {
-    rowid: i64,
-    cols: Vec<Value>,
+struct PreparedSelect<'a> {
+    ctx: EvalCtx<'a>,
+    proj: Vec<ProjectedCol>,
+    columns: Vec<String>,
+    plans: Vec<TableAccessPlan<'a>>,
+    is_agg: bool,
+    limit: Option<usize>,
+    offset: usize,
 }
 
-struct ProjectedCol {
-    name: String,
-    alias: Option<String>,
-    expr: Expr,
+pub(crate) fn exec_explain(cat: &Catalog, stmt: &SelectStmt, raw_sql: &str) -> Result<Rows, Error> {
+    let prep = prepare_select(cat, stmt, raw_sql)?;
+    let rows = prep
+        .ctx
+        .tables
+        .iter()
+        .zip(prep.plans.iter())
+        .map(|(scope, plan)| vec![Value::Text(format_plan(scope.def, plan))])
+        .collect();
+    Ok(Rows {
+        columns: vec!["plan".to_owned()],
+        rows,
+        changes: 0,
+    })
 }
 
 pub(crate) fn exec_select<S: Storage>(
@@ -33,21 +51,73 @@ pub(crate) fn exec_select<S: Storage>(
     stmt: &SelectStmt,
     raw_sql: &str,
 ) -> Result<Rows, Error> {
-    if let Some(from) = &stmt.from {
-        if !from.joins.is_empty() {
-            return Err(Error::Misuse);
-        }
+    let prep = prepare_select(cat, stmt, raw_sql)?;
+    let joined_rows = build_joined_rows(pager, stmt, &prep.ctx, &prep.plans)?;
+
+    let mut result_entries: Vec<ResultEntry> = if prep.is_agg {
+        exec_grouped(stmt, &prep.proj, &prep.ctx, &joined_rows)?
+    } else {
+        exec_ungrouped(stmt, &prep.proj, &prep.ctx, &joined_rows)?
+    };
+
+    if stmt.distinct {
+        let mut seen = BTreeSet::new();
+        result_entries.retain(|(row, _)| seen.insert(encode_key(row)));
     }
 
-    let table_info = match &stmt.from {
-        Some(from) => {
-            let tbl = cat.table(&from.table.name)?;
-            let alias = from.table.alias.as_deref().unwrap_or(&tbl.name);
-            Some((tbl, alias))
+    if !stmt.order_by.is_empty() {
+        let descs: Vec<bool> = stmt.order_by.iter().map(|o| o.desc).collect();
+        result_entries.sort_by(|a, b| compare_order_keys(&a.1, &b.1, &descs));
+    }
+
+    let mut rows: Vec<Vec<Value>> = result_entries.into_iter().map(|(r, _)| r).collect();
+    if prep.offset > 0 {
+        if prep.offset >= rows.len() {
+            rows.clear();
+        } else {
+            rows.drain(..prep.offset);
         }
-        None => None,
-    };
-    let ctx = EvalCtx { table: table_info };
+    }
+    if let Some(lim) = prep.limit {
+        rows.truncate(lim);
+    }
+
+    Ok(Rows {
+        columns: prep.columns,
+        rows,
+        changes: 0,
+    })
+}
+
+fn prepare_select<'a>(
+    cat: &'a Catalog,
+    stmt: &'a SelectStmt,
+    raw_sql: &str,
+) -> Result<PreparedSelect<'a>, Error> {
+    let mut scopes = Vec::new();
+    if let Some(from) = &stmt.from {
+        let tbl = cat.table(&from.table.name)?;
+        let alias = from.table.alias.as_deref().unwrap_or(&tbl.name);
+        scopes.push(TableScope { def: tbl, alias });
+        for join in &from.joins {
+            let jtbl = cat.table(&join.table.name)?;
+            let jalias = join.table.alias.as_deref().unwrap_or(&jtbl.name);
+            scopes.push(TableScope {
+                def: jtbl,
+                alias: jalias,
+            });
+        }
+    }
+    let ctx = EvalCtx { tables: scopes };
+
+    if let Some(from) = &stmt.from {
+        for (j_idx, join) in from.joins.iter().enumerate() {
+            let on_ctx = EvalCtx {
+                tables: ctx.tables[..=j_idx + 1].to_vec(),
+            };
+            validate_expr(&join.on, &on_ctx, false)?;
+        }
+    }
 
     let proj = build_projections(stmt, &ctx, raw_sql)?;
     let columns: Vec<String> = proj.iter().map(|p| p.name.clone()).collect();
@@ -62,52 +132,55 @@ pub(crate) fn exec_select<S: Storage>(
         validate_expr(h, &ctx, true)?;
     }
     for p in &proj {
-        validate_expr(&p.expr, &ctx, true)?;
+        if let ProjKind::Expr(e) = &p.kind {
+            validate_expr(e, &ctx, true)?;
+        }
     }
 
     let is_agg = !stmt.group_by.is_empty()
         || stmt.having.is_some()
-        || proj.iter().any(|p| contains_agg(&p.expr))
+        || proj
+            .iter()
+            .any(|p| matches!(&p.kind, ProjKind::Expr(e) if contains_agg(e)))
         || stmt.order_by.iter().any(|o| contains_agg(&o.expr));
 
     validate_order_by(stmt, &proj, &ctx, is_agg)?;
-
     let (limit, offset) = eval_limit_offset(stmt)?;
 
-    let filtered_rows = scan_and_filter(pager, table_info.map(|(t, _)| t.root), &ctx, stmt)?;
-
-    let mut result_entries: Vec<ResultEntry> = if is_agg {
-        exec_grouped(stmt, &proj, &ctx, &filtered_rows)?
-    } else {
-        exec_ungrouped(stmt, &proj, &ctx, &filtered_rows)?
-    };
-
-    if stmt.distinct {
-        let mut seen = BTreeSet::new();
-        result_entries.retain(|(row, _)| seen.insert(encode_key(row)));
-    }
-
-    if !stmt.order_by.is_empty() {
-        let descs: Vec<bool> = stmt.order_by.iter().map(|o| o.desc).collect();
-        result_entries.sort_by(|a, b| compare_order_keys(&a.1, &b.1, &descs));
-    }
-
-    let mut rows: Vec<Vec<Value>> = result_entries.into_iter().map(|(r, _)| r).collect();
-    if offset > 0 {
-        if offset >= rows.len() {
-            rows.clear();
-        } else {
-            rows.drain(..offset);
+    let mut plans = Vec::with_capacity(ctx.tables.len());
+    if let Some(from) = &stmt.from {
+        let t0 = ctx.tables[0].def;
+        plans.push(plan_table_access(
+            t0,
+            0,
+            cat.table_indexes(&t0.name),
+            stmt.where_clause.as_ref(),
+            &ctx,
+        )?);
+        for (j_idx, join) in from.joins.iter().enumerate() {
+            let tbl_idx = j_idx + 1;
+            let on_ctx = EvalCtx {
+                tables: ctx.tables[..=tbl_idx].to_vec(),
+            };
+            let tj = ctx.tables[tbl_idx].def;
+            plans.push(plan_table_access(
+                tj,
+                tbl_idx,
+                cat.table_indexes(&tj.name),
+                Some(&join.on),
+                &on_ctx,
+            )?);
         }
     }
-    if let Some(lim) = limit {
-        rows.truncate(lim);
-    }
 
-    Ok(Rows {
+    Ok(PreparedSelect {
+        ctx,
+        proj,
         columns,
-        rows,
-        changes: 0,
+        plans,
+        is_agg,
+        limit,
+        offset,
     })
 }
 
@@ -123,48 +196,39 @@ fn build_projections(
                 table: tbl_qual,
                 pos,
             } => {
-                let Some((tbl, alias)) = ctx.table else {
+                if ctx.tables.is_empty() {
                     return Err(parse_err(*pos, "no tables used for *"));
-                };
-                if let Some(q) = tbl_qual {
-                    if !q.eq_ignore_ascii_case(alias) {
-                        return Err(Error::NoSuchTable);
+                }
+                let mut matched_any = false;
+                for (table_idx, scope) in ctx.tables.iter().enumerate() {
+                    if let Some(q) = tbl_qual {
+                        if !q.eq_ignore_ascii_case(scope.alias) {
+                            continue;
+                        }
+                    }
+                    matched_any = true;
+                    for (col_idx, col) in scope.def.columns.iter().enumerate() {
+                        out.push(ProjectedCol {
+                            name: col.name.clone(),
+                            alias: None,
+                            kind: ProjKind::TableCol { table_idx, col_idx },
+                        });
                     }
                 }
-                for col in &tbl.columns {
-                    out.push(ProjectedCol {
-                        name: col.name.clone(),
-                        alias: None,
-                        expr: Expr {
-                            kind: ExprKind::Column {
-                                table: None,
-                                name: col.name.clone(),
-                                pos: *pos,
-                            },
-                            span: Span {
-                                start: *pos,
-                                end: *pos + 1,
-                            },
-                        },
-                    });
+                if !matched_any {
+                    return Err(Error::NoSuchTable);
                 }
             }
             SelectItem::Expr { expr, alias } => {
                 let name = if let Some(a) = alias {
                     a.clone()
-                } else if let ExprKind::Column { name, .. } = &expr.kind {
-                    if let Some((tbl, _)) = ctx.table {
-                        if let Some(col) = tbl
-                            .columns
-                            .iter()
-                            .find(|c| c.name.eq_ignore_ascii_case(name))
-                        {
-                            col.name.clone()
-                        } else {
-                            name.clone()
+                } else if let ExprKind::Column { table, name, pos } = &expr.kind {
+                    let (tbl_idx, target) = ctx.resolve_col(table.as_deref(), name, *pos)?;
+                    match target {
+                        ColTarget::Column(col_idx) => {
+                            ctx.tables[tbl_idx].def.columns[col_idx].name.clone()
                         }
-                    } else {
-                        name.clone()
+                        ColTarget::Rowid => name.clone(),
                     }
                 } else {
                     raw_sql
@@ -176,7 +240,7 @@ fn build_projections(
                 out.push(ProjectedCol {
                     name,
                     alias: alias.clone(),
-                    expr: expr.clone(),
+                    kind: ProjKind::Expr(expr.clone()),
                 });
             }
         }
@@ -221,7 +285,7 @@ fn validate_order_by(
 }
 
 fn eval_limit_offset(stmt: &SelectStmt) -> Result<(Option<usize>, usize), Error> {
-    let empty_ctx = EvalCtx { table: None };
+    let empty_ctx = EvalCtx::empty();
     let limit = match &stmt.limit {
         None => None,
         Some(expr) => {
@@ -258,174 +322,111 @@ fn parse_limit_int(v: &Value) -> Result<Option<i64>, Error> {
     }
 }
 
-fn scan_and_filter<S: Storage>(
+fn build_joined_rows<S: Storage>(
     pager: &mut Pager<S>,
-    table_root: Option<u64>,
-    ctx: &EvalCtx<'_>,
     stmt: &SelectStmt,
-) -> Result<Vec<OwnedRow>, Error> {
-    let Some(root) = table_root else {
-        let empty_row = OwnedRow {
-            rowid: 0,
-            cols: Vec::new(),
-        };
+    ctx: &EvalCtx<'_>,
+    plans: &[TableAccessPlan<'_>],
+) -> Result<Vec<OwnedJoinedRow>, Error> {
+    let Some(from) = &stmt.from else {
         if let Some(w) = &stmt.where_clause {
-            let rd = RowData {
-                rowid: 0,
-                cols: &[],
-            };
+            let rd = RowData { tables: &[] };
             if to_bool(&eval_row(w, ctx, Some(&rd))?) != Some(true) {
                 return Ok(Vec::new());
             }
         }
-        return Ok(vec![empty_row]);
+        return Ok(vec![Vec::new()]);
     };
 
-    let tree = Tree::open(root);
-    let mut rows = Vec::new();
-    let mut scan_err = None;
-    tree.scan(pager, None, Bound::Unbounded, &mut |k, v| {
-        let res = (|| -> Result<(), Error> {
-            let rowid = decode_rowid_key(k)?;
-            let cols = decode_record(v)?;
-            let keep = match &stmt.where_clause {
-                None => true,
-                Some(w) => {
-                    let rd = RowData { rowid, cols: &cols };
-                    to_bool(&eval_row(w, ctx, Some(&rd))?) == Some(true)
-                }
-            };
-            if keep {
-                rows.push(OwnedRow { rowid, cols });
-            }
-            Ok(())
-        })();
-        if let Err(e) = res {
-            scan_err = Some(e);
-            return false;
-        }
-        true
-    })?;
-    if let Some(e) = scan_err {
-        return Err(e);
-    }
-    Ok(rows)
-}
+    let t0_rows = probe_table(pager, ctx.tables[0].def, 0, &plans[0], ctx, &[])?;
+    let mut current: Vec<OwnedJoinedRow> = t0_rows
+        .into_iter()
+        .map(|(rowid, cols)| {
+            vec![OwnedTableRow {
+                rowid: Some(rowid),
+                cols,
+            }]
+        })
+        .collect();
 
-fn exec_ungrouped(
-    stmt: &SelectStmt,
-    proj: &[ProjectedCol],
-    ctx: &EvalCtx<'_>,
-    rows: &[OwnedRow],
-) -> Result<Vec<ResultEntry>, Error> {
-    let mut out = Vec::with_capacity(rows.len());
-    for row in rows {
-        let rd = RowData {
-            rowid: row.rowid,
-            cols: &row.cols,
+    for (j_idx, join) in from.joins.iter().enumerate() {
+        if current.is_empty() {
+            break;
+        }
+        let tbl_idx = j_idx + 1;
+        let scope_ctx = EvalCtx {
+            tables: ctx.tables[..=tbl_idx].to_vec(),
         };
-        let mut out_row = Vec::with_capacity(proj.len());
-        for p in proj {
-            out_row.push(eval_row(&p.expr, ctx, Some(&rd))?);
-        }
-        let order_keys = eval_order_keys(stmt, proj, ctx, std::slice::from_ref(&rd), &out_row)?;
-        out.push((out_row, order_keys));
-    }
-    Ok(out)
-}
+        let right_def = ctx.tables[tbl_idx].def;
+        let plan = &plans[tbl_idx];
+        let cached_scan = if matches!(plan, TableAccessPlan::Scan) {
+            Some(probe_table(
+                pager,
+                right_def,
+                tbl_idx,
+                plan,
+                &scope_ctx,
+                &[],
+            )?)
+        } else {
+            None
+        };
 
-fn exec_grouped(
-    stmt: &SelectStmt,
-    proj: &[ProjectedCol],
-    ctx: &EvalCtx<'_>,
-    rows: &[OwnedRow],
-) -> Result<Vec<ResultEntry>, Error> {
-    let groups: Vec<Vec<RowData<'_>>> = if stmt.group_by.is_empty() {
-        let rds: Vec<RowData<'_>> = rows
-            .iter()
-            .map(|r| RowData {
-                rowid: r.rowid,
-                cols: &r.cols,
-            })
-            .collect();
-        vec![rds]
-    } else {
-        let mut map: BTreeMap<Vec<u8>, Vec<RowData<'_>>> = BTreeMap::new();
-        for r in rows {
-            let rd = RowData {
-                rowid: r.rowid,
-                cols: &r.cols,
+        let mut next = Vec::new();
+        for left in &current {
+            let left_refs = to_refs(left);
+            let probed;
+            let cand_slice = if let Some(ref rows) = cached_scan {
+                rows.as_slice()
+            } else {
+                probed = probe_table(pager, right_def, tbl_idx, plan, &scope_ctx, &left_refs)?;
+                &probed
             };
-            let mut key_vals = Vec::with_capacity(stmt.group_by.len());
-            for g in &stmt.group_by {
-                key_vals.push(eval_row(g, ctx, Some(&rd))?);
-            }
-            map.entry(encode_key(&key_vals)).or_default().push(rd);
-        }
-        map.into_values().collect()
-    };
 
-    let mut out = Vec::with_capacity(groups.len());
-    for group in &groups {
-        if let Some(h) = &stmt.having {
-            if to_bool(&eval_group(h, ctx, group)?) != Some(true) {
-                continue;
+            let mut matched = false;
+            for (r_rowid, r_cols) in cand_slice {
+                let mut combined_refs = Vec::with_capacity(tbl_idx + 1);
+                combined_refs.extend_from_slice(&left_refs);
+                combined_refs.push(TableRowRef {
+                    rowid: Some(*r_rowid),
+                    cols: r_cols,
+                });
+                let rd = RowData {
+                    tables: &combined_refs,
+                };
+                if to_bool(&eval_row(&join.on, &scope_ctx, Some(&rd))?) == Some(true) {
+                    matched = true;
+                    let mut new_row = left.clone();
+                    new_row.push(OwnedTableRow {
+                        rowid: Some(*r_rowid),
+                        cols: r_cols.clone(),
+                    });
+                    next.push(new_row);
+                }
             }
-        }
-        let mut out_row = Vec::with_capacity(proj.len());
-        for p in proj {
-            out_row.push(eval_group(&p.expr, ctx, group)?);
-        }
-        let order_keys = eval_order_keys(stmt, proj, ctx, group, &out_row)?;
-        out.push((out_row, order_keys));
-    }
-    Ok(out)
-}
-
-fn eval_order_keys(
-    stmt: &SelectStmt,
-    proj: &[ProjectedCol],
-    ctx: &EvalCtx<'_>,
-    group: &[RowData<'_>],
-    out_row: &[Value],
-) -> Result<Vec<Value>, Error> {
-    let mut keys = Vec::with_capacity(stmt.order_by.len());
-    for item in &stmt.order_by {
-        if let ExprKind::IntLit(digits) = &item.expr.kind {
-            let idx = digits
-                .parse::<usize>()
-                .map_err(|_| parse_err(item.expr.span.start, "ORDER BY index out of range"))?;
-            let val = out_row
-                .get(idx - 1)
-                .cloned()
-                .ok_or_else(|| parse_err(item.expr.span.start, "ORDER BY index out of range"))?;
-            keys.push(val);
-            continue;
-        }
-        if let ExprKind::Column {
-            table: None, name, ..
-        } = &item.expr.kind
-        {
-            if let Some(pos) = proj.iter().position(|p| {
-                p.alias
-                    .as_deref()
-                    .is_some_and(|a| a.eq_ignore_ascii_case(name))
-            }) {
-                keys.push(out_row[pos].clone());
-                continue;
+            if !matched && join.kind == JoinKind::Left {
+                let mut new_row = left.clone();
+                new_row.push(OwnedTableRow {
+                    rowid: None,
+                    cols: vec![Value::Null; right_def.columns.len()],
+                });
+                next.push(new_row);
             }
         }
-        keys.push(eval_group(&item.expr, ctx, group)?);
+        current = next;
     }
-    Ok(keys)
-}
 
-fn compare_order_keys(a: &[Value], b: &[Value], descs: &[bool]) -> Ordering {
-    for ((va, vb), &desc) in a.iter().zip(b.iter()).zip(descs.iter()) {
-        let ord = cmp_values(va, vb);
-        if ord != Ordering::Equal {
-            return if desc { ord.reverse() } else { ord };
+    if let Some(w) = &stmt.where_clause {
+        let mut filtered = Vec::with_capacity(current.len());
+        for row in current {
+            let refs = to_refs(&row);
+            let rd = RowData { tables: &refs };
+            if to_bool(&eval_row(w, ctx, Some(&rd))?) == Some(true) {
+                filtered.push(row);
+            }
         }
+        current = filtered;
     }
-    Ordering::Equal
+
+    Ok(current)
 }

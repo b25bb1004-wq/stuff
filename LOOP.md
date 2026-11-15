@@ -115,9 +115,9 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | PASS |
 | T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | PASS |
 | T40 | P3 | varve | B+tree with range scans | hydrogen-high | T39 | PASS |
-| T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
+| T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | PASS |
 | T41a | P3 | varve | SQL core: parser, catalog, single-table DML and SELECT, indexes maintained, transactions | hydrogen-high | T40 | PASS |
-| T41b | P3 | varve | joins, index use in plans, EXPLAIN | hydrogen-high | T41a | RUNNING |
+| T41b | P3 | varve | joins, index use in plans, EXPLAIN | hydrogen-high | T41a | PASS |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
@@ -243,3 +243,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 13:10 | PAUSE (operator: give the workers a break) | - | Haiku this round: T66a 206,836, T24 138,160 | - | no new dispatch. T41b still running on hydrogen-high. Awaiting leader checks: T70a, T24, T49, T61, T66a. Next hydrogen after judging: T50, T62, T70b
 - 2026-11-15 13:16 | T70a | hydrogen | agy quota | PASS | audio_leader 4/4 both seeds; gates pass
 - 2026-11-15 13:21 | T24 | haiku | 138,160 | PASS | flint_leader 5/5; gates pass
+- 2026-11-15 13:28 | T41b | hydrogen-high | agy quota | PASS | join_leader 3/3 both seeds; leader fixed one obsolete T41a test; T41 closed (T41a+T41b)

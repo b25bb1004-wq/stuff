@@ -47,6 +47,8 @@ pub(crate) struct IndexDef {
 pub(crate) struct Catalog {
     pub tables: BTreeMap<String, TableDef>,
     pub indexes: BTreeMap<String, IndexDef>,
+    pub index_order: Vec<String>,
+    pub next_seq: i64,
 }
 
 impl Catalog {
@@ -56,13 +58,14 @@ impl Catalog {
         let mut raw_indexes = Vec::new();
         let mut scan_err = None;
 
+        let mut max_seq = 0i64;
         tree.scan(pager, None, Bound::Unbounded, &mut |k, v| {
             let res = (|| -> Result<(), Error> {
                 let obj_name = std::str::from_utf8(k)
                     .map_err(|_| Error::Corrupt)?
                     .to_owned();
                 let vals = decode_record(v)?;
-                if vals.len() != 4 {
+                if vals.len() != 4 && vals.len() != 5 {
                     return Err(Error::Corrupt);
                 }
                 let (
@@ -74,10 +77,21 @@ impl Catalog {
                 else {
                     return Err(Error::Corrupt);
                 };
+                let seq = if vals.len() == 5 {
+                    let Value::Int(s) = vals[4] else {
+                        return Err(Error::Corrupt);
+                    };
+                    s
+                } else {
+                    *root_i64
+                };
+                max_seq = max_seq.max(seq);
                 let root = u64::try_from(*root_i64).map_err(|_| Error::Corrupt)?;
                 match kind.as_str() {
                     "table" => raw_tables.push((obj_name, root, sql.clone())),
-                    "index" => raw_indexes.push((obj_name, tbl_name.clone(), root, sql.clone())),
+                    "index" => {
+                        raw_indexes.push((obj_name, tbl_name.clone(), root, sql.clone(), seq))
+                    }
                     _ => return Err(Error::Corrupt),
                 }
                 Ok(())
@@ -101,7 +115,8 @@ impl Catalog {
             cat.tables.insert(tdef.name.to_ascii_lowercase(), tdef);
         }
 
-        for (name, _tbl, root, sql) in raw_indexes {
+        let mut loaded_indexes = Vec::new();
+        for (name, _tbl, root, sql, seq) in raw_indexes {
             let Stmt::CreateIndex(ci) = parse_statement(&sql).map_err(|_| Error::Corrupt)? else {
                 return Err(Error::Corrupt);
             };
@@ -127,8 +142,15 @@ impl Catalog {
                 unique: ci.unique,
                 auto,
             };
-            cat.indexes.insert(idef.name.to_ascii_lowercase(), idef);
+            loaded_indexes.push((seq, idef));
         }
+        loaded_indexes.sort_by_key(|(seq, i)| (u8::from(!i.auto), *seq));
+        for (_, idef) in loaded_indexes {
+            let key = idef.name.to_ascii_lowercase();
+            cat.index_order.push(key.clone());
+            cat.indexes.insert(key, idef);
+        }
+        cat.next_seq = max_seq.saturating_add(1).max(1);
 
         Ok(cat)
     }
@@ -151,10 +173,17 @@ impl Catalog {
     }
 
     pub fn table_indexes(&self, table_name: &str) -> Vec<&IndexDef> {
-        self.indexes
-            .values()
+        self.index_order
+            .iter()
+            .filter_map(|k| self.indexes.get(k))
             .filter(|i| i.table.eq_ignore_ascii_case(table_name))
             .collect()
+    }
+
+    pub fn alloc_seq(&mut self) -> i64 {
+        let s = self.next_seq.max(1);
+        self.next_seq = s.saturating_add(1);
+        s
     }
 }
 
@@ -227,11 +256,13 @@ pub(crate) fn exec_create_table<S: Storage>(
     tdef.root = table_tree.root();
     tdef.max_rowid = Some(0);
 
+    let tbl_seq = cat.alloc_seq();
     let rec = encode_record(&[
         Value::Text("table".to_owned()),
         Value::Text(tdef.name.clone()),
         Value::Int(tdef.root as i64),
         Value::Text(tdef.sql.clone()),
+        Value::Int(tbl_seq),
     ]);
     cat_tree.insert(pager, tdef.name.as_bytes(), &rec)?;
 
@@ -250,15 +281,19 @@ pub(crate) fn exec_create_table<S: Storage>(
                 "CREATE UNIQUE INDEX \"{}\" ON \"{}\" (\"{}\")",
                 idx_name, tdef.name, col.name
             );
+            let idx_seq = cat.alloc_seq();
             let idx_rec = encode_record(&[
                 Value::Text("index".to_owned()),
                 Value::Text(tdef.name.clone()),
                 Value::Int(idx_tree.root() as i64),
                 Value::Text(idx_sql.clone()),
+                Value::Int(idx_seq),
             ]);
             cat_tree.insert(pager, idx_name.as_bytes(), &idx_rec)?;
+            let key = idx_name.to_ascii_lowercase();
+            cat.index_order.push(key.clone());
             cat.indexes.insert(
-                idx_name.to_ascii_lowercase(),
+                key,
                 IndexDef {
                     name: idx_name,
                     table: tdef.name.clone(),
@@ -299,6 +334,7 @@ pub(crate) fn exec_drop_table<S: Storage>(
         .collect();
     for k in idx_keys {
         if let Some(idef) = cat.indexes.remove(&k) {
+            cat.index_order.retain(|x| x != &k);
             Tree::open(idef.root).destroy(pager)?;
             cat_tree.remove(pager, idef.name.as_bytes())?;
         }
@@ -391,16 +427,20 @@ pub(crate) fn exec_create_index<S: Storage>(
     }
 
     let cat_tree = Tree::open(catalog_root);
+    let idx_seq = cat.alloc_seq();
     let rec = encode_record(&[
         Value::Text("index".to_owned()),
         Value::Text(table.name.clone()),
         Value::Int(idx_tree.root() as i64),
         Value::Text(raw_sql.to_owned()),
+        Value::Int(idx_seq),
     ]);
     cat_tree.insert(pager, stmt.name.as_bytes(), &rec)?;
 
+    let key = stmt.name.to_ascii_lowercase();
+    cat.index_order.push(key.clone());
     cat.indexes.insert(
-        stmt.name.to_ascii_lowercase(),
+        key,
         IndexDef {
             name: stmt.name.clone(),
             table: table.name,
@@ -431,6 +471,7 @@ pub(crate) fn exec_drop_index<S: Storage>(
         return Err(Error::Misuse);
     }
     let idef = cat.indexes.remove(&lower).ok_or(Error::NoSuchTable)?;
+    cat.index_order.retain(|x| x != &lower);
     Tree::open(idef.root).destroy(pager)?;
     Tree::open(catalog_root).remove(pager, idef.name.as_bytes())?;
     Ok(())

@@ -8,8 +8,8 @@ use crate::Error;
 pub(crate) fn validate_expr(expr: &Expr, ctx: &EvalCtx<'_>, allow_agg: bool) -> Result<(), Error> {
     match &expr.kind {
         ExprKind::Null | ExprKind::IntLit(_) | ExprKind::Text(_) | ExprKind::Blob(_) => Ok(()),
-        ExprKind::Column { table, name, .. } => {
-            ctx.resolve_col(table.as_deref(), name)?;
+        ExprKind::Column { table, name, pos } => {
+            ctx.resolve_col(table.as_deref(), name, *pos)?;
             Ok(())
         }
         ExprKind::Paren(inner) | ExprKind::IsNull { expr: inner, .. } => {

@@ -10,6 +10,7 @@ use crate::sql::functions::{
     cmp_sql, eval_call, like_match, three_val_and, three_val_not, three_val_or, to_int_coerce,
     value_to_text,
 };
+use crate::sql::lexer::parse_err;
 pub(crate) use crate::sql::validate::{contains_agg, is_agg_name, validate_expr};
 use crate::sql::Value;
 use crate::Error;
@@ -20,36 +21,71 @@ pub(crate) enum ColTarget {
     Rowid,
 }
 
-pub(crate) struct EvalCtx<'a> {
-    pub table: Option<(&'a TableDef, &'a str)>,
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct TableScope<'a> {
+    pub def: &'a TableDef,
+    pub alias: &'a str,
 }
 
-pub(crate) struct RowData<'a> {
-    pub rowid: i64,
+pub(crate) struct EvalCtx<'a> {
+    pub tables: Vec<TableScope<'a>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct TableRowRef<'a> {
+    pub rowid: Option<i64>,
     pub cols: &'a [Value],
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RowData<'a> {
+    pub tables: &'a [TableRowRef<'a>],
+}
+
 impl<'a> EvalCtx<'a> {
-    pub fn resolve_col(&self, tbl: Option<&str>, name: &str) -> Result<ColTarget, Error> {
-        let Some((table, alias)) = self.table else {
-            return Err(Error::NoSuchColumn);
-        };
-        if let Some(t) = tbl {
-            if !t.eq_ignore_ascii_case(alias) {
-                return Err(Error::NoSuchColumn);
+    pub fn empty() -> Self {
+        Self { tables: Vec::new() }
+    }
+
+    pub fn single(def: &'a TableDef, alias: &'a str) -> Self {
+        Self {
+            tables: vec![TableScope { def, alias }],
+        }
+    }
+
+    pub fn resolve_col(
+        &self,
+        tbl: Option<&str>,
+        name: &str,
+        pos: usize,
+    ) -> Result<(usize, ColTarget), Error> {
+        let mut found: Option<(usize, ColTarget)> = None;
+        for (idx, scope) in self.tables.iter().enumerate() {
+            if let Some(t) = tbl {
+                if !t.eq_ignore_ascii_case(scope.alias) {
+                    continue;
+                }
+            }
+            let target = if let Some(col_idx) = scope
+                .def
+                .columns
+                .iter()
+                .position(|c| c.name.eq_ignore_ascii_case(name))
+            {
+                Some(ColTarget::Column(col_idx))
+            } else if !scope.def.has_rowid_col && name.eq_ignore_ascii_case("rowid") {
+                Some(ColTarget::Rowid)
+            } else {
+                None
+            };
+            if let Some(t) = target {
+                if found.is_some() {
+                    return Err(parse_err(pos, format!("ambiguous column name: {name}")));
+                }
+                found = Some((idx, t));
             }
         }
-        if let Some(idx) = table
-            .columns
-            .iter()
-            .position(|c| c.name.eq_ignore_ascii_case(name))
-        {
-            return Ok(ColTarget::Column(idx));
-        }
-        if !table.has_rowid_col && name.eq_ignore_ascii_case("rowid") {
-            return Ok(ColTarget::Rowid);
-        }
-        Err(Error::NoSuchColumn)
+        found.ok_or(Error::NoSuchColumn)
     }
 }
 
@@ -78,14 +114,17 @@ pub(crate) fn eval_group(
         }
         ExprKind::Text(s) => Ok(Value::Text(s.clone())),
         ExprKind::Blob(b) => Ok(Value::Blob(b.clone())),
-        ExprKind::Column { table, name, .. } => {
-            let target = ctx.resolve_col(table.as_deref(), name)?;
+        ExprKind::Column { table, name, pos } => {
+            let (tbl_idx, target) = ctx.resolve_col(table.as_deref(), name, *pos)?;
             let Some(row) = group.first() else {
                 return Ok(Value::Null);
             };
+            let Some(trow) = row.tables.get(tbl_idx) else {
+                return Ok(Value::Null);
+            };
             match target {
-                ColTarget::Rowid => Ok(Value::Int(row.rowid)),
-                ColTarget::Column(idx) => Ok(row.cols.get(idx).cloned().unwrap_or(Value::Null)),
+                ColTarget::Rowid => Ok(trow.rowid.map_or(Value::Null, Value::Int)),
+                ColTarget::Column(idx) => Ok(trow.cols.get(idx).cloned().unwrap_or(Value::Null)),
             }
         }
         ExprKind::Paren(inner) => eval_group(inner, ctx, group),

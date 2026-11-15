@@ -536,23 +536,19 @@ fn multi_row_insert_atomicity_and_transactions() {
 }
 
 #[test]
-fn join_and_explain_parse_and_return_misuse() {
+fn join_and_explain_now_execute() {
+    // T41b replaced the T41a Misuse stubs
     let mut db = mem_db();
     db.execute("CREATE TABLE a (id INT)").unwrap();
     db.execute("CREATE TABLE b (id INT)").unwrap();
-
-    assert_eq!(
-        db.execute("SELECT a.id FROM a INNER JOIN b ON a.id = b.id"),
-        Err(Error::Misuse)
-    );
-    assert_eq!(
-        db.execute("SELECT a.id FROM a LEFT JOIN b ON a.id = b.id"),
-        Err(Error::Misuse)
-    );
-    assert_eq!(
-        db.execute("EXPLAIN SELECT * FROM a WHERE id = 1"),
-        Err(Error::Misuse)
-    );
+    assert!(db
+        .execute("SELECT a.id FROM a INNER JOIN b ON a.id = b.id")
+        .is_ok());
+    assert!(db
+        .execute("SELECT a.id FROM a LEFT JOIN b ON a.id = b.id")
+        .is_ok());
+    let plan = db.execute("EXPLAIN SELECT * FROM a WHERE id = 1").unwrap();
+    assert_eq!(plan.rows, vec![vec![Value::Text("SCAN a".into())]]);
 }
 
 #[test]

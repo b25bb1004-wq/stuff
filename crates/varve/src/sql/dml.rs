@@ -8,7 +8,7 @@ use crate::sql::catalog::{Catalog, IndexDef, TableDef};
 use crate::sql::codec::{
     decode_record, decode_rowid_key, encode_key, encode_record, extract_trailing_rowid,
 };
-use crate::sql::expr::{eval_row, to_bool, validate_expr, EvalCtx, RowData};
+use crate::sql::expr::{eval_row, to_bool, validate_expr, EvalCtx, RowData, TableRowRef};
 use crate::sql::lexer::parse_err;
 use crate::sql::{Rows, Value};
 use crate::{Error, Pager, Storage, Tree};
@@ -31,7 +31,7 @@ pub(crate) fn exec_insert<S: Storage>(
         .collect();
 
     let col_map = resolve_insert_columns(&table, stmt.columns.as_deref())?;
-    let empty_ctx = EvalCtx { table: None };
+    let empty_ctx = EvalCtx::empty();
     for row_exprs in &stmt.rows {
         if row_exprs.len() != col_map.len() {
             return Err(parse_err(
@@ -152,9 +152,7 @@ pub(crate) fn exec_update<S: Storage>(
         .into_iter()
         .cloned()
         .collect();
-    let ctx = EvalCtx {
-        table: Some((&table, &table.name)),
-    };
+    let ctx = EvalCtx::single(&table, &table.name);
 
     let mut assign_cols = Vec::with_capacity(stmt.assignments.len());
     for (cname, _pos, expr) in &stmt.assignments {
@@ -180,10 +178,11 @@ pub(crate) fn exec_update<S: Storage>(
 
     for (old_rowid, old_row) in &matches {
         let mut new_row = old_row.clone();
-        let row_data = RowData {
-            rowid: *old_rowid,
+        let tr = [TableRowRef {
+            rowid: Some(*old_rowid),
             cols: old_row,
-        };
+        }];
+        let row_data = RowData { tables: &tr };
         for &(col_idx, expr) in &assign_cols {
             new_row[col_idx] = eval_row(expr, &ctx, Some(&row_data))?;
         }
@@ -293,9 +292,7 @@ pub(crate) fn exec_delete<S: Storage>(
         .into_iter()
         .cloned()
         .collect();
-    let ctx = EvalCtx {
-        table: Some((&table, &table.name)),
-    };
+    let ctx = EvalCtx::single(&table, &table.name);
     if let Some(w) = &stmt.where_clause {
         validate_expr(w, &ctx, false)?;
     }
@@ -483,7 +480,11 @@ fn scan_matching_rows<S: Storage>(
             let keep = match where_clause {
                 None => true,
                 Some(w) => {
-                    let rd = RowData { rowid, cols: &cols };
+                    let tr = [TableRowRef {
+                        rowid: Some(rowid),
+                        cols: &cols,
+                    }];
+                    let rd = RowData { tables: &tr };
                     to_bool(&eval_row(w, ctx, Some(&rd))?) == Some(true)
                 }
             };

@@ -6,7 +6,7 @@ use crate::sql::catalog::{
 };
 use crate::sql::dml::{exec_delete, exec_insert, exec_update};
 use crate::sql::parser::parse_statement;
-use crate::sql::select::exec_select;
+use crate::sql::select::{exec_explain, exec_select};
 use crate::sql::Rows;
 use crate::{Error, Pager, Storage, Tree};
 
@@ -71,7 +71,7 @@ impl<S: Storage> Db<S> {
                 self.catalog = Catalog::load(&mut self.pager, self.catalog_root)?;
                 Ok(Rows::default())
             }
-            Stmt::Explain(_) => Err(Error::Misuse),
+            Stmt::Explain(ref sel) => exec_explain(&self.catalog, sel, sql),
             Stmt::Select(ref sel) => exec_select(&mut self.pager, &self.catalog, sel, sql),
             other => self.exec_mutating(other, sql),
         }
