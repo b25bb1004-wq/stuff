@@ -4,6 +4,7 @@
 
 extern crate alloc;
 
+mod debug;
 mod decode;
 mod encode;
 mod exec;
@@ -29,6 +30,7 @@ mod verify_tests;
 #[cfg(test)]
 mod vm_tests;
 
+pub use debug::{Event, FrameView, Position, Session};
 pub use decode::{decode, DecodeError};
 pub use encode::encode;
 pub use heap::Heap;

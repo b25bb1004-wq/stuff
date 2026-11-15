@@ -1,6 +1,5 @@
 //! The VM entry point, host interface, resource limits and module loader.
 
-use crate::exec;
 use crate::heap::{Heap, DEFAULT_MAX_HEAP_BYTES};
 use crate::module::Module;
 use crate::value::{Trap, Value};
@@ -81,19 +80,8 @@ impl Vm {
 
     /// Run the module's `entry` function with no arguments.
     pub fn run(&mut self, host: &mut dyn Host, limits: Limits) -> Result<Value, Trap> {
-        self.fuel_used = 0;
-        self.trap_site = None;
-        self.heap.set_max_bytes(limits.max_heap_bytes);
-        let entry = self.module.entry;
-        let func = self
-            .module
-            .funcs
-            .get(entry as usize)
-            .ok_or(Trap::TypeError)?;
-        if func.params != 0 {
-            return Err(Trap::TypeError);
-        }
-        exec::execute(self, entry, &[], host, limits)
+        let mut session = self.start(self.module.entry, &[], limits)?;
+        session.run_to_end(self, host)
     }
 
     /// Call the function named `func` with `args`.
@@ -107,18 +95,16 @@ impl Vm {
         self.fuel_used = 0;
         self.trap_site = None;
         self.heap.set_max_bytes(limits.max_heap_bytes);
-        let (f_idx, f_def) = self
+        let (f_idx, _) = self
             .module
             .funcs
             .iter()
             .enumerate()
             .find(|(_, f)| f.name == func)
             .ok_or(Trap::TypeError)?;
-        if usize::from(f_def.params) != args.len() {
-            return Err(Trap::TypeError);
-        }
         let f_u32 = u32::try_from(f_idx).map_err(|_| Trap::TypeError)?;
-        exec::execute(self, f_u32, args, host, limits)
+        let mut session = self.start(f_u32, args, limits)?;
+        session.run_to_end(self, host)
     }
 
     /// Borrow the VM's object heap.
