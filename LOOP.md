@@ -397,3 +397,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T86n titan tool | hydrogen-high | n/a | PASS | bin in neon; leader: boot --script ran ls and echo on the titan shell; --disk left out (Titan keeps its disk private)
 - 2026-11-16 | T86o lithium tool | hydrogen-high | n/a | PASS | leader: run prints A/B task interleave then halt, exit pass; --steps 0 exit 1; image writes 1750 bytes
 - 2026-11-16 | T86p iridium tool | hydrogen-high | n/a | PASS | leader: create and insert from stdin, select in a second process returns the row (FileStorage persists), missing table exit 1
+- 2026-11-16 | T86q zeusctl | hydrogen-high | n/a | PASS | leader: lithium and titan guests side by side under zeus, both exit 0, all guests done; bad guest exit 2. 25 of 25 tools
+- 2026-11-16 | T74a elysium pause/resume | hydrogen-high | n/a | PASS | 150 random programs equal through start+resume; elysium, cobalt, athena, neon gates pass
+- 2026-11-16 | docs/TOOLS.md | haiku-medium | 125k | PASS | leader spot check vs hades --help; found convention gaps: logos no --help/--version (and no check/fmt), xenon exits 1 on usage with "error:" prefix, krypton no --version, pandora exit codes 125-127 (kept: container convention) -> T86s
