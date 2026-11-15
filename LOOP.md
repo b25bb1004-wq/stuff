@@ -15,6 +15,7 @@
 - [x] T82 CI workflow, green on ubuntu-latest
 - [x] T47 cairn registry PASS (leader check: clippy fixes only)
 - [x] T21 chisel PASS (leader check fixed: hex li, x0)
+- [>] T22 chisel ELF: LLD fixture + brief + leader check, dispatched (hydrogen)
 - [ ] T13 riscv-tests (download approved): fetch, build as quartz data
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
@@ -86,7 +87,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
 | T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | PASS |
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | PASS |
-| T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | TODO |
+| T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | RUNNING |
 | T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
 | T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | argon | T22 T23 | TODO |
 | T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 T13a | TODO |
@@ -203,3 +204,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 06:38 T21 chisel PASS (hydrogen-high): corpus = LLVM, c_pairs, amo, quartz fixtures, fresh seeds, workspace gate. Leader check had 2 bugs of its own (hex li parse, li to x0).
 - 2026-11-15 06:39 T47 dispatched (hydrogen): brief + leader check registry_leader.rs committed.
 - 2026-11-15 06:48 T47 cairn PASS (hydrogen): format, byte flips, registry codes, install\/lock\/remove, malicious registry, concurrency; fresh seeds, workspace gate. Committed missed reports T13a T21 T33 T46.
+- 2026-11-15 06:48 T22 dispatched (hydrogen): LLD fixture prog.elf (runs to Pass, dirty bss fails), elf_leader.rs linted on a stub.
