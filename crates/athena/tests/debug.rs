@@ -235,3 +235,22 @@ fn global_session_round_trip() {
     assert!(step_text(0, &[]).contains("no debug session"));
     assert!(start_text("fn main( {").starts_with("status error\n"));
 }
+
+#[test]
+fn for_variable_is_a_var_while_the_loop_body_runs() {
+    let src = "fn main() -> int {\n var sum = 0\n for i in 1..4 {\n sum = sum + i\n }\n sum\n}\n";
+    let mut d = start(src);
+    let st = d.step(Step::Continue, &[4]);
+    assert_eq!(st.status, Status::Paused);
+    assert_eq!(st.line, 4);
+    let vars: Vec<(&str, &str)> = st
+        .vars
+        .iter()
+        .map(|v| (v.name.as_str(), v.value.as_str()))
+        .collect();
+    assert_eq!(vars, [("sum", "0"), ("i", "1")]);
+    let st = d.step(Step::Continue, &[4]);
+    assert_eq!(st.status, Status::Paused);
+    let i = st.vars.iter().find(|v| v.name == "i").unwrap();
+    assert_eq!(i.value, "2", "i advances by one per iteration");
+}

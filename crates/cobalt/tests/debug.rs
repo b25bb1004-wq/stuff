@@ -275,3 +275,47 @@ fn over_after_returned_call_stays_on_caller_line() {
         other => panic!("unexpected {other:?}"),
     }
 }
+
+/// `i` is the loop variable on line 3; `sum = sum + i` is line 4, and line 6 is after the loop.
+const FOR_SRC: &str =
+    "fn main() -> int {\n var sum = 0;\n for i in 1..4 {\n sum = sum + i;\n }\n sum\n}\n";
+
+#[test]
+fn locals_include_for_variable_only_inside_the_loop_body() {
+    let c = build(FOR_SRC);
+    let main = func_index(&c, "main");
+    let (mut vm, mut s) = start(&c);
+    // First iteration: `i` is 1 in the body.
+    for want in [1, 2] {
+        match step(&c, &mut s, &mut vm, &mut NoHost, Step::Continue, &[4]) {
+            Event::Paused(p) => {
+                assert_eq!(line_of(&c, main, p.pc).unwrap().0, 4);
+                let locals = locals_at(&c, main, p.pc);
+                let names: Vec<&str> = locals.iter().map(|(n, _)| n.as_str()).collect();
+                assert_eq!(names, vec!["sum", "i"]);
+                let frames = s.frames();
+                let regs = &frames.last().unwrap().regs;
+                let (_, reg) = locals.iter().find(|(n, _)| n == "i").unwrap();
+                assert_eq!(
+                    regs[*reg as usize],
+                    Value::Int(want),
+                    "i in iteration {want}"
+                );
+            }
+            other => panic!("expected pause on line 4, got {other:?}"),
+        }
+    }
+    // After the loop, `i` is out of scope.
+    let (mut vm, mut s) = start(&c);
+    match step(&c, &mut s, &mut vm, &mut NoHost, Step::Continue, &[6]) {
+        Event::Paused(p) => {
+            assert_eq!(line_of(&c, main, p.pc).unwrap().0, 6);
+            let names: Vec<String> = locals_at(&c, main, p.pc)
+                .into_iter()
+                .map(|(n, _)| n)
+                .collect();
+            assert!(!names.contains(&"i".to_string()), "i leaked: {names:?}");
+        }
+        other => panic!("expected pause on line 6, got {other:?}"),
+    }
+}

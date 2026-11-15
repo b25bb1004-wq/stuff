@@ -33,7 +33,7 @@ pub(super) struct FnBuilder<'a> {
     pub local_map: BTreeMap<String, Vec<(usize, LocalVar)>>,
     pub loops: Vec<(Label, Label)>,
     pub depth: u32,
-    /// Recorded `let`/`var` bindings, moved into `Func::bindings` by `finish`.
+    /// Recorded `let`/`var`/`for`/match-arm bindings, moved into `Func::bindings` by `finish`.
     pub bindings: Vec<Binding>,
     /// Bindings whose scope has not ended yet: `(scope depth, index in bindings)`, innermost last.
     open_bindings: Vec<(usize, usize)>,
@@ -115,7 +115,7 @@ impl<'a> FnBuilder<'a> {
         }
     }
 
-    /// Defines a `let` or `var` local and records its binding for the debugger.
+    /// Defines a named local (`let`, `var`, `for` variable or match-arm binding) and records it for the debugger.
     pub(super) fn bind_local(
         &mut self,
         id: &Ident,
@@ -370,7 +370,7 @@ impl<'a> FnBuilder<'a> {
             self.lower_pattern_test(&arm.pattern, s_reg, &s_ty, l_fail, &mut bindings)?;
             self.push_scope();
             for (id, b_reg, b_ty) in bindings {
-                self.define_local(&id, b_reg, b_ty, false)?;
+                self.bind_local(&id, b_reg, b_ty, false)?;
             }
             let (b_reg, b_ty, b_div) = self.check_expr(&arm.body, cur_ty.as_ref())?;
             self.pop_scope();
@@ -535,7 +535,7 @@ impl<'a> FnBuilder<'a> {
             Some(ar) => self.emit(Inst::GetIndex(var_reg, ar, idx), var.span),
             None => self.emit(Inst::Move(var_reg, idx), var.span),
         }
-        self.define_local(var, var_reg, elem_ty, false)?;
+        self.bind_local(var, var_reg, elem_ty, false)?;
         self.loops.push((l_exit, l_step));
         let _ = self.check_block(body, None)?;
         self.loops.pop();

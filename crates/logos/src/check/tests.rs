@@ -263,3 +263,34 @@ fn fuzz_token_soup_never_panics() {
         }
     });
 }
+
+#[test]
+fn bindings_cover_for_variables_and_match_arms() {
+    let src = r#"
+fn f(o: int?) -> int {
+    var sum = 0
+    for i in 1..4 {
+        sum = sum + i
+    }
+    match o {
+        some(v) => v + 1,
+        none => sum,
+    }
+}
+"#;
+    let m = parse(src).unwrap();
+    let prog = check(&m).unwrap();
+    validate(&prog).unwrap();
+    let f = &prog.funcs[0];
+    let find = |name: &str| f.bindings.iter().find(|b| b.name == name);
+    let i = find("i").expect("for variable is recorded");
+    assert!(i.from < i.to, "for variable has a non-empty scope");
+    let v = find("v").expect("match-arm binding is recorded");
+    assert!(v.from < v.to, "match-arm binding has a non-empty scope");
+    let sum = find("sum").expect("var is recorded");
+    assert!(
+        sum.to < u32::MAX,
+        "var scope is closed at the end of the body"
+    );
+    assert!(sum.to > i.to, "var outlives the for loop");
+}
