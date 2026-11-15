@@ -1,0 +1,5 @@
+# T80 mercury (HTTP parser): security review
+Sampled: lib.rs parse_request and parse_response dispatch, body.rs (transfer-encoding, content-length, fixed and chunked bodies, chunk-size parse), head.rs header-line rules, ws/frame.rs (length and mask checks), ws/crypto.rs padding, non-test panic scan. Header parsing rejects obs-fold and bad tokens. Chunk-size overflow is checked (body.rs:152-153). Bodies are capped by max_body. WebSocket payload length is checked before allocation (frame.rs:100).
+- MEDIUM crates/mercury/src/lib.rs:27-30 parse_request: when both Transfer-Encoding: chunked and Content-Length are present, chunked wins and Content-Length is never parsed or validated (parse_content_length runs only in the else branch). Input: a POST with both headers, where the Content-Length is 5 and the chunked body is "0", is accepted, and a malformed Content-Length is ignored. A proxy that honours Content-Length can desync the stream (request smuggling). Fix: return BadHeader when both headers are present (RFC 9112 section 6.3).
+- Same pattern on the response side (lib.rs:58-60); lower impact.
+Count: high 0, medium 1, low 0.

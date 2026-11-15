@@ -1,0 +1,7 @@
+# T80 security review: athena (Rust, web JS, sw.js; read-only; nothing executed)
+Read: src/wasm.rs (exports, copy_slice_from_guest), web/sw.js (all 57 lines), grep of web/athena.js and web/workbench.js for HTML, eval and navigation sinks, grep of fetch targets. lib.rs forbid(unsafe_code) except on wasm32.
+HIGH: none. MEDIUM: none.
+LOW L1 wasm.rs:31: copy_slice_from_guest calls from_raw_parts(ptr, len) on JS-supplied values with no len <= isize::MAX check. Input: athena_check(ptr, 0xFFFFFFFF) from JS is undefined behaviour under Rust's precondition rules (not a sandbox escape). Fix: reject len > isize::MAX and out-of-range pointers before building the slice.
+LOW L2 wasm.rs:70-94: athena_check, athena_highlight and athena_format accept any length with no input cap (site uses a 64 KiB cap, site demos/mod.rs:26). Input: a multi-MB paste makes the tab hang. Fix: reuse a MAX_INPUT_BYTES check.
+No finding (sampled): sw.js:1-57 caches only its own "athena-" cache, writes no runtime responses, deletes only "athena-" prefixed caches on activate, and serves only same-origin GETs. web/: no innerHTML, outerHTML, insertAdjacentHTML, document.write, eval or Function found; attributes use setAttribute; fetch targets are fixed relative paths (athena.js:836, 862, 864); no secrets or personal paths in tracked files (grep).
+Not reviewed in depth: lang.rs, lang_walk.rs and lang_fmt.rs parser recursion (not read); workbench.js beyond the sink grep; style.css.

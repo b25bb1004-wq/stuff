@@ -1,0 +1,6 @@
+# T80 xenon (encrypted transport): security review
+Sampled: conn.rs connect and handle_checked, crypto.rs (handshake, open_data), wire.rs decoders, stream.rs on_recv_data, server.rs handle_initial, bin/xenon.rs keygen. Datagram length, cid, and replay checks happen before decrypt. Varint, ack, and stream lengths are bounded. Stream IDs are capped by max_streams (conn_io.rs:232).
+- HIGH crates/xenon/src/bin/xenon.rs:127-130 xenon keygen prints a static X25519 secret equal to SHA-256(tag || nanos || pid) (bin/xenon.rs:266-275). Input: run keygen; the clock window and PID space are small enough to enumerate. Fix: fill the secret from the OS CSPRNG and fail closed.
+- MEDIUM crates/xenon/src/server.rs:56-92 only half-open connections are capped (max_half_open, lib.rs:73-76). A completed handshake frees a slot, and there is no total cap on connections. Input: a client holding the server public key completes handshakes in a loop; entries live until the 30 s idle timeout (lib.rs:84). Fix: reject new Initials when connections.len() reaches a max_connections limit, before the insert at server.rs:92.
+- Note: Connection::connect (conn.rs:90-93) trusts the caller's seed for all handshake randomness. See deploy for a predictable seed.
+Count: high 1, medium 1, low 0.

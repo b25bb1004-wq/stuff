@@ -1,0 +1,7 @@
+# T80 security review: site (MOVING TARGET: git shows crates/site modified by another worker during this review; findings describe the state that was read)
+Read: src/pack.rs build_service_worker (about lines 354-450), src/wasm.rs (unsafe at 31), web/site.js, apps/_kit/kit.js, apps/titan/app.js, grep of web/ and apps/ for sinks, grep of fetch and iframe use.
+HIGH: none.
+MEDIUM M1 src/pack.rs:435 (and the index.html fallback at about 440): the generated sw.js calls caches.match(req, {ignoreSearch:true}) across ALL caches on the origin, not only its own CACHE_NAME. Input: app B holds an older cache with /apps/_kit/kit.js; app A's first request for ../_kit/kit.js is answered from B's stale copy, mixing kit.js versions with A's app.js and site.wasm. No attacker needed; the result is stale mixed-version code. Fix: match only inside caches.open(CACHE_NAME) and delete old per-app caches on activate.
+LOW L1 src/wasm.rs:31: same unchecked from_raw_parts as athena (no len <= isize::MAX check). Fix: as athena L1.
+No finding (sampled): site.js:206-214 writes output with textContent; innerHTML only clears nodes (apps/titan/app.js:99, apps/_kit/demo-app.js:137, 157); all fetches are relative same-origin (site.js:58, 64, 353; kit.js:84, 90); no iframe, srcdoc or postMessage; demo input capped at 64 KiB (demos/mod.rs:26, 92; wasm.rs:85); no secrets or personal paths in tracked files (grep).
+Not reviewed: src/demos/*.rs bodies (about 4k lines), icons.rs, the rest of pack.rs (asset copy and icon render).
