@@ -151,20 +151,19 @@ fn leader_racing_pushers() {
             format!("{i}\n").into_bytes()
         );
     }
-    // First-parent chain from tip back to root: every pushed tip is a descendant of the previous one.
-    let mut id = tip;
-    let mut steps = 0;
-    loop {
-        let (_, data) = repo.get(&id).unwrap();
-        let c = decode_commit(&data).unwrap();
-        match c.parents.first() {
-            Some(p) => id = *p,
-            None => break,
+    // Every worker's commit is reachable from the tip (a loser's merge has its own commit as first
+    // parent, so the first-parent chain alone may be shorter than n).
+    let mut seen = std::collections::HashSet::new();
+    let mut stack = vec![tip];
+    while let Some(id) = stack.pop() {
+        if !seen.insert(id) {
+            continue;
         }
-        steps += 1;
-        assert!(steps < 100);
+        let (_, data) = repo.get(&id).unwrap();
+        stack.extend(decode_commit(&data).unwrap().parents);
+        assert!(seen.len() < 1000);
     }
-    assert!(steps >= n, "history too short: {steps}");
+    assert!(seen.len() > n, "history too short: {} commits", seen.len());
     drop(repo);
     srv.stop();
 }

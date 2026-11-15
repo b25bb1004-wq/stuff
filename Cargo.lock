@@ -159,6 +159,7 @@ name = "tremor"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "onyx",
 ]
 
 [[package]]

@@ -15,12 +15,12 @@
 - [x] T82 CI workflow, green on ubuntu-latest
 - [x] T47 cairn registry PASS (leader check: clippy fixes only)
 - [x] T21 chisel PASS (leader check fixed: hex li, x0)
-- [>] T22 chisel ELF: LLD fixture + brief + leader check, dispatched (hydrogen)
+- [x] T22 chisel ELF PASS (first try)
 - [x] D1 docs/CINNABAR.md (Python reference, vectors, stats; check validated on a model)
 - [x] T14 onyx Cinnabar PASS (first try)
 - [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
 - [x] T39 varve pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
-- [>] T34 tremor: brief + tremor_leader.rs (handshake model from onyx primitives, own lossy simulator), dispatched (hydrogen-high); RETRY 1: ACKs blocked by full window + no PTO armed (5% loss stall); check fixed to gate only in-flight growth, PTO probes slack
+- [x] T34 tremor PASS on retry 1 (ACK/PTO fix); drillcore racing-pushers check fixed (reachability, not first-parent)
 - [ ] T55 slate app: brief + app_leader.rs (edit/motion tables, screens, scroll, files, Mica highlight, fuzz undo-all) ready; dispatch hydrogen when a lane frees
 - [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
@@ -95,7 +95,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | PASS |
 | T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | PASS |
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | PASS |
-| T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | RUNNING |
+| T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | PASS |
 | T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
 | T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | argon | T22 T23 | TODO |
 | T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 T13a | TODO |
@@ -107,7 +107,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | PASS |
 | T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
 | T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
-| T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | hydrogen-high | T04 T20 D2 | RUNNING |
+| T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | hydrogen-high | T04 T20 D2 | PASS |
 | T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
 | T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
@@ -225,3 +225,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 07:55 T34 brief + leader check written (model self-run OK, lint vs stub). Model uses onyx in Rust instead of Python: same independence, no extra tooling.
 - 2026-11-15 08:12 T31 quartz H PASS (argon-high, first run): leader check 8/8 + fresh seed, gate PASS. T40 dispatched (hydrogen-high). Argon % to ask.
 - 2026-11-15 08:26 T40 varve B+tree PASS (hydrogen-high): check 5/5 + fresh seed after leader fix to T39 pager read(0) in a txn (stale page 0); regression test added to pager_leader. T34 dispatched.
+- 2026-11-15 10:40 T22 PASS (hydrogen); T34 PASS retry 1 (hydrogen-high); T55 brief+check ready; drillcore remote_leader flake fixed

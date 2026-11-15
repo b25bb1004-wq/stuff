@@ -483,7 +483,9 @@ fn session(seed: u64, loss: usize) -> Result<u64, String> {
         }
         // Transmit.
         let client_before = client.stats().bytes_in_flight;
-        let server_before = server.connection(cid).map_or(0, |c| c.stats().bytes_in_flight);
+        let server_before = server
+            .connection(cid)
+            .map_or(0, |c| c.stats().bytes_in_flight);
         for _ in 0..64 {
             match client.poll_transmit(now) {
                 Some(d) => net.send(now, true, d),

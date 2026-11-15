@@ -3,6 +3,7 @@
 
 mod asm;
 mod directives;
+pub mod elf;
 mod encode_c;
 mod encode_rv;
 mod expr;
