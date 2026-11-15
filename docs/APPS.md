@@ -57,7 +57,7 @@ Each of the 25 systems has:
 | odyssey | small browser: address bar over bundled pages, render to canvas, DOM tree | `tokens`, `tree`, `select SEL`, `render FILE.html --out PNG` | new |
 | aurum | wallet and block explorer on an in-browser chain | `keygen`, `tx`, `verify CHAIN`, `merkle`, `node` (keep deploy's `aurum-node`) | new |
 | sphinx | crypto lab: hash, HMAC, keys, sign, verify, seal, open | same verbs | new |
-| silicon | RISC-V machine: load ELF, run, step, registers, memory, UART | `run ELF [--steps N] [--trace]` | new |
+| silicon | RISC-V machine: load ELF, run, step, registers, memory, UART | `run ELF [--steps N] [--trace]` (bin in `chisel`: chisel depends on silicon) | new |
 | hades | disk explorer: tree, upload, download, fsck | `mkfs`, `ls`, `cat`, `put`, `rm`, `mkdir`, `fsck` on an image | new |
 | pandora | container spec editor and validator, recorded sessions (runtime is Linux-only) | keep | done |
 | argo | package browser and solver: index, manifest, lock graph | `solve`, `lock`, `install`, `serve` | new |
