@@ -200,7 +200,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T81h | P6 | docs | README + demo: chronos | hydrogen | - | PASS |
 | T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | PASS |
 | T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
-| T84 | P6 | deploy | one public web image: site at /, Athena at /athena/, /healthz; services stay private; README public hosting | hydrogen-high | T75a T77 | RUNNING |
+| T84 | P6 | deploy | one public web image: site at /, Athena at /athena/, /healthz; services stay private; README public hosting | hydrogen-high | T75a T77 | PASS |
 | T85 | P5 | athena | proper app: VS Code-style workbench (activity bar, tabs, palette, panel, status bar), installable PWA, offline | hydrogen-high | T73 | RUNNING |
 | T79s | P6 | fuzz | soak aurum | haiku | - | PASS |
 | T79t | P6 | fuzz | soak indium | haiku | - | PASS |
@@ -374,3 +374,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T77 deploy | hydrogen-high | n/a | PASS | 4 static binaries, 3 scratch images, compose; leader docker run: 5 healthy, aurum consensus, iridium persists, stop 2.1 s all exit 0
 - 2026-11-16 | T75a site | hydrogen-high | n/a | PASS | 25 sections, 8 live demos; leader Chrome: every demo output, titan session, light/dark, no external requests, 360 px, Athena link 200
 - 2026-11-16 | T73 athena | hydrogen-high | n/a | PASS | leader Chrome: F12 call and shadowed let (inner and outer), Ctrl+I hover signature, Format plus undo, comment refusal, 360 px
+- 2026-11-16 | T84 deploy | hydrogen-high | n/a | PASS | leader docker build from clean HEAD copy: web image 6.35 MB, healthy, wasm MIME, traversal 404, Chrome demos + titan + Athena wasm from the container, stop 0.75 s exit 0; no inline script or style so the README CSP holds

@@ -34,3 +34,17 @@ USER 65534:65534
 EXPOSE 7600 7700/udp
 ENTRYPOINT ["/aurum-node"]
 HEALTHCHECK --interval=2s --timeout=2s --start-period=2s --retries=3 CMD ["/healthcheck", "http", "127.0.0.1:7600", "/health"]
+
+FROM build AS web-bundle
+ENV RUSTFLAGS=""
+RUN rustup target add wasm32-unknown-unknown riscv64gc-unknown-none-elf \
+    && cargo run --release --locked -p site --example pack
+
+FROM scratch AS web
+COPY --from=build /src/target/release/monolith-web /monolith-web
+COPY --from=build /src/target/release/healthcheck /healthcheck
+COPY --from=web-bundle /src/target/site-web /www
+USER 65534:65534
+EXPOSE 8080
+ENTRYPOINT ["/monolith-web"]
+HEALTHCHECK --interval=2s --timeout=2s --start-period=2s --retries=3 CMD ["/healthcheck", "http", "127.0.0.1:8080", "/healthz"]

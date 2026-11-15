@@ -245,6 +245,54 @@ pub mod healthcheck {
     }
 }
 
+/// CLI parsing for `monolith-web`.
+pub mod web {
+    use super::*;
+
+    const DEFAULT_LISTEN: &str = "0.0.0.0:8080";
+    const DEFAULT_ROOT: &str = "/www";
+
+    /// Parsed options for `monolith-web`.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Options {
+        /// HTTP listen address.
+        pub listen: String,
+        /// Directory containing the packed site and Athena bundle.
+        pub root: PathBuf,
+    }
+
+    /// Parse `monolith-web [--listen ADDR] [--root DIR]` arguments (excluding argv[0]).
+    pub fn parse_args(args: &[String]) -> Result<Options, String> {
+        let mut listen: Option<String> = None;
+        let mut root: Option<PathBuf> = None;
+        let mut i = 0usize;
+        while i < args.len() {
+            match args[i].as_str() {
+                "--listen" => {
+                    let val = next_val(args, &mut i, "--listen")?;
+                    if listen.is_some() {
+                        return Err("duplicate --listen".to_string());
+                    }
+                    listen = Some(val.to_string());
+                }
+                "--root" => {
+                    let val = next_val(args, &mut i, "--root")?;
+                    if root.is_some() {
+                        return Err("duplicate --root".to_string());
+                    }
+                    root = Some(PathBuf::from(val));
+                }
+                other => return Err(format!("unknown argument: {other}")),
+            }
+            i += 1;
+        }
+        Ok(Options {
+            listen: listen.unwrap_or_else(|| DEFAULT_LISTEN.to_string()),
+            root: root.unwrap_or_else(|| PathBuf::from(DEFAULT_ROOT)),
+        })
+    }
+}
+
 fn next_val<'a>(args: &'a [String], idx: &mut usize, flag: &str) -> Result<&'a str, String> {
     let next = idx
         .checked_add(1)
@@ -310,6 +358,34 @@ mod tests {
             let _ = registry::parse_args(&args);
             let _ = aurum::parse_args(&args);
             let _ = healthcheck::parse_args(&args);
+            let _ = web::parse_args(&args);
         });
+    }
+
+    #[test]
+    fn web_cli_defaults_and_overrides() {
+        let def = web::parse_args(&[]).unwrap();
+        assert_eq!(def.listen, "0.0.0.0:8080");
+        assert_eq!(def.root, PathBuf::from("/www"));
+
+        let custom = web::parse_args(&[
+            "--listen".to_string(),
+            "127.0.0.1:9090".to_string(),
+            "--root".to_string(),
+            "/tmp/bundle".to_string(),
+        ])
+        .unwrap();
+        assert_eq!(custom.listen, "127.0.0.1:9090");
+        assert_eq!(custom.root, PathBuf::from("/tmp/bundle"));
+
+        assert!(web::parse_args(&["--listen".to_string()]).is_err());
+        assert!(web::parse_args(&[
+            "--listen".to_string(),
+            "a".to_string(),
+            "--listen".to_string(),
+            "b".to_string(),
+        ])
+        .is_err());
+        assert!(web::parse_args(&["--bogus".to_string()]).is_err());
     }
 }
