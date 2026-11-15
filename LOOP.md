@@ -161,7 +161,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T69 | P4 | helios | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
 | T70a | P4 | helios | audio mixer, scene stack, input record and replay | hydrogen | T69 | PASS |
 | T70 | P4 | helios | (T70b) Logos scripting, one original small game | hydrogen | T70a T18 | PASS |
-| T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Silicon + Titan on a canvas, Logos playground | argon | T28 T18 | TODO |
+| T71 | P5 | neon | WebAssembly builds with our own glue (no wasm-bindgen): Silicon + Titan on a canvas, Logos playground | argon | T28 T18 | RUNNING |
 | T72 | P5 | athena | IDE shell: editor, file tree, terminal, run, test | claude | T71 T55 | TODO |
 | T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen | T10 T72 | TODO |
 | T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect | hydrogen | T17 T72 | TODO |
