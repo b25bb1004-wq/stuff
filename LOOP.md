@@ -164,8 +164,8 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T71 | P5 | neon | WebAssembly builds with our own glue (no wasm-bindgen): Silicon + Titan on a canvas, Logos playground | argon | T28 T18 | PASS |
 | T72 | P5 | athena | IDE shell: editor, file tree, terminal, run, test | hydrogen-high (design docs/FRONT.md by leader) | T71 T55 | PASS |
 | T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen-high | T10 T72 | PASS |
-| T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect; split T74a core (elysium+cobalt, after T86a and T75b free them) and T74b UI | hydrogen-high | T17 T72 | TODO |
-| T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | T75a PASS, T75b PASS, T75c queued (also builds the T88 apps) |
+| T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect; split T74a elysium core, T74a2 cobalt stepping, T74b UI | hydrogen-high | T17 T72 | T74a RUNNING |
+| T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | T75a PASS, T75b PASS, T75c RUNNING (also builds the T88 apps) |
 | T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen-high | T42 T50 T47 | PASS |
 | T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen-high | (T77 dropped: loopback only) | PASS |
@@ -202,7 +202,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
 | T84 | P6 | deploy | one public web image: site at /, Athena at /athena/, /healthz; services stay private; README public hosting | hydrogen-high | T75a T77 | PASS |
 | T85 | P5 | athena | proper app: VS Code-style workbench (activity bar, tabs, palette, panel, status bar), installable PWA, offline | hydrogen-high | T73 | PASS |
-| T86 | P6 | tools | a command-line tool per system, conventions in docs/APPS.md (D7), batches T86a-e | hydrogen-high | - | sphinx, argo, chronos, calliope, kairos, midas, silicon, hades, mercury, elysium, odyssey, cobalt, aurum, helios, iris, indium, athena PASS; T86n titan, T86o lithium, T86p iridium RUNNING; zeus tool TODO |
+| T86 | P6 | tools | a command-line tool per system, conventions in docs/APPS.md (D7), batches T86a-e | hydrogen-high | - | sphinx, argo, chronos, calliope, kairos, midas, silicon, hades, mercury, elysium, odyssey, cobalt, aurum, helios, iris, indium, athena, titan, lithium, iridium PASS (24 of 25); T86q zeusctl RUNNING |
 | T87 | P6 | apps | app kit, launcher /apps/, one installable app per system with an existing demo | hydrogen-high | T75b | PASS |
 | T88 | P6 | apps | remaining apps with T75c visual demos | hydrogen-high | T87 T75c | folded into T75c |
 | T79s | P6 | fuzz | soak aurum | haiku | - | PASS |
@@ -394,3 +394,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T86j iris tool | hydrogen-high | n/a | PASS | leader: 8-event script, 800x500 PNG shows terminal that ran echo hi, editor text, file browser
 - 2026-11-16 | T86k indium tool | hydrogen-high | n/a | PASS | leader: layout render, focus order 0-4, focus ring on Cancel
 - 2026-11-16 | T86l athena tool | hydrogen-high | n/a | PASS | leader: fmt reflows, test PASS/FAIL exit 1, check unknown name exit 1, clean file exit 0 (empty assertion message is cosmetic)
+- 2026-11-16 | T86n titan tool | hydrogen-high | n/a | PASS | bin in neon; leader: boot --script ran ls and echo on the titan shell; --disk left out (Titan keeps its disk private)
+- 2026-11-16 | T86o lithium tool | hydrogen-high | n/a | PASS | leader: run prints A/B task interleave then halt, exit pass; --steps 0 exit 1; image writes 1750 bytes
+- 2026-11-16 | T86p iridium tool | hydrogen-high | n/a | PASS | leader: create and insert from stdin, select in a second process returns the row (FileStorage persists), missing table exit 1
