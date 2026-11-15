@@ -47,6 +47,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "flint"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "chisel",
+ "quartz",
+]
+
+[[package]]
 name = "geode"
 version = "0.1.0"
 dependencies = [

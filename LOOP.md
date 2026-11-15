@@ -98,7 +98,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | PASS |
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | PASS |
 | T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
-| T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | argon | T22 T23 | TODO |
+| T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | haiku | T22 T23 | RUNNING |
 | T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 T13a | TODO |
 | T26 | P2 | mantle | processes, user mode, syscalls, scheduler (geyser), ELF loading | argon-high | T25 T05 | TODO |
 | T27 | P2 | mantle | block driver, shale mounted, file syscalls | argon | T26 T07 | TODO |
@@ -144,7 +144,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T66a | P4 | spelunk | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | RUNNING |
 | T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
 | T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | PASS |
-| T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | hydrogen | T68 T58 | RUNNING |
+| T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
 | T70 | P4 | tectonic | audio mixer, scenes, Mica scripting, one original small game | hydrogen | T69 T18 | TODO |
 | T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Quartz + Mantle on a canvas, Mica playground | argon | T28 T18 | TODO |
 | T72 | P5 | lapidary | IDE shell: editor, file tree, terminal, run, test | claude | T71 T55 | TODO |
@@ -234,3 +234,6 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 12:25 | T48 seam core | haiku | 161,959 | PASS | check 8/8 + 2 fresh seeds, both gates; leader Merkle duplicate-leaf fix
 - 2026-11-15 12:32 | ROUND PLAN (operator: 5 hydrogen + 2 haiku at once) | - | budget ~550k Claude (2 Haiku x150k + ~250k leader); hydrogen on agy quota | - | H: T35 tremor UDP, T49 seam contracts, T61 glint, T69 tectonic, T41a varve SQL core (hydrogen-high). Haiku: T66a spelunk cascade+block layout, T24 flint asm kernel. lane.sh cap raised to 7. Hydrogen smoke ok 14:50. DeepSeek v4.1 flash on NVIDIA key4: reviewer only (96 s/call)
 - 2026-11-15 12:49 | T35 tremor UDP | hydrogen | agy quota | PASS | udp_leader 5/5 + fresh seeds + 100 MB release; leader seed fix
+- 2026-11-15 12:49 | STATE | - | - | - | T49 T61 T69 workers report CHECK PASS, leader checks to write (contracts_leader, glint_leader, phys_leader). T41a hydrogen-high and T66a haiku running. Haiku 2 (T24 flint) not dispatched yet. Next hydrogen once judged: T62 glint widgets, T50 seam node, T70 tectonic, T29 sinter codegen
+- 2026-11-15 12:51 | T69 tectonic phys | hydrogen | agy quota | RETRY 1 | phys_leader 5/6: stack box 0 sinks 0.0246 > 2*slop; to hydrogen-high
+- 2026-11-15 13:00 | T69 | hydrogen-high | agy quota | PASS | retry 1 fixed stack sink; phys_leader 6/6 both seeds; gates pass

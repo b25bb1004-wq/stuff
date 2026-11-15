@@ -8,8 +8,10 @@ extern crate alloc;
 extern crate std;
 
 mod clock;
+pub mod draw;
 pub mod ecs;
 pub mod fx;
+pub mod phys;
 pub mod rng;
 
 pub use clock::Clock;
