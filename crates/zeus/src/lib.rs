@@ -204,3 +204,6 @@ mod host {
 
 #[cfg(not(target_os = "none"))]
 pub use host::{build_machine, split_console, Guest, Image};
+
+#[cfg(not(target_os = "none"))]
+pub mod scene;
