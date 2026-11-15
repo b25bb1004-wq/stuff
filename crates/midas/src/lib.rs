@@ -4,15 +4,19 @@
 #![cfg_attr(not(test), no_std)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+extern crate alloc;
+
 mod buddy;
 mod heap;
 mod lock;
+mod sim;
 #[cfg(test)]
 mod testutil;
 
 pub use buddy::Buddy;
 pub use heap::Heap;
 pub use lock::Locked;
+pub use sim::{Block, BlockState, Handle, Sim, SimError};
 
 /// Page size in bytes: the smallest block the buddy allocator hands out.
 pub const PAGE: usize = 4096;

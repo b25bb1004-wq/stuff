@@ -256,7 +256,7 @@ fn free_in(head: *mut u8, page: *mut u8, limit: usize) -> usize {
 }
 
 /// Slab class index for a request, or `None` if it must go to the buddy.
-fn class_of(size: usize, align: usize) -> Option<usize> {
+pub(crate) fn class_of(size: usize, align: usize) -> Option<usize> {
     let need = size.max(MIN_CLASS).checked_next_power_of_two()?;
     if need > MAX_CLASS || align > need {
         return None;
@@ -264,12 +264,12 @@ fn class_of(size: usize, align: usize) -> Option<usize> {
     Some((need.trailing_zeros() - MIN_CLASS.trailing_zeros()) as usize)
 }
 
-fn class_size(c: usize) -> usize {
+pub(crate) fn class_size(c: usize) -> usize {
     MIN_CLASS << c
 }
 
 /// Buddy order that covers a large request, or `None` if it is too big or over-aligned.
-fn large_order(layout: Layout) -> Option<u32> {
+pub(crate) fn large_order(layout: Layout) -> Option<u32> {
     if layout.align() > MAX_ALIGN {
         return None;
     }
@@ -279,7 +279,7 @@ fn large_order(layout: Layout) -> Option<u32> {
     (order as usize <= MAX_ORDER).then_some(order)
 }
 
-fn order_bytes(order: u32) -> usize {
+pub(crate) fn order_bytes(order: u32) -> usize {
     (1usize << order) * PAGE
 }
 
