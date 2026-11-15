@@ -418,3 +418,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T80f mercury, keys, chronos, odyssey | haiku x4 | 560k | PASS (odyssey gate pending chisel edit) | flipped tests pinned the old defects; chronos push token constant-time
 - 2026-11-16 | T89b site service workers | haiku | 120k | PASS | live SW in devtools Chrome: per-app plus shared core cache, odyssey served its own wasm
 - 2026-11-16 | dispatched T80f-bounds (chisel logos neon), T92 silicon snapshots, T74b athena debugger UI, T76 site a11y | haiku x4 | - | RUNNING | Titan video pilot (Fable) running; videos parked by the operator until he wakes
+- 2026-11-16 | T80f bounds, odyssey | haiku | 314k | PASS | all T80 highs fixed except athena/src/wasm.rs:30 raw (ptr,len) copy (same fix as neon guest_alloc.rs)
+- 2026-11-16 | T89b, docs scrub, T74b core, T92 snapshots | haiku | 600k | PASS | T74b UI not started (next: T74c workbench UI + athena pointer fix)
+- 2026-11-16 04:00 | STOP | leader | - | NOTE | usage limit hit. Stopped mid-task: T76 site a11y (crates/site web/apps/tests), T74a3 + T86u (crates/logos, crates/cobalt), Titan video pilot (~/monolith-video/titan). Their partial edits are uncommitted in the tree: regate before keeping. Soak T79: chronos suite failed during the chronos edit; rerun on committed code. Next: T74c, T83 release prep, PLAN-NEXT T95+.
