@@ -129,6 +129,7 @@ dependencies = [
  "mica",
  "onyx",
  "sinter",
+ "tremor",
 ]
 
 [[package]]
@@ -143,8 +144,10 @@ name = "sinter"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "chisel",
  "geode",
  "mica",
+ "quartz",
 ]
 
 [[package]]
@@ -168,7 +171,10 @@ name = "tectonic"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "geode",
+ "mica",
  "pigment",
+ "sinter",
 ]
 
 [[package]]

@@ -151,7 +151,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | PASS |
 | T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
 | T70a | P4 | tectonic | audio mixer, scene stack, input record and replay | hydrogen | T69 | PASS |
-| T70 | P4 | tectonic | (T70b) Mica scripting, one original small game | hydrogen | T70a T18 | RUNNING |
+| T70 | P4 | tectonic | (T70b) Mica scripting, one original small game | hydrogen | T70a T18 | PASS |
 | T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Quartz + Mantle on a canvas, Mica playground | argon | T28 T18 | TODO |
 | T72 | P5 | lapidary | IDE shell: editor, file tree, terminal, run, test | claude | T71 T55 | TODO |
 | T73 | P5 | lapidary | language service: errors, hover, go to definition, format | hydrogen | T10 T72 | TODO |
@@ -265,3 +265,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 14:41 | T50a | hydrogen-high | agy quota | PASS | node_leader 3/3 both seeds; leader added Node::missing for GetBlock retry (brief gap); gates pass
 - 2026-11-15 14:54 | T42 varve net | hydrogen | - | PASS | own codec+8 clients+txn model; zero-col rows aligned
 - 2026-11-15 15:03 | dispatch | 6 hydrogen | - | RUNNING | T50b hydrogen-high; T79c-g soaks chisel geode drillcore cairn crust
+- 2026-11-15 15:16 | T70b tectonic script game | hydrogen | agy quota | PASS | script_leader 4/4 both seeds; extern model, traps, fuel, replay, pixels

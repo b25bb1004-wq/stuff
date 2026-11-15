@@ -1,0 +1,189 @@
+// Prism Drift: original one-screen arcade game for Strata tectonic.
+// Slots: 0=score, 1=lives, 2=game_over, 3=quit_timer, 4=px, 5=py,
+//        6=bolt_on, 7=bolt_x, 8=bolt_y, 9=cooldown,
+//        10..21=4 meteors (x, y, speed), 22..27=2 shards (x, y, speed).
+
+fn g_keys() -> int = extern "game.keys"
+fn g_frame() -> int = extern "game.frame"
+fn g_get(i: int) -> int = extern "game.get"
+fn g_set(i: int, v: int) = extern "game.set"
+fn g_rand(n: int) -> int = extern "game.rand"
+fn g_rect(x: int, y: int, w: int, h: int, c: int) = extern "game.rect"
+fn g_quit() = extern "game.quit"
+
+fn hit(ax: int, ay: int, aw: int, ah: int, bx: int, by: int, bw: int, bh: int) -> bool {
+    ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by
+}
+
+fn spawn_meteor(idx: int, offset_y: int) {
+    let base = 10 + idx * 3
+    let x = if idx == 0 {
+        min(298, max(8, g_get(4)))
+    } else {
+        8 + g_rand(290)
+    }
+    g_set(base, x)
+    g_set(base + 1, -16 - offset_y)
+    g_set(base + 2, 2 + g_rand(3))
+}
+
+fn spawn_shard(idx: int, offset_y: int) {
+    let base = 22 + idx * 3
+    g_set(base, 12 + g_rand(286))
+    g_set(base + 1, -12 - offset_y)
+    g_set(base + 2, 2 + (idx % 2))
+}
+
+fn init() {
+    g_set(0, 0)
+    g_set(1, 3)
+    g_set(2, 0)
+    g_set(3, 0)
+    g_set(4, 152)
+    g_set(5, 208)
+    g_set(6, 0)
+    g_set(9, 0)
+    for i in 0..4 {
+        spawn_meteor(i, i * 48)
+    }
+    for i in 0..2 {
+        spawn_shard(i, 30 + i * 90)
+    }
+}
+
+fn update_player(keys: int) {
+    var px = g_get(4)
+    var py = g_get(5)
+    if (keys & 1) != 0 { px = max(8, px - 4) }
+    if ((keys >> 1) & 1) != 0 { px = min(296, px + 4) }
+    if ((keys >> 2) & 1) != 0 { py = max(120, py - 3) }
+    if ((keys >> 3) & 1) != 0 { py = min(220, py + 3) }
+    g_set(4, px)
+    g_set(5, py)
+
+    var cd = g_get(9)
+    if cd > 0 { cd = cd - 1 }
+    if ((keys >> 4) & 1) != 0 && g_get(6) == 0 && cd == 0 {
+        g_set(6, 1)
+        g_set(7, px + 6)
+        g_set(8, py - 10)
+        cd = 10
+    }
+    g_set(9, cd)
+
+    if g_get(6) == 1 {
+        let by = g_get(8) - 8
+        if by < -12 {
+            g_set(6, 0)
+        } else {
+            g_set(8, by)
+        }
+    }
+}
+
+fn update_entities() {
+    let px = g_get(4)
+    let py = g_get(5)
+
+    for i in 0..4 {
+        let base = 10 + i * 3
+        let mx = g_get(base)
+        let my = g_get(base + 1) + g_get(base + 2)
+        if my > 244 {
+            spawn_meteor(i, 0)
+        } else {
+            g_set(base + 1, my)
+            if g_get(6) == 1 && hit(g_get(7), g_get(8), 4, 10, mx, my, 14, 14) {
+                g_set(6, 0)
+                g_set(0, g_get(0) + 15)
+                spawn_meteor(i, 10)
+            } else if hit(px, py, 16, 12, mx, my, 14, 14) {
+                spawn_meteor(i, 10)
+                let lives = g_get(1) - 1
+                if lives <= 0 {
+                    g_set(1, 0)
+                    g_set(2, 1)
+                    g_set(3, 0)
+                } else {
+                    g_set(1, lives)
+                }
+            }
+        }
+    }
+
+    for i in 0..2 {
+        let base = 22 + i * 3
+        let sx = g_get(base)
+        let sy = g_get(base + 1) + g_get(base + 2)
+        if sy > 244 {
+            spawn_shard(i, 0)
+        } else {
+            g_set(base + 1, sy)
+            if hit(px, py, 16, 12, sx, sy, 10, 10) {
+                g_set(0, g_get(0) + 25)
+                spawn_shard(i, 20)
+            }
+        }
+    }
+
+    if g_get(2) == 0 && (g_frame() % 20) == 0 {
+        g_set(0, g_get(0) + 1)
+    }
+}
+
+fn draw_scene() {
+    let f = g_frame()
+    g_rect(0, 0, 320, 240, 0x090d1a)
+    for s in 0..6 {
+        let sx = (s * 53 + 17) % 316
+        let sy = (s * 41 + f * (1 + (s % 2))) % 240
+        g_rect(sx, sy, 2, 2, 0x334155)
+    }
+
+    if g_get(6) == 1 {
+        g_rect(g_get(7), g_get(8), 4, 10, 0xfacc15)
+    }
+
+    for i in 0..4 {
+        let base = 10 + i * 3
+        g_rect(g_get(base), g_get(base + 1), 14, 14, 0xef4444)
+    }
+
+    for i in 0..2 {
+        let base = 22 + i * 3
+        g_rect(g_get(base), g_get(base + 1), 10, 10, 0x22c55e)
+    }
+
+    let px = g_get(4)
+    let py = g_get(5)
+    g_rect(px, py, 16, 12, 0x38bdf8)
+    g_rect(px + 5, py - 3, 6, 4, 0xe0f2fe)
+
+    g_rect(0, 0, 320, 14, 0x1e293b)
+    let bar = min(180, g_get(0) / 2)
+    g_rect(6, 4, bar, 6, 0x38bdf8)
+    for l in 0..g_get(1) {
+        g_rect(304 - l * 14, 4, 8, 6, 0x22c55e)
+    }
+
+    if g_get(2) == 1 {
+        g_rect(80, 96, 160, 48, 0x7f1d1d)
+        g_rect(84, 100, 152, 40, 0xef4444)
+    }
+}
+
+fn update() {
+    if g_get(2) == 1 {
+        let t = g_get(3) + 1
+        g_set(3, t)
+        draw_scene()
+        if t >= 60 {
+            g_quit()
+        }
+        return
+    }
+
+    update_player(g_keys())
+    update_entities()
+    draw_scene()
+}

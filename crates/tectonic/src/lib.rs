@@ -15,5 +15,6 @@ pub mod fx;
 pub mod phys;
 pub mod rng;
 pub mod scene;
+pub mod script;
 
 pub use clock::Clock;
