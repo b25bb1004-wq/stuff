@@ -4,7 +4,28 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
+use std::path::Path;
+
 use athena::pack::pack;
+use neon::webkit::lint;
+
+/// Every file under `dir` as a `/`-separated path relative to it.
+fn files_under(dir: &Path) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let mut todo = vec![dir.to_path_buf()];
+    while let Some(d) = todo.pop() {
+        for entry in std::fs::read_dir(&d).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                todo.push(path);
+            } else {
+                let rel = path.strip_prefix(dir).unwrap();
+                out.insert(rel.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+    out
+}
 
 struct Cursor<'a> {
     bytes: &'a [u8],
@@ -286,19 +307,29 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
     ]
     .into_iter()
     .map(String::from)
+    .chain(
+        neon::webkit::FILES
+            .iter()
+            .map(|(name, _)| format!("_kit/{name}")),
+    )
     .collect();
 
-    let mut actual_files = BTreeSet::new();
-    for entry in std::fs::read_dir(&tmp).unwrap() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        assert!(path.is_file(), "unexpected non-file {}", path.display());
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let meta = std::fs::metadata(&path).unwrap();
-        assert!(meta.len() > 0, "empty bundled file {}", path.display());
-        actual_files.insert(name);
+    let actual_files = files_under(&tmp);
+    for name in &actual_files {
+        let meta = std::fs::metadata(tmp.join(name)).unwrap();
+        assert!(meta.len() > 0, "empty bundled file {name}");
     }
     assert_eq!(actual_files, expected_files, "bundle file set mismatch");
+
+    // Every shipped text file passes the bundle lint: no external URLs, no layout transitions.
+    for name in expected_files
+        .iter()
+        .filter(|n| !n.ends_with(".wasm") && !n.ends_with(".png") && !n.ends_with(".elf"))
+    {
+        let text = std::fs::read_to_string(tmp.join(name)).unwrap();
+        let problems = lint(&text);
+        assert!(problems.is_empty(), "{name}: {problems:?}");
+    }
 
     let html = std::fs::read_to_string(tmp.join("index.html")).unwrap();
     for forbidden in ["http://", "https://", "//", "ws://", "wss://"] {
@@ -423,11 +454,13 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
     );
 
     let sw_js = std::fs::read_to_string(tmp.join("sw.js")).unwrap();
-    assert!(!sw_js.contains("__ATHENA_CACHE_NAME__"));
-    assert!(!sw_js.contains("__ATHENA_ASSETS__"));
-    let assets_prefix = "const ASSETS = ";
+    assert!(
+        !sw_js.contains("caches.match("),
+        "sw.js must answer from its own opened cache"
+    );
+    let assets_prefix = "var FILES = ";
     let assets_start = sw_js.find(assets_prefix).unwrap() + assets_prefix.len();
-    let assets_end = sw_js[assets_start..].find(';').unwrap() + assets_start;
+    let assets_end = sw_js[assets_start..].find(";\n").unwrap() + assets_start;
     let sw_assets_val = JsonParser::parse(&sw_js[assets_start..assets_end]);
     let sw_assets: BTreeSet<String> = sw_assets_val
         .as_arr()
@@ -435,9 +468,25 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
         .iter()
         .map(|v| v.as_str().unwrap().to_owned())
         .collect();
+    let mut want: BTreeSet<String> = expected_files
+        .iter()
+        .filter(|n| n.as_str() != "sw.js")
+        .map(|n| {
+            if n.starts_with("_kit/") {
+                format!("/{n}")
+            } else {
+                n.clone()
+            }
+        })
+        .collect();
+    want.insert(String::from("./"));
     assert_eq!(
-        sw_assets, expected_files,
-        "sw.js ASSETS must list every bundle file and nothing else"
+        sw_assets, want,
+        "sw.js FILES must list the page, every bundle file and the kit, and nothing else"
+    );
+    assert!(
+        sw_js.contains("var PREFIX = \"athena\";"),
+        "sw.js must use the athena- cache prefix"
     );
 
     let wasm = std::fs::read(tmp.join("athena.wasm")).unwrap();

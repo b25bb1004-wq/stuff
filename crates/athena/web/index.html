@@ -7,7 +7,10 @@
   <title>Athena — Monolith IDE</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="stylesheet" href="/_kit/tokens.css">
   <link rel="stylesheet" href="style.css">
+  <script src="/_kit/wasm.js"></script>
+  <script src="/_kit/term.js"></script>
   <script type="module" src="athena.js"></script>
 </head>
 <body>
@@ -196,13 +199,9 @@
         <div class="tab-panel tab-panel-term" id="panel-terminal" role="tabpanel" aria-labelledby="tab-terminal" hidden>
           <div class="term-status-bar">
             <span>Titan RISC-V</span>
-            <span class="term-status" id="titan-status">not booted</span>
+            <span class="term-state" id="titan-status">not booted</span>
           </div>
-          <pre class="term-out" id="term-out"></pre>
-          <form class="term-form" id="term-form">
-            <input type="text" class="term-in" id="term-in" disabled placeholder="open Terminal tab to boot" aria-label="Terminal input">
-            <button type="submit" class="btn btn-sm btn-primary" id="term-send" disabled>Send</button>
-          </form>
+          <div class="term-root" id="term-root"></div>
         </div>
       </section>
     </div>

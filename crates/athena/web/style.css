@@ -1,44 +1,10 @@
 :root {
-  --bg: #0e1013;
-  --panel: #161a1f;
-  --line: #262c34;
-  --text: #e6e3dc;
-  --muted: #9aa1ab;
-  --accent: #e0a458;
-  --ok: #7cc49a;
-  --bad: #ef7b7b;
-  --font-ui: system-ui, sans-serif;
-  --font-code: ui-monospace, "Cascadia Code", Consolas, monospace;
   --t-fast: 120ms;
   --t-med: 240ms;
   --t-slow: 600ms;
   --ease: cubic-bezier(.2, .7, .2, 1);
   --left-w: 220px;
   --panel-h: 210px;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #f4f2ee;
-    --panel: #ffffff;
-    --line: #d9d4ca;
-    --text: #1b1d21;
-    --muted: #5c6168;
-    --accent: #9a5b12;
-    --ok: #1f7a47;
-    --bad: #b3261e;
-  }
-}
-
-:root[data-theme="light"] {
-  --bg: #f4f2ee;
-  --panel: #ffffff;
-  --line: #d9d4ca;
-  --text: #1b1d21;
-  --muted: #5c6168;
-  --accent: #9a5b12;
-  --ok: #1f7a47;
-  --bad: #b3261e;
 }
 
 *,
@@ -1126,6 +1092,52 @@ textarea {
   background: var(--bg);
   font-family: var(--font-code);
   font-size: 13px;
+}
+
+/* Widget built by /_kit/term.js inside .term-root. */
+.term-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.term-root .term-out {
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.term-root .term-status {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.term-prompt {
+  font-family: var(--font-code);
+  color: var(--muted);
+  align-self: center;
+}
+
+.term-form button {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.term-form button:disabled,
+.term-in:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.term-state {
+  font-family: var(--font-code);
 }
 
 /* Status Bar */

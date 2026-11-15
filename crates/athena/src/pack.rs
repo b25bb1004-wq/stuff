@@ -1,7 +1,8 @@
 //! Host bundler that compiles `athena` (wasm32) and `titan` (riscv64) and packages the web app.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+
+use neon::webkit::{content_hash, run_cargo, sw_js, FILES as KIT_FILES};
 
 use crate::icons::render_icon_png;
 
@@ -14,7 +15,8 @@ const STATIC_WEB_FILES: [&str; 6] = [
     "manifest.webmanifest",
 ];
 
-const BUNDLE_FILES: [&str; 12] = [
+/// Files the bundle ships besides the kit and the generated `sw.js`.
+const BUNDLE_FILES: [&str; 11] = [
     "debug.js",
     "athena.js",
     "athena.wasm",
@@ -24,12 +26,11 @@ const BUNDLE_FILES: [&str; 12] = [
     "index.html",
     "manifest.webmanifest",
     "style.css",
-    "sw.js",
     "titan.elf",
     "workbench.js",
 ];
 
-/// Build `athena.wasm`, `titan.elf`, PWA icons, service worker, and copy all web assets into `out`.
+/// Build `athena.wasm`, `titan.elf`, PWA icons, the kit under `_kit/`, and the service worker.
 pub fn pack(out: &Path) -> Result<(), String> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let root = manifest_dir
@@ -84,7 +85,7 @@ pub fn pack(out: &Path) -> Result<(), String> {
         .join("kernel");
     let web_dir = manifest_dir.join("web");
 
-    let mut copies: Vec<(PathBuf, PathBuf)> = Vec::with_capacity(7);
+    let mut copies: Vec<(PathBuf, PathBuf)> = Vec::with_capacity(8);
     copies.push((wasm_src, out.join("athena.wasm")));
     copies.push((titan_src, out.join("titan.elf")));
     for name in STATIC_WEB_FILES {
@@ -94,6 +95,15 @@ pub fn pack(out: &Path) -> Result<(), String> {
     for (src, dst) in copies {
         std::fs::copy(&src, &dst)
             .map_err(|e| format!("failed to copy {} to {}: {e}", src.display(), dst.display()))?;
+    }
+
+    let kit_out = out.join("_kit");
+    std::fs::create_dir_all(&kit_out)
+        .map_err(|e| format!("failed to create {}: {e}", kit_out.display()))?;
+    for (name, text) in KIT_FILES {
+        let dst = kit_out.join(name);
+        std::fs::write(&dst, text)
+            .map_err(|e| format!("failed to write kit file {}: {e}", dst.display()))?;
     }
 
     let icons: [(&str, u32, bool); 3] = [
@@ -108,84 +118,31 @@ pub fn pack(out: &Path) -> Result<(), String> {
             .map_err(|e| format!("failed to write icon {}: {e}", dst.display()))?;
     }
 
-    let sw_template_path = web_dir.join("sw.js");
-    let sw_template = std::fs::read_to_string(&sw_template_path)
-        .map_err(|e| format!("failed to read {}: {e}", sw_template_path.display()))?;
-
-    let hash = compute_bundle_hash(out, &sw_template)?;
-    let cache_name = format!("athena-{hash}");
-    let assets_json = format_json_string_array(&BUNDLE_FILES);
-
-    let sw_rendered = sw_template
-        .replace("__ATHENA_CACHE_NAME__", &cache_name)
-        .replace("\"__ATHENA_ASSETS__\"", &assets_json)
-        .replace("__ATHENA_ASSETS__", &assets_json);
-
-    let sw_dst = out.join("sw.js");
-    std::fs::write(&sw_dst, sw_rendered)
-        .map_err(|e| format!("failed to write {}: {e}", sw_dst.display()))?;
-
-    Ok(())
-}
-
-fn format_json_string_array(items: &[&str]) -> String {
-    let mut out = String::from("[");
-    for (idx, item) in items.iter().enumerate() {
-        if idx > 0 {
-            out.push(',');
-        }
-        out.push('"');
-        out.push_str(item);
-        out.push('"');
-    }
-    out.push(']');
-    out
-}
-
-fn compute_bundle_hash(out: &Path, sw_template: &str) -> Result<String, String> {
-    let mut h1: u64 = 0xcbf2_9ce4_8422_2325;
-    let mut h2: u64 = 0x9e37_79b9_7f4a_7c15;
-    let mut feed = |bytes: &[u8]| {
-        for &b in bytes {
-            h1 ^= u64::from(b);
-            h1 = h1.wrapping_mul(0x0100_0000_01b3);
-            h2 = h2
-                .wrapping_add(u64::from(b))
-                .wrapping_mul(0xbf58_476d_1ce4_e5b9);
-        }
-    };
-
+    // The cache name is a hash of every shipped file, so a changed build gets a new cache.
+    let mut parts: Vec<Vec<u8>> = Vec::new();
     for name in BUNDLE_FILES {
-        if name == "sw.js" {
-            feed(b"sw.js\0");
-            feed(sw_template.as_bytes());
-            continue;
-        }
         let path = out.join(name);
         let bytes = std::fs::read(&path)
             .map_err(|e| format!("failed to read {} for hashing: {e}", path.display()))?;
-        feed(name.as_bytes());
-        feed(&[0]);
-        feed(&bytes);
+        parts.push(name.as_bytes().to_vec());
+        parts.push(bytes);
     }
-
-    Ok(format!("{h1:016x}{h2:016x}"))
-}
-
-fn run_cargo(cargo: &str, root: &Path, target_dir: &Path, args: &[&str]) -> Result<(), String> {
-    let output = Command::new(cargo)
-        .current_dir(root)
-        .env("CARGO_TARGET_DIR", target_dir)
-        .args(args)
-        .output()
-        .map_err(|e| format!("failed to spawn cargo ({}): {e}", args.join(" ")))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!(
-            "cargo {} failed ({}):\n{stderr}",
-            args.join(" "),
-            output.status
-        ));
+    for (name, text) in KIT_FILES {
+        parts.push(name.as_bytes().to_vec());
+        parts.push(text.as_bytes().to_vec());
     }
+    let refs: Vec<&[u8]> = parts.iter().map(Vec::as_slice).collect();
+    let hash = content_hash(&refs);
+
+    // Precache: the page itself (as "./"), every shipped file, and the kit at its absolute path.
+    let mut precache: Vec<String> = vec![String::from("./")];
+    precache.extend(BUNDLE_FILES.iter().map(|f| String::from(*f)));
+    precache.extend(KIT_FILES.iter().map(|(name, _)| format!("/_kit/{name}")));
+    let precache_refs: Vec<&str> = precache.iter().map(String::as_str).collect();
+
+    let sw_dst = out.join("sw.js");
+    std::fs::write(&sw_dst, sw_js("athena", &hash, &precache_refs))
+        .map_err(|e| format!("failed to write {}: {e}", sw_dst.display()))?;
+
     Ok(())
 }

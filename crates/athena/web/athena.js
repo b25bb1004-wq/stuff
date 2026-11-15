@@ -25,11 +25,11 @@ const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 const [
   btnRun, btnTest, btnFormat, editorStatus, hoverTooltip,
   editorEmpty, editorWrap, gutter, codeHighlight, codeHighlightInner, codeInput,
-  runOut, testSummary, testList, titanStatus, termOut, termForm, termIn, termSend
+  runOut, testSummary, testList, titanStatus
 ] = [
   "btn-run", "btn-test", "btn-format", "editor-status", "hover-tooltip",
   "editor-empty", "editor-wrap", "editor-gutter", "code-highlight", "code-highlight-inner", "code-input",
-  "run-out", "test-summary", "test-list", "titan-status", "term-out", "term-form", "term-in", "term-send"
+  "run-out", "test-summary", "test-list", "titan-status"
 ].map($);
 hoverTooltip.setAttribute("role", "tooltip");
 
@@ -84,7 +84,6 @@ let diagnosticsByFile = {};
 let lastSaveText = "saved";
 let wasm = null;
 let debounceTimer = null;
-let pumping = false;
 let titanBootStarted = false;
 let transientStatus = false;
 let hoverTimer = null;
@@ -803,31 +802,26 @@ btnRun.addEventListener("click", runActiveFile);
 btnTest.addEventListener("click", testActiveFile);
 btnFormat.addEventListener("click", formatActiveFile);
 
-function appendTerm(text, cls) {
-  if (!text) return;
-  if (cls) { const s = document.createElement("span"); s.className = cls; s.textContent = text; termOut.appendChild(s); }
-  else termOut.appendChild(document.createTextNode(text));
-  termOut.scrollTop = termOut.scrollHeight;
-}
-
-function setTermInputEnabled(enabled) {
-  termIn.disabled = !enabled;
-  termSend.disabled = !enabled;
-  if (enabled) termIn.placeholder = "type command and press Enter";
-}
-
-function pumpFrame() {
-  pumping = false;
-  if (!wasm) return;
+// Titan pump: one slice of guest steps per animation frame; Term appends the output it returns.
+function termPump() {
+  if (!wasm) return { status: "done", text: "" };
   const rc = wasm.titan_pump(STEPS_PER_FRAME);
   const outLen = wasm.titan_output();
-  if (outLen > 0) appendTerm(readNeonLast(outLen));
-  if (rc === 1) { titanStatus.textContent = "running"; pumping = true; requestAnimationFrame(pumpFrame); }
-  else if (rc === 0) { titanStatus.textContent = "waiting for input"; setTermInputEnabled(true); }
-  else { titanStatus.textContent = rc >= 2 ? `exited (${rc - 2})` : "not booted"; setTermInputEnabled(false); }
+  const text = outLen > 0 ? readNeonLast(outLen) : "";
+  if (rc === 1) { titanStatus.textContent = "running"; return { status: "busy", text }; }
+  if (rc === 0) { titanStatus.textContent = "waiting for input"; return { status: "waiting", text }; }
+  titanStatus.textContent = rc >= 2 ? `exited (${rc - 2})` : "not booted";
+  return { status: "done", text };
 }
 
-const startPump = () => { if (!pumping) { pumping = true; requestAnimationFrame(pumpFrame); } };
+const term = Term.mount($("term-root"), {
+  prompt: "$",
+  pump: termPump,
+  send: (line) => {
+    if (!wasm) return;
+    withBytes(encoder.encode(line), (ptr, len) => wasm.titan_send(ptr, len));
+  }
+});
 
 async function bootTitanIfNeeded() {
   if (titanBootStarted || !wasm) return;
@@ -839,32 +833,15 @@ async function bootTitanIfNeeded() {
     const rc = withBytes(new Uint8Array(await elfResp.arrayBuffer()), (ptr, len) => wasm.titan_boot(ptr, len));
     if (rc !== 0) throw new Error(readNeonLast(wasm.neon_last_len()) || "titan_boot failed");
     titanStatus.textContent = "booting…";
-    startPump();
+    term.start();
   } catch (err) {
     titanStatus.textContent = "failed";
-    appendTerm(`\n[titan error] ${err && err.message ? err.message : String(err)}\n`);
+    term.append(`\n[titan error] ${err && err.message ? err.message : String(err)}\n`);
   }
 }
 
-termForm.addEventListener("submit", (ev) => {
-  ev.preventDefault();
-  if (!wasm || termIn.disabled) return;
-  const line = termIn.value;
-  termIn.value = "";
-  appendTerm(`${line}\n`, "user-cmd");
-  setTermInputEnabled(false);
-  withBytes(encoder.encode(line), (ptr, len) => wasm.titan_send(ptr, len));
-  startPump();
-  termIn.focus();
-});
-
 async function loadWasm() {
-  if (typeof WebAssembly.instantiateStreaming === "function") {
-    try { return (await WebAssembly.instantiateStreaming(fetch("athena.wasm"), {})).instance.exports; } catch (_e) { /* fallback */ }
-  }
-  const resp = await fetch("athena.wasm");
-  if (!resp.ok) throw new Error(`failed to fetch athena.wasm: ${resp.status}`);
-  return (await WebAssembly.instantiate(await resp.arrayBuffer(), {})).instance.exports;
+  return (await Neon.load("athena.wasm")).exports;
 }
 
 const debug = createDebugUi({ wasm: () => wasm, withBytes, readAthenaLast, activeFile: () => activeFile, setStatus: (m, e) => { transientStatus = true; setEditorStatus(m, e); } });
@@ -875,7 +852,7 @@ const workbench = createWorkbench({
   runActiveFile, testActiveFile, runAllTests, formatActiveFile, debugCommand: (id) => debug.command(id),
   goToDefinitionAtCaret: () => goToDefinitionAtOffset(codeInput.selectionStart || 0, true),
   showHoverAtCaret, focusEditor: () => codeInput.focus(),
-  focusTerminalInput: () => { bootTitanIfNeeded(); termIn.focus(); },
+  focusTerminalInput: () => { bootTitanIfNeeded(); term.focus(); },
   onTerminalTabOpened: bootTitanIfNeeded,
   setTransientStatus: (msg, isError) => { transientStatus = true; setEditorStatus(msg, isError); }
 });
