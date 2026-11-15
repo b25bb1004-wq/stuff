@@ -200,6 +200,30 @@ impl Editor {
         true
     }
 
+    pub(crate) fn current_node(&self) -> usize {
+        self.current
+    }
+
+    pub(crate) fn replace_range(&mut self, start: usize, end: usize, inserted: &str) -> bool {
+        let deleted = self.buffer.slice(start, end);
+        if deleted == inserted {
+            return false;
+        }
+        let edits = vec![SingleEdit {
+            pre_offset: start,
+            post_offset: start,
+            deleted,
+            inserted: String::from(inserted),
+        }];
+        let cursors = vec![Cursor {
+            anchor: start,
+            head: start,
+        }];
+        apply_forward(&mut self.buffer, &edits);
+        self.push_node(edits, cursors.clone(), cursors);
+        true
+    }
+
     fn push_node(
         &mut self,
         edits: Vec<SingleEdit>,

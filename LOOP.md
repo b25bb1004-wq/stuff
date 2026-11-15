@@ -21,7 +21,7 @@
 - [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
 - [x] T39 varve pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
 - [x] T34 tremor PASS on retry 1 (ACK/PTO fix); drillcore racing-pushers check fixed (reachability, not first-parent)
-- [>] T55 slate app: brief + app_leader.rs (edit/motion tables, screens, scroll, files, Mica highlight, fuzz undo-all), dispatched (hydrogen)
+- [x] T55 slate app: brief + app_leader.rs (edit/motion tables, screens, scroll, files, Mica highlight, fuzz undo-all), dispatched (hydrogen)
 - [>] T48 seam: exact brief (encodings, RFC 6962 Merkle, state root, append order) written; dispatched to one Haiku subagent (operator 2026-11-15); seam_leader.rs ready (lint vs stub, RFC 6962 model self-check OK)
 - [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
@@ -130,7 +130,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
 | T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | PASS |
 | T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | hydrogen-high |  | PASS |
-| T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | RUNNING |
+| T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | PASS |
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | PASS |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | PASS |
@@ -228,3 +228,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 08:26 T40 varve B+tree PASS (hydrogen-high): check 5/5 + fresh seed after leader fix to T39 pager read(0) in a txn (stale page 0); regression test added to pager_leader. T34 dispatched.
 - 2026-11-15 11:57 T22 PASS (hydrogen); T34 PASS retry 1 (hydrogen-high); T55 brief+check ready; drillcore remote_leader flake fixed
 - 2026-11-15 12:35 T48 seam: brief + seam_leader.rs (own Merkle/encoding/state model, 40-block chain, invalid-block corpus with precedence pairs); one Haiku worker (operator). Argon 15%. Skills written: leader-check-assert-property-not-shape, stalled-simulation-state-trace, leader-check-stub-lint
+- 2026-11-15 14:10 | T55 slate app | hydrogen | agy quota | PASS | check 10/10 + fresh seeds, both gates; leader scroll-check fix

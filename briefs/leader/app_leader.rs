@@ -272,7 +272,11 @@ fn scrolling() {
     assert_eq!(scr.rows[0].trim_end(), "line96");
     assert_eq!(scr.rows[3].trim_end(), "line99");
     assert_eq!(scr.cursor, (3, 0));
-    for k in parse_keys("gg5j") {
+    // Render between moves: the brief does not say whether scrolling happens per key or at render.
+    app.handle(Key::Char('g'));
+    app.handle(Key::Char('g'));
+    assert_eq!(app.render().rows[0].trim_end(), "line0");
+    for k in parse_keys("5j") {
         app.handle(k);
     }
     let scr = app.render();

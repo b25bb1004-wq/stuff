@@ -115,6 +115,7 @@ name = "seam"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "onyx",
 ]
 
 [[package]]
@@ -138,6 +139,7 @@ name = "slate"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "mica",
 ]
 
 [[package]]
