@@ -5,6 +5,10 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[[bin]]
+name = "aurum"
+path = "src/bin/aurum.rs"
+
 [dependencies]
 elysium = { path = "../elysium" }
 logos = { path = "../logos" }
