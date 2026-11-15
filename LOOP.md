@@ -128,7 +128,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | haiku | T04 | PASS |
 | T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | PASS |
 | T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
-| T50a | P3 | seam | node: block pool, fork choice, reorgs, sync messages, mempool | hydrogen-high | T49 | RUNNING |
+| T50a | P3 | seam | node: block pool, fork choice, reorgs, sync messages, mempool | hydrogen-high | T49 | PASS |
 | T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
 | T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
@@ -256,3 +256,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 14:08 | T79a | hydrogen | agy quota | PASS | outcrop soak 7.4M cases fresh seed; lane is single-crate, rest split to T79b
 - 2026-11-15 14:14 | T62 | haiku | 139,418 | PASS | widgets_leader 4/4 both seeds; leader fixed nav reveal-without-change; gates pass
 - 2026-11-15 14:21 | T66b | haiku | 199,110 | PASS | flex_leader 2/2 both seeds + mutation bites; leader's own T66a check fixed (display: flex was in its invalid pool); gates pass
+- 2026-11-15 14:41 | T50a | hydrogen-high | agy quota | PASS | node_leader 3/3 both seeds; leader added Node::missing for GetBlock retry (brief gap); gates pass

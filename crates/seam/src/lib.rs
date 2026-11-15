@@ -6,6 +6,7 @@ mod chain;
 mod codec;
 mod contract;
 mod merkle;
+pub mod node;
 mod state;
 mod tx;
 
