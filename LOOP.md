@@ -3,7 +3,7 @@
 ## State
 - LEADER: Claude Opus since 2026-11-14 16:15
 - heartbeat: 2026-11-15 06:30
-- phase: P2 Machine. Running T21 chisel (hydrogen-high). CI live (T82). Argon at 29% (operator, 2026-11-15): Argon only for Opus-grade tasks, none dispatched until needed.
+- phase: P2 Machine. Running T21 chisel (hydrogen-high). CI live (T82). Argon released down to 5% (operator, 2026-11-15; was 29%): argon-high tasks may run; no tool shows usage, so the leader asks the operator for the % after each Argon run and stops at 5%.
 - stop reason: none
 - Next for the leader: see "Claude board" below (the strata-board mod shows it in a "Claude" pane, command `/strata-claude`).
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
@@ -19,11 +19,12 @@
 - [x] D1 docs/CINNABAR.md (Python reference, vectors, stats; check validated on a model)
 - [x] T14 onyx Cinnabar PASS (first try)
 - [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
-- [ ] T39 varve pager: brief + leader check (crash model of VARVE.md 1), then T34 tremor
+- [>] T39 varve pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
+- [ ] T34 tremor: brief + leader check (Python model of the handshake keys)
 - [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
-- [!] T25 mantle, T31, T66: argon-high, held while Argon is at 29%
+- [ ] Argon tasks (released to 5%): T31 quartz hypervisor brief + check first (quartz free), then D4 MANTLE.md + T25, then T66
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
@@ -108,7 +109,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
 | T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
 | T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | PASS |
-| T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | TODO |
+| T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | RUNNING |
 | T40 | P3 | varve | B+tree with range scans | hydrogen | T39 | TODO |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
@@ -214,3 +215,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 07:09 T13 dispatched (hydrogen): 110 riscv-tests built as data, 3 fail today (ma_data, instret_overflow, pmpaddr)
 - 2026-11-15 07:13 D2 TREMOR.md + D3 VARVE.md v1 written; T34, T39 moved argon-high -> hydrogen-high (precise spec + strong leader check)
 - 2026-11-15 07:20 T13 quartz PASS (hydrogen, 1 run): 110/110 riscv-tests, misaligned byte-wise, counter-write precedence, PMP storage; leader check 6/6 + fresh seed, workspace gate. Brief miss: 2 T12 tests asserted PMP reads 0; leader updated them to the T13 rule.
+- 2026-11-15 07:29 T39 dispatched (hydrogen-high). Operator released Argon down to 5%.
