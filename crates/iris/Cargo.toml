@@ -8,6 +8,9 @@ publish = false
 [dependencies]
 pigment = { path = "../pigment" }
 indium = { path = "../indium" }
+krypton = { path = "../krypton" }
+calliope = { path = "../calliope" }
+hades = { path = "../hades" }
 
 [dev-dependencies]
 assay = { path = "../assay" }

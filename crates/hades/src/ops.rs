@@ -1,5 +1,6 @@
 //! Path, directory and file operations. Each function works inside the caller's `Txn`, and
 //! returns an error before any block is committed if a check fails.
+use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -187,9 +188,10 @@ pub(crate) struct Rec<'a> {
     pub(crate) name: &'a [u8],
 }
 
-/// Split an entry table into records. Corrupt on a zero-length name or a name with a slash.
+/// Split an entry table into records. Corrupt on bad names or duplicate live entries.
 pub(crate) fn parse_dir(buf: &[u8]) -> Result<Vec<Rec<'_>>, Error> {
     let mut out = Vec::new();
+    let mut seen = BTreeSet::new();
     let mut pos = 0usize;
     while pos < buf.len() {
         let ino = layout::u32_at(buf, pos)?;
@@ -198,7 +200,14 @@ pub(crate) fn parse_dir(buf: &[u8]) -> Result<Vec<Rec<'_>>, Error> {
             return Err(Error::Corrupt);
         }
         let name = layout::sub(buf, pos + 5, len)?;
-        if name.iter().any(|&c| c == b'/' || c == 0) {
+        if name == b"."
+            || name == b".."
+            || name.iter().any(|&c| c == b'/' || c == 0)
+            || core::str::from_utf8(name).is_err()
+        {
+            return Err(Error::Corrupt);
+        }
+        if ino != 0 && !seen.insert(name) {
             return Err(Error::Corrupt);
         }
         out.push(Rec {
@@ -360,6 +369,18 @@ pub(crate) fn rename<D: BlockDevice>(
         return Err(Error::BadPath);
     }
     let tparent = resolve(t, tpc)?;
+    if t.read_inode(node)?.kind == KIND_DIR {
+        let mut cur = ROOT;
+        if cur == node {
+            return Err(Error::BadPath);
+        }
+        for c in tpc {
+            cur = lookup(t, cur, c.as_bytes())?.ok_or(Error::NotFound)?;
+            if cur == node {
+                return Err(Error::BadPath);
+            }
+        }
+    }
     if lookup(t, tparent, tname.as_bytes())?.is_some() {
         return Err(Error::Exists);
     }

@@ -151,7 +151,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T61 | P4 | indium | widget tree, flex layout, events, focus, themes | hydrogen | T60 | PASS |
 | T62 | P4 | indium | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | haiku | T61 | PASS |
 | T63 | P4 | iris | compositor: windows, tiling and floating, damage, input, animated moves | hydrogen-high | T62 | PASS |
-| T64 | P4 | iris | client protocol + apps: terminal (krypton), editor (calliope), files | hydrogen-high | T63 T57 T55 | RUNNING |
+| T64 | P4 | iris | client protocol + apps: terminal (krypton), editor (calliope), files | hydrogen-high | T63 T57 T55 | PASS |
 | T65 | P4 | odyssey | HTML and CSS parsers | hydrogen |  | PASS |
 | T66 | P4 | odyssey | cascade, block and inline layout, flex subset | opus-high | T65 T60 | TODO |
 | T66b | P4 | odyssey | flex layout subset | haiku | T66a | PASS |
@@ -212,7 +212,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T80g | P6 | review | security review elysium, findings proven by tests | hydrogen-high | - | PASS |
 | T80h | P6 | review | security review aurum, findings proven by tests | hydrogen-high | - | RUNNING |
 | T80i | P6 | review | security review silicon, findings proven by tests | hydrogen-high | - | PASS |
-| T80j | P6 | review | security review hades, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80j | P6 | review | security review hades, findings proven by tests | hydrogen-high | - | PASS |
 | T80k | P6 | review | security review sphinx + medusa, findings proven by tests | hydrogen-high | - | PASS |
 | T80l | P6 | review | security review logos, findings proven by tests | hydrogen-high | - | PASS |
 | T80m | P6 | review | security review helios, findings proven by tests | hydrogen-high | - | PASS |
@@ -354,3 +354,5 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-15 | T26 | agy opus-high | - | STOPPED | agy opus quota 429, resets ~4h50m; partial titan edits left uncommitted
 - 2026-11-15 | T80l | agy hydrogen-high | - | PASS | logos: parser depth, exhaustiveness hang, const str OOM; proven (perf rewrite not proven)
 - 2026-11-15 | T80m | agy hydrogen-high | - | PASS | helios: tone alloc, script log, Fx::round; proven
+- 2026-11-15 | T80j | agy hydrogen-high | - | PASS | hades: dir entry, fsck cycle, free inode findings; proven
+- 2026-11-15 | T64 | agy hydrogen-high | - | PASS | iris: Terminal, Editor, Files apps + Desktop, 3 golden hashes

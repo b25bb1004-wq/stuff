@@ -1,12 +1,19 @@
 //! Window compositor with floating/tiling layout, input routing, eased animations, and minimal damage.
 #![forbid(unsafe_code)]
 
+pub mod app;
+pub mod apps;
 mod damage;
+pub mod desktop;
 mod layout;
 mod window;
 
 #[cfg(test)]
 mod tests;
+
+pub use app::{App, Effect, SharedFs};
+pub use apps::{Editor, Files, Terminal};
+pub use desktop::Desktop;
 
 use std::collections::BTreeMap;
 

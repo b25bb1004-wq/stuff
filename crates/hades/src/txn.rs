@@ -191,6 +191,10 @@ impl<'a, D: BlockDevice> Txn<'a, D> {
             let page = self.get(blk)?;
             layout::decode_inode(layout::sub(page, off, INODE_SIZE)?)?
         };
+        if ino.kind == KIND_FREE && (ino.size != 0 || !ino.extents.is_empty() || ino.indirect != 0)
+        {
+            return Err(Error::Corrupt);
+        }
         if ino.indirect != 0 {
             let ib = u64::from(ino.indirect);
             if !(self.geo.first_data..self.geo.blocks).contains(&ib) {
@@ -199,11 +203,11 @@ impl<'a, D: BlockDevice> Txn<'a, D> {
             let more = layout::decode_indirect(self.get(ib)?)?;
             ino.extents.extend(more);
         }
+        if !layout::extents_disjoint(&self.geo, &ino.extents, ino.indirect) {
+            return Err(Error::Corrupt);
+        }
         let mut sum: u64 = 0;
         for e in &ino.extents {
-            if !self.geo.valid(e) {
-                return Err(Error::Corrupt);
-            }
             sum = sum.checked_add(e.len).ok_or(Error::Corrupt)?;
         }
         if sum != ino.size.div_ceil(BLOCK64) {

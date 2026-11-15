@@ -115,6 +115,38 @@ impl Geo {
     }
 }
 
+/// True when `extents` (and optional `indirect`) lie inside `geo`'s data area, do not overlap
+/// each other, and their total block count fits in the data area.
+pub(crate) fn extents_disjoint(geo: &Geo, extents: &[Extent], indirect: u32) -> bool {
+    let data_blocks = geo.blocks.saturating_sub(geo.first_data);
+    let mut spans: Vec<(u64, u64)> = Vec::with_capacity(extents.len() + usize::from(indirect != 0));
+    let mut sum = if indirect != 0 {
+        let ib = u64::from(indirect);
+        if !geo.in_data(ib) {
+            return false;
+        }
+        spans.push((ib, ib + 1));
+        1u64
+    } else {
+        0u64
+    };
+    for e in extents {
+        if !geo.valid(e) {
+            return false;
+        }
+        let Some(new_sum) = sum.checked_add(e.len) else {
+            return false;
+        };
+        if new_sum > data_blocks {
+            return false;
+        }
+        sum = new_sum;
+        spans.push((e.start, e.start + e.len));
+    }
+    spans.sort_unstable();
+    spans.windows(2).all(|w| w[0].1 <= w[1].0)
+}
+
 /// A run of consecutive blocks.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Extent {

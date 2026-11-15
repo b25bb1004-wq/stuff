@@ -73,8 +73,15 @@ fn read_inodes<D: BlockDevice>(
             }
         };
         if ino.kind == KIND_FREE {
+            if ino.size != 0 || !ino.extents.is_empty() || ino.indirect != 0 {
+                rep.errors.push(format!(
+                    "inode {n}: free inode has non-zero size or extents"
+                ));
+                *bad = true;
+            }
             continue;
         }
+        let mut bounds_ok = true;
         if ino.indirect != 0 {
             let ib = u64::from(ino.indirect);
             if geo.in_data(ib) {
@@ -85,6 +92,7 @@ fn read_inodes<D: BlockDevice>(
                         rep.errors
                             .push(format!("inode {n}: bad indirect block {ib}"));
                         *bad = true;
+                        bounds_ok = false;
                     }
                 }
             } else {
@@ -92,6 +100,7 @@ fn read_inodes<D: BlockDevice>(
                     "inode {n}: indirect block {ib} outside the data area"
                 ));
                 *bad = true;
+                bounds_ok = false;
             }
         }
         let mut sum = 0u64;
@@ -103,13 +112,20 @@ fn read_inodes<D: BlockDevice>(
                     e.start, e.len
                 ));
                 *bad = true;
+                bounds_ok = false;
             }
+        }
+        if bounds_ok && !layout::extents_disjoint(geo, &ino.extents, ino.indirect) {
+            rep.errors
+                .push(format!("inode {n}: overlapping or oversized extents"));
+            *bad = true;
         }
         if sum != ino.size.div_ceil(BLOCK64) {
             rep.errors.push(format!(
                 "inode {n}: size {} does not match its {sum} extent blocks",
                 ino.size
             ));
+            *bad = true;
         }
         if let Some(slot) = live.get_mut(n as usize) {
             *slot = Some(ino);
@@ -128,7 +144,11 @@ fn read_bytes<D: BlockDevice>(
     let have = valid().fold(0u64, |acc, e| {
         acc.saturating_add(e.len.saturating_mul(BLOCK64))
     });
-    let len = usize::try_from(ino.size.min(have)).map_err(|_| Error::TooLarge)?;
+    let cap = geo
+        .blocks
+        .saturating_sub(geo.first_data)
+        .saturating_mul(BLOCK64);
+    let len = usize::try_from(ino.size.min(have).min(cap)).map_err(|_| Error::TooLarge)?;
     let mut out = Vec::with_capacity(len);
     'extents: for e in valid() {
         for k in 0..e.len {
@@ -171,6 +191,10 @@ fn walk<D: BlockDevice>(
         let Some(Some(dir)) = live.get(d) else {
             continue;
         };
+        if !layout::extents_disjoint(geo, &dir.extents, dir.indirect) {
+            *corrupt_dir = true;
+            continue;
+        }
         let bytes = read_bytes(t, geo, dir)?;
         let recs = match ops::parse_dir(&bytes) {
             Ok(r) => r,
@@ -183,6 +207,17 @@ fn walk<D: BlockDevice>(
         };
         for r in recs.iter().filter(|r| r.ino != 0) {
             let c = r.ino as usize;
+            if c == root {
+                if let Some(k) = refs.get_mut(c) {
+                    *k = k.saturating_add(1);
+                }
+                rep.errors.push(format!(
+                    "entry {} in directory {d} points to the root directory",
+                    String::from_utf8_lossy(r.name),
+                ));
+                *corrupt_dir = true;
+                continue;
+            }
             match live.get(c) {
                 Some(Some(child)) => {
                     if let Some(k) = refs.get_mut(c) {
@@ -194,6 +229,12 @@ fn walk<D: BlockDevice>(
                             if child.kind == KIND_DIR {
                                 stack.push(c);
                             }
+                        } else if child.kind == KIND_DIR {
+                            rep.errors.push(format!(
+                                "entry {} in directory {d} creates a cycle or extra link to directory {c}",
+                                String::from_utf8_lossy(r.name),
+                            ));
+                            *corrupt_dir = true;
                         }
                     }
                 }

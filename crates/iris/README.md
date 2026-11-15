@@ -1,44 +1,34 @@
 # iris
 
-iris is a software window compositor. It keeps a list of windows, lays them out
-either freely (floating) or as a master-and-stack tiling, animates moves and
-layout changes, and draws only the screen regions that changed since the last
-frame. It is a library: the caller owns the screen canvas and decides when to
-call `frame`. Its only workspace dependencies are `pigment` and `indium`.
-
-Redrawing the whole screen on every tick wastes work. iris records what changed
-(window moves, resizes, raises, focus changes and client damage) and returns only
-those rects, so a caller can push small updates.
+iris is a software window compositor and desktop shell. It manages windows in
+floating or master-and-stack tiling layouts, animates moves and layout changes,
+tracks minimal screen damage, and hosts interactive applications on a shared
+in-memory `hades` filesystem.
 
 ## Features
 
-- Floating and tiling layouts, switched at runtime with `set_layout`.
-- Windows get a 1 px border and an 18 px title bar; the frame rect includes them.
-- `move_to` and layout changes animate over 180 ms with an ease-out cubic curve.
-- Damage tracking: `frame` returns the changed screen rects and nothing else.
-- Client content is written through `surface_mut`, or marked with `damage` for
-  partial updates.
-- Input routing with `input`: compositor shortcuts, title-bar drag, and delivery
-  to a window with coordinates moved into its content area.
-- Stacking order: a new window goes on top and takes focus; `raise` moves a window up.
+- Floating and master-and-stack tiling layouts (`Layout::Floating`, `Layout::Tiling`).
+- 1 px border and 18 px title bar chrome around each client surface.
+- 180 ms ease-out cubic animations on `move_to` and layout switches.
+- Tight screen-space damage rects from `frame(now_ms)`.
+- Application protocol (`App`, `Effect::{None, Close, Open}`) and `Desktop`
+  window/session manager with `Super+Enter` terminal launch.
+- Fixed 8x16 monospace text grid rendered with the same bitmap font as `indium`.
+- Built-in apps:
+  - `Terminal`: `krypton::exec::Shell` with `$ ` prompt, 200-line scrollback, and `exit` close.
+  - `Editor`: `calliope::Editor` buffer with typing, arrows (`\u{2190}`-`\u{2193}`), Backspace, `Ctrl+S` (`\x13`) save to `hades::Fs`, and `*` unsaved title indicator.
+  - `Files`: directory browser on the shared `hades::Fs` (`MemDisk`), Up/Down selection, Backspace to parent, and Enter to enter directories or open files in `Editor`.
 
 ## Public API
 
 | Item | Purpose |
 | --- | --- |
-| `Compositor::new(w, h)` | Create a screen filled with the desktop colour. |
-| `open(title, w, h, now_ms)` | Open a window on top and focus it; returns a `WinId`. |
-| `close(id, now_ms)` | Close a window; returns `true` if it existed. |
-| `move_to(id, x, y, now_ms)` | Move a window, animating when floating. |
-| `resize(id, w, h, now_ms)` | Resize a window's client surface. |
-| `set_layout(layout, now_ms)` | Switch between `Layout::Floating` and `Layout::Tiling`. |
-| `surface_mut(id)` | Borrow the client canvas and mark the window fully damaged. |
-| `damage(id, rect)` | Mark a part of the client content as changed. |
-| `raise(id)`, `focused()`, `order()` | Stacking and focus queries. |
-| `rect(id)` | Current animated frame rect of a window. |
-| `input(event, super_held, now_ms)` | Route an input event; returns a `Routed` value. |
-| `frame(now_ms)` | Advance animations, composite damage, return changed rects. |
-| `screen()` | Borrow the composited screen canvas. |
+| `Compositor` | Low-level window compositor (`open`, `close`, `move_to`, `resize`, `set_layout`, `input`, `frame`, `screen`). |
+| `App`, `Effect` | Application trait (`title`, `event`, `paint`) and window lifecycle effects (`None`, `Close`, `Open`). |
+| `Desktop` | High-level desktop hosting `Compositor`, `App`s, `SharedFs`, and `Super+Enter` terminal shortcut. |
+| `Terminal` | Terminal emulator backed by `krypton::exec::Shell`. |
+| `Editor` | Text editor backed by `calliope::Editor` and `SharedFs`. |
+| `Files` | Directory browser over `SharedFs` opening `Editor` windows. |
 
 ## Demo
 
@@ -46,26 +36,7 @@ those rects, so a caller can push small updates.
 cargo run -p iris --example demo
 ```
 
-Output (program stdout):
-
-```
-opened windows 1 and 2 on a 640x400 screen
-stacking order (bottom to top): [1, 2]
-focused window: Some(2)
-frame at 0 ms: 1 changed rects
-frame at 10 ms with no edits: 0 changed rects
-frame at 100 ms, window 1 easing: 5 changed rects
-frame at 200 ms, ease finished: 4 changed rects
-window 1 final rect: x=40 y=30 w=322 h=220
-tiling layout, frame at 400 ms: 1 changed rects
-window 2 tiled rect: x=320 y=0 w=320 h=400
-closed window 2: true
-focused after close: Some(1)
-frame at 600 ms after close: 3 changed rects
-```
-
-The final rect is 322 by 220 because a 320 by 200 client area gets the border
-(2 px in width) and the title bar plus borders (20 px in height) added around it.
+Runs a scripted session (Files -> `/notes.txt` -> Editor -> `Ctrl+S` -> Terminal `echo hi` -> 3-window tiling) and prints the text state and the 3 FNV-1a 64-bit golden frame hashes (`0x20197a7eca68442d`, `0xa3fd4fe5d730988f`, `0x7cb528c4ebff2e47`).
 
 ## Tests
 
