@@ -117,6 +117,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T40 | P3 | varve | B+tree with range scans | hydrogen-high | T39 | PASS |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
 | T41a | P3 | varve | SQL core: parser, catalog, single-table DML and SELECT, indexes maintained, transactions | hydrogen-high | T40 | PASS |
+| T41b | P3 | varve | joins, index use in plans, EXPLAIN | hydrogen-high | T41a | RUNNING |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
@@ -239,3 +240,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 12:51 | T69 tectonic phys | hydrogen | agy quota | RETRY 1 | phys_leader 5/6: stack box 0 sinks 0.0246 > 2*slop; to hydrogen-high
 - 2026-11-15 13:00 | T69 | hydrogen-high | agy quota | PASS | retry 1 fixed stack sink; phys_leader 6/6 both seeds; gates pass
 - 2026-11-15 13:08 | T41a | hydrogen-high | agy quota | PASS | sql_leader vs sqlite3: 418/418 and 428/428 fresh seed; gates pass
+- 2026-11-15 13:10 | PAUSE (operator: give the workers a break) | - | Haiku this round: T66a 206,836, T24 138,160 | - | no new dispatch. T41b still running on hydrogen-high. Awaiting leader checks: T70a, T24, T49, T61, T66a. Next hydrogen after judging: T50, T62, T70b
