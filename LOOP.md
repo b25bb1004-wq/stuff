@@ -165,7 +165,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T72 | P5 | athena | IDE shell: editor, file tree, terminal, run, test | hydrogen-high (design docs/FRONT.md by leader) | T71 T55 | PASS |
 | T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen-high | T10 T72 | PASS |
 | T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect; split T74a core (elysium+cobalt, after T86a and T75b free them) and T74b UI | hydrogen-high | T17 T72 | TODO |
-| T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | T75a PASS, T75b PASS, T75c TODO |
+| T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | T75a PASS, T75b PASS, T75c queued (also builds the T88 apps) |
 | T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen-high | T42 T50 T47 | PASS |
 | T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen-high | (T77 dropped: loopback only) | PASS |
@@ -202,9 +202,9 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
 | T84 | P6 | deploy | one public web image: site at /, Athena at /athena/, /healthz; services stay private; README public hosting | hydrogen-high | T75a T77 | PASS |
 | T85 | P5 | athena | proper app: VS Code-style workbench (activity bar, tabs, palette, panel, status bar), installable PWA, offline | hydrogen-high | T73 | PASS |
-| T86 | P6 | tools | a command-line tool per system, conventions in docs/APPS.md (D7), batches T86a-e | hydrogen-high | - | sphinx, argo, chronos, calliope, kairos, midas, silicon, hades, mercury, elysium PASS; odyssey, cobalt PASS; T86h-l running or judged next; T86n-p queued |
+| T86 | P6 | tools | a command-line tool per system, conventions in docs/APPS.md (D7), batches T86a-e | hydrogen-high | - | sphinx, argo, chronos, calliope, kairos, midas, silicon, hades, mercury, elysium, odyssey, cobalt, aurum, helios, iris, indium, athena PASS; T86n titan, T86o lithium, T86p iridium RUNNING; zeus tool TODO |
 | T87 | P6 | apps | app kit, launcher /apps/, one installable app per system with an existing demo | hydrogen-high | T75b | PASS |
-| T88 | P6 | apps | remaining apps with T75c visual demos | hydrogen-high | T87 T75c | TODO |
+| T88 | P6 | apps | remaining apps with T75c visual demos | hydrogen-high | T87 T75c | folded into T75c |
 | T79s | P6 | fuzz | soak aurum | haiku | - | PASS |
 | T79t | P6 | fuzz | soak indium | haiku | - | PASS |
 | T79u | P6 | fuzz | soak kairos | haiku | - | PASS |
@@ -389,3 +389,8 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T87 apps | hydrogen-high | n/a | PASS | 17 apps + launcher; leader Chrome: all 3 examples in 10 apps (incl. error cases), history 3 stored/3 shown and click restores, input persists, mobile 356/356 with Input/Output tabs, server stopped: calliope and titan still load and run from the service worker; leader fix: chisel app had no launcher link (added under the grid, launcher stays 25 cards); bundle 4.7 MB
 - 2026-11-16 | T86g odyssey tool | hydrogen-high | n/a | PASS | leader: tree, select by class and id, bad selector exit 1, render of site index to an 800x330 PNG (non-ASCII glyphs draw as boxes)
 - 2026-11-16 | T86m cobalt tool | hydrogen-high | n/a | PASS | leader: cobalt build then elysium verify/run gives 25 (also closes the T86f good-module check); logos check/fmt left out (brief did not allow main.rs)
+- 2026-11-16 | T86h aurum tool | hydrogen-high | n/a | PASS | leader: demo chain verifies; one flipped byte gives "block 1: bad tx root" exit 1; merkle root and proof
+- 2026-11-16 | T86i helios tool | hydrogen-high | n/a | PASS | leader: replay hash equals record hash; different seed or no inputs give different hashes; non-TREC file exit 1
+- 2026-11-16 | T86j iris tool | hydrogen-high | n/a | PASS | leader: 8-event script, 800x500 PNG shows terminal that ran echo hi, editor text, file browser
+- 2026-11-16 | T86k indium tool | hydrogen-high | n/a | PASS | leader: layout render, focus order 0-4, focus ring on Cancel
+- 2026-11-16 | T86l athena tool | hydrogen-high | n/a | PASS | leader: fmt reflows, test PASS/FAIL exit 1, check unknown name exit 1, clean file exit 0 (empty assertion message is cosmetic)
