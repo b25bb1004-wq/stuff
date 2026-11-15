@@ -303,11 +303,15 @@ impl Net {
     }
 }
 
-fn invariants(c: &Connection, who: &str) {
+// `before` is bytes in flight before this round's sends: a window cut may leave more in flight
+// than the new window (doc section 6 limits sending, not acks), so only growth is gated. After a
+// PTO expiry the doc (section 5) allows one or two probe packets on top of the window.
+fn invariants(c: &Connection, before: u64, pto: bool, who: &str) {
     let s = c.stats();
+    let slack = if pto { 3 * 1200 } else { 1200 };
     if c.is_connected() {
         assert!(
-            s.bytes_in_flight <= s.cwnd + 1200,
+            s.bytes_in_flight <= before || s.bytes_in_flight <= s.cwnd + slack,
             "{who}: {} in flight, cwnd {}",
             s.bytes_in_flight,
             s.cwnd
@@ -364,6 +368,7 @@ fn session(seed: u64, loss: usize) -> Result<u64, String> {
     let mut srv_open: Option<(u64, usize)> = None;
     let mut buf = vec![0u8; 8192];
     let mut now = 0u64;
+    let (mut client_pto, mut server_pto) = (false, false);
     for _ in 0..400_000 {
         // Client application.
         if client.is_connected() {
@@ -477,6 +482,8 @@ fn session(seed: u64, loss: usize) -> Result<u64, String> {
             }
         }
         // Transmit.
+        let client_before = client.stats().bytes_in_flight;
+        let server_before = server.connection(cid).map_or(0, |c| c.stats().bytes_in_flight);
         for _ in 0..64 {
             match client.poll_transmit(now) {
                 Some(d) => net.send(now, true, d),
@@ -491,10 +498,11 @@ fn session(seed: u64, loss: usize) -> Result<u64, String> {
                 }
             }
         }
-        invariants(&client, "client");
+        invariants(&client, client_before, client_pto, "client");
         if let Some(conn) = server.connection(cid) {
-            invariants(conn, "server");
+            invariants(conn, server_before, server_pto, "server");
         }
+        (client_pto, server_pto) = (false, false);
         if let Some(e) = client.error() {
             return Err(format!("client closed: {e:?}"));
         }
@@ -519,9 +527,11 @@ fn session(seed: u64, loss: usize) -> Result<u64, String> {
         }
         if client.timeout().is_some_and(|t| t <= now) {
             client.on_timeout(now);
+            client_pto = true;
         }
         if server.timeout().is_some_and(|t| t <= now) {
             server.on_timeout(now);
+            server_pto = true;
         }
     }
     Err("step limit".into())
