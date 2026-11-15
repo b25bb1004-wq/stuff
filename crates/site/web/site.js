@@ -26,7 +26,6 @@
   let wasmPromise = null;
   let wasmExports = null;
   let titanStarted = false;
-  let titanPumping = false;
   let titanHooks = null;
 
   function applyTheme(theme) {
@@ -52,32 +51,14 @@
     }
   });
 
-  async function instantiateWasm() {
-    const resp = await fetch("site.wasm");
-    if (!resp.ok) {
-      throw new Error(`failed to fetch site.wasm: ${resp.status}`);
-    }
-    if (typeof WebAssembly.instantiateStreaming === "function") {
-      try {
-        /* The clone keeps one fetch: the buffered path below reads it after a MIME mismatch. */
-        const res = await WebAssembly.instantiateStreaming(Promise.resolve(resp.clone()), {});
-        return res.instance.exports;
-      } catch (_err) {
-        /* Fall through to the buffered path. */
-      }
-    }
-    const res = await WebAssembly.instantiate(await resp.arrayBuffer(), {});
-    return res.instance.exports;
-  }
-
   function ensureWasm() {
     if (!wasmPromise) {
       wasmStatus.textContent = "loading wasm…";
-      wasmPromise = instantiateWasm()
-        .then((exports) => {
-          wasmExports = exports;
+      wasmPromise = Neon.load("site.wasm")
+        .then((api) => {
+          wasmExports = api.exports;
           wasmStatus.textContent = "wasm ready";
-          return exports;
+          return wasmExports;
         })
         .catch((err) => {
           wasmStatus.textContent = "wasm error";
@@ -262,96 +243,43 @@
     bar.appendChild(label);
     bar.appendChild(status);
 
-    const termOut = createEl("pre", "demo-output", "");
-    termOut.id = "titan-out";
-    termOut.setAttribute("aria-live", "polite");
-    termOut.tabIndex = 0;
-
-    const form = createEl("form", "term-form");
-    const inputLabel = createEl("label", "sr-only", "Titan shell command");
-    inputLabel.setAttribute("for", "titan-in");
-    const input = document.createElement("input");
-    input.type = "text";
-    input.id = "titan-in";
-    input.placeholder = "booting kernel…";
-    input.disabled = true;
-
-    const sendBtn = createEl("button", "", "Send");
-    sendBtn.type = "submit";
-    sendBtn.disabled = true;
-
-    form.appendChild(inputLabel);
-    form.appendChild(input);
-    form.appendChild(sendBtn);
-
-    function appendTerm(text) {
-      if (!text) {
-        return;
+    const termRoot = createEl("div", "titan-term");
+    const term = Term.mount(termRoot, {
+      send(line) {
+        withGuestBytes(wasmExports, encoder.encode(line), (ptr, len) =>
+          wasmExports.titan_send(ptr, len)
+        );
+      },
+      pump() {
+        if (!wasmExports) {
+          return { status: "done", text: "" };
+        }
+        const rc = wasmExports.titan_pump(STEPS_PER_FRAME);
+        const outLen = wasmExports.titan_output();
+        const text = outLen > 0 ? readNeonLast(wasmExports, outLen) : "";
+        if (rc === 1) {
+          status.className = "demo-status";
+          status.textContent = "running";
+          return { status: "busy", text };
+        }
+        if (rc === 0) {
+          status.className = "demo-status is-ok";
+          status.textContent = "waiting for input";
+          return { status: "waiting", text };
+        }
+        if (rc >= 2) {
+          status.className = "demo-status";
+          status.textContent = `exited (${rc - 2})`;
+        } else {
+          status.className = "demo-status is-bad";
+          status.textContent = "not booted";
+        }
+        return { status: "done", text };
       }
-      termOut.appendChild(document.createTextNode(text));
-      termOut.scrollTop = termOut.scrollHeight;
-    }
-
-    function setEnabled(enabled) {
-      input.disabled = !enabled;
-      sendBtn.disabled = !enabled;
-      if (enabled) {
-        input.placeholder = "type command (e.g. help, ls) and press Enter";
-      }
-    }
-
-    function pumpFrame() {
-      titanPumping = false;
-      if (!wasmExports) {
-        return;
-      }
-      const rc = wasmExports.titan_pump(STEPS_PER_FRAME);
-      const outLen = wasmExports.titan_output();
-      if (outLen > 0) {
-        appendTerm(readNeonLast(wasmExports, outLen));
-      }
-      if (rc === 1) {
-        status.className = "demo-status";
-        status.textContent = "running";
-        titanPumping = true;
-        requestAnimationFrame(pumpFrame);
-      } else if (rc === 0) {
-        status.className = "demo-status is-ok";
-        status.textContent = "waiting for input";
-        setEnabled(true);
-      } else if (rc >= 2) {
-        status.className = "demo-status";
-        status.textContent = `exited (${rc - 2})`;
-        setEnabled(false);
-      } else {
-        status.className = "demo-status is-bad";
-        status.textContent = "not booted";
-        setEnabled(false);
-      }
-    }
-
-    function startPump() {
-      if (!titanPumping) {
-        titanPumping = true;
-        requestAnimationFrame(pumpFrame);
-      }
-    }
-
-    form.addEventListener("submit", (ev) => {
-      ev.preventDefault();
-      if (!wasmExports || input.disabled) {
-        return;
-      }
-      const line = input.value;
-      input.value = "";
-      appendTerm(`${line}\n`);
-      setEnabled(false);
-      withGuestBytes(wasmExports, encoder.encode(line), (ptr, len) =>
-        wasmExports.titan_send(ptr, len)
-      );
-      startPump();
-      input.focus();
     });
+
+    box.appendChild(bar);
+    box.appendChild(termRoot);
 
     titanHooks = {
       boot: async () => {
@@ -374,18 +302,16 @@
             throw new Error(readNeonLast(wasm, errLen) || "titan_boot failed");
           }
           status.textContent = "booting…";
-          startPump();
+          term.start();
         } catch (err) {
           status.className = "demo-status is-bad";
           status.textContent = "failed";
-          appendTerm(`\n[titan error] ${err && err.message ? err.message : String(err)}\n`);
+          term.append(`
+[titan error] ${err && err.message ? err.message : String(err)}
+`);
         }
       }
     };
-
-    box.appendChild(bar);
-    box.appendChild(termOut);
-    box.appendChild(form);
     return box;
   }
 

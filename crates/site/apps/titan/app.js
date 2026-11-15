@@ -29,7 +29,6 @@
   if (!Array.isArray(cmdHistory)) {
     cmdHistory = [];
   }
-  let histCursor = cmdHistory.length;
 
   const shell = createEl("div", "titan-shell");
   const panel = createEl("section", "titan-panel");
@@ -71,129 +70,116 @@
   bar.appendChild(exportBtn);
   bar.appendChild(importBtn);
 
-  const termOut = createEl("pre", "titan-out", "");
-  termOut.id = "titan-out";
-  termOut.setAttribute("aria-live", "polite");
-  termOut.tabIndex = 0;
-
-  const form = createEl("form", "titan-form");
-  const inputLabel = createEl("label", "sr-only", "Titan shell command");
-  inputLabel.setAttribute("for", "titan-in");
-  const input = document.createElement("input");
-  input.type = "text";
-  input.id = "titan-in";
-  input.placeholder = "booting kernel…";
-  input.disabled = true;
-
-  const sendBtn = createEl("button", "kit-btn-accent", "Send");
-  sendBtn.type = "submit";
-  sendBtn.disabled = true;
-
-  form.appendChild(inputLabel);
-  form.appendChild(input);
-  form.appendChild(sendBtn);
+  const termRoot = createEl("div", "titan-term");
 
   panel.appendChild(bar);
-  panel.appendChild(termOut);
-  panel.appendChild(form);
+  panel.appendChild(termRoot);
   shell.appendChild(panel);
   root.innerHTML = "";
   root.appendChild(shell);
 
   let wasmRef = null;
-  let pumping = false;
   let queuedLines = [];
 
+  function transcriptText() {
+    const out = termRoot.querySelector(".term-out");
+    return out ? out.textContent || "" : "";
+  }
+
   function saveTranscript() {
-    const text = termOut.textContent || "";
-    transcriptStore.set(text.slice(-16384));
+    transcriptStore.set(transcriptText().slice(-16384));
   }
 
-  function appendTerm(text) {
-    if (!text) {
-      return;
-    }
-    termOut.appendChild(document.createTextNode(text));
-    termOut.scrollTop = termOut.scrollHeight;
-    saveTranscript();
-  }
-
-  function setEnabled(enabled) {
-    input.disabled = !enabled;
-    sendBtn.disabled = !enabled;
-    if (enabled) {
-      input.placeholder = "type command (e.g. help, ls) and press Enter";
+  function clearOutput() {
+    const out = termRoot.querySelector(".term-out");
+    if (out) {
+      out.textContent = "";
     }
   }
 
+  function inputReady() {
+    const input = termRoot.querySelector(".term-in");
+    return !!input && !input.disabled;
+  }
+
+  // Remember a command and hand it to the kernel. Term has already echoed a typed line.
+  function sendToKernel(line) {
+    if (line.trim()) {
+      cmdHistory.push(line);
+      if (cmdHistory.length > MAX_CMD_HISTORY) {
+        cmdHistory = cmdHistory.slice(-MAX_CMD_HISTORY);
+      }
+      historyStore.setJson(cmdHistory);
+    }
+    wasmRef.withGuestBytes(wasmRef.encoder.encode(line), (ptr, len) =>
+      wasmRef.exports.titan_send(ptr, len)
+    );
+  }
+
+  // Programmatic lines (examples, imports): echo, send, then keep pumping.
   function sendLine(line) {
     if (!wasmRef) {
       return;
     }
     const clean = String(line || "").replace(/\r?\n/g, "");
-    appendTerm(`${clean}\n`);
-    if (clean.trim()) {
-      cmdHistory.push(clean);
-      if (cmdHistory.length > MAX_CMD_HISTORY) {
-        cmdHistory = cmdHistory.slice(-MAX_CMD_HISTORY);
-      }
-      historyStore.setJson(cmdHistory);
-      histCursor = cmdHistory.length;
-    }
-    setEnabled(false);
-    wasmRef.withGuestBytes(wasmRef.encoder.encode(clean), (ptr, len) =>
-      wasmRef.exports.titan_send(ptr, len)
-    );
-    startPump();
+    term.append(`${clean}\n`, "user-cmd");
+    term.setEnabled(false);
+    sendToKernel(clean);
+    saveTranscript();
+    term.start();
   }
 
-  function pumpFrame() {
-    pumping = false;
+  // Called once per frame by Term while the kernel is busy. Output goes straight into Term.
+  function pump() {
     if (!wasmRef) {
-      return;
+      return { status: "done", text: "" };
     }
-    const rc = wasmRef.exports.titan_pump(STEPS_PER_FRAME);
-    const outLen = wasmRef.exports.titan_output();
+    const ex = wasmRef.exports;
+    const rc = ex.titan_pump(STEPS_PER_FRAME);
+    const outLen = ex.titan_output();
     if (outLen > 0) {
-      appendTerm(wasmRef.readNeonLast(outLen));
+      term.append(wasmRef.readNeonLast(outLen));
+      saveTranscript();
     }
     if (rc === 1) {
       status.className = "demo-status";
       status.textContent = "running";
-      pumping = true;
-      requestAnimationFrame(pumpFrame);
-    } else if (rc === 0) {
-      if (queuedLines.length > 0) {
-        const nextLine = queuedLines.shift();
-        sendLine(nextLine);
-        return;
-      }
+      return { status: "busy", text: "" };
+    }
+    if (rc === 0 && queuedLines.length > 0) {
+      const next = queuedLines.shift();
+      term.append(`${next}\n`, "user-cmd");
+      sendToKernel(next);
+      saveTranscript();
+      return { status: "busy", text: "" };
+    }
+    if (rc === 0) {
       status.className = "demo-status is-ok";
       status.textContent = "waiting for input";
-      setEnabled(true);
-    } else if (rc >= 2) {
-      queuedLines = [];
+      return { status: "waiting", text: "" };
+    }
+    queuedLines = [];
+    if (rc >= 2) {
       status.className = "demo-status";
       status.textContent = `exited (${rc - 2})`;
-      setEnabled(false);
     } else {
-      queuedLines = [];
       status.className = "demo-status is-bad";
       status.textContent = "not booted";
-      setEnabled(false);
     }
+    return { status: "done", text: "" };
   }
 
-  function startPump() {
-    if (!pumping) {
-      pumping = true;
-      requestAnimationFrame(pumpFrame);
-    }
-  }
+  const term = window.Term.mount(termRoot, {
+    send(line) {
+      sendToKernel(line);
+      saveTranscript();
+    },
+    pump
+  });
 
   async function bootKernel() {
     queuedLines = [];
-    setEnabled(false);
+    term.setEnabled(false);
     status.className = "demo-status";
     status.textContent = "loading kernel…";
     try {
@@ -210,40 +196,13 @@
         throw new Error(wasm.readNeonLast(errLen) || "titan_boot failed");
       }
       status.textContent = "booting…";
-      startPump();
+      term.start();
     } catch (err) {
       status.className = "demo-status is-bad";
       status.textContent = "failed";
-      appendTerm(`\n[titan error] ${err && err.message ? err.message : String(err)}\n`);
+      term.append(`\n[titan error] ${err && err.message ? err.message : String(err)}\n`);
     }
   }
-
-  form.addEventListener("submit", (ev) => {
-    ev.preventDefault();
-    if (!wasmRef || input.disabled) {
-      return;
-    }
-    const line = input.value;
-    input.value = "";
-    sendLine(line);
-    input.focus();
-  });
-
-  input.addEventListener("keydown", (ev) => {
-    if (ev.key === "ArrowUp") {
-      if (histCursor > 0) {
-        ev.preventDefault();
-        histCursor -= 1;
-        input.value = cmdHistory[histCursor] || "";
-      }
-    } else if (ev.key === "ArrowDown") {
-      if (histCursor < cmdHistory.length) {
-        ev.preventDefault();
-        histCursor += 1;
-        input.value = histCursor < cmdHistory.length ? cmdHistory[histCursor] : "";
-      }
-    }
-  });
 
   exSelect.addEventListener("change", () => {
     if (exSelect.value === "") {
@@ -255,20 +214,20 @@
       return;
     }
     const cmd = EXAMPLES[idx].cmd;
-    if (!input.disabled) {
+    if (inputReady()) {
       sendLine(cmd);
     } else {
-      input.value = cmd;
+      termRoot.querySelector(".term-in").value = cmd;
     }
   });
 
   rebootBtn.addEventListener("click", () => {
-    termOut.textContent = "";
+    clearOutput();
     bootKernel();
   });
 
   clearBtn.addEventListener("click", () => {
-    termOut.textContent = "";
+    clearOutput();
     transcriptStore.remove();
   });
 
@@ -278,7 +237,7 @@
       cmdHistory.join("\n"),
       "",
       "# Transcript",
-      termOut.textContent || ""
+      transcriptText()
     ].join("\n");
     window.Kit.download("titan-session.txt", content);
   });
@@ -295,7 +254,7 @@
     if (lines.length === 0) {
       return;
     }
-    if (!input.disabled) {
+    if (inputReady()) {
       const first = lines.shift();
       queuedLines.push(...lines);
       sendLine(first);
@@ -306,7 +265,7 @@
 
   const savedTranscript = transcriptStore.get("");
   if (savedTranscript) {
-    termOut.textContent = savedTranscript + "\n--- reboot ---\n";
+    term.append(`${savedTranscript}\n--- reboot ---\n`);
   }
 
   bootKernel();

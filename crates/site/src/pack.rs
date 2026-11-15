@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::icons::render_icon_png;
+use neon::webkit;
 
 struct AppSpec {
     id: &'static str,
@@ -213,6 +214,9 @@ fn pack_kit_and_launcher(apps_src: &Path, out: &Path) -> Result<(), String> {
     for name in ["kit.css", "kit.js", "demo-app.js"] {
         copy_checked(&apps_src.join("_kit").join(name), &kit_out.join(name))?;
     }
+    for (name, text) in webkit::FILES {
+        write_checked(&kit_out.join(name), text.as_bytes())?;
+    }
 
     let launcher_out = out.join("apps");
     let icons_out = launcher_out.join("icons");
@@ -306,6 +310,17 @@ const CORE_ASSETS: [&str; 5] = [
     "../_kit/demo-app.js",
 ];
 
+/// `CORE_ASSETS` plus every neon web-kit file under `../_kit/`.
+fn core_assets() -> Vec<String> {
+    let mut list: Vec<String> = CORE_ASSETS.iter().map(|s| (*s).to_owned()).collect();
+    list.extend(
+        webkit::FILES
+            .iter()
+            .map(|(name, _)| format!("../_kit/{name}")),
+    );
+    list
+}
+
 /// Files that belong to one app alone.
 const APP_ASSETS: [&str; 6] = [
     "index.html",
@@ -316,9 +331,10 @@ const APP_ASSETS: [&str; 6] = [
     "icon-maskable-512.png",
 ];
 
-fn hash_files(app_out: &Path, rels: &[&str]) -> Result<String, String> {
+fn hash_files<S: AsRef<str>>(app_out: &Path, rels: &[S]) -> Result<String, String> {
     let mut hash_buf = Vec::new();
     for rel in rels {
+        let rel = rel.as_ref();
         let resolved = app_out.join(rel);
         let bytes = std::fs::read(&resolved).map_err(|e| {
             format!(
@@ -339,11 +355,11 @@ fn hash_files(app_out: &Path, rels: &[&str]) -> Result<String, String> {
     Ok(hex_tag)
 }
 
-fn js_string_array(items: &[&str]) -> String {
+fn js_string_array<S: AsRef<str>>(items: &[S]) -> String {
     let mut out = String::from("[\n");
     for (idx, item) in items.iter().enumerate() {
         let comma = if idx + 1 < items.len() { "," } else { "" };
-        let _ = writeln!(out, "  \"{item}\"{comma}");
+        let _ = writeln!(out, "  \"{}\"{comma}", item.as_ref());
     }
     out.push(']');
     out
@@ -419,14 +435,15 @@ self.addEventListener("fetch", (event) => {
 "#;
 
 fn build_service_worker(app: &AppSpec, app_out: &Path) -> Result<String, String> {
-    let core_cache = format!("monolith-core-{}", hash_files(app_out, &CORE_ASSETS)?);
+    let core = core_assets();
+    let core_cache = format!("monolith-core-{}", hash_files(app_out, core.as_slice())?);
     let cache_prefix = format!("monolith-{}-", app.id);
     let cache_name = format!("{cache_prefix}{}", hash_files(app_out, &APP_ASSETS)?);
     Ok(SW_TEMPLATE
         .replace("__CORE_CACHE__", &core_cache)
         .replace("__CACHE_PREFIX__", &cache_prefix)
         .replace("__CACHE_NAME__", &cache_name)
-        .replace("__CORE_ASSETS__", &js_string_array(&CORE_ASSETS))
+        .replace("__CORE_ASSETS__", &js_string_array(core.as_slice()))
         .replace("__ASSETS__", &js_string_array(&APP_ASSETS)))
 }
 

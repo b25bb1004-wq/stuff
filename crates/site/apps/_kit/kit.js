@@ -78,45 +78,7 @@
     return false;
   }
 
-  async function instantiateWasm() {
-    const resp = await fetch("../site.wasm");
-    if (!resp.ok) {
-      throw new Error(`failed to fetch site.wasm: ${resp.status}`);
-    }
-    if (typeof WebAssembly.instantiateStreaming === "function") {
-      try {
-        /* The clone keeps one fetch: the buffered path below reads it after a MIME mismatch. */
-        const res = await WebAssembly.instantiateStreaming(Promise.resolve(resp.clone()), {});
-        return res.instance.exports;
-      } catch (_err) {
-        /* Fall through to the buffered path. */
-      }
-    }
-    const res = await WebAssembly.instantiate(await resp.arrayBuffer(), {});
-    return res.instance.exports;
-  }
-
-  function withGuestBytes(exportsObj, bytes, fn) {
-    const len = bytes.length;
-    const ptr = exportsObj.neon_alloc(len);
-    try {
-      if (len > 0) {
-        new Uint8Array(exportsObj.memory.buffer, ptr, len).set(bytes);
-      }
-      return fn(ptr, len);
-    } finally {
-      exportsObj.neon_free(ptr, len);
-    }
-  }
-
-  function readNeonLast(exportsObj, len) {
-    if (len <= 0) {
-      return "";
-    }
-    const ptr = exportsObj.neon_last_ptr();
-    return decoder.decode(new Uint8Array(exportsObj.memory.buffer, ptr, len));
-  }
-
+  // Wasm is fetched and instantiated by _kit/wasm.js (global Neon), which every app page loads first.
   function readSiteLastBytes(exportsObj) {
     const len = exportsObj.site_last_len();
     if (len <= 0) {
@@ -126,16 +88,17 @@
     return new Uint8Array(exportsObj.memory.buffer, ptr, len).slice();
   }
 
-  function wrapWasm(exportsObj) {
+  function wrapWasm(api) {
+    const exportsObj = api.exports;
     return {
       exports: exportsObj,
       encoder,
       decoder,
       withGuestBytes(bytes, fn) {
-        return withGuestBytes(exportsObj, bytes, fn);
+        return api.withBytes(bytes, fn);
       },
       readNeonLast(len) {
-        return readNeonLast(exportsObj, len);
+        return api.lastText(len);
       },
       readSiteLastBytes() {
         return readSiteLastBytes(exportsObj);
@@ -143,8 +106,8 @@
       runDemo(demoId, inputText) {
         const idBytes = encoder.encode(demoId);
         const inBytes = encoder.encode(inputText);
-        const rc = withGuestBytes(exportsObj, idBytes, (idPtr, idLen) =>
-          withGuestBytes(exportsObj, inBytes, (inPtr, inLen) =>
+        const rc = api.withBytes(idBytes, (idPtr, idLen) =>
+          api.withBytes(inBytes, (inPtr, inLen) =>
             exportsObj.site_demo(idPtr, idLen, inPtr, inLen)
           )
         );
@@ -173,8 +136,8 @@
 
   function loadWasmOnce() {
     if (!wasmPromise) {
-      wasmPromise = instantiateWasm()
-        .then((exportsObj) => wrapWasm(exportsObj))
+      wasmPromise = window.Neon.load("../site.wasm")
+        .then((api) => wrapWasm(api))
         .catch((err) => {
           wasmPromise = null;
           throw err;

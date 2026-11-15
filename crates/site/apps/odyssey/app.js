@@ -36,7 +36,7 @@
           "  .box { background: #1e293b; border: 3px solid #38bdf8; color: #f8fafc; padding: 12px; }\n" +
           "</style>\n" +
           "<div class=\"box\">\n" +
-          "  <h2>Strata Render</h2>\n" +
+          "  <h2>Monolith Render</h2>\n" +
           "  <p>Cascade, block boxes, and bitmap text rendered without a GPU.</p>\n" +
           "</div>"
       },
