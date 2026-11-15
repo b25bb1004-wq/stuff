@@ -98,7 +98,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | PASS |
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | PASS |
 | T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
-| T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | haiku | T22 T23 | RUNNING |
+| T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | haiku | T22 T23 | PASS |
 | T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 T13a | TODO |
 | T26 | P2 | mantle | processes, user mode, syscalls, scheduler (geyser), ELF loading | argon-high | T25 T05 | TODO |
 | T27 | P2 | mantle | block driver, shale mounted, file syscalls | argon | T26 T07 | TODO |
@@ -242,3 +242,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 13:08 | T41a | hydrogen-high | agy quota | PASS | sql_leader vs sqlite3: 418/418 and 428/428 fresh seed; gates pass
 - 2026-11-15 13:10 | PAUSE (operator: give the workers a break) | - | Haiku this round: T66a 206,836, T24 138,160 | - | no new dispatch. T41b still running on hydrogen-high. Awaiting leader checks: T70a, T24, T49, T61, T66a. Next hydrogen after judging: T50, T62, T70b
 - 2026-11-15 13:16 | T70a | hydrogen | agy quota | PASS | audio_leader 4/4 both seeds; gates pass
+- 2026-11-15 13:21 | T24 | haiku | 138,160 | PASS | flint_leader 5/5; gates pass
