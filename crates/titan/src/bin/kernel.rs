@@ -574,7 +574,7 @@ mod kernel {
             let Some(init_elf) = progs::find_builtin("init") else {
                 fail("missing init elf");
             };
-            let Ok(pid) = ks.spawn_process(None, "init", init_elf) else {
+            let Ok(pid) = ks.spawn_process(None, "init", init_elf, &[], None, None) else {
                 fail("spawn init");
             };
             if pid != 1 {

@@ -45,13 +45,16 @@ Target `riscv64gc-unknown-none-elf`. Only `core`, `alloc` and our own crates (mi
 | 2 | read(fd, ptr, len) | | 10 | sbrk(delta) |
 | 3 | open(path_ptr, len, flags) | | 11 | mkdir(path_ptr, len) |
 | 4 | close(fd) | | 12 | unlink(path_ptr, len) |
-| 5 | spawn(path_ptr, len, argv_ptr, argc) | | 13 | readdir(fd, buf, len) |
+| 5 | spawn(path_ptr, len, argv_ptr, argc, stdin_fd, stdout_fd) | | 13 | readdir(fd, buf, len) |
 | 6 | wait(pid) -> exit code | | 14 | ps(buf, len) |
 | 7 | kill(pid) | | 15 | uptime() -> ticks |
 Errors: -1 bad argument, -2 not found, -3 no memory, -4 bad fd, -5 exists, -6 not a directory, -7 busy.
+`open` flags: `1` read, `2` write, `4` create, `8` truncate, `16` append (seek to end on open).
+`spawn` copies up to 16 NUL-terminated strings (max 255 bytes each, 4 KiB total) onto the child's stack (`a0 = argc`, `a1 = argv`; `argc == 0` passes `[name]`). `a4`/`a5` in `3..=15` duplicate that parent file fd into child fd `0`/`1` (with its own offset starting at the parent's); any value outside `3..=15` selects the console.
 
 ## Processes and drivers
 - Process: pid, state, root page table, user stack, trap frame, fd table, parent, exit code. The kairos
   scheduler core picks the next process on every timer tick and on `yield`, `wait`, blocking reads.
 - Drivers poll in v1: UART (console, fd 0, 1, 2), block device (T27, hades mounted at `/`).
-- Userland (T28) is ELF64 images built by our tools, loaded by the kernel's ELF loader.
+- **UART stdin EOF rule**: `read(0, ..)` (when fd 0 is console) reads all available bytes from UART RX (`LSR & 1 != 0`, at least 1 byte). If RX is empty, it yields (`sepc` stays on `ecall`); once RX remains empty across at least 1 timer tick (no new input arriving), the input queue is treated as exhausted and `read(0, ..)` returns `0` (EOF).
+- Userland (T28) is an ELF64 multicall binary (`sh`, `ls`, `cat`, `echo`, `mkdir`, `rm`, `ps`) linked at `0x1_0000`, loaded by the kernel's ELF loader. `init` spawns `sh` after `fsdemo` only when `open("/etc/shell", 1)` succeeds.

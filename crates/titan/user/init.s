@@ -141,6 +141,38 @@ _start:
     call print_str
 
 skip_fsdemo:
+    # Spawn sh only if open("/etc/shell", 1) succeeds
+    la a0, n_etc_shell
+    li a1, 10
+    li a2, 1
+    li a7, 3
+    ecall
+    bltz a0, skip_shell
+    li a7, 4
+    ecall
+
+    la a0, n_sh
+    li a1, 2
+    li a2, 0
+    li a3, 0
+    li a4, -1
+    li a5, -1
+    li a7, 5
+    ecall
+    bltz a0, skip_shell
+    li a7, 6
+    ecall
+    mv s3, a0
+    la a0, s_sh_ex
+    li a1, 16
+    call print_str
+    mv a0, s3
+    call print_int
+    la a0, s_nl
+    li a1, 1
+    call print_str
+
+skip_shell:
     # Call ps and print buffer
     la a0, ps_buf
     li a1, 512
@@ -229,6 +261,8 @@ s_evil_ex:
     .ascii "init: evil exited "
 s_fsdemo_ex:
     .ascii "init: fsdemo exited "
+s_sh_ex:
+    .ascii "init: sh exited "
 s_uptime:
     .ascii "init: uptime ok\n"
 s_nl:
@@ -249,5 +283,9 @@ n_fsdemo:
     .ascii "fsdemo"
 n_root:
     .ascii "/"
+n_sh:
+    .ascii "sh"
+n_etc_shell:
+    .ascii "/etc/shell"
 ps_buf:
     .space 512

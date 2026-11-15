@@ -11,7 +11,10 @@ const USER_PROGS: [&str; 7] = ["init", "ping", "pong", "hog", "fault", "evil", "
 
 fn main() {
     println!("cargo:rerun-if-changed=kernel.ld");
+    println!("cargo:rerun-if-changed=user.ld");
     println!("cargo:rerun-if-changed=user");
+    println!("cargo:rerun-if-changed=src/bin/userland.rs");
+    println!("cargo:rerun-if-changed=src/bin/userland");
 
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap_or_default());
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap_or_default());
@@ -22,8 +25,45 @@ fn main() {
 
     let target = env::var("TARGET").unwrap_or_default();
     if target.starts_with("riscv64") {
-        let ld_path = manifest_dir.join("kernel.ld");
-        println!("cargo:rustc-link-arg-bins=-T{}", ld_path.display());
+        let kernel_ld = manifest_dir.join("kernel.ld");
+        let user_ld = manifest_dir.join("user.ld");
+        println!("cargo:rustc-link-arg-bin=kernel=-T{}", kernel_ld.display());
+        println!("cargo:rustc-link-arg-bin=userland=-T{}", user_ld.display());
+
+        if env::var("TITAN_NESTED").as_deref() != Ok("1") {
+            let cargo = env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
+            let userland_target = out_dir.join("userland-target");
+            let status = std::process::Command::new(cargo)
+                .current_dir(&manifest_dir)
+                .env("TITAN_NESTED", "1")
+                .env("CARGO_TARGET_DIR", &userland_target)
+                .args([
+                    "build",
+                    "--release",
+                    "-p",
+                    "titan",
+                    "--bin",
+                    "userland",
+                    "--target",
+                    "riscv64gc-unknown-none-elf",
+                ])
+                .status()
+                .unwrap_or_else(|e| panic!("failed to run nested userland build: {e}"));
+            assert!(status.success(), "nested userland cargo build failed");
+
+            let built = userland_target
+                .join("riscv64gc-unknown-none-elf")
+                .join("release")
+                .join("userland");
+            let dest = out_dir.join("userland.elf");
+            fs::copy(&built, &dest).unwrap_or_else(|e| {
+                panic!(
+                    "failed to copy {} to {}: {e}",
+                    built.display(),
+                    dest.display()
+                )
+            });
+        }
     }
 }
 

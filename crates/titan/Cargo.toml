@@ -9,6 +9,7 @@ publish = false
 midas = { path = "../midas" }
 kairos = { path = "../kairos", default-features = false }
 hades = { path = "../hades" }
+krypton = { path = "../krypton", default-features = false }
 
 [build-dependencies]
 chisel = { path = "../chisel" }

@@ -19,7 +19,8 @@ const O_READ: u64 = 1;
 const O_WRITE: u64 = 2;
 const O_CREATE: u64 = 4;
 const O_TRUNC: u64 = 8;
-const O_ALL: u64 = O_READ | O_WRITE | O_CREATE | O_TRUNC;
+const O_APPEND: u64 = 16;
+const O_ALL: u64 = O_READ | O_WRITE | O_CREATE | O_TRUNC | O_APPEND;
 
 const MAX_PATH_LEN: u64 = 1024;
 const IO_CHUNK: usize = 4096;
@@ -33,8 +34,23 @@ pub struct OpenFd {
     pub dir_entries: Option<Vec<String>>,
 }
 
-/// Fixed-size per-process descriptor table covering fds `3..=15`.
+impl OpenFd {
+    /// Clone this descriptor for inheritance as child fd 0 or fd 1, keeping its current offset.
+    pub fn dup_for_child(&self) -> Self {
+        Self {
+            path: self.path.clone(),
+            offset: self.offset,
+            flags: self.flags,
+            is_dir: self.is_dir,
+            dir_entries: None,
+        }
+    }
+}
+
+/// Fixed-size per-process descriptor table covering fds `3..=15` plus optional `0`/`1` redirections.
 pub struct FdTable {
+    stdin: Option<OpenFd>,
+    stdout: Option<OpenFd>,
     slots: [Option<OpenFd>; FD_SLOTS],
 }
 
@@ -42,13 +58,44 @@ impl FdTable {
     pub const fn new() -> Self {
         const EMPTY: Option<OpenFd> = None;
         Self {
+            stdin: None,
+            stdout: None,
             slots: [EMPTY; FD_SLOTS],
         }
     }
 
     pub fn clear(&mut self) {
+        self.stdin = None;
+        self.stdout = None;
         for slot in &mut self.slots {
             *slot = None;
+        }
+    }
+
+    pub fn has_stdin(&self) -> bool {
+        self.stdin.is_some()
+    }
+
+    pub fn has_stdout(&self) -> bool {
+        self.stdout.is_some()
+    }
+
+    pub fn set_stdin(&mut self, fd: OpenFd) {
+        self.stdin = Some(fd);
+    }
+
+    pub fn set_stdout(&mut self, fd: OpenFd) {
+        self.stdout = Some(fd);
+    }
+
+    pub fn get(&self, fd: u64) -> Option<&OpenFd> {
+        match fd {
+            0 => self.stdin.as_ref(),
+            1 => self.stdout.as_ref(),
+            _ => {
+                let idx = Self::slot_index(fd)?;
+                self.slots.get(idx)?.as_ref()
+            }
         }
     }
 
@@ -66,8 +113,14 @@ impl FdTable {
     }
 
     fn get_mut(&mut self, fd: u64) -> Option<&mut OpenFd> {
-        let idx = Self::slot_index(fd)?;
-        self.slots.get_mut(idx)?.as_mut()
+        match fd {
+            0 => self.stdin.as_mut(),
+            1 => self.stdout.as_mut(),
+            _ => {
+                let idx = Self::slot_index(fd)?;
+                self.slots.get_mut(idx)?.as_mut()
+            }
+        }
     }
 
     fn close(&mut self, fd: u64) -> bool {
@@ -119,7 +172,7 @@ pub fn sys_open(
 ) -> isize {
     if (flags & !O_ALL) != 0
         || (flags & (O_READ | O_WRITE)) == 0
-        || ((flags & O_TRUNC) != 0 && (flags & O_WRITE) == 0)
+        || ((flags & (O_TRUNC | O_APPEND)) != 0 && (flags & O_WRITE) == 0)
     {
         return Errno::BadArg.as_isize();
     }
@@ -147,15 +200,20 @@ pub fn sys_open(
                 dir_entries: None,
             }
         }
-        Ok(_) => {
-            if (flags & O_TRUNC) != 0 {
+        Ok(st) => {
+            let offset = if (flags & O_TRUNC) != 0 {
                 if let Err(e) = fs.truncate(&path, 0) {
                     return map_fs_err(e).as_isize();
                 }
-            }
+                0
+            } else if (flags & O_APPEND) != 0 {
+                st.size
+            } else {
+                0
+            };
             OpenFd {
                 path,
-                offset: 0,
+                offset,
                 flags,
                 is_dir: false,
                 dir_entries: None,

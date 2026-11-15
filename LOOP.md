@@ -111,7 +111,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T25 | P2 | titan | Rust kernel: boot shim, traps, Sv39, heap (midas), console | argon-high | T23 T16 T13a | PASS |
 | T26 | P2 | titan | processes, user mode, syscalls, scheduler (kairos), ELF loading | opus-high | T25 T05 | PASS |
 | T27 | P2 | titan | block driver, hades mounted, file syscalls | hydrogen-high | T26 T07 | PASS |
-| T28 | P2 | titan | userland: init, shell (krypton), ls cat echo mkdir rm ps | hydrogen | T27 T57 | RUNNING |
+| T28 | P2 | titan | userland: init, shell (krypton), ls cat echo mkdir rm ps | hydrogen | T27 T57 | PASS |
 | T29 | P2 | cobalt | Logos IR to RV64 code, linear-scan registers, ELF out | opus-high | T10 T22 | PASS |
 | T29a | P2 | cobalt | (T29a) integer subset Logos IR to RV64, stack slots, runs on Silicon | hydrogen-high | T10 T22 | PASS |
 | T30 | P2 | cobalt | constant folding, dead code, copy propagation | haiku | T29 | PASS |
@@ -364,3 +364,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T27 | agy hydrogen-high | - | PASS | titan: block driver, hades at /, file syscalls, 41-line transcript; leader corruption fuzz 16/16
 - 2026-11-16 | T67 | agy hydrogen-high | - | PASS | odyssey paint/fetch/script/shell, 137 tests; leader mutated-response fuzz
 - 2026-11-16 | T52 | agy hydrogen-high | - | PASS | pandora images via argo, run -d, ps, kill, rm; leader fixed .so exec bit (design gap), stale-state checks; WSL green
+- 2026-11-16 | T28 | agy hydrogen-high | - | PASS | titan userland: Rust multicall ELF (sh on krypton, ls cat echo mkdir rm ps), argv, redirects, append; leader raw-byte fuzz

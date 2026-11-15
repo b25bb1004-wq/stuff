@@ -3,6 +3,7 @@
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::vec;
+use alloc::vec::Vec;
 use core::fmt::Write;
 use core::ptr::read_volatile;
 
@@ -16,7 +17,7 @@ use titan::sv39::{FrameAlloc, PageTable, Pte};
 use titan::uaccess::{Errno, USER_MIN};
 
 use crate::blk::Blk;
-use crate::vfs::FdTable;
+use crate::vfs::{FdTable, OpenFd};
 use crate::vm::{self, CLINT_BASE, FRAMES, USER_STACK_BOTTOM, USER_STACK_PAGES, USER_STACK_TOP};
 use crate::{finisher_exit, TrapFrame, Uart, FINISHER_FAIL, FINISHER_PASS};
 
@@ -51,6 +52,7 @@ pub struct KernelState {
     pub current: Option<Pid>,
     pub initial_free_frames: usize,
     pub fs: Option<Fs<Blk>>,
+    pub uart_empty_since: Option<u64>,
 }
 
 impl KernelState {
@@ -63,6 +65,7 @@ impl KernelState {
             current: None,
             initial_free_frames,
             fs,
+            uart_empty_since: None,
         }
     }
 
@@ -71,6 +74,9 @@ impl KernelState {
         parent: Option<Pid>,
         name: &str,
         elf_bytes: &[u8],
+        args: &[Vec<u8>],
+        stdin: Option<OpenFd>,
+        stdout: Option<OpenFd>,
     ) -> Result<Pid, Errno> {
         let prog = elf::parse(elf_bytes).map_err(|_| Errno::BadArg)?;
         let pt_root = vm::create_user_pt().ok_or(Errno::NoMem)?;
@@ -178,13 +184,23 @@ impl KernelState {
         let heap_base = (max_seg_end.saturating_add(PAGE_SIZE - 1)) & !(PAGE_SIZE - 1);
         let heap_base = heap_base.max(USER_MIN);
 
+        let (argc, argv_va, child_sp) = match push_user_argv(pt_root, name, args) {
+            Ok(v) => v,
+            Err(e) => {
+                vm::destroy_user_pt(pt_root, &user_pages);
+                return Err(e);
+            }
+        };
+
         let kstack = vec![0u128; KSTACK_WORDS].into_boxed_slice();
         let kstack_top = (kstack.as_ptr() as u64) + ((KSTACK_WORDS * 16) as u64);
         let tf_addr = kstack_top - (core::mem::size_of::<TrapFrame>() as u64);
         let tf_ptr = tf_addr as *mut TrapFrame;
         // SAFETY: `tf_ptr` points to the zeroed top 288 bytes of `kstack`, aligned to 16 bytes.
         unsafe {
-            (*tf_ptr).regs[2] = USER_STACK_TOP;
+            (*tf_ptr).regs[2] = child_sp;
+            (*tf_ptr).regs[10] = argc;
+            (*tf_ptr).regs[11] = argv_va;
             (*tf_ptr).sstatus = SSTATUS_SPIE;
             (*tf_ptr).sepc = prog.entry;
         }
@@ -206,6 +222,14 @@ impl KernelState {
             return Err(Errno::NoMem);
         };
 
+        let mut fds = FdTable::new();
+        if let Some(fd0) = stdin {
+            fds.set_stdin(fd0);
+        }
+        if let Some(fd1) = stdout {
+            fds.set_stdout(fd1);
+        }
+
         self.tid_to_pid.insert(tid, pid);
         self.procs.insert(
             pid,
@@ -218,7 +242,7 @@ impl KernelState {
                 _kstack: kstack,
                 tf_addr,
                 frames_freed: false,
-                fds: FdTable::new(),
+                fds,
             },
         );
         Ok(pid)
@@ -424,4 +448,42 @@ impl KernelState {
         p.brk = new_brk;
         Ok(old_brk)
     }
+}
+
+fn push_user_argv(pt_root: u64, name: &str, args: &[Vec<u8>]) -> Result<(u64, u64, u64), Errno> {
+    let mut sp = USER_STACK_TOP;
+    let mut str_vas = Vec::new();
+    let mut push_one = |bytes: &[u8]| -> Result<(), Errno> {
+        let len = bytes.len().checked_add(1).ok_or(Errno::BadArg)? as u64;
+        sp = sp.checked_sub(len).ok_or(Errno::BadArg)?;
+        if sp < USER_STACK_BOTTOM {
+            return Err(Errno::BadArg);
+        }
+        let mut buf = Vec::with_capacity(bytes.len() + 1);
+        buf.extend_from_slice(bytes);
+        buf.push(0);
+        vm::copy_to_user(pt_root, sp, &buf)?;
+        str_vas.push(sp);
+        Ok(())
+    };
+    if args.is_empty() {
+        push_one(name.as_bytes())?;
+    } else {
+        for arg in args {
+            push_one(arg)?;
+        }
+    }
+    let argc = str_vas.len() as u64;
+    let ptr_bytes = (str_vas.len() + 1) * 8;
+    let arr_sp = sp.checked_sub(ptr_bytes as u64).ok_or(Errno::BadArg)? & !0xFu64;
+    if arr_sp < USER_STACK_BOTTOM {
+        return Err(Errno::BadArg);
+    }
+    let mut ptr_buf = Vec::with_capacity(ptr_bytes);
+    for va in str_vas {
+        ptr_buf.extend_from_slice(&va.to_le_bytes());
+    }
+    ptr_buf.extend_from_slice(&0u64.to_le_bytes());
+    vm::copy_to_user(pt_root, arr_sp, &ptr_buf)?;
+    Ok((argc, arr_sp, arr_sp))
 }
