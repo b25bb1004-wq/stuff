@@ -129,6 +129,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | PASS |
 | T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
 | T50a | P3 | seam | node: block pool, fork choice, reorgs, sync messages, mempool | hydrogen-high | T49 | PASS |
+| T50b | P3 | seam | gossip over tremor: sans-IO peers, stream framing, sync ticks | hydrogen-high | T50a T35 | RUNNING |
 | T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
 | T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
@@ -162,6 +163,11 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
 | T79a | P6 | fuzz | soak outcrop | hydrogen | - | PASS |
 | T79b | P6 | fuzz | soak one crate per lane run: chisel geode drillcore cairn crust shale tremor mica pigment quartz | hydrogen | - | TODO |
+| T79c | P6 | fuzz | soak chisel | hydrogen | - | RUNNING |
+| T79d | P6 | fuzz | soak geode | hydrogen | - | RUNNING |
+| T79e | P6 | fuzz | soak drillcore | hydrogen | - | RUNNING |
+| T79f | P6 | fuzz | soak cairn | hydrogen | - | RUNNING |
+| T79g | P6 | fuzz | soak crust | hydrogen | - | RUNNING |
 | T80 | P6 | review | security review of every crate, one report each | argon | all | TODO |
 | T81 | P6 | docs | README and runnable example per system, architecture book | flash | all | TODO |
 | T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | PASS |
@@ -258,3 +264,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 14:21 | T66b | haiku | 199,110 | PASS | flex_leader 2/2 both seeds + mutation bites; leader's own T66a check fixed (display: flex was in its invalid pool); gates pass
 - 2026-11-15 14:41 | T50a | hydrogen-high | agy quota | PASS | node_leader 3/3 both seeds; leader added Node::missing for GetBlock retry (brief gap); gates pass
 - 2026-11-15 14:54 | T42 varve net | hydrogen | - | PASS | own codec+8 clients+txn model; zero-col rows aligned
+- 2026-11-15 15:03 | dispatch | 6 hydrogen | - | RUNNING | T50b hydrogen-high; T79c-g soaks chisel geode drillcore cairn crust
