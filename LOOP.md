@@ -13,7 +13,7 @@
 - [x] T33 judge + bench fixes, commit 049e3f8
 - [x] T21 corpus (LLVM, validated), brief, leader check
 - [x] T82 CI workflow, green on ubuntu-latest
-- [>] T47 cairn registry: brief written, leader check next, then dispatch (hydrogen)
+- [>] T47 cairn registry: dispatched to hydrogen, judge on report
 - [x] T21 chisel PASS (leader check fixed: hex li, x0)
 - [ ] T13 riscv-tests (download approved): fetch, build as quartz data
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
@@ -111,7 +111,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
 | T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | PASS |
 | T46 | P3 | cairn | manifest, versions, dependency solver, lock file | hydrogen |  | PASS |
-| T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | TODO |
+| T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | RUNNING |
 | T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | argon | T04 | TODO |
 | T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | TODO |
 | T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
@@ -201,3 +201,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 06:12 T21 dispatched hydrogen-high: brief + LLVM corpus (2758 lines, 9312 B, 317 labels validated) + leader check (corpus, c_pairs/amo, 3000 random insts, li64 by execution, fixtures run, errors, alignment, speed).
 - 2026-11-15 06:28 T82 CI PASS (leader): .github/workflows/gate.yml green on ubuntu-latest. Pinned Rust 1.98.0 (1.100 clippy adds needless_bool), Python 3.14 + pillow/tinycss2/soupsieve/bs4 at dev versions (regex and HTML oracles differ across versions); Linux because crust tests compare with Linux bash (dev PC uses WSL bash).
 - 2026-11-15 06:38 T21 chisel PASS (hydrogen-high): corpus = LLVM, c_pairs, amo, quartz fixtures, fresh seeds, workspace gate. Leader check had 2 bugs of its own (hex li parse, li to x0).
+- 2026-11-15 06:39 T47 dispatched (hydrogen): brief + leader check registry_leader.rs committed.
