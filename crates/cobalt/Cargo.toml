@@ -9,6 +9,10 @@ publish = false
 name = "logos"
 path = "src/main.rs"
 
+[[bin]]
+name = "cobalt"
+path = "src/bin/cobalt.rs"
+
 [features]
 default = ["silicon"]
 silicon = ["dep:silicon"]
