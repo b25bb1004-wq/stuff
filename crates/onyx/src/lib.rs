@@ -7,6 +7,7 @@ extern crate alloc;
 
 pub mod aead;
 pub mod chacha20;
+pub mod cinnabar;
 pub mod ct;
 pub mod ed25519;
 mod edwards;
