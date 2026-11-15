@@ -21,7 +21,8 @@
 - [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
 - [x] T39 varve pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
 - [x] T34 tremor PASS on retry 1 (ACK/PTO fix); drillcore racing-pushers check fixed (reachability, not first-parent)
-- [ ] T55 slate app: brief + app_leader.rs (edit/motion tables, screens, scroll, files, Mica highlight, fuzz undo-all) ready; dispatch hydrogen when a lane frees
+- [>] T55 slate app: brief + app_leader.rs (edit/motion tables, screens, scroll, files, Mica highlight, fuzz undo-all), dispatched (hydrogen)
+- [>] T48 seam: exact brief (encodings, RFC 6962 Merkle, state root, append order) written; dispatched to one Haiku subagent (operator 2026-11-15); seam_leader.rs being written meanwhile
 - [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
@@ -121,7 +122,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | PASS |
 | T46 | P3 | cairn | manifest, versions, dependency solver, lock file | hydrogen |  | PASS |
 | T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | PASS |
-| T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | argon | T04 | TODO |
+| T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | haiku | T04 | RUNNING |
 | T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | TODO |
 | T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
 | T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
@@ -129,7 +130,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
 | T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | PASS |
 | T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | hydrogen-high |  | PASS |
-| T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | TODO |
+| T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | RUNNING |
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | PASS |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | PASS |
@@ -225,4 +226,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 07:55 T34 brief + leader check written (model self-run OK, lint vs stub). Model uses onyx in Rust instead of Python: same independence, no extra tooling.
 - 2026-11-15 08:12 T31 quartz H PASS (argon-high, first run): leader check 8/8 + fresh seed, gate PASS. T40 dispatched (hydrogen-high). Argon % to ask.
 - 2026-11-15 08:26 T40 varve B+tree PASS (hydrogen-high): check 5/5 + fresh seed after leader fix to T39 pager read(0) in a txn (stale page 0); regression test added to pager_leader. T34 dispatched.
-- 2026-11-15 10:40 T22 PASS (hydrogen); T34 PASS retry 1 (hydrogen-high); T55 brief+check ready; drillcore remote_leader flake fixed
+- 2026-11-15 11:57 T22 PASS (hydrogen); T34 PASS retry 1 (hydrogen-high); T55 brief+check ready; drillcore remote_leader flake fixed
