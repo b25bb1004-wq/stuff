@@ -30,6 +30,7 @@ members = [
     "crates/bench",
     "crates/athena",
     "crates/deploy",
+    "crates/site",
     "crates/neon",
     "crates/titan",
 ]
