@@ -116,7 +116,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T29a | P2 | cobalt | (T29a) integer subset Logos IR to RV64, stack slots, runs on Silicon | hydrogen-high | T10 T22 | PASS |
 | T30 | P2 | cobalt | constant folding, dead code, copy propagation | haiku | T29 | PASS |
 | T31 | P2 | silicon | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | PASS |
-| T32 | P2 | zeus | hypervisor: 2 guests (lithium + titan), virtual console and timer, isolation | opus-high | T31 T24 T26 | TODO |
+| T32 | P2 | zeus | hypervisor: 2 guests (lithium + titan), virtual console and timer, isolation | opus-high | T31 T24 T26 | RUNNING |
 | T33 | P2 | silicon | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
 | T34 | P3 | xenon | protocol core from `docs/XENON.md`, no I/O inside | hydrogen-high | T04 T20 D2 | PASS |
 | T35 | P3 | xenon | UDP transport, echo and file-transfer tools | hydrogen | T34 | PASS |
