@@ -20,7 +20,7 @@
 - [x] T14 onyx Cinnabar PASS (first try)
 - [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
 - [x] T39 varve pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
-- [ ] T34 tremor: brief + leader check (Python model of the handshake keys)
+- [ ] T34 tremor: brief + tremor_leader.rs ready (handshake model from onyx primitives, own lossy simulator); dispatch hydrogen-high when a lane frees
 - [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
@@ -221,3 +221,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 07:43 T39 varve PASS (hydrogen-high): leader check 9/9 + fresh seed, gate PASS; check fixed (fixed-length page contents).
 - 2026-11-15 07:45 T31 brief + leader check written (model self-test on two seeds), dispatched argon-high.
 - 2026-11-15 07:49 T40 brief + leader check written (lint vs stub), retagged hydrogen-high (merge rule + hostile pages).
+- 2026-11-15 07:55 T34 brief + leader check written (model self-run OK, lint vs stub). Model uses onyx in Rust instead of Python: same independence, no extra tooling.
