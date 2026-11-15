@@ -18,10 +18,9 @@ All pointers live in `neon`'s exported linear `memory`. Multi-byte inputs are al
 | `titan_output` | `() -> usize` | Drain pending UART TX into last buffer and return byte length |
 | `logos_run` | `(ptr: *const u8, len: usize, fuel: u64) -> usize` | Run Logos `main` with `fuel`; output/diagnostic/trap in last buffer |
 
-## Bundling
+## Web kit and bundling
 
-```sh
-cargo run -p neon --example pack
-```
+The page is owned by the site crate. `neon::webkit` holds the shared kit in `web/kit/` (`tokens.css`,
+`wasm.js` loader, `term.js` terminal), the content hash, the service worker template and `lint`.
 
-Writes `index.html`, `neon.js`, `style.css`, `neon.wasm`, and `titan.elf` to `target/neon-web`.
+`neon::pack::pack(out)` builds `neon.wasm` and `titan.elf` and writes the kit to `out/_kit/`.

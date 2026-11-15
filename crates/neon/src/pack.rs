@@ -1,9 +1,10 @@
-//! Host bundler that compiles `neon` (wasm32) and `titan` (riscv64) and packages the web app.
+//! Host bundler that compiles `neon` (wasm32) and `titan` (riscv64) and writes the wasm, the ELF and the kit.
 
-use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::path::Path;
 
-/// Build `neon.wasm`, `titan.elf`, and copy all five web assets into `out`.
+use crate::webkit::{run_cargo, FILES};
+
+/// Build `neon.wasm` and `titan.elf`, then write them and the kit (`_kit/*`) into `out`.
 pub fn pack(out: &Path) -> Result<(), String> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let root = manifest_dir
@@ -45,8 +46,9 @@ pub fn pack(out: &Path) -> Result<(), String> {
         ],
     )?;
 
-    std::fs::create_dir_all(out)
-        .map_err(|e| format!("failed to create output dir {}: {e}", out.display()))?;
+    let kit_out = out.join("_kit");
+    std::fs::create_dir_all(&kit_out)
+        .map_err(|e| format!("failed to create output dir {}: {e}", kit_out.display()))?;
 
     let wasm_src = wasm_target
         .join("wasm32-unknown-unknown")
@@ -56,38 +58,21 @@ pub fn pack(out: &Path) -> Result<(), String> {
         .join("riscv64gc-unknown-none-elf")
         .join("release")
         .join("kernel");
-    let web_dir = manifest_dir.join("web");
 
-    let copies: [(&Path, PathBuf); 5] = [
-        (&wasm_src, out.join("neon.wasm")),
-        (&titan_src, out.join("titan.elf")),
-        (&web_dir.join("index.html"), out.join("index.html")),
-        (&web_dir.join("neon.js"), out.join("neon.js")),
-        (&web_dir.join("style.css"), out.join("style.css")),
+    let copies = [
+        (wasm_src.as_path(), out.join("neon.wasm")),
+        (titan_src.as_path(), out.join("titan.elf")),
     ];
-
     for (src, dst) in copies {
         std::fs::copy(src, &dst)
             .map_err(|e| format!("failed to copy {} to {}: {e}", src.display(), dst.display()))?;
     }
 
-    Ok(())
-}
-
-fn run_cargo(cargo: &str, root: &Path, target_dir: &Path, args: &[&str]) -> Result<(), String> {
-    let output = Command::new(cargo)
-        .current_dir(root)
-        .env("CARGO_TARGET_DIR", target_dir)
-        .args(args)
-        .output()
-        .map_err(|e| format!("failed to spawn cargo ({}): {e}", args.join(" ")))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!(
-            "cargo {} failed ({}):\n{stderr}",
-            args.join(" "),
-            output.status
-        ));
+    for (name, text) in FILES {
+        let dst = kit_out.join(name);
+        std::fs::write(&dst, text)
+            .map_err(|e| format!("failed to write {}: {e}", dst.display()))?;
     }
+
     Ok(())
 }

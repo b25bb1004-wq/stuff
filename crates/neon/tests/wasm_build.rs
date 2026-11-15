@@ -69,28 +69,21 @@ fn pack_produces_valid_wasm_and_local_web_bundle() {
     }
     pack(&tmp).unwrap();
 
-    for name in [
-        "index.html",
-        "neon.js",
-        "style.css",
-        "neon.wasm",
-        "titan.elf",
-    ] {
+    for name in ["neon.wasm", "titan.elf"] {
         let path = tmp.join(name);
         assert!(path.is_file(), "missing bundled file {}", path.display());
         let meta = std::fs::metadata(&path).unwrap();
         assert!(meta.len() > 0, "empty bundled file {}", path.display());
     }
 
-    let html = std::fs::read_to_string(tmp.join("index.html")).unwrap();
-    for forbidden in ["http://", "https://", "//", "ws://", "wss://"] {
+    for (name, text) in neon::webkit::FILES {
+        let path = tmp.join("_kit").join(name);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), *text);
         assert!(
-            !html.contains(forbidden),
-            "index.html must reference only local files, found {forbidden}"
+            neon::webkit::lint(text).is_empty(),
+            "lint failed for {name}"
         );
     }
-    assert!(html.contains("style.css"));
-    assert!(html.contains("neon.js"));
 
     let wasm = std::fs::read(tmp.join("neon.wasm")).unwrap();
     assert!(wasm.len() >= 8, "wasm too short");

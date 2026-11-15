@@ -1,0 +1,90 @@
+/* Shared tokens from docs/FRONT.md: colour, type and space. Dark is the default;
+   prefers-color-scheme: light or data-theme="light" picks light; data-theme="dark" always wins. */
+:root {
+  --bg: #0e1013;
+  --panel: #161a1f;
+  --line: #262c34;
+  --text: #e6e3dc;
+  --muted: #9aa1ab;
+  --accent: #e0a458;
+  --ok: #7cc49a;
+  --bad: #ef7b7b;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f2ee;
+    --panel: #ffffff;
+    --line: #d9d4ca;
+    --text: #1b1d21;
+    --muted: #5c6168;
+    --accent: #9a5b12;
+    --ok: #1f7a47;
+    --bad: #b3261e;
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f2ee;
+  --panel: #ffffff;
+  --line: #d9d4ca;
+  --text: #1b1d21;
+  --muted: #5c6168;
+  --accent: #9a5b12;
+  --ok: #1f7a47;
+  --bad: #b3261e;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1013;
+  --panel: #161a1f;
+  --line: #262c34;
+  --text: #e6e3dc;
+  --muted: #9aa1ab;
+  --accent: #e0a458;
+  --ok: #7cc49a;
+  --bad: #ef7b7b;
+  color-scheme: dark;
+}
+
+:root {
+  --font-ui: system-ui, sans-serif;
+  --font-code: ui-monospace, "Cascadia Code", Consolas, monospace;
+  --fs-xs: 13px;
+  --fs-sm: 15px;
+  --fs-md: 18px;
+  --fs-lg: 24px;
+  --fs-xl: 36px;
+  --fs-2xl: 56px;
+  --fs-code: 13px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --r-pane: 6px;
+  --r-control: 4px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --fs-code: 14px;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
