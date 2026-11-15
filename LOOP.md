@@ -209,7 +209,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T80d | P6 | review | security review argo, findings proven by tests | hydrogen-high | - | RUNNING |
 | T80e | P6 | review | security review krypton, findings proven by tests | hydrogen-high | - | PASS |
 | T80f | P6 | review | security review iridium, findings proven by tests | hydrogen-high | - | RUNNING |
-| T80g | P6 | review | security review elysium, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80g | P6 | review | security review elysium, findings proven by tests | hydrogen-high | - | PASS |
 | T80h | P6 | review | security review aurum, findings proven by tests | hydrogen-high | - | RUNNING |
 | T80i | P6 | review | security review silicon, findings proven by tests | hydrogen-high | - | RUNNING |
 | T80j | P6 | review | security review hades, findings proven by tests | hydrogen-high | - | RUNNING |
@@ -348,3 +348,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-15 18:52 | T80b | hydrogen-high | - | PASS | findings fail on HEAD src, fixed; gate CHECK PASS workspace
 - 2026-11-15 18:52 | T80c | hydrogen-high | - | PASS | findings fail on HEAD src, fixed; gate CHECK PASS workspace
 - 2026-11-15 18:52 | T80e | hydrogen-high | - | PASS | findings fail on HEAD src, fixed; gate CHECK PASS workspace
+- 2026-11-15 | T80g | agy hydrogen-high | - | PASS | elysium: no findings, 10 attack tests
