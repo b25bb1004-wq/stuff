@@ -48,6 +48,8 @@ pub enum Error {
     BadChunk,
     /// A `Content-Length` header is malformed or conflicts with another.
     BadContentLength,
+    /// The message has both `Transfer-Encoding: chunked` and `Content-Length` (request smuggling risk).
+    AmbiguousFraming,
     /// The request method is not a valid HTTP token.
     BadMethod,
 }

@@ -337,3 +337,40 @@ fn fuzz_hostile_inputs_never_panic() {
         }
     });
 }
+
+#[test]
+fn both_transfer_encoding_and_content_length_refused() {
+    let lim = Limits::default();
+    let req = b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 5\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n";
+    assert_eq!(parse_request(req, &lim), Err(Error::AmbiguousFraming));
+    let resp =
+        b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n";
+    assert_eq!(
+        parse_response(resp, &lim, false),
+        Err(Error::AmbiguousFraming)
+    );
+}
+
+#[test]
+fn differing_content_length_values_refused() {
+    let lim = Limits::default();
+    let req = b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 5\r\nContent-Length: 6\r\n\r\nhello!";
+    assert_eq!(parse_request(req, &lim), Err(Error::BadContentLength));
+    let resp = b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nContent-Length: 6\r\n\r\nhello!";
+    assert_eq!(
+        parse_response(resp, &lim, false),
+        Err(Error::BadContentLength)
+    );
+}
+
+#[test]
+fn normal_chunked_and_content_length_still_parse() {
+    let lim = Limits::default();
+    let chunked =
+        b"POST / HTTP/1.1\r\nHost: a\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nok\r\n0\r\n\r\n";
+    let (r, used) = parse_request(chunked, &lim).unwrap();
+    assert_eq!((r.body.as_slice(), used), (&b"ok"[..], chunked.len()));
+    let fixed = b"POST / HTTP/1.1\r\nHost: a\r\nContent-Length: 5\r\n\r\nhello";
+    let (r, used) = parse_request(fixed, &lim).unwrap();
+    assert_eq!((r.body.as_slice(), used), (&b"hello"[..], fixed.len()));
+}

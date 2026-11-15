@@ -468,6 +468,7 @@ fn describe_error(err: &Error) -> &'static str {
         Error::BodyTooLarge => "message body too large",
         Error::BadChunk => "malformed chunked body",
         Error::BadContentLength => "malformed or conflicting Content-Length",
+        Error::AmbiguousFraming => "both Transfer-Encoding and Content-Length present",
         Error::BadMethod => "invalid HTTP method",
     }
 }

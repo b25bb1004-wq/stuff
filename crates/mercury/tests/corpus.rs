@@ -185,19 +185,10 @@ fn request_corpus() {
                 101,
             )),
         ),
-        // 13. CL + TE smuggling: TE chunked wins over Content-Length
+        // 13. CL + TE smuggling: both framing headers are refused (RFC 9112 6.3)
         (
             b"POST /smug HTTP/1.1\r\nContent-Length: 100\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nok\r\n0\r\n\r\n",
-            Ok((
-                Request {
-                    method: "POST".into(),
-                    target: "/smug".into(),
-                    minor: 1,
-                    headers: h(&[("Content-Length", b"100"), ("Transfer-Encoding", b"chunked")]),
-                    body: b"ok".to_vec(),
-                },
-                84,
-            )),
+            Err(Error::AmbiguousFraming),
         ),
         // 14. TE: gzip, chunked
         (
@@ -427,20 +418,11 @@ fn response_corpus() {
                 73,
             )),
         ),
-        // 9. CL + TE on response: TE wins
+        // 9. CL + TE on response: refused, same as requests
         (
             b"HTTP/1.1 200 OK\r\nContent-Length: 50\r\nTransfer-Encoding: chunked\r\n\r\n1\r\nx\r\n0\r\n\r\n",
             false,
-            Ok((
-                Response {
-                    minor: 1,
-                    status: 200,
-                    reason: "OK".into(),
-                    headers: h(&[("Content-Length", b"50"), ("Transfer-Encoding", b"chunked")]),
-                    body: b"x".to_vec(),
-                },
-                78,
-            )),
+            Err(Error::AmbiguousFraming),
         ),
         // 10. Pipelined response pair
         (

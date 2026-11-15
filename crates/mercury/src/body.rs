@@ -68,6 +68,17 @@ pub(crate) fn parse_content_length(headers: &[(String, Vec<u8>)]) -> Result<Opti
     Ok(expected)
 }
 
+/// Framing for one message: `(chunked, Content-Length)`. Both at once is ambiguous (RFC 9112 6.3),
+/// so it is refused, and Content-Length is validated even when chunked wins.
+pub(crate) fn parse_framing(headers: &[(String, Vec<u8>)]) -> Result<(bool, Option<usize>), Error> {
+    let chunked = parse_transfer_encoding(headers)?;
+    let len = parse_content_length(headers)?;
+    if chunked && len.is_some() {
+        return Err(Error::AmbiguousFraming);
+    }
+    Ok((chunked, len))
+}
+
 /// Parse a `Content-Length`-delimited body starting at `start`.
 pub(crate) fn parse_fixed_body(
     buf: &[u8],

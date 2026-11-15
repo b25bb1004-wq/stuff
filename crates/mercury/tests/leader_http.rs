@@ -19,11 +19,9 @@ fn req(s: &str) -> Result<(Request, usize), Error> {
 
 #[test]
 fn leader_smuggling_and_framing() {
-    // Chunked wins over Content-Length, and the whole chunked body is consumed.
+    // Both Content-Length and chunked is refused outright (RFC 9112 6.3).
     let s = "POST / HTTP/1.1\r\nContent-Length: 5\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n0\r\n\r\nGET";
-    let (r, used) = req(s).unwrap();
-    assert_eq!(r.body, b"abc");
-    assert_eq!(used, s.len() - 3);
+    assert_eq!(req(s).err(), Some(Error::AmbiguousFraming));
     let s =
         "POST / HTTP/1.1\r\nTransfer-Encoding: Chunked\r\n\r\n2;ext=1\r\nhi\r\n0\r\nX-T: 1\r\n\r\n";
     let (r, used) = req(s).unwrap();
