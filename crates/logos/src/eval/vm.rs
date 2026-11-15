@@ -14,6 +14,8 @@ use core::cell::RefCell;
 use super::Trap;
 
 const MAX_CALL_DEPTH: usize = 10_000;
+/// Most elements one array repeat `[v; n]` may allocate. The VM has no heap budget, so this caps it.
+const MAX_FILL_LEN: i64 = 16 << 20;
 
 /// Runtime value in the Logos reference interpreter.
 #[derive(Debug, Clone, PartialEq)]
@@ -325,6 +327,11 @@ impl<'a> Vm<'a> {
                 };
                 if count < 0 {
                     return Err((Trap::IndexOutOfRange, span));
+                }
+                // Checked before any allocation. Trap::Overflow stands in for "too large":
+                // a new Trap variant would break exhaustive matches in other crates.
+                if count > MAX_FILL_LEN {
+                    return Err((Trap::Overflow, span));
                 }
                 let n = usize::try_from(count).map_err(|_| (Trap::Overflow, span))?;
                 self.set_top_reg(*dst, Val::Array(Rc::new(RefCell::new(vec![val; n]))), span)?;

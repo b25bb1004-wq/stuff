@@ -496,3 +496,18 @@ prop "small positive" (x: int) where x > 0 {
     assert_eq!(out1, out2);
     assert!(out1.output.contains("case "));
 }
+
+#[test]
+fn trap_array_repeat_over_cap_before_allocating() {
+    // 4e9 elements would be tens of GB; the cap traps before any allocation.
+    let p = compile(
+        r#"
+fn main() {
+    let xs = [0; 4000000000];
+    let _ = xs;
+}
+"#,
+    );
+    let out = run_main(&p, "", 1_000);
+    assert!(matches!(out.result, Err((Trap::Overflow, _))));
+}

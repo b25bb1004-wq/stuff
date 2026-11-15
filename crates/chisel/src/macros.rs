@@ -89,6 +89,8 @@ fn substitute_params(body_line: &str, params: &[String], args: &[&str]) -> Strin
 const MAX_EXPANDED_STMTS: usize = 1_000_000;
 /// Longest line a macro substitution may produce.
 const MAX_EXPANDED_LINE: usize = 1 << 20;
+/// Most substituted bytes one top-level macro invocation may produce, across all nesting levels.
+const MAX_EXPANDED_BYTES: usize = 64 << 20;
 
 pub(crate) fn expand_macro_body(
     mac: &MacroDef,
@@ -97,6 +99,19 @@ pub(crate) fn expand_macro_body(
     macros: &HashMap<String, MacroDef>,
     out: &mut Vec<StmtLine>,
     depth: usize,
+) -> Result<(), AsmError> {
+    let mut budget = MAX_EXPANDED_BYTES;
+    expand_within(mac, args, invoke_line, macros, out, depth, &mut budget)
+}
+
+fn expand_within(
+    mac: &MacroDef,
+    args: &[&str],
+    invoke_line: usize,
+    macros: &HashMap<String, MacroDef>,
+    out: &mut Vec<StmtLine>,
+    depth: usize,
+    budget: &mut usize,
 ) -> Result<(), AsmError> {
     if depth > 64 {
         return Err(AsmError::new(
@@ -113,6 +128,10 @@ pub(crate) fn expand_macro_body(
         if sub.len() > MAX_EXPANDED_LINE {
             return Err(AsmError::new(invoke_line, "macro expansion line too long"));
         }
+        if sub.len() > *budget {
+            return Err(AsmError::new(invoke_line, "macro expansion too large"));
+        }
+        *budget -= sub.len();
         let stripped = strip_comment(&sub);
         let (labels, rest) = extract_labels(stripped, invoke_line)?;
         if labels.is_empty() && rest.is_empty() {
@@ -139,7 +158,15 @@ pub(crate) fn expand_macro_body(
                         ),
                     ));
                 }
-                expand_macro_body(nested, &nested_args, invoke_line, macros, out, depth + 1)?;
+                expand_within(
+                    nested,
+                    &nested_args,
+                    invoke_line,
+                    macros,
+                    out,
+                    depth + 1,
+                    budget,
+                )?;
                 continue;
             }
         }
@@ -150,4 +177,30 @@ pub(crate) fn expand_macro_body(
         });
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fan_out_beyond_byte_budget_is_an_error() {
+        // A 1 KiB argument fanned out 1000 times is about 1 MB; a 10 KB budget must stop it.
+        let leaf = MacroDef {
+            params: vec!["a".into()],
+            body: vec!["nop \\a".into()],
+        };
+        let top = MacroDef {
+            params: vec!["a".into()],
+            body: vec!["leaf \\a".into(); 1000],
+        };
+        let mut macros = HashMap::new();
+        macros.insert("leaf".to_string(), leaf);
+        let arg = "x".repeat(1024);
+        let mut out = Vec::new();
+        let mut budget = 10_000;
+        let err = expand_within(&top, &[arg.as_str()], 7, &macros, &mut out, 0, &mut budget)
+            .expect_err("over budget");
+        assert!(err.to_string().contains("too large"), "{err}");
+    }
 }

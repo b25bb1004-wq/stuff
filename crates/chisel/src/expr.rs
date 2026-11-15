@@ -59,10 +59,18 @@ pub(crate) enum BinOp {
     BitXor,
 }
 
+/// Deepest nesting of parentheses and unary operators the parser recurses through.
+const MAX_EXPR_DEPTH: usize = 256;
+/// Most operators one expression may contain. Bounds the AST depth of long binary chains,
+/// which the evaluator and drop glue walk recursively.
+const MAX_EXPR_OPS: usize = 256;
+
 struct Parser<'a> {
     toks: &'a [Tok],
     pos: usize,
     line: usize,
+    depth: usize,
+    ops: usize,
 }
 
 impl<'a> Parser<'a> {
@@ -78,6 +86,18 @@ impl<'a> Parser<'a> {
         t
     }
 
+    /// Counts one operator node; errors once the expression has too many.
+    fn count_op(&mut self) -> Result<(), AsmError> {
+        self.ops += 1;
+        if self.ops > MAX_EXPR_OPS {
+            return Err(AsmError::new(
+                self.line,
+                "expression has too many operators",
+            ));
+        }
+        Ok(())
+    }
+
     fn parse_add_sub(&mut self) -> Result<Expr, AsmError> {
         let mut lhs = self.parse_bitwise()?;
         while let Some(op) = match self.peek() {
@@ -86,6 +106,7 @@ impl<'a> Parser<'a> {
             _ => None,
         } {
             self.next();
+            self.count_op()?;
             let rhs = self.parse_bitwise()?;
             lhs = Expr::Binary {
                 op,
@@ -105,6 +126,7 @@ impl<'a> Parser<'a> {
             _ => None,
         } {
             self.next();
+            self.count_op()?;
             let rhs = self.parse_mul_shift()?;
             lhs = Expr::Binary {
                 op,
@@ -126,6 +148,7 @@ impl<'a> Parser<'a> {
             _ => None,
         } {
             self.next();
+            self.count_op()?;
             let rhs = self.parse_unary()?;
             lhs = Expr::Binary {
                 op,
@@ -136,25 +159,46 @@ impl<'a> Parser<'a> {
         Ok(lhs)
     }
 
-    fn parse_unary(&mut self) -> Result<Expr, AsmError> {
-        let op = match self.peek() {
-            Some(Tok::Plus) => Some(UnaryOp::Plus),
-            Some(Tok::Minus) => Some(UnaryOp::Neg),
-            Some(Tok::Tilde) => Some(UnaryOp::BitNot),
-            _ => None,
-        };
-        if let Some(op) = op {
-            self.next();
-            let inner = self.parse_unary()?;
-            return Ok(Expr::Unary {
-                op,
-                inner: Box::new(inner),
-            });
+    /// Runs `f` one nesting level deeper, failing past [`MAX_EXPR_DEPTH`].
+    fn nested<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> Result<T, AsmError>,
+    ) -> Result<T, AsmError> {
+        if self.depth >= MAX_EXPR_DEPTH {
+            return Err(AsmError::new(self.line, "expression nested too deeply"));
         }
-        self.parse_primary()
+        self.depth += 1;
+        let r = f(self);
+        self.depth -= 1;
+        r
+    }
+
+    fn parse_unary(&mut self) -> Result<Expr, AsmError> {
+        self.nested(|p| {
+            let op = match p.peek() {
+                Some(Tok::Plus) => Some(UnaryOp::Plus),
+                Some(Tok::Minus) => Some(UnaryOp::Neg),
+                Some(Tok::Tilde) => Some(UnaryOp::BitNot),
+                _ => None,
+            };
+            if let Some(op) = op {
+                p.next();
+                p.count_op()?;
+                let inner = p.parse_unary()?;
+                return Ok(Expr::Unary {
+                    op,
+                    inner: Box::new(inner),
+                });
+            }
+            p.parse_primary()
+        })
     }
 
     fn parse_primary(&mut self) -> Result<Expr, AsmError> {
+        self.nested(Self::parse_primary_inner)
+    }
+
+    fn parse_primary_inner(&mut self) -> Result<Expr, AsmError> {
         let Some(tok) = self.next().cloned() else {
             return Err(AsmError::new(self.line, "expected expression"));
         };
@@ -197,6 +241,8 @@ pub(crate) fn parse_expr(s: &str, line: usize) -> Result<Expr, AsmError> {
         toks: &toks,
         pos: 0,
         line,
+        depth: 0,
+        ops: 0,
     };
     let expr = p.parse_add_sub()?;
     if p.pos != toks.len() {
@@ -206,4 +252,24 @@ pub(crate) fn parse_expr(s: &str, line: usize) -> Result<Expr, AsmError> {
         ));
     }
     Ok(expr)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_expr;
+
+    #[test]
+    fn hostile_nesting_is_an_error_not_a_stack_overflow() {
+        assert!(parse_expr(&"-".repeat(100_000), 1).is_err());
+        let parens = format!("{}1{}", "(".repeat(100_000), ")".repeat(100_000));
+        assert!(parse_expr(&parens, 1).is_err());
+    }
+
+    #[test]
+    fn long_binary_chain_is_an_error() {
+        let chain = vec!["1"; 1000].join("-");
+        assert!(parse_expr(&chain, 1).is_err());
+        let short = vec!["1"; 20].join("+");
+        assert!(parse_expr(&short, 1).is_ok());
+    }
 }

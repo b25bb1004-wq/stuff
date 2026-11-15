@@ -2,6 +2,7 @@
 
 #![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
 
+pub mod guest_alloc;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod pack;
 pub mod playground;

@@ -26,6 +26,31 @@ const SHDR_SIZE: usize = 64;
 const SYM_SIZE: usize = 24;
 const PAGE_ALIGN: u64 = 4096;
 
+/// Most program headers `read` accepts.
+const MAX_PHNUM: usize = 4096;
+/// Most `PT_LOAD` file bytes `read` copies, summed over all segments.
+const MAX_LOAD_BYTES: u64 = 256 << 20;
+/// Most symbol-table entries `read` accepts.
+const MAX_SYMBOLS: usize = 1 << 20;
+/// Most symbol-name bytes (NULs included) `read` scans, summed over all symbols.
+const MAX_NAME_BYTES: usize = 16 << 20;
+
+/// Resource limits applied while reading untrusted ELF bytes.
+#[derive(Clone, Copy)]
+struct Caps {
+    phnum: usize,
+    load_bytes: u64,
+    symbols: usize,
+    name_bytes: usize,
+}
+
+const DEFAULT_CAPS: Caps = Caps {
+    phnum: MAX_PHNUM,
+    load_bytes: MAX_LOAD_BYTES,
+    symbols: MAX_SYMBOLS,
+    name_bytes: MAX_NAME_BYTES,
+};
+
 /// A loadable ELF64 segment.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Segment {
@@ -248,6 +273,10 @@ fn push_shdr(
 
 /// Parse a little-endian RV64 ELF64 executable into an [`Image`].
 pub fn read(bytes: &[u8]) -> Result<Image, ElfError> {
+    read_capped(bytes, DEFAULT_CAPS)
+}
+
+fn read_capped(bytes: &[u8], caps: Caps) -> Result<Image, ElfError> {
     if bytes.len() < EHDR_SIZE {
         return Err(ElfError::Truncated);
     }
@@ -281,9 +310,13 @@ pub fn read(bytes: &[u8]) -> Result<Image, ElfError> {
     let e_phnum = read_u16(bytes, 56)?;
     let e_shentsize = read_u16(bytes, 58)?;
     let e_shnum = read_u16(bytes, 60)?;
+    if usize::from(e_phnum) > caps.phnum {
+        return Err(ElfError::Unsupported("too many program headers".into()));
+    }
 
     let ph_table = slice_range(bytes, e_phoff, u64::from(e_phnum) * (PHDR_SIZE as u64))?;
     let mut raw_segments = Vec::new();
+    let mut load_total: u64 = 0;
     for ph in ph_table.as_chunks::<PHDR_SIZE>().0 {
         let p_type = read_u32(ph, 0)?;
         if p_type != PT_LOAD {
@@ -294,7 +327,12 @@ pub fn read(bytes: &[u8]) -> Result<Image, ElfError> {
         let vaddr = read_u64(ph, 16)?;
         let p_filesz = read_u64(ph, 32)?;
         let mem_size = read_u64(ph, 40)?;
-        let data = slice_range(bytes, p_offset, p_filesz)?.to_vec();
+        let src = slice_range(bytes, p_offset, p_filesz)?;
+        load_total = load_total.saturating_add(p_filesz);
+        if load_total > caps.load_bytes {
+            return Err(ElfError::BadSegment("PT_LOAD bytes exceed cap".into()));
+        }
+        let data = src.to_vec();
         raw_segments.push(Segment {
             vaddr,
             flags,
@@ -303,7 +341,7 @@ pub fn read(bytes: &[u8]) -> Result<Image, ElfError> {
         });
     }
 
-    let symbols = read_symbols(bytes, e_shoff, e_shentsize, e_shnum)?;
+    let symbols = read_symbols(bytes, e_shoff, e_shentsize, e_shnum, caps)?;
 
     let mut ranges: Vec<(u64, u64)> = Vec::new();
     for seg in &raw_segments {
@@ -336,6 +374,7 @@ fn read_symbols(
     e_shoff: u64,
     e_shentsize: u16,
     e_shnum: u16,
+    caps: Caps,
 ) -> Result<Vec<(String, u64)>, ElfError> {
     if e_shnum == 0 {
         return Ok(Vec::new());
@@ -367,6 +406,9 @@ fn read_symbols(
     if sym_bytes.len() % SYM_SIZE != 0 {
         return Err(ElfError::Truncated);
     }
+    if sym_bytes.len() / SYM_SIZE > caps.symbols {
+        return Err(ElfError::Unsupported("too many symbols".into()));
+    }
 
     let link_idx = usize::try_from(sh_link).map_err(|_| ElfError::Truncated)?;
     let link_off = link_idx.checked_mul(SHDR_SIZE).ok_or(ElfError::Truncated)?;
@@ -378,16 +420,23 @@ fn read_symbols(
     let strtab = slice_range(bytes, str_offset, str_size)?;
 
     let mut symbols = Vec::new();
+    let mut name_bytes = 0usize;
     for sym in sym_bytes.as_chunks::<SYM_SIZE>().0 {
         let st_name = read_u32(sym, 0)? as usize;
         let st_info = sym[4];
         let st_value = read_u64(sym, 8)?;
         let tail = strtab.get(st_name..).ok_or(ElfError::Truncated)?;
-        let nul = tail
-            .iter()
-            .position(|&b| b == 0)
-            .ok_or(ElfError::Truncated)?;
-        let name = std::str::from_utf8(&tail[..nul])
+        // Scan only the bytes the total cap has left, so no single name can walk past it.
+        let window = &tail[..tail.len().min(caps.name_bytes - name_bytes)];
+        let nul = window.iter().position(|&b| b == 0).ok_or_else(|| {
+            if window.len() < tail.len() {
+                ElfError::Unsupported("symbol name bytes exceed cap".into())
+            } else {
+                ElfError::Truncated
+            }
+        })?;
+        name_bytes += nul + 1;
+        let name = std::str::from_utf8(&window[..nul])
             .map_err(|_| ElfError::Unsupported("non-UTF-8 symbol name".into()))?;
         if !name.is_empty() && (st_info & 0xf) <= 2 {
             symbols.push((name.to_owned(), st_value));
@@ -444,4 +493,101 @@ pub fn load(img: &Image, m: &mut silicon::machine::Machine) -> Result<(), silico
     }
     m.cpu.pc = img.entry;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn image(syms: usize, name_len: usize, seg_len: usize, segs: usize) -> Image {
+        Image {
+            entry: 0x1000,
+            segments: (0..segs)
+                .map(|i| Segment {
+                    vaddr: 0x1000 + (i as u64) * 0x2000,
+                    flags: PF_R,
+                    data: vec![0; seg_len],
+                    mem_size: seg_len as u64,
+                })
+                .collect(),
+            symbols: (0..syms)
+                .map(|i| (format!("{i:0>name_len$}"), 0x1000))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn symbol_count_over_cap_is_error() {
+        // The null entry counts too, so three names make four table entries.
+        let bytes = write(&image(3, 4, 0, 0));
+        let tight = Caps {
+            symbols: 3,
+            ..DEFAULT_CAPS
+        };
+        assert!(matches!(
+            read_capped(&bytes, tight),
+            Err(ElfError::Unsupported(_))
+        ));
+        let fits = Caps {
+            symbols: 4,
+            ..DEFAULT_CAPS
+        };
+        assert_eq!(read_capped(&bytes, fits).expect("fits").symbols.len(), 3);
+    }
+
+    #[test]
+    fn symbol_name_bytes_over_cap_is_error() {
+        // 1 (null) + 3 * 101 bytes of names: over 250, fits in 1000.
+        let bytes = write(&image(3, 100, 0, 0));
+        let tight = Caps {
+            name_bytes: 250,
+            ..DEFAULT_CAPS
+        };
+        assert!(matches!(
+            read_capped(&bytes, tight),
+            Err(ElfError::Unsupported(_))
+        ));
+        let fits = Caps {
+            name_bytes: 1000,
+            ..DEFAULT_CAPS
+        };
+        assert_eq!(read_capped(&bytes, fits).expect("fits").symbols.len(), 3);
+    }
+
+    #[test]
+    fn pt_load_bytes_over_cap_is_error() {
+        // Two segments of 100 file bytes each: 200 total.
+        let bytes = write(&image(0, 1, 100, 2));
+        let tight = Caps {
+            load_bytes: 150,
+            ..DEFAULT_CAPS
+        };
+        assert!(matches!(
+            read_capped(&bytes, tight),
+            Err(ElfError::BadSegment(_))
+        ));
+        let fits = Caps {
+            load_bytes: 200,
+            ..DEFAULT_CAPS
+        };
+        assert_eq!(read_capped(&bytes, fits).expect("fits").segments.len(), 2);
+    }
+
+    #[test]
+    fn program_header_count_over_cap_is_error() {
+        let bytes = write(&image(0, 1, 100, 2));
+        let tight = Caps {
+            phnum: 1,
+            ..DEFAULT_CAPS
+        };
+        assert!(matches!(
+            read_capped(&bytes, tight),
+            Err(ElfError::Unsupported(_))
+        ));
+        let fits = Caps {
+            phnum: 2,
+            ..DEFAULT_CAPS
+        };
+        assert_eq!(read_capped(&bytes, fits).expect("fits").segments.len(), 2);
+    }
 }
