@@ -11,6 +11,10 @@ odyssey is the HTML and CSS side of Monolith's page stack. It turns HTML into a 
 - Cascade: a user-agent sheet, `<style>` sheets and `style` attributes, with `!important` and specificity. `color` and `font-size` are inherited.
 - Properties: `display`, `width`, `height`, `margin`, `padding`, `border-width`, `color`, `background-color`, `font-size`, `flex-direction`, `justify-content`, `align-items`, `flex-grow` and `gap`.
 - Layout: block boxes, inline words placed on lines, and flex containers.
+- Paint: software rendering of backgrounds, solid per-side borders, and scaled bitmap text runs onto a `pigment::Canvas`.
+- Fetch: HTTP/1.1 GET client over `std::net::TcpStream` using `mercury` with 2s I/O timeouts, up to 5 redirects, and an 8 MiB body cap.
+- Script: `<script type="text/logos">` execution via `logos`/`cobalt`/`elysium` with `page.text`, `page.set_text`, and `page.log` externs.
+- Shell: `indium`-based `Browser` widget tree with address bar, Back, Reload, status line, clickable `<a href>` links, and error pages.
 - Not handled: grid, and at-rules such as `@media`. The parser reads at-rules, but the cascade ignores them.
 
 ## Public API
@@ -28,6 +32,10 @@ odyssey is the HTML and CSS side of Monolith's page stack. It turns HTML into a 
 | `style::compute(&Document) -> Vec<Option<Computed>>` | Computed style for each node |
 | `style::compute_flex(&Document) -> Vec<Option<Flex>>` | Flex properties for each node |
 | `layout::layout(&Document, &[Option<Computed>], i32) -> Layout` | Boxes, words and height for a viewport width |
+| `paint::paint(&Document, &[Option<Computed>], &Layout, &mut Canvas)` | Paint backgrounds, borders and text runs |
+| `fetch::get(&str, &Limits) -> Result<Response, FetchError>` | Fetch an `http://` URL over HTTP/1.1 |
+| `script::run_page_scripts(&mut Document, u64) -> ScriptLog` | Run `<script type="text/logos">` blocks |
+| `shell::Browser` | Interactive browser shell (`navigate`, `back`, `reload`, `frame`, `event`) |
 | `dom::Document` | Arena tree with `name`, `attr`, `elements` and `dump` |
 
 ## Demo

@@ -6,6 +6,11 @@ license = "MIT"
 publish = false
 
 [dependencies]
+cobalt = { path = "../cobalt" }
+elysium = { path = "../elysium" }
+indium = { path = "../indium" }
+logos = { path = "../logos" }
+mercury = { path = "../mercury" }
 pigment = { path = "../pigment" }
 
 [dev-dependencies]

@@ -156,7 +156,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T66 | P4 | odyssey | cascade, block and inline layout, flex subset | opus-high | T65 T60 | PASS (split T66a T66b) |
 | T66b | P4 | odyssey | flex layout subset | haiku | T66a | PASS |
 | T66a | P4 | odyssey | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | PASS |
-| T67 | P4 | odyssey | paint, fetch over HTTP, page scripts in Logos, browser shell in indium | hydrogen-high | T66 T62 T18 T37 | RUNNING |
+| T67 | P4 | odyssey | paint, fetch over HTTP, page scripts in Logos, browser shell in indium | hydrogen-high | T66 T62 T18 T37 | PASS |
 | T68 | P4 | helios | entity system, fixed time step, maths | haiku |  | PASS |
 | T69 | P4 | helios | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
 | T70a | P4 | helios | audio mixer, scene stack, input record and replay | hydrogen | T69 | PASS |
@@ -362,3 +362,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-15 | T26 | agy hydrogen-high | - | PASS | titan: U-mode, syscalls 0-15, ELF, kairos scheduler, 34-line transcript; opus lane hit 429, rerun on hydrogen
 - 2026-11-16 | T51 | leader (opus) | - | PASS | pandora: namespaces, pivot_root, cgroup v2; real containers tested in WSL; cgroup limits untested (needs root)
 - 2026-11-16 | T27 | agy hydrogen-high | - | PASS | titan: block driver, hades at /, file syscalls, 41-line transcript; leader corruption fuzz 16/16
+- 2026-11-16 | T67 | agy hydrogen-high | - | PASS | odyssey paint/fetch/script/shell, 137 tests; leader mutated-response fuzz

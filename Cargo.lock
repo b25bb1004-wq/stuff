@@ -165,6 +165,11 @@ name = "odyssey"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "cobalt",
+ "elysium",
+ "indium",
+ "logos",
+ "mercury",
  "pigment",
 ]
 
@@ -202,6 +207,7 @@ version = "0.1.0"
 dependencies = [
  "assay",
  "chisel",
+ "hades",
  "kairos",
  "midas",
  "silicon",
