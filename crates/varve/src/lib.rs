@@ -4,6 +4,7 @@
 mod crash;
 mod crc;
 mod format;
+pub mod net;
 mod pager;
 pub mod sql;
 mod storage;

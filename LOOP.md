@@ -119,7 +119,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | PASS |
 | T41a | P3 | varve | SQL core: parser, catalog, single-table DML and SELECT, indexes maintained, transactions | hydrogen-high | T40 | PASS |
 | T41b | P3 | varve | joins, index use in plans, EXPLAIN | hydrogen-high | T41a | PASS |
-| T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | RUNNING |
+| T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | PASS |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
 | T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
 | T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | PASS |
@@ -257,3 +257,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 14:14 | T62 | haiku | 139,418 | PASS | widgets_leader 4/4 both seeds; leader fixed nav reveal-without-change; gates pass
 - 2026-11-15 14:21 | T66b | haiku | 199,110 | PASS | flex_leader 2/2 both seeds + mutation bites; leader's own T66a check fixed (display: flex was in its invalid pool); gates pass
 - 2026-11-15 14:41 | T50a | hydrogen-high | agy quota | PASS | node_leader 3/3 both seeds; leader added Node::missing for GetBlock retry (brief gap); gates pass
+- 2026-11-15 14:54 | T42 varve net | hydrogen | - | PASS | own codec+8 clients+txn model; zero-col rows aligned
