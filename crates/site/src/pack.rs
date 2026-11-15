@@ -14,7 +14,7 @@ struct AppSpec {
     uses_titan_elf: bool,
 }
 
-const APPS: [AppSpec; 17] = [
+const APPS: [AppSpec; 23] = [
     AppSpec {
         id: "titan",
         name: "Titan",
@@ -44,6 +44,13 @@ const APPS: [AppSpec; 17] = [
         uses_titan_elf: false,
     },
     AppSpec {
+        id: "helios",
+        name: "Helios",
+        initial: 'H',
+        uses_demo_app: true,
+        uses_titan_elf: false,
+    },
+    AppSpec {
         id: "cobalt",
         name: "Cobalt",
         initial: 'C',
@@ -54,6 +61,13 @@ const APPS: [AppSpec; 17] = [
         id: "logos",
         name: "Logos",
         initial: 'L',
+        uses_demo_app: true,
+        uses_titan_elf: false,
+    },
+    AppSpec {
+        id: "odyssey",
+        name: "Odyssey",
+        initial: 'O',
         uses_demo_app: true,
         uses_titan_elf: false,
     },
@@ -93,6 +107,13 @@ const APPS: [AppSpec; 17] = [
         uses_titan_elf: false,
     },
     AppSpec {
+        id: "pandora",
+        name: "Pandora",
+        initial: 'P',
+        uses_demo_app: true,
+        uses_titan_elf: false,
+    },
+    AppSpec {
         id: "argo",
         name: "Argo",
         initial: 'A',
@@ -107,6 +128,20 @@ const APPS: [AppSpec; 17] = [
         uses_titan_elf: false,
     },
     AppSpec {
+        id: "iris",
+        name: "Iris",
+        initial: 'I',
+        uses_demo_app: true,
+        uses_titan_elf: false,
+    },
+    AppSpec {
+        id: "indium",
+        name: "Indium",
+        initial: 'I',
+        uses_demo_app: true,
+        uses_titan_elf: false,
+    },
+    AppSpec {
         id: "calliope",
         name: "Calliope",
         initial: 'C',
@@ -117,6 +152,13 @@ const APPS: [AppSpec; 17] = [
         id: "chronos",
         name: "Chronos",
         initial: 'C',
+        uses_demo_app: true,
+        uses_titan_elf: false,
+    },
+    AppSpec {
+        id: "xenon",
+        name: "Xenon",
+        initial: 'X',
         uses_demo_app: true,
         uses_titan_elf: false,
     },
@@ -136,17 +178,7 @@ const APPS: [AppSpec; 17] = [
     },
 ];
 
-const LAUNCHER_EXTRA_ICONS: [(&str, char); 9] = [
-    ("helios", 'H'),
-    ("odyssey", 'O'),
-    ("pandora", 'P'),
-    ("iris", 'I'),
-    ("indium", 'I'),
-    ("athena", 'A'),
-    ("xenon", 'X'),
-    ("midas", 'M'),
-    ("zeus", 'Z'),
-];
+const LAUNCHER_EXTRA_ICONS: [(&str, char); 3] = [("athena", 'A'), ("midas", 'M'), ("zeus", 'Z')];
 
 /// Build `site.wasm`, `titan.elf`, copy web assets, and pack `athena`, `_kit`, `/apps/`, and all standalone apps.
 pub fn pack(out: &Path) -> Result<(), String> {

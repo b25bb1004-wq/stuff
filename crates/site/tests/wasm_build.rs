@@ -159,8 +159,9 @@ fn pack_produces_valid_wasm_and_local_web_bundle() {
     );
 
     for demo_id in [
-        "iridium", "elysium", "mercury", "cobalt", "aurum", "sphinx", "silicon", "hades", "chisel",
-        "argo", "krypton", "calliope", "chronos", "lithium", "kairos",
+        "iridium", "elysium", "mercury", "helios", "cobalt", "odyssey", "aurum", "sphinx",
+        "silicon", "hades", "pandora", "chisel", "argo", "krypton", "iris", "indium", "calliope",
+        "chronos", "xenon", "lithium", "kairos",
     ] {
         let needle_main = format!("demo: \"{demo_id}\"");
         let needle_extra = format!("id: \"{demo_id}\"");

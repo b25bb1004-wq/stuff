@@ -96,9 +96,12 @@ impl Shell {
     pub fn new() -> Shell {
         let mut vars = BTreeMap::new();
         let mut exported = BTreeSet::new();
-        for (k, v) in std::env::vars() {
-            exported.insert(k.clone());
-            vars.insert(k, v);
+        // std::env::vars panics on wasm32-unknown-unknown (no process environment there).
+        if !cfg!(target_family = "wasm") {
+            for (k, v) in std::env::vars() {
+                exported.insert(k.clone());
+                vars.insert(k, v);
+            }
         }
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         if !vars.contains_key("PWD") {
@@ -114,7 +117,12 @@ impl Shell {
             last_status: 0,
             exited: None,
             last_bg_pid: None,
-            pid: std::process::id(),
+            // std::process::id panics on wasm32-unknown-unknown (the site runs the shell there).
+            pid: if cfg!(target_family = "wasm") {
+                1
+            } else {
+                std::process::id()
+            },
             opts: ShellOpts::default(),
             jobs: Vec::new(),
             next_job_id: 1,

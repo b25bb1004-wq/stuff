@@ -258,16 +258,22 @@ dependencies = [
  "cobalt",
  "elysium",
  "hades",
+ "helios",
+ "indium",
  "iridium",
+ "iris",
  "kairos",
  "krypton",
  "lithium",
  "logos",
  "mercury",
  "neon",
+ "odyssey",
+ "pandora",
  "pigment",
  "silicon",
  "sphinx",
+ "xenon",
 ]
 
 [[package]]

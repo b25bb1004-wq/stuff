@@ -259,22 +259,28 @@ fn pack_produces_all_installable_apps_and_launcher() {
         assert!(std::fs::metadata(&p).unwrap().len() > 0);
     }
 
-    let expected_apps: [(&str, &str); 17] = [
+    let expected_apps: [(&str, &str); 23] = [
         ("titan", "Titan"),
         ("iridium", "Iridium"),
         ("elysium", "Elysium"),
         ("mercury", "Mercury"),
+        ("helios", "Helios"),
         ("cobalt", "Cobalt"),
         ("logos", "Logos"),
+        ("odyssey", "Odyssey"),
         ("aurum", "Aurum"),
         ("sphinx", "Sphinx"),
         ("silicon", "Silicon"),
         ("chisel", "Chisel"),
         ("hades", "Hades"),
+        ("pandora", "Pandora"),
         ("argo", "Argo"),
         ("krypton", "Krypton"),
+        ("iris", "Iris"),
+        ("indium", "Indium"),
         ("calliope", "Calliope"),
         ("chronos", "Chronos"),
+        ("xenon", "Xenon"),
         ("lithium", "Lithium"),
         ("kairos", "Kairos"),
     ];
@@ -372,9 +378,7 @@ fn pack_produces_all_installable_apps_and_launcher() {
         check_png_ihdr(&target, 192, 192);
     }
 
-    for soon in [
-        "helios", "odyssey", "pandora", "iris", "indium", "xenon", "midas", "zeus",
-    ] {
+    for soon in ["midas", "zeus"] {
         assert!(
             !launcher_html.contains(&format!("href=\"../{soon}/\"")),
             "coming-soon system `{soon}` must not be a link"
@@ -410,7 +414,7 @@ fn pack_produces_all_installable_apps_and_launcher() {
 
 #[test]
 fn all_second_and_error_examples_match_expected_outcomes() {
-    let second_examples: [(&str, &str); 15] = [
+    let second_examples: [(&str, &str); 21] = [
         (
             "iridium",
             "CREATE TABLE rocks (id INT PRIMARY KEY, kind TEXT, mass INT);\n\
@@ -440,6 +444,21 @@ fn all_second_and_error_examples_match_expected_outcomes() {
             "GET /status?verbose=1 HTTP/1.0\nHost: monolith.local\nUser-Agent: Monolith/0.1\n\n",
         ),
         (
+            "helios",
+            "ticks 45\n\
+             fn g_frame() -> int = extern \"game.frame\"\n\
+             fn g_rect(x: int, y: int, w: int, h: int, c: int) = extern \"game.rect\"\n\n\
+             fn update() {\n\
+               let f = g_frame()\n\
+               g_rect(0, 0, 320, 240, 0x111827)\n\
+               g_rect(20, 200, 280, 10, 0x475569)\n\
+               let bx = 24 + (f * 5) % 248\n\
+               let by = 176 - ((f * 7) % 120)\n\
+               g_rect(bx, by, 24, 24, 0xf59e0b)\n\
+               g_rect(bx + 4, by + 4, 8, 8, 0xfef3c7)\n\
+             }",
+        ),
+        (
             "cobalt",
             "fn print(s: str) uses io = extern \"io.print\"\n\n\
              fn clamp(v: int, lo: int, hi: int) -> int {\n\
@@ -448,6 +467,17 @@ fn all_second_and_error_examples_match_expected_outcomes() {
              fn main() uses io {\n\
                print(\"clamped = \" + str(clamp(42, 0, 10)) + \"\\n\")\n\
              }",
+        ),
+        (
+            "odyssey",
+            "<style>\n\
+               body { background: #0f172a; color: #e2e8f0; padding: 16px; }\n\
+               .box { background: #1e293b; border: 3px solid #38bdf8; color: #f8fafc; padding: 12px; }\n\
+             </style>\n\
+             <div class=\"box\">\n\
+               <h2>Strata Render</h2>\n\
+               <p>Cascade, block boxes, and bitmap text rendered without a GPU.</p>\n\
+             </div>",
         ),
         (
             "aurum",
@@ -470,6 +500,10 @@ fn all_second_and_error_examples_match_expected_outcomes() {
             "mkdir /var\nmkdir /var/log\nwrite /var/log/boot.txt stage1\nwrite /var/log/boot.txt stage2 ready\ncat /var/log/boot.txt\nmkdir /var/tmp\nrmdir /var/tmp\nls /var",
         ),
         (
+            "pandora",
+            "rootfs /srv/containers/worker\nhostname worker-01\nmemory 1G\npids max\ncmd /usr/bin/worker --port 8080",
+        ),
+        (
             "argo",
             "[index]\nweb 1.0.0 : http ^1.0; codec ^1.0\nhttp 1.2.0 : core ^1.0\ncodec 1.1.0 : core ^1.1\ncore 1.0.0\ncore 1.2.0\n\n[manifest]\n[package]\nname = \"service\"\nversion = \"0.2.0\"\n\n[dependencies]\nweb = \"^1.0\"",
         ),
@@ -478,12 +512,24 @@ fn all_second_and_error_examples_match_expected_outcomes() {
             "A=3; cat < input.txt | grep monolith > out.txt && echo ~/done $((A + 4))",
         ),
         (
+            "iris",
+            "open files / 260 190\nopen terminal 300 180\nmove 2 290 70\ntext ls /\nkey enter\nwait 200",
+        ),
+        (
+            "indium",
+            "row\n  column\n    text \"Sidebar\"\n    list 4\n  column\n    text \"Inspector\"\n    button \"Apply\"\n    button \"Reset\"\nfocus 4",
+        ),
+        (
             "calliope",
             "0x[0-9a-fA-F]+\nconst UART = 0x10000000\nconst MAGIC = 0xdeadBEEF\nlet bad = 1234",
         ),
         (
             "chronos",
             "write a.txt v1\ncommit first\nwrite a.txt v2\nwrite b.txt sidecar\ncommit second\nlog",
+        ),
+        (
+            "xenon",
+            "loss 45\ndelay 80\nsend packet one\nsend packet two",
         ),
         ("lithium", "50000"),
         (
@@ -499,23 +545,29 @@ fn all_second_and_error_examples_match_expected_outcomes() {
     }
 
     let oversized = "x".repeat(65537);
-    let error_examples: [(&str, &str); 15] = [
+    let error_examples: [(&str, &str); 21] = [
         ("iridium", "SELECT * FROM missing_table;"),
         ("elysium", "fn main() {\n  let bad: int = \"wrong\"\n}"),
         ("mercury", "BAD_REQUEST_LINE\nHost: monolith.local\n\n"),
+        ("helios", "ticks 10\nfn main() -> int { 42 }"),
         ("cobalt", "fn main( {\n  let x = 1\n}"),
+        ("odyssey", ""),
         ("aurum", "alice mallory 50"),
         ("sphinx", oversized.as_str()),
         ("silicon", "    bogus_op a0, a1, a2"),
         ("chisel", "    addi x99, zero, 1"),
         ("hades", "cat /missing/file.txt"),
+        ("pandora", "rootfs relative/rootfs\nhostname bad\ncmd /bin/sh"),
         (
             "argo",
             "[index]\nalpha 1.0.0 : beta ^1.0\nbeta 1.0.0\nbeta 2.0.0\n\n[manifest]\n[package]\nname = \"broken\"\nversion = \"0.1.0\"\n\n[dependencies]\nalpha = \"^1.0\"\nbeta = \"^2.0\"",
         ),
         ("krypton", "echo \"unterminated"),
+        ("iris", "open terminal\nwarp 99"),
+        ("indium", "column\n  button \"Only\"\nfocus 5"),
         ("calliope", "[A-Z\nsample text"),
         ("chronos", "checkout nonexistent"),
+        ("xenon", "loss 100\ndelay 10\nsend unreachable"),
         ("lithium", "0"),
         ("kairos", "cpus 99\ntask bad 1 4"),
     ];

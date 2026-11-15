@@ -8,13 +8,19 @@ pub mod chronos;
 pub mod cobalt;
 pub mod elysium;
 pub mod hades;
+pub mod helios;
+pub mod indium;
 pub mod iridium;
+pub mod iris;
 pub mod kairos;
 pub mod krypton;
 pub mod lithium;
 pub mod mercury;
+pub mod odyssey;
+pub mod pandora;
 pub mod silicon;
 pub mod sphinx;
+pub mod xenon;
 
 /// Maximum allowed input size in bytes (64 KiB) for any demo run.
 pub const MAX_INPUT_BYTES: usize = 64 * 1024;
@@ -48,20 +54,26 @@ pub struct Demo {
     pub run: fn(&str) -> Result<Output, String>,
 }
 
-static DEMOS: [Demo; 15] = [
+static DEMOS: [Demo; 21] = [
     iridium::DEMO,
     elysium::DEMO,
     mercury::DEMO,
+    helios::DEMO,
     cobalt::DEMO,
+    odyssey::DEMO,
     aurum::DEMO,
     sphinx::DEMO,
     silicon::DEMO,
     hades::DEMO,
+    pandora::DEMO,
     chisel::DEMO,
     argo::DEMO,
     krypton::DEMO,
+    iris::DEMO,
+    indium::DEMO,
     calliope::DEMO,
     chronos::DEMO,
+    xenon::DEMO,
     lithium::DEMO,
     kairos::DEMO,
 ];
@@ -97,6 +109,21 @@ pub(crate) fn hex_lower(bytes: &[u8]) -> String {
     out
 }
 
+pub(crate) fn canvas_to_output(canvas: pigment::Canvas) -> Output {
+    let mut rgba = Vec::with_capacity(canvas.pixels.len().saturating_mul(4));
+    for px in canvas.pixels {
+        rgba.push(px.0);
+        rgba.push(px.1);
+        rgba.push(px.2);
+        rgba.push(px.3);
+    }
+    Output::Pixels {
+        w: canvas.width,
+        h: canvas.height,
+        rgba,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
@@ -106,7 +133,7 @@ mod tests {
     #[test]
     fn registry_ids_are_unique_and_lookup_works() {
         let demos = all();
-        assert_eq!(demos.len(), 15);
+        assert_eq!(demos.len(), 21);
         for d in demos {
             assert_eq!(find(d.id).unwrap().id, d.id);
         }

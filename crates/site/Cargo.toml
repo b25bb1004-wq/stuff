@@ -26,10 +26,16 @@ krypton = { path = "../krypton", default-features = false }
 calliope = { path = "../calliope" }
 chronos = { path = "../chronos", default-features = false }
 kairos = { path = "../kairos", default-features = false }
+pigment = { path = "../pigment" }
+helios = { path = "../helios" }
+odyssey = { path = "../odyssey" }
+iris = { path = "../iris" }
+indium = { path = "../indium" }
+xenon = { path = "../xenon" }
+pandora = { path = "../pandora" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 athena = { path = "../athena" }
-pigment = { path = "../pigment" }
 
 [dev-dependencies]
 assay = { path = "../assay" }
