@@ -24,6 +24,7 @@ dependencies = [
  "cobalt",
  "logos",
  "neon",
+ "pigment",
 ]
 
 [[package]]

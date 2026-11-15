@@ -2,6 +2,8 @@
 
 #![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
 
+#[cfg(not(target_arch = "wasm32"))]
+mod icons;
 pub mod lang;
 mod lang_fmt;
 mod lang_walk;

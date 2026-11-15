@@ -201,7 +201,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | PASS |
 | T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
 | T84 | P6 | deploy | one public web image: site at /, Athena at /athena/, /healthz; services stay private; README public hosting | hydrogen-high | T75a T77 | PASS |
-| T85 | P5 | athena | proper app: VS Code-style workbench (activity bar, tabs, palette, panel, status bar), installable PWA, offline | hydrogen-high | T73 | RUNNING |
+| T85 | P5 | athena | proper app: VS Code-style workbench (activity bar, tabs, palette, panel, status bar), installable PWA, offline | hydrogen-high | T73 | PASS |
 | T86 | P6 | tools | a command-line tool per system, conventions in docs/APPS.md (D7), batches T86a-e | hydrogen-high | - | T86a RUNNING |
 | T87 | P6 | apps | app kit, launcher /apps/, one installable app per system with an existing demo | hydrogen-high | T75b | TODO |
 | T88 | P6 | apps | remaining apps with T75c visual demos | hydrogen-high | T87 T75c | TODO |
@@ -378,3 +378,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T75a site | hydrogen-high | n/a | PASS | 25 sections, 8 live demos; leader Chrome: every demo output, titan session, light/dark, no external requests, 360 px, Athena link 200
 - 2026-11-16 | T73 athena | hydrogen-high | n/a | PASS | leader Chrome: F12 call and shadowed let (inner and outer), Ctrl+I hover signature, Format plus undo, comment refusal, 360 px
 - 2026-11-16 | T84 deploy | hydrogen-high | n/a | PASS | leader docker build from clean HEAD copy: web image 6.35 MB, healthy, wasm MIME, traversal 404, Chrome demos + titan + Athena wasm from the container, stop 0.75 s exit 0; no inline script or style so the README CSP holds
+- 2026-11-16 | T85 athena | hydrogen-high | n/a | PASS | leader Chrome: tabs, Ctrl+Tab, palette (13 commands, filter, Esc returns focus), Ctrl+P, Ctrl+` and Ctrl+B, search, Problems click jumps, status bar, unsaved bar, run/test/F12/hover still work, service worker loads the app with the server stopped, 360 px, light
