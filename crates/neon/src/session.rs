@@ -7,6 +7,7 @@
 use chisel::elf;
 use hades::{mkfs, Fs, MemDisk, MkfsOptions};
 use silicon::machine::{Config, Exit, Machine, Snapshot};
+use silicon::probe::Probe;
 use silicon::Bus;
 
 const DISK_BLOCKS: u64 = 256;
@@ -205,6 +206,39 @@ impl Titan {
     /// Instructions retired by the hart so far.
     pub fn instret(&self) -> u64 {
         self.machine.cpu.instret
+    }
+
+    /// Trap, ECALL and device counters since boot. Device counts rewind with `seek`; trap and
+    /// ECALL counts do not, because checkpoints do not store them.
+    pub fn probe(&self) -> Probe {
+        self.machine.probe()
+    }
+
+    /// The counters as `name value` lines, one per counter, sorted by name. Used by `titan_probe`.
+    pub fn probe_text(&self) -> String {
+        let p = self.probe();
+        let mut rows: Vec<(String, u64)> = vec![
+            ("block.reads".to_owned(), p.block_reads),
+            ("block.writes".to_owned(), p.block_writes),
+            ("ecall.count".to_owned(), p.ecall_total()),
+        ];
+        rows.extend(
+            p.exceptions
+                .iter()
+                .enumerate()
+                .map(|(i, &n)| (format!("exception.{i:02}"), n)),
+        );
+        rows.extend(
+            p.interrupts
+                .iter()
+                .enumerate()
+                .map(|(i, &n)| (format!("interrupt.{i:02}"), n)),
+        );
+        rows.push(("uart.in".to_owned(), p.uart_in));
+        rows.push(("uart.out".to_owned(), p.uart_out));
+        rows.iter()
+            .map(|(name, n)| format!("{name} {n}\n"))
+            .collect()
     }
 
     /// Number of stored checkpoints, the boot base included.

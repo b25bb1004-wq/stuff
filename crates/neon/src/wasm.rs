@@ -159,6 +159,17 @@ pub extern "C" fn titan_checkpoints() -> u32 {
     })
 }
 
+/// Write the active Titan session's counters as `name value` lines (sorted) into the last buffer and
+/// return its byte length. Returns `0` if unbooted.
+#[no_mangle]
+pub extern "C" fn titan_probe() -> usize {
+    let sess = SESSION.lock().unwrap_or_else(|p| p.into_inner());
+    let text = sess
+        .as_ref()
+        .map_or_else(String::new, |titan| titan.probe_text());
+    set_last(text.into_bytes())
+}
+
 /// Drain pending Titan UART output into the last buffer and return its byte length.
 #[no_mangle]
 pub extern "C" fn titan_output() -> usize {
