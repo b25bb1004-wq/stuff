@@ -85,6 +85,11 @@ fn substitute_params(body_line: &str, params: &[String], args: &[&str]) -> Strin
     out
 }
 
+/// Most statements a whole source may expand to through macros.
+const MAX_EXPANDED_STMTS: usize = 1_000_000;
+/// Longest line a macro substitution may produce.
+const MAX_EXPANDED_LINE: usize = 1 << 20;
+
 pub(crate) fn expand_macro_body(
     mac: &MacroDef,
     args: &[&str],
@@ -100,7 +105,14 @@ pub(crate) fn expand_macro_body(
         ));
     }
     for raw in &mac.body {
+        // depth is capped, but nested macros can still double the work at every level
+        if out.len() >= MAX_EXPANDED_STMTS {
+            return Err(AsmError::new(invoke_line, "macro expansion too large"));
+        }
         let sub = substitute_params(raw, &mac.params, args);
+        if sub.len() > MAX_EXPANDED_LINE {
+            return Err(AsmError::new(invoke_line, "macro expansion line too long"));
+        }
         let stripped = strip_comment(&sub);
         let (labels, rest) = extract_labels(stripped, invoke_line)?;
         if labels.is_empty() && rest.is_empty() {

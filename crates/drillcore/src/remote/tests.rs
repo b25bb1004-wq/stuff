@@ -268,13 +268,17 @@ fn concurrent_eight_threads_push() {
     let (srv, url) = start_server(Arc::clone(&shared), "/repo");
 
     let mut handles = Vec::new();
+    // every thread clones the base before any pushes, so exactly one push can fast-forward
+    let gate = Arc::new(std::sync::Barrier::new(8));
     for i in 0..8 {
         let u = url.clone();
+        let gate = Arc::clone(&gate);
         handles.push(std::thread::spawn(move || {
             let mut c = clone(&u, MemStore::new()).unwrap();
             c.add("base.txt", format!("thread {i}\n").as_bytes(), false)
                 .unwrap();
             c.commit(&format!("commit {i}"), &sig("t", 20 + i)).unwrap();
+            gate.wait();
             c.push(&u, "main")
         }));
     }

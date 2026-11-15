@@ -3,6 +3,9 @@
 use std::collections::HashMap;
 
 use crate::directives::{emit_align_pad, emit_data, parse_directive};
+
+/// Largest assembled output in bytes.
+const MAX_OUTPUT: usize = 256 * 1024 * 1024;
 use crate::encode_c::{encode_c, CInst};
 use crate::encode_rv::{encode_rv, RvInst};
 use crate::expr::Expr;
@@ -119,6 +122,14 @@ pub(crate) fn assemble_impl(src: &str, base: u64) -> Result<Output, AsmError> {
                     pc,
                     item,
                 });
+                // each directive is capped, but their sum is not; bound the whole output
+                if offset > MAX_OUTPUT {
+                    update_err(
+                        &mut first_err,
+                        AsmError::new(st.line, "output larger than 256 MiB"),
+                    );
+                    break;
+                }
             }
             Err(e) => {
                 update_err(&mut first_err, e);

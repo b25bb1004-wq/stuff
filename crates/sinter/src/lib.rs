@@ -7,6 +7,7 @@ extern crate alloc;
 mod compile;
 mod meta;
 mod run;
+pub mod rv64;
 
 #[cfg(test)]
 mod prog_tests;
