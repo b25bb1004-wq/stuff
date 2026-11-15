@@ -202,7 +202,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
 | T84 | P6 | deploy | one public web image: site at /, Athena at /athena/, /healthz; services stay private; README public hosting | hydrogen-high | T75a T77 | PASS |
 | T85 | P5 | athena | proper app: VS Code-style workbench (activity bar, tabs, palette, panel, status bar), installable PWA, offline | hydrogen-high | T73 | PASS |
-| T86 | P6 | tools | a command-line tool per system, conventions in docs/APPS.md (D7), batches T86a-e | hydrogen-high | - | T86a sphinx PASS (one crate per lane run: T86c-f), T86b RUNNING |
+| T86 | P6 | tools | a command-line tool per system, conventions in docs/APPS.md (D7), batches T86a-e | hydrogen-high | - | sphinx, argo, chronos, calliope, kairos, midas, silicon, hades PASS; T86e mercury, T86f elysium RUNNING |
 | T87 | P6 | apps | app kit, launcher /apps/, one installable app per system with an existing demo | hydrogen-high | T75b | RUNNING |
 | T88 | P6 | apps | remaining apps with T75c visual demos | hydrogen-high | T87 T75c | TODO |
 | T79s | P6 | fuzz | soak aurum | haiku | - | PASS |
@@ -381,3 +381,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T85 athena | hydrogen-high | n/a | PASS | leader Chrome: tabs, Ctrl+Tab, palette (13 commands, filter, Esc returns focus), Ctrl+P, Ctrl+` and Ctrl+B, search, Problems click jumps, status bar, unsaved bar, run/test/F12/hover still work, service worker loads the app with the server stopped, 360 px, light
 - 2026-11-16 | T75b site | hydrogen-high | n/a | PASS | 9 text demos (midas skipped: unsafe API, site forbids unsafe); leader Chrome: all 9 outputs, bad regex and bad request give errors, 360 px, no external requests; wasm 1.94 MiB
 - 2026-11-16 | T86a tools | hydrogen-high | n/a | PARTIAL | sphinx tool PASS (leader: sha256 abc vector, keygen/sign/verify good and tampered, seal/open and tamper exit 1, unknown exit 2); other four not done: lane gates only the first crate, so split into T86c-f
+- 2026-11-16 | T86b tools | hydrogen-high | n/a | PASS | 5 tools; worker gated argo only; leader ran cargo fmt on 4 and fixed 2 one-line compile errors (chronos borrow, midas no-op drop), all 5 gates pass; leader: chronos two-branch checkout round trip, calliope grep exit codes, kairos shares equal weights, midas double free exit 1
+- 2026-11-16 | T86c silicon tool | hydrogen-high | n/a | PASS | bin in chisel; leader ran the titan kernel: ping/pong, OutOfSteps, instret
+- 2026-11-16 | T86d hades tool | hydrogen-high | n/a | PASS | leader image round trip mkfs/mkdir/put stdin/ls/cat/rm, fsck ok, missing file exit 1 (Git Bash needs MSYS_NO_PATHCONV=1 for /paths)
