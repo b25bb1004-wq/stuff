@@ -437,3 +437,9 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T100 | haiku | 131k | PASS | Chrome REVIEW B1 (Athena keeps other caches) and B2 (site.wasm only in core cache); old core caches now kept, about 3 MB per release (9d1c0e5)
 - 2026-11-16 | T97 | haiku | 190k | PASS | property test: seek then replay equals the straight run (f6d16cc)
 - 2026-11-16 | dispatched T98, T102, T103 | haiku | - | RUNNING |
+- 2026-11-16 | T98 | haiku | 122k | PASS | node run of titan_probe: uart.out 643 equals transcript length (563858c)
+- 2026-11-16 | T102 | haiku | 191k | PASS | Chrome Athena self-test 17/17, run and debugger still work; debug.js keeps rAF for budget yields (bd44cea)
+- 2026-11-16 | T74e | haiku | 129k | PASS | 64 KiB input cap on 8 athena exports; status line follows debugger (b0b96a6)
+- 2026-11-16 | T74d | haiku | 121k | PASS | for-loop and match-arm locals in debugger; logos, cobalt, athena gates (7fb133c)
+- 2026-11-16 | operator: UI "feels like ai slop", wants "modern, crazy, dynamic" | - | - | REDESIGN | circuit-board direction chosen; brief briefs/T130-board.md; T104 and site Wave 3 wait for T130
+- 2026-11-16 | dispatched T130a board.js, T130b feed.js; T103 told to finish and explain the 20,900 px double-hero page | haiku | - | RUNNING |
