@@ -18,7 +18,8 @@
 - [>] T22 chisel ELF: LLD fixture + brief + leader check, dispatched (hydrogen)
 - [x] D1 docs/CINNABAR.md (Python reference, vectors, stats; check validated on a model)
 - [x] T14 onyx Cinnabar PASS (first try)
-- [ ] D2 docs/TREMOR.md, D3 docs/VARVE.md (unblock T34, T39 once Argon allows)
+- [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
+- [ ] T39 varve pager: brief + leader check (crash model of VARVE.md 1), then T34 tremor
 - [>] T13 quartz riscv-tests: 110 built (107 pass already), brief + check, dispatched (hydrogen)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
@@ -102,12 +103,12 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | TODO |
 | T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
 | T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
-| T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | argon-high | T04 T20 D2 | TODO |
+| T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | hydrogen-high | T04 T20 D2 | TODO |
 | T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | TODO |
 | T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
 | T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
 | T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | PASS |
-| T39 | P3 | varve | pager, write-ahead log, crash recovery | argon-high | D3 | TODO |
+| T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | TODO |
 | T40 | P3 | varve | B+tree with range scans | hydrogen | T39 | TODO |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
@@ -211,3 +212,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 06:52 D1 written; T14 dispatched (hydrogen). cinnabar_leader.rs passes on a throwaway Rust model (scratchpad), clippy clean.
 - 2026-11-15 06:58 T14 onyx Cinnabar PASS (hydrogen, first try): vectors, avalanche, bias, ctr, label; fresh seeds, workspace gate.
 - 2026-11-15 07:09 T13 dispatched (hydrogen): 110 riscv-tests built as data, 3 fail today (ma_data, instret_overflow, pmpaddr)
+- 2026-11-15 07:13 D2 TREMOR.md + D3 VARVE.md v1 written; T34, T39 moved argon-high -> hydrogen-high (precise spec + strong leader check)
