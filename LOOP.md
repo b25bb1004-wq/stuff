@@ -20,7 +20,7 @@
 - [x] T14 onyx Cinnabar PASS (first try)
 - [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
 - [ ] T39 varve pager: brief + leader check (crash model of VARVE.md 1), then T34 tremor
-- [>] T13 quartz riscv-tests: 110 built (107 pass already), brief + check, dispatched (hydrogen)
+- [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
 - [!] T25 mantle, T31, T66: argon-high, held while Argon is at 29%
@@ -84,7 +84,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 T19 | PASS |
 | T07 | P1 | shale | journal, fsck, crash injection at every write | haiku | T06 | PASS |
 | T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
-| T13 | P1 | quartz | official riscv-tests as data (needs download: operator) | hydrogen | T13a | RUNNING |
+| T13 | P1 | quartz | official riscv-tests as data (needs download: operator) | hydrogen | T13a | PASS |
 | T13a | P1 | quartz | A and C extensions, LLVM as oracle (split from T13) | hydrogen-high | T12 | PASS |
 | T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
@@ -213,3 +213,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 06:58 T14 onyx Cinnabar PASS (hydrogen, first try): vectors, avalanche, bias, ctr, label; fresh seeds, workspace gate.
 - 2026-11-15 07:09 T13 dispatched (hydrogen): 110 riscv-tests built as data, 3 fail today (ma_data, instret_overflow, pmpaddr)
 - 2026-11-15 07:13 D2 TREMOR.md + D3 VARVE.md v1 written; T34, T39 moved argon-high -> hydrogen-high (precise spec + strong leader check)
+- 2026-11-15 07:20 T13 quartz PASS (hydrogen, 1 run): 110/110 riscv-tests, misaligned byte-wise, counter-write precedence, PMP storage; leader check 6/6 + fresh seed, workspace gate. Brief miss: 2 T12 tests asserted PMP reads 0; leader updated them to the T13 rule.

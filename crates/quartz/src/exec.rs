@@ -106,6 +106,7 @@ impl Cpu {
         if let Some((rd, value)) = eff.rd {
             self.set(rd, value);
         }
+        let wrote_csr = eff.csr.map(|(addr, _)| addr);
         if let Some((addr, value)) = eff.csr {
             self.csr_write(addr, value);
         }
@@ -116,8 +117,12 @@ impl Cpu {
             self.reservation = res;
         }
         self.pc = eff.pc;
-        self.instret = self.instret.wrapping_add(1);
-        self.csr.mcycle = self.csr.mcycle.wrapping_add(1);
+        if wrote_csr != Some(0xb02) {
+            self.instret = self.instret.wrapping_add(1);
+        }
+        if wrote_csr != Some(0xb00) {
+            self.csr.mcycle = self.csr.mcycle.wrapping_add(1);
+        }
         Ok(StepFlags {
             wfi: eff.wfi,
             sfence: eff.sfence,
@@ -395,6 +400,9 @@ impl Cpu {
     }
 
     /// Load `size` bytes from `rs1 + imm`, extended to 64 bits.
+    ///
+    /// Misaligned loads are performed byte by byte in little-endian order; every byte is translated
+    /// before any bus read so a fault on any byte reports the first faulting virtual address.
     fn load(
         &self,
         bus: &mut impl Bus,
@@ -404,23 +412,49 @@ impl Cpu {
         signed: bool,
     ) -> Result<u64, Trap> {
         let addr = self.reg(rs1).wrapping_add(imm as u64);
-        if addr & (u64::from(size) - 1) != 0 {
-            return Err(Trap::LoadMisaligned(addr));
+        if addr & (u64::from(size) - 1) == 0 {
+            let pa = self.translate_with(bus, addr, Access::Load)?;
+            let raw = bus.read(pa, size).map_err(|_| Trap::LoadFault(addr))?;
+            return Ok(extend(raw, size, signed));
         }
-        let pa = self.translate_with(bus, addr, Access::Load)?;
-        let raw = bus.read(pa, size).map_err(|_| Trap::LoadFault(addr))?;
+        let mut pas = [0u64; 8];
+        for (i, pa_slot) in pas.iter_mut().take(usize::from(size)).enumerate() {
+            let va = addr.wrapping_add(i as u64);
+            *pa_slot = self.translate_with(bus, va, Access::Load)?;
+        }
+        let mut raw = 0u64;
+        for (i, &pa) in pas.iter().take(usize::from(size)).enumerate() {
+            let va = addr.wrapping_add(i as u64);
+            let byte = bus.read(pa, 1).map_err(|_| Trap::LoadFault(va))?;
+            raw |= (byte & 0xff) << (8 * i);
+        }
         Ok(extend(raw, size, signed))
     }
 
     /// Store the low `size` bytes of `rs2` at `rs1 + imm`.
+    ///
+    /// Misaligned stores translate every byte before writing any byte, so a translation fault
+    /// leaves memory unchanged and reports the first faulting virtual address.
     fn store(&self, bus: &mut impl Bus, rs1: u8, rs2: u8, imm: i64, size: u8) -> Result<(), Trap> {
         let addr = self.reg(rs1).wrapping_add(imm as u64);
-        if addr & (u64::from(size) - 1) != 0 {
-            return Err(Trap::StoreMisaligned(addr));
+        if addr & (u64::from(size) - 1) == 0 {
+            let pa = self.translate_with(bus, addr, Access::Store)?;
+            return bus
+                .write(pa, size, self.reg(rs2))
+                .map_err(|_| Trap::StoreFault(addr));
         }
-        let pa = self.translate_with(bus, addr, Access::Store)?;
-        bus.write(pa, size, self.reg(rs2))
-            .map_err(|_| Trap::StoreFault(addr))
+        let mut pas = [0u64; 8];
+        for (i, pa_slot) in pas.iter_mut().take(usize::from(size)).enumerate() {
+            let va = addr.wrapping_add(i as u64);
+            *pa_slot = self.translate_with(bus, va, Access::Store)?;
+        }
+        let val = self.reg(rs2);
+        for (i, &pa) in pas.iter().take(usize::from(size)).enumerate() {
+            let va = addr.wrapping_add(i as u64);
+            let byte = (val >> (8 * i)) & 0xff;
+            bus.write(pa, 1, byte).map_err(|_| Trap::StoreFault(va))?;
+        }
+        Ok(())
     }
 }
 

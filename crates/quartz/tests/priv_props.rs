@@ -128,6 +128,10 @@ fn csr_writes_stay_inside_the_warl_masks() {
         assert!(matches!(read(0x180) >> 60, 0 | 8));
         assert_eq!(read(0x306) & !7, 0);
         assert_eq!(read(0x106) & !7, 0);
-        assert_eq!(read(0x3b0), 0);
+        assert_eq!(
+            read(0x3b0) & !((1u64 << 54) - 1),
+            0,
+            "pmpaddr keeps bits 53..0 (T13)"
+        );
     });
 }

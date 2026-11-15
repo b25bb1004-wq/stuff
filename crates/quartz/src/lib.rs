@@ -36,9 +36,9 @@ pub enum Trap {
     StoreFault(u64),
     /// Jump or taken branch to a pc that is not a multiple of 2.
     FetchMisaligned(u64),
-    /// Load address is not a multiple of the access size.
+    /// Load-reserved address is not a multiple of the access size.
     LoadMisaligned(u64),
-    /// Store address is not a multiple of the access size.
+    /// Store-conditional or AMO address is not a multiple of the access size.
     StoreMisaligned(u64),
     /// Instruction fetch page fault.
     InstPageFault(u64),

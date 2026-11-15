@@ -180,7 +180,7 @@ fn counters_are_read_only_except_for_the_host_time_and_minstret() {
 }
 
 #[test]
-fn pmp_registers_read_zero_and_ignore_writes() {
+fn pmp_registers_start_zero_and_store_writes() {
     let mut cpu = Cpu::new(0);
     assert_eq!(cpu.csr_read(0x3a0), Some(0));
     assert_eq!(
@@ -189,8 +189,9 @@ fn pmp_registers_read_zero_and_ignore_writes() {
         "odd pmpcfg does not exist on RV64"
     );
     assert_eq!(cpu.csr_read(0x3b5), Some(0));
+    // T13: pmpaddr and even pmpcfg are storage (no enforcement).
     cpu.csr_write(0x3b5, 0xff);
-    assert_eq!(cpu.csr_read(0x3b5), Some(0));
+    assert_eq!(cpu.csr_read(0x3b5), Some(0xff));
 }
 
 #[test]

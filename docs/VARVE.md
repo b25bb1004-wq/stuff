@@ -10,8 +10,9 @@ the isolation level. Tasks: T39 pager + log + recovery, T40 B+tree, T41 SQL, T42
   earlier write durable. At a crash, every write since the last `sync` is split into 512-byte
   sectors and each sector independently survives or is lost (survivors applied in write order).
   `set_len` is durable at once. Nothing else is assumed: no ordering between unsynced writes.
-- Rule: a transaction is committed exactly when the `sync` of its commit frame returns. After any
-  crash and reopen, every committed transaction is present and nothing else is.
+- Rule: a transaction is durable once the `sync` of its commit frame returns. After any crash and
+  reopen, every transaction whose commit returned is present, the one in flight at the crash is
+  wholly present or wholly absent, and nothing else is.
 
 ## 2. Page format
 - Page size 4096. Page `n` is at offset `n * 4096` in the main file. All integers little-endian.
@@ -105,6 +106,7 @@ statements with `STRICT` added to every `CREATE TABLE`. Where this list is silen
 
 ## 7. Errors and limits
 `Error`: `Io`, `Corrupt`, `TooLarge`, `Parse { pos, msg }`, `NoSuchTable`, `NoSuchColumn`,
-`Exists`, `Type`, `Overflow`, `Constraint(String)`, `Busy` (second writer). Rows up to 1 MiB; keys up
+`Exists`, `Type`, `Overflow`, `Constraint(String)`, `Busy` (second writer), `Misuse` (API used
+out of order: a write outside a transaction, page 0 or a page past the end, a double free). Rows up to 1 MiB; keys up
 to 1024 bytes encoded. Every decoder (pages, frames, records, keys, SQL text) returns an error on
 hostile input and never panics.

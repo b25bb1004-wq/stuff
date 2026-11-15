@@ -30,8 +30,15 @@ const MIE_MASK: u64 = 0xAAA;
 const MEDELEG_MASK: u64 = 0xB3FF;
 /// misa: RV64 (MXL=2) with A, C, I, M, S and U.
 const MISA: u64 = (2 << 62) | (1 << 0) | (1 << 2) | (1 << 8) | (1 << 12) | (1 << 18) | (1 << 20);
+/// Writable pmpcfg bits per byte: bits 6..5 are reserved (read 0).
+const PMPCFG_MASK: u64 = 0x9f9f_9f9f_9f9f_9f9f;
+/// Writable pmpaddr bits: 53..0 (granularity 0).
+const PMPADDR_MASK: u64 = (1 << 54) - 1;
 
 /// Raw storage for the CSRs that hold state. Read and write rules live in `Cpu` below.
+///
+/// Known gap: `pmpcfg0`/`pmpcfg2` and `pmpaddr0..15` are stored and masked, but memory accesses
+/// are not checked against PMP entries.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct Csrs {
     pub(crate) mstatus: u64,
@@ -54,6 +61,8 @@ pub(crate) struct Csrs {
     pub(crate) satp: u64,
     pub(crate) mcycle: u64,
     pub(crate) time: u64,
+    pub(crate) pmpcfg: [u64; 2],
+    pub(crate) pmpaddr: [u64; 16],
 }
 
 /// A trap vector base: MODE 0 (direct) and 1 (vectored) are legal, 2 and 3 keep the old mode.
@@ -89,9 +98,16 @@ impl Cpu {
             0x342 => c.mcause,
             0x343 => c.mtval,
             0x344 => c.mip,
-            // PMP: pmpcfg0..15 exist on RV64 at even indices only; pmpaddr0..63 all exist.
-            0x3a0..=0x3af if addr & 1 == 0 => 0,
-            0x3b0..=0x3ef => 0,
+            // PMP: pmpcfg0/2 and pmpaddr0..15 are stored; higher PMP CSRs read 0 (no PMP enforcement).
+            0x3a0 => c.pmpcfg[0],
+            0x3a2 => c.pmpcfg[1],
+            0x3a4..=0x3af if addr & 1 == 0 => 0,
+            0x3b0..=0x3bf => c
+                .pmpaddr
+                .get(usize::from(addr - 0x3b0))
+                .copied()
+                .unwrap_or(0),
+            0x3c0..=0x3ef => 0,
             0xb00 => c.mcycle,
             0xb02 => self.instret,
             0xc00 => c.mcycle,
@@ -143,6 +159,13 @@ impl Cpu {
             0x342 => c.mcause = value,
             0x343 => c.mtval = value,
             0x344 => c.mip = (c.mip & !MIP_SW) | (value & MIP_SW),
+            0x3a0 => c.pmpcfg[0] = value & PMPCFG_MASK,
+            0x3a2 => c.pmpcfg[1] = value & PMPCFG_MASK,
+            0x3b0..=0x3bf => {
+                if let Some(slot) = c.pmpaddr.get_mut(usize::from(addr - 0x3b0)) {
+                    *slot = value & PMPADDR_MASK;
+                }
+            }
             0xb00 => c.mcycle = value,
             0xb02 => self.instret = value,
             0xc01 => c.time = value,
