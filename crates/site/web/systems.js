@@ -33,7 +33,16 @@
       what: "Virtual machine",
       line: "Bytecode VM with garbage collector. A sealed world inside a plain rock.",
       source: "crates/elysium",
-      demo: null
+      demo: "elysium",
+      defaultInput:
+        "fn print(s: str) uses io = extern \"io.print\"\n\n" +
+        "fn fact(n: int) -> int {\n" +
+        "  if n <= 1 { 1 } else { n * fact(n - 1) }\n" +
+        "}\n\n" +
+        "fn main() uses io {\n" +
+        "  let r = fact(6)\n" +
+        "  print(\"6! = \" + str(r) + \"\\n\")\n" +
+        "}"
     },
     {
       num: 4,
@@ -42,7 +51,13 @@
       what: "Web server",
       line: "HTTP/1.1 server on our own thread pool. Where the rock breaks the surface and the world can see it.",
       source: "crates/mercury",
-      demo: null
+      demo: "mercury",
+      defaultInput:
+        "POST /api/layers HTTP/1.1\n" +
+        "Host: monolith.local\n" +
+        "Content-Type: text/plain\n" +
+        "Content-Length: 13\n\n" +
+        "hello mercury"
     },
     {
       num: 5,
@@ -60,7 +75,16 @@
       what: "Compiler",
       line: "Logos to RV64 machine code and to bytecode. Sintering fuses loose powder into solid metal.",
       source: "crates/cobalt",
-      demo: null
+      demo: "cobalt",
+      defaultInput:
+        "fn print(s: str) uses io = extern \"io.print\"\n\n" +
+        "fn main() uses io {\n" +
+        "  let a = 2 + 3 * 4\n" +
+        "  let b = a\n" +
+        "  let unused = 99 - 1\n" +
+        "  let sum = b + 28\n" +
+        "  print(\"answer = \" + str(sum) + \"\\n\")\n" +
+        "}"
     },
     {
       num: 7,
@@ -87,7 +111,12 @@
       what: "Blockchain",
       line: "Proof-of-stake chain, contracts on Elysium, stored in Iridium. One unbroken vein of ore.",
       source: "crates/aurum",
-      demo: null
+      demo: "aurum",
+      defaultInput:
+        "alice bob 100\n" +
+        "alice carol 25\n" +
+        "bob carol 40\n" +
+        "carol alice 15"
     },
     {
       num: 10,
@@ -173,7 +202,22 @@
       what: "Package manager",
       line: "Signed packages, version solver, registry. A stack of stones that marks the trail.",
       source: "crates/argo",
-      demo: null
+      demo: "argo",
+      defaultInput:
+        "[index]\n" +
+        "alpha 1.0.0 : beta ^1.0\n" +
+        "alpha 1.1.0 : beta ^1.1\n" +
+        "beta 1.0.0\n" +
+        "beta 1.1.0 : gamma ^2.0\n" +
+        "gamma 2.0.0\n" +
+        "gamma 2.1.0\n\n" +
+        "[manifest]\n" +
+        "[package]\n" +
+        "name = \"demo-app\"\n" +
+        "version = \"0.1.0\"\n\n" +
+        "[dependencies]\n" +
+        "alpha = \"^1.0\"\n" +
+        "gamma = \"2.0.*\""
     },
     {
       num: 15,
@@ -182,7 +226,8 @@
       what: "Shell",
       line: "POSIX-style shell. The outermost shell of the planet.",
       source: "crates/krypton",
-      demo: null
+      demo: "krypton",
+      defaultInput: "echo $X \"$HOME/notes\" $((X * 6)) ${UNSET:-fallback}"
     },
     {
       num: 16,
@@ -209,7 +254,13 @@
       what: "Text editor",
       line: "Rope-based modal editor. The first thing people wrote on.",
       source: "crates/calliope",
-      demo: null
+      demo: "calliope",
+      defaultInput:
+        "[A-Za-z_][A-Za-z0-9_]*\\([0-9]+\\)\n" +
+        "fn main() {\n" +
+        "  let a = calc(42)\n" +
+        "  let b = step(7) + calc(108)\n" +
+        "}"
     },
     {
       num: 19,
@@ -227,7 +278,17 @@
       what: "Version control",
       line: "Content-addressed commits, branches, 3-way merge. A core sample is history you can read layer by layer.",
       source: "crates/chronos",
-      demo: null
+      demo: "chronos",
+      defaultInput:
+        "write README.md Monolith Chronos VCS\n" +
+        "write src/main.lg fn main() {}\n" +
+        "commit initial commit\n" +
+        "branch feat\n" +
+        "checkout feat\n" +
+        "write src/util.lg fn helper() -> int { 1 }\n" +
+        "commit add helper\n" +
+        "log\n" +
+        "checkout main"
     },
     {
       num: 21,
@@ -255,7 +316,12 @@
       what: "Scheduler",
       line: "Fair scheduler core + work-stealing pool. Erupts on schedule.",
       source: "crates/kairos",
-      demo: null
+      demo: "kairos",
+      defaultInput:
+        "cpus 2\n" +
+        "task alpha 4 12\n" +
+        "task beta 2 12\n" +
+        "task gamma 1 12"
     },
     {
       num: 24,

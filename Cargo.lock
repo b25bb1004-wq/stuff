@@ -248,12 +248,22 @@ dependencies = [
 name = "site"
 version = "0.1.0"
 dependencies = [
+ "argo",
  "assay",
  "athena",
+ "aurum",
+ "calliope",
  "chisel",
+ "chronos",
+ "cobalt",
+ "elysium",
  "hades",
  "iridium",
+ "kairos",
+ "krypton",
  "lithium",
+ "logos",
+ "mercury",
  "neon",
  "silicon",
  "sphinx",

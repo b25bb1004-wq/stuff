@@ -1,9 +1,18 @@
 //! Demo registry and pure bounded runners for the Monolith site.
 
+pub mod argo;
+pub mod aurum;
+pub mod calliope;
 pub mod chisel;
+pub mod chronos;
+pub mod cobalt;
+pub mod elysium;
 pub mod hades;
 pub mod iridium;
+pub mod kairos;
+pub mod krypton;
 pub mod lithium;
+pub mod mercury;
 pub mod silicon;
 pub mod sphinx;
 
@@ -39,13 +48,22 @@ pub struct Demo {
     pub run: fn(&str) -> Result<Output, String>,
 }
 
-static DEMOS: [Demo; 6] = [
+static DEMOS: [Demo; 15] = [
     iridium::DEMO,
+    elysium::DEMO,
+    mercury::DEMO,
+    cobalt::DEMO,
+    aurum::DEMO,
     sphinx::DEMO,
     silicon::DEMO,
     hades::DEMO,
     chisel::DEMO,
+    argo::DEMO,
+    krypton::DEMO,
+    calliope::DEMO,
+    chronos::DEMO,
     lithium::DEMO,
+    kairos::DEMO,
 ];
 
 /// Return all registered live demos in presentation order.
@@ -88,7 +106,7 @@ mod tests {
     #[test]
     fn registry_ids_are_unique_and_lookup_works() {
         let demos = all();
-        assert_eq!(demos.len(), 6);
+        assert_eq!(demos.len(), 15);
         for d in demos {
             assert_eq!(find(d.id).unwrap().id, d.id);
         }

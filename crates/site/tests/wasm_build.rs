@@ -158,6 +158,22 @@ fn pack_produces_valid_wasm_and_local_web_bundle() {
             .collect::<Vec<_>>()
     );
 
+    for demo_id in [
+        "iridium", "elysium", "mercury", "cobalt", "aurum", "sphinx", "silicon", "hades", "chisel",
+        "argo", "krypton", "calliope", "chronos", "lithium", "kairos",
+    ] {
+        let needle_main = format!("demo: \"{demo_id}\"");
+        let needle_extra = format!("id: \"{demo_id}\"");
+        assert!(
+            systems_js.contains(&needle_main) || systems_js.contains(&needle_extra),
+            "systems.js missing demo wiring for `{demo_id}`"
+        );
+        assert!(
+            site::demos::find(demo_id).is_some(),
+            "registry missing demo `{demo_id}`"
+        );
+    }
+
     let wasm = std::fs::read(tmp.join("site.wasm")).unwrap();
     assert!(wasm.len() >= 8, "wasm too short");
     assert_eq!(&wasm[0..4], b"\0asm", "bad wasm magic");

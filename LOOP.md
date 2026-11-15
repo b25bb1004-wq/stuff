@@ -165,7 +165,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T72 | P5 | athena | IDE shell: editor, file tree, terminal, run, test | hydrogen-high (design docs/FRONT.md by leader) | T71 T55 | PASS |
 | T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen-high | T10 T72 | PASS |
 | T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect; split T74a core (elysium+cobalt, after T86a and T75b free them) and T74b UI | hydrogen-high | T17 T72 | TODO |
-| T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | T75a PASS, T75b RUNNING, T75c TODO |
+| T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | T75a PASS, T75b PASS, T75c TODO |
 | T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen-high | T42 T50 T47 | PASS |
 | T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen-high | (T77 dropped: loopback only) | PASS |
@@ -379,3 +379,5 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T73 athena | hydrogen-high | n/a | PASS | leader Chrome: F12 call and shadowed let (inner and outer), Ctrl+I hover signature, Format plus undo, comment refusal, 360 px
 - 2026-11-16 | T84 deploy | hydrogen-high | n/a | PASS | leader docker build from clean HEAD copy: web image 6.35 MB, healthy, wasm MIME, traversal 404, Chrome demos + titan + Athena wasm from the container, stop 0.75 s exit 0; no inline script or style so the README CSP holds
 - 2026-11-16 | T85 athena | hydrogen-high | n/a | PASS | leader Chrome: tabs, Ctrl+Tab, palette (13 commands, filter, Esc returns focus), Ctrl+P, Ctrl+` and Ctrl+B, search, Problems click jumps, status bar, unsaved bar, run/test/F12/hover still work, service worker loads the app with the server stopped, 360 px, light
+- 2026-11-16 | T75b site | hydrogen-high | n/a | PASS | 9 text demos (midas skipped: unsafe API, site forbids unsafe); leader Chrome: all 9 outputs, bad regex and bad request give errors, 360 px, no external requests; wasm 1.94 MiB
+- 2026-11-16 | T86a tools | hydrogen-high | n/a | PARTIAL | sphinx tool PASS (leader: sha256 abc vector, keygen/sign/verify good and tampered, seal/open and tamper exit 1, unknown exit 2); other four not done: lane gates only the first crate, so split into T86c-f

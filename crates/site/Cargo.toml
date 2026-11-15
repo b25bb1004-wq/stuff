@@ -16,6 +16,16 @@ chisel = { path = "../chisel" }
 silicon = { path = "../silicon" }
 lithium = { path = "../lithium" }
 sphinx = { path = "../sphinx" }
+cobalt = { path = "../cobalt" }
+elysium = { path = "../elysium" }
+logos = { path = "../logos" }
+mercury = { path = "../mercury", default-features = false }
+aurum = { path = "../aurum" }
+argo = { path = "../argo" }
+krypton = { path = "../krypton", default-features = false }
+calliope = { path = "../calliope" }
+chronos = { path = "../chronos", default-features = false }
+kairos = { path = "../kairos", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 athena = { path = "../athena" }
