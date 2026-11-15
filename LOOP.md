@@ -139,7 +139,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | PASS |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | PASS |
 | T61 | P4 | glint | widget tree, flex layout, events, focus, themes | hydrogen | T60 | PASS |
-| T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | haiku | T61 | RUNNING |
+| T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | haiku | T61 | PASS |
 | T63 | P4 | facet | compositor: windows, tiling and floating, damage, input, animated moves | argon | T62 | TODO |
 | T64 | P4 | facet | client protocol + apps: terminal (crust), editor (slate), files | hydrogen | T63 T57 T55 | TODO |
 | T65 | P4 | spelunk | HTML and CSS parsers | hydrogen |  | PASS |
@@ -254,3 +254,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 13:54 | T66a | haiku | 206,836 | PASS | layout_leader 2/2 both seeds; empty anon block not generated (aligned to worker); gates pass
 - 2026-11-15 14:00 | dispatch | 5 hydrogen + 2 haiku | - | RUNNING | T29a T50a hydrogen-high; T42 T70b T79a hydrogen; T62 T66b haiku
 - 2026-11-15 14:08 | T79a | hydrogen | agy quota | PASS | outcrop soak 7.4M cases fresh seed; lane is single-crate, rest split to T79b
+- 2026-11-15 14:14 | T62 | haiku | 139,418 | PASS | widgets_leader 4/4 both seeds; leader fixed nav reveal-without-change; gates pass

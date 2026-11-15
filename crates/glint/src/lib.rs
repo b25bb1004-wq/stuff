@@ -1,10 +1,12 @@
 //! Widget tree, flex layout, input events, focus ring, and software rendering.
 #![forbid(unsafe_code)]
 
+pub mod anim;
 mod events;
 mod layout;
 mod render;
 mod types;
+pub mod widgets;
 
 pub use pigment::{Canvas, Rect, Rgba};
 pub use types::{Action, Align, Dir, Event, Insets, Justify, Key, Kind, NodeId, Style, Theme};
