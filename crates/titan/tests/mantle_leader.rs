@@ -68,7 +68,7 @@ fn boot(ram: usize, decode_cache: bool) -> u64 {
         "ram {ram} cache {decode_cache} steps {steps}:\n{out}"
     );
     let l: Vec<&str> = out.lines().collect();
-    assert_eq!(l.len(), 11, "{out}");
+    assert!(l.len() >= 11, "{out}"); // T26 appends process lines after the T25 boot lines
     let end = 0x8000_0000u64 + ram as u64;
     assert_eq!(l[0], "Titan v0.1");
     assert_eq!(
@@ -319,4 +319,97 @@ fn frames_never_leak_fresh_seed() {
         }
         assert_eq!(fa.free_count(), total, "case {case}");
     }
+}
+
+// ---- T26 leader checks (2026-11-15) ----
+use titan::elf;
+use titan::uaccess::{check_user_range, USER_MAX, USER_MIN};
+
+fn tiny_user_elf() -> Vec<u8> {
+    let mut b = vec![0u8; 120 + 16];
+    b[0..4].copy_from_slice(b"\x7fELF");
+    b[4] = 2; // 64-bit
+    b[5] = 1; // little endian
+    b[6] = 1;
+    b[16..18].copy_from_slice(&2u16.to_le_bytes()); // ET_EXEC
+    b[18..20].copy_from_slice(&0xF3u16.to_le_bytes()); // RISC-V
+    b[20..24].copy_from_slice(&1u32.to_le_bytes());
+    b[24..32].copy_from_slice(&0x1_0078u64.to_le_bytes()); // entry
+    b[32..40].copy_from_slice(&64u64.to_le_bytes()); // phoff
+    b[52..54].copy_from_slice(&64u16.to_le_bytes());
+    b[54..56].copy_from_slice(&56u16.to_le_bytes());
+    b[56..58].copy_from_slice(&1u16.to_le_bytes());
+    let p = 64;
+    b[p..p + 4].copy_from_slice(&1u32.to_le_bytes()); // PT_LOAD
+    b[p + 4..p + 8].copy_from_slice(&5u32.to_le_bytes()); // R X
+    b[p + 8..p + 16].copy_from_slice(&0u64.to_le_bytes()); // offset
+    b[p + 16..p + 24].copy_from_slice(&0x1_0000u64.to_le_bytes()); // vaddr
+    b[p + 24..p + 32].copy_from_slice(&0x1_0000u64.to_le_bytes());
+    b[p + 32..p + 40].copy_from_slice(&136u64.to_le_bytes()); // filesz
+    b[p + 40..p + 48].copy_from_slice(&0x2000u64.to_le_bytes()); // memsz
+    b[p + 48..p + 56].copy_from_slice(&0x1000u64.to_le_bytes());
+    b
+}
+
+fn assert_inside_user(img: &[u8], prog: &elf::Program) {
+    assert!(
+        (USER_MIN..USER_MAX).contains(&prog.entry),
+        "entry {:#x}",
+        prog.entry
+    );
+    for s in &prog.segments {
+        let end = s
+            .vaddr
+            .checked_add(s.mem_size)
+            .expect("segment end overflows");
+        assert!(
+            s.vaddr >= USER_MIN && end <= USER_MAX,
+            "segment {:#x}+{:#x}",
+            s.vaddr,
+            s.mem_size
+        );
+        assert!(
+            s.file.start <= s.file.end && s.file.end <= img.len(),
+            "file range {:?}",
+            s.file
+        );
+        assert!((s.file.end - s.file.start) as u64 <= s.mem_size);
+    }
+}
+
+#[test]
+fn elf_fuzz_fresh_seed_never_panics_and_stays_in_user_space() {
+    let base = tiny_user_elf();
+    let prog = elf::parse(&base).expect("leader's minimal user ELF must parse");
+    assert_inside_user(&base, &prog);
+    let mut r = Rng::new(SEED ^ 0x7126);
+    let mut accepted = 0;
+    for _ in 0..20_000 {
+        let mut img = base.clone();
+        for _ in 0..1 + r.below(8) {
+            let i = r.below(img.len());
+            img[i] = r.u64() as u8;
+        }
+        if r.below(8) == 0 {
+            img.truncate(r.below(img.len() + 1));
+        }
+        if let Ok(p) = elf::parse(&img) {
+            accepted += 1;
+            assert_inside_user(&img, &p);
+        }
+    }
+    assert!(accepted > 0, "fuzz never produced an accepted image");
+}
+
+#[test]
+fn uaccess_edges_at_user_space_boundary() {
+    assert!(check_user_range(USER_MIN, 1).is_ok());
+    assert!(check_user_range(USER_MIN - 1, 1).is_err());
+    assert!(check_user_range(USER_MAX - 1, 1).is_ok());
+    assert!(check_user_range(USER_MAX - 1, 2).is_err());
+    assert!(check_user_range(USER_MAX, 1).is_err());
+    assert!(check_user_range(USER_MAX - 4096, 4096).is_ok());
+    assert!(check_user_range(u64::MAX, 2).is_err());
+    assert!(check_user_range(USER_MIN, u64::MAX).is_err());
+    assert!(check_user_range(0, 1).is_err());
 }

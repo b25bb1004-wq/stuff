@@ -109,7 +109,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T23 | P2 | silicon | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
 | T24 | P2 | lithium | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | haiku | T22 T23 | PASS |
 | T25 | P2 | titan | Rust kernel: boot shim, traps, Sv39, heap (midas), console | argon-high | T23 T16 T13a | PASS |
-| T26 | P2 | titan | processes, user mode, syscalls, scheduler (kairos), ELF loading | opus-high | T25 T05 | TODO |
+| T26 | P2 | titan | processes, user mode, syscalls, scheduler (kairos), ELF loading | opus-high | T25 T05 | PASS |
 | T27 | P2 | titan | block driver, hades mounted, file syscalls | argon | T26 T07 | TODO |
 | T28 | P2 | titan | userland: init, shell (krypton), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
 | T29 | P2 | cobalt | Logos IR to RV64 code, linear-scan registers, ELF out | opus-high | T10 T22 | PASS |
@@ -359,3 +359,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-15 | T80d | agy hydrogen-high | - | PASS | argo: dep mismatch, HTTP flood, solver blowup; retry1 fixed soak generator collisions
 - 2026-11-15 | T80f | agy hydrogen-high | - | PASS | iridium: corrupt record, codec, server stop; retry1; leader dropped page0 range check (broke reopen) and fixed rename magic in pager tests
 - 2026-11-15 | T80h | agy hydrogen-high | - | PASS | aurum: forged tx sig, contract caps, mempool, net stream caps; 5 tests fail on HEAD
+- 2026-11-15 | T26 | agy hydrogen-high | - | PASS | titan: U-mode, syscalls 0-15, ELF, kairos scheduler, 34-line transcript; opus lane hit 429, rerun on hydrogen

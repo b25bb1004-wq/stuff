@@ -4,6 +4,9 @@
 
 extern crate alloc;
 
+pub mod elf;
 pub mod frames;
+pub mod proc;
 pub mod sv39;
 pub mod trap;
+pub mod uaccess;
