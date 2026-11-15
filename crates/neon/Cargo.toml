@@ -8,6 +8,10 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "titan"
+path = "src/bin/titan.rs"
+
 [dependencies]
 chisel = { path = "../chisel" }
 cobalt = { path = "../cobalt" }
