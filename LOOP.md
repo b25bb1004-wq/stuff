@@ -142,7 +142,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T64 | P4 | facet | client protocol + apps: terminal (crust), editor (slate), files | hydrogen | T63 T57 T55 | TODO |
 | T65 | P4 | spelunk | HTML and CSS parsers | hydrogen |  | PASS |
 | T66 | P4 | spelunk | cascade, block and inline layout, flex subset | argon-high | T65 T60 | TODO |
-| T66a | P4 | spelunk | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | RUNNING |
+| T66a | P4 | spelunk | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | PASS |
 | T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
 | T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | PASS |
 | T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
@@ -246,3 +246,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 13:28 | T41b | hydrogen-high | agy quota | PASS | join_leader 3/3 both seeds; leader fixed one obsolete T41a test; T41 closed (T41a+T41b)
 - 2026-11-15 13:37 | T49 | hydrogen | agy quota | PASS | contracts_leader 2/2 both seeds, seam_leader 8/8; gates pass
 - 2026-11-15 13:44 | T61 | hydrogen | agy quota | PASS | glint_leader 3/3 both seeds; two silent brief points taken from worker; gates pass
+- 2026-11-15 13:54 | T66a | haiku | 206,836 | PASS | layout_leader 2/2 both seeds; empty anon block not generated (aligned to worker); gates pass
