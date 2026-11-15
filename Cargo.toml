@@ -26,6 +26,7 @@ members = [
     "crates/tectonic",
     "crates/vug",
     "crates/flint",
+    "crates/mantle",
 ]
 
 [workspace.lints.rust]

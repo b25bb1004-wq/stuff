@@ -100,7 +100,9 @@ impl Document {
     }
 
     /// Serialize the tree in html5lib test format.
+    // shortcut: indentation stops at DUMP_MAX_INDENT levels, so output stays linear in node count; deeper trees differ from html5lib format
     pub fn dump(&self) -> String {
+        const DUMP_MAX_INDENT: usize = 256;
         let mut out = String::new();
         let Some(root) = self.nodes.first() else {
             return out;
@@ -114,7 +116,7 @@ impl Document {
                 continue;
             };
             out.push_str("| ");
-            for _ in 0..depth {
+            for _ in 0..depth.min(DUMP_MAX_INDENT) {
                 out.push_str("  ");
             }
             match &node.data {
@@ -132,7 +134,7 @@ impl Document {
                     sorted_attrs.sort_by(|(a, _), (b, _)| a.cmp(b));
                     for (k, v) in sorted_attrs {
                         out.push_str("| ");
-                        for _ in 0..=depth {
+                        for _ in 0..=depth.min(DUMP_MAX_INDENT) {
                             out.push_str("  ");
                         }
                         out.push_str(k);

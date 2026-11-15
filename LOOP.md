@@ -2,8 +2,8 @@
 
 ## State
 - LEADER: Claude Opus since 2026-11-14 16:15
-- heartbeat: 2026-11-15 06:30
-- phase: P2 Machine. Running T21 chisel (hydrogen-high). CI live (T82). Argon released down to 5% (operator, 2026-11-15; was 29%): argon-high tasks may run; no tool shows usage, so the leader asks the operator for the % after each Argon run and stops at 5%.
+- heartbeat: 2026-11-15 17:37
+- phase: P2-P6. Running T25 mantle (argon-high), T63 facet (hydrogen-high), T81e-h (hydrogen), T30 (haiku). CI live (T82). Argon released down to 5% (operator, 2026-11-15; was 29%): argon-high tasks may run; no tool shows usage, so the leader asks the operator for the % after each Argon run and stops at 5%.
 - stop reason: none
 - Next for the leader: see "Claude board" below (the strata-board mod shows it in a "Claude" pane, command `/strata-claude`).
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
@@ -24,11 +24,20 @@
 - [x] T55 slate app: brief + app_leader.rs (edit/motion tables, screens, scroll, files, Mica highlight, fuzz undo-all), dispatched (hydrogen)
 - [x] T48 seam: exact brief (encodings, RFC 6962 Merkle, state root, append order) written; dispatched to one Haiku subagent (operator 2026-11-15); seam_leader.rs ready (lint vs stub, RFC 6962 model self-check OK)
 - [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
-- [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
-- [ ] Look into the drillcore remote_leader flake
+- [x] docs/MANTLE.md v1 written by the leader (operator: Fable rewrite dropped); T25 dispatched to argon-high
+- [x] drillcore concurrent push flake fixed (Barrier), in b27f121
 - [x] T31 quartz H extension: brief + hyp_leader.rs (own two-stage model, coverage 22% ok / 46% pf / 31% gpf), dispatched (argon-high)
 - [x] T40 varve B+tree: brief + tree_leader.rs (own page parser), dispatched (hydrogen-high)
-- [ ] Argon (released to 5%, ask % after T31): then D4 MANTLE.md + T25, then T66
+- [x] T29a, T79c-g, T81a-d committed and pushed
+- [>] T50b seam net: leader fix (redial stalled links) done, workspace gate running, then commit
+- [>] Judge Haiku soaks: T79m onyx, T79n varve (SQL depth fix), T79o spelunk (3 fixes), T79p slate, T79q tectonic, T79r quarry
+- [>] Judge hydrogen soaks T79h-l (fresh-seed long runs done), commit
+- [ ] Judge T30 sinter optimiser (Haiku running); write opt_leader.rs
+- [x] T81e-h READMEs: output pasted, committed
+- [ ] Judge T63 facet compositor (hydrogen-high running); write facet_leader.rs
+- [ ] Judge T25 mantle (Argon running); write mantle_leader.rs; ask operator for Argon %
+- [ ] Backlog: glint spring stall at low stiffness; tectonic tone() huge alloc and unbounded script log
+- [ ] Vault note + skills for this round
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
@@ -99,15 +108,15 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | PASS |
 | T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
 | T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | haiku | T22 T23 | PASS |
-| T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 T13a | TODO |
-| T26 | P2 | mantle | processes, user mode, syscalls, scheduler (geyser), ELF loading | argon-high | T25 T05 | TODO |
+| T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 T13a | PASS |
+| T26 | P2 | mantle | processes, user mode, syscalls, scheduler (geyser), ELF loading | opus-high | T25 T05 | TODO |
 | T27 | P2 | mantle | block driver, shale mounted, file syscalls | argon | T26 T07 | TODO |
 | T28 | P2 | mantle | userland: init, shell (crust), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
-| T29 | P2 | sinter | Mica IR to RV64 code, linear-scan registers, ELF out | argon-high | T10 T22 | TODO |
-| T29a | P2 | sinter | (T29a) integer subset Mica IR to RV64, stack slots, runs on Quartz | hydrogen-high | T10 T22 | RUNNING |
-| T30 | P2 | sinter | constant folding, dead code, copy propagation | hydrogen | T29 | TODO |
+| T29 | P2 | sinter | Mica IR to RV64 code, linear-scan registers, ELF out | opus-high | T10 T22 | PASS |
+| T29a | P2 | sinter | (T29a) integer subset Mica IR to RV64, stack slots, runs on Quartz | hydrogen-high | T10 T22 | PASS |
+| T30 | P2 | sinter | constant folding, dead code, copy propagation | haiku | T29 | RUNNING |
 | T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | PASS |
-| T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | argon-high | T31 T24 T26 | TODO |
+| T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | opus-high | T31 T24 T26 | TODO |
 | T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
 | T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | hydrogen-high | T04 T20 D2 | PASS |
 | T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | PASS |
@@ -127,10 +136,10 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | PASS |
 | T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | haiku | T04 | PASS |
 | T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | PASS |
-| T50 | P3 | seam | node: gossip over tremor, sync, fork choice | argon-high | T49 T35 | TODO |
+| T50 | P3 | seam | node: gossip over tremor, sync, fork choice | opus-high | T49 T35 | PASS |
 | T50a | P3 | seam | node: block pool, fork choice, reorgs, sync messages, mempool | hydrogen-high | T49 | PASS |
-| T50b | P3 | seam | gossip over tremor: sans-IO peers, stream framing, sync ticks | hydrogen-high | T50a T35 | RUNNING |
-| T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | argon-high |  | TODO |
+| T50b | P3 | seam | gossip over tremor: sans-IO peers, stream framing, sync ticks | hydrogen-high | T50a T35 | PASS |
+| T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | opus-high |  | TODO |
 | T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
 | T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
 | T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | PASS |
@@ -141,10 +150,10 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | PASS |
 | T61 | P4 | glint | widget tree, flex layout, events, focus, themes | hydrogen | T60 | PASS |
 | T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | haiku | T61 | PASS |
-| T63 | P4 | facet | compositor: windows, tiling and floating, damage, input, animated moves | argon | T62 | TODO |
+| T63 | P4 | facet | compositor: windows, tiling and floating, damage, input, animated moves | hydrogen-high | T62 | RUNNING |
 | T64 | P4 | facet | client protocol + apps: terminal (crust), editor (slate), files | hydrogen | T63 T57 T55 | TODO |
 | T65 | P4 | spelunk | HTML and CSS parsers | hydrogen |  | PASS |
-| T66 | P4 | spelunk | cascade, block and inline layout, flex subset | argon-high | T65 T60 | TODO |
+| T66 | P4 | spelunk | cascade, block and inline layout, flex subset | opus-high | T65 T60 | TODO |
 | T66b | P4 | spelunk | flex layout subset | haiku | T66a | PASS |
 | T66a | P4 | spelunk | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | PASS |
 | T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
@@ -163,15 +172,50 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
 | T79a | P6 | fuzz | soak outcrop | hydrogen | - | PASS |
 | T79b | P6 | fuzz | soak one crate per lane run: chisel geode drillcore cairn crust shale tremor mica pigment quartz | hydrogen | - | TODO |
-| T79c | P6 | fuzz | soak chisel | hydrogen | - | RUNNING |
-| T79d | P6 | fuzz | soak geode | hydrogen | - | RUNNING |
-| T79e | P6 | fuzz | soak drillcore | hydrogen | - | RUNNING |
-| T79f | P6 | fuzz | soak cairn | hydrogen | - | RUNNING |
-| T79g | P6 | fuzz | soak crust | hydrogen | - | RUNNING |
+| T79c | P6 | fuzz | soak chisel | hydrogen | - | PASS |
+| T79d | P6 | fuzz | soak geode | hydrogen | - | PASS |
+| T79e | P6 | fuzz | soak drillcore | hydrogen | - | PASS |
+| T79f | P6 | fuzz | soak cairn | hydrogen | - | PASS |
+| T79g | P6 | fuzz | soak crust | hydrogen | - | PASS |
+| T79h | P6 | fuzz | soak shale | hydrogen | - | PASS |
+| T79i | P6 | fuzz | soak tremor | hydrogen | - | PASS |
+| T79j | P6 | fuzz | soak mica | hydrogen | - | PASS |
+| T79k | P6 | fuzz | soak pigment | hydrogen | - | PASS |
+| T79l | P6 | fuzz | soak quartz | hydrogen | - | PASS |
+| T79m | P6 | fuzz | soak onyx | haiku | - | PASS |
+| T79n | P6 | fuzz | soak varve | haiku | - | PASS |
+| T79o | P6 | fuzz | soak spelunk | haiku | - | PASS |
+| T79p | P6 | fuzz | soak slate | haiku | - | PASS |
+| T79q | P6 | fuzz | soak tectonic | haiku | - | PASS |
+| T79r | P6 | fuzz | soak quarry | haiku | - | PASS |
 | T80 | P6 | review | security review of every crate, one report each | argon | all | TODO |
 | T81 | P6 | docs | README and runnable example per system, architecture book | flash | all | TODO |
+| T81a | P6 | docs | README + demo: assay outcrop | haiku | - | PASS |
+| T81b | P6 | docs | README + demo: glint flint | haiku | - | PASS |
+| T81c | P6 | docs | README + demo: geyser | haiku | - | PASS |
+| T81d | P6 | docs | architecture book docs/BOOK.md | haiku | - | PASS |
+| T81e | P6 | docs | README + demo: cairn | hydrogen | - | PASS |
+| T81f | P6 | docs | README + demo: chisel | hydrogen | - | PASS |
+| T81g | P6 | docs | README + demo: crust | hydrogen | - | PASS |
+| T81h | P6 | docs | README + demo: drillcore | hydrogen | - | PASS |
 | T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | PASS |
 | T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
+| T79s | P6 | fuzz | soak seam | haiku | - | RUNNING |
+| T79t | P6 | fuzz | soak glint | haiku | - | RUNNING |
+| T79u | P6 | fuzz | soak geyser | haiku | - | RUNNING |
+| T80a | P6 | review | security review outcrop, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80b | P6 | review | security review tremor, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80c | P6 | review | security review drillcore, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80d | P6 | review | security review cairn, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80e | P6 | review | security review crust, findings proven by tests | hydrogen-high | - | RUNNING |
+| T81i | P6 | docs | README + demo geode mica | haiku | - | PASS |
+| T81j | P6 | docs | README + demo onyx pigment | haiku | - | PASS |
+| T81k | P6 | docs | README + demo quarry quartz | haiku | - | PASS |
+| T81l | P6 | docs | README + demo seam shale | haiku | - | RUNNING |
+| T81m | P6 | docs | README + demo sinter slate | haiku | - | RUNNING |
+| T81n | P6 | docs | README + demo spelunk tectonic | haiku | - | PASS |
+| T81o | P6 | docs | README + demo varve vug | haiku | - | PASS |
+| T81p | P6 | docs | README + demo facet mantle tremor | haiku | - | RUNNING |
 
 Later phases get their task rows when P1 is green (see the build order in `docs/SPEC.md`):
 P2 chisel, sinter, quartz devices, flint, mantle, bedrock. P3 tremor, outcrop, varve, drillcore,
@@ -266,3 +310,20 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 14:54 | T42 varve net | hydrogen | - | PASS | own codec+8 clients+txn model; zero-col rows aligned
 - 2026-11-15 15:03 | dispatch | 6 hydrogen | - | RUNNING | T50b hydrogen-high; T79c-g soaks chisel geode drillcore cairn crust
 - 2026-11-15 15:16 | T70b tectonic script game | hydrogen | agy quota | PASS | script_leader 4/4 both seeds; extern model, traps, fuel, replay, pixels
+- 2026-11-15 17:14 | T79h-l | hydrogen x5 | - | DISPATCH | soak shale tremor mica pigment quartz, 120m cap
+- 2026-11-15 17:20 | T79m-r T81a-d | haiku x10 | budget 1.6M | DISPATCH | operator: 10 haiku + 5 hydrogen; T50b leader fix (redial stalled links) gated, verdict pending
+- 2026-11-15 17:21 | T29a | hydrogen-high | - | PASS | rv64_leader 3 tests both seeds, mutation-tested
+- 2026-11-15 17:21 | T79c-g | hydrogen x5 | - | PASS | chisel 2 OOM fixes (output cap, macro fan-out); drillcore flaky test barrier; seed parse loud
+- 2026-11-15 17:28 | T25 | argon-high | - | DISPATCH | mantle kernel boot, design docs/MANTLE.md v1 (leader); Fable rewrite dropped (operator)
+- 2026-11-15 17:29 | T81a-d | haiku x4 | 123k 118k 107k 148k | PASS | READMEs+demos assay outcrop glint flint geyser, docs/BOOK.md; glint spring stall noted
+- 2026-11-15 17:32 | T30 | haiku | - | DISPATCH | sinter IR optimiser, differential vs reference evaluator
+- 2026-11-15 17:34 | T63 T81e-h | hydrogen-high + hydrogen x4 | - | DISPATCH | facet compositor (hydrogen-high to save Argon); READMEs cairn chisel crust drillcore
+- 2026-11-15 17:39 | T81e-h | hydrogen x4 | agy quota | PASS | READMEs+demos cairn chisel crust drillcore; leader pasted demo output
+- 2026-11-15 17:51 | T50b | haiku + leader fix | ~150k | PASS | seam node net; redial stalled links after 2 s
+- 2026-11-15 17:53 | T79s-u T81i-o | haiku x10 | - | DISPATCH | soaks seam glint geyser; READMEs 14 crates
+- 2026-11-15 17:53 | T80a-e | hydrogen-high x5 | - | DISPATCH | security reviews with proving tests
+- 2026-11-15 18:15 | Argon | - | - | STOP | operator: Argon at 2% after T25, below 5% floor; argon rows go to hydrogen-high with leader design or wait
+- 2026-11-15 18:16 | lanes | - | - | CHANGE | operator: argon-high rows go to Opus 5.5 high via agy (new lane opus-high)
+- 2026-11-15 18:18 | T25 | argon-high + leader fix | Argon 15%->2% | PASS | mantle boots 16-256 MiB; leader fixed sv39 leaf-flag check
+- 2026-11-15 18:18 | T79h-r | hydrogen x5 + haiku x6 | ~0.9M haiku | PASS | 11 soaks; fixes: varve SQL depth, spelunk CSS depth + 2 quadratic paths
+- 2026-11-15 18:18 | T81i-k,n,o | haiku x5 | ~0.65M | PASS | READMEs geode mica onyx pigment quarry quartz spelunk tectonic varve; vug deferred to after T51

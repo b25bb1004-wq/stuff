@@ -383,7 +383,7 @@ impl Builder {
             return;
         }
         self.gen_implied_end_tags("p");
-        while let Some(id) = self.stack.pop() {
+        while let Some(id) = self.pop_stack() {
             if self.name_of(id) == "p" {
                 break;
             }
@@ -395,7 +395,7 @@ impl Builder {
             let n = self.name_of(self.stack[i]);
             if n == "li" {
                 self.gen_implied_end_tags("li");
-                while let Some(id) = self.stack.pop() {
+                while let Some(id) = self.pop_stack() {
                     if self.name_of(id) == "li" {
                         break;
                     }
@@ -414,7 +414,7 @@ impl Builder {
             if n == "dd" || n == "dt" {
                 let target = if n == "dd" { "dd" } else { "dt" };
                 self.gen_implied_end_tags(target);
-                while let Some(id) = self.stack.pop() {
+                while let Some(id) = self.pop_stack() {
                     let popped = self.name_of(id);
                     if popped == "dd" || popped == "dt" {
                         break;
@@ -871,7 +871,7 @@ impl Builder {
         }
         if name == "table" {
             if self.in_table_scope("table") {
-                while let Some(id) = self.stack.pop() {
+                while let Some(id) = self.pop_stack() {
                     if self.name_of(id) == "table" {
                         break;
                     }
@@ -882,7 +882,7 @@ impl Builder {
         if matches!(name, "tbody" | "thead" | "tfoot" | "tr" | "td" | "th") {
             if self.in_table_scope(name) {
                 self.gen_implied_end_tags(name);
-                while let Some(id) = self.stack.pop() {
+                while let Some(id) = self.pop_stack() {
                     if self.name_of(id) == name {
                         break;
                     }
@@ -892,7 +892,7 @@ impl Builder {
         }
         if self.in_scope(name, false) {
             self.gen_implied_end_tags(name);
-            while let Some(id) = self.stack.pop() {
+            while let Some(id) = self.pop_stack() {
                 if self.name_of(id) == name {
                     break;
                 }

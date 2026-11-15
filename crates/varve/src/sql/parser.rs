@@ -12,11 +12,16 @@ use crate::Error;
 pub(crate) struct Parser {
     pub(crate) tokens: Vec<Token>,
     pub(crate) pos: usize,
+    pub(crate) depth: usize,
 }
 
 pub(crate) fn parse_statement(sql: &str) -> Result<Stmt, Error> {
     let tokens = tokenize(sql)?;
-    let mut p = Parser { tokens, pos: 0 };
+    let mut p = Parser {
+        tokens,
+        pos: 0,
+        depth: 0,
+    };
     if p.at_eof() {
         return Err(parse_err(p.cur().pos, "empty SQL statement"));
     }

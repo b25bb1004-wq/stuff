@@ -17,8 +17,9 @@ case "${1:-}" in
   hydrogen-xhigh) M=gemini-4-hydrogen-xhigh ;;   # second retry of a hydrogen task
   sonnet) M=claude-sonnet-5-5-high ;;            # Claude through agy quota: careful Rust, reviews
   opus) M=claude-opus-5-5-medium ;;              # Claude through agy quota: hardest design work
+  opus-high) M=claude-opus-5-5-high ;;           # takes every argon-high row while Argon is below its floor (operator 2026-11-15)
   oss) M=gpt-oss-120b-medium ;;                  # cheap text and docs
-  *) echo "unknown lane: ${1:-} (flash, hydrogen, hydrogen-high, hydrogen-xhigh, argon, argon-high, orchestrator, sonnet, opus, oss)"; exit 2 ;;
+  *) echo "unknown lane: ${1:-} (flash, hydrogen, hydrogen-high, hydrogen-xhigh, argon, argon-high, orchestrator, sonnet, opus, opus-high, oss)"; exit 2 ;;
 esac
 ID="${2:-}"
 [ -f "briefs/$ID.md" ] || { echo "no brief: briefs/$ID.md"; exit 2; }

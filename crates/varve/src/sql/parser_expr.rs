@@ -5,8 +5,23 @@ use crate::sql::lexer::{parse_err, TokenKind};
 use crate::sql::parser::Parser;
 use crate::Error;
 
+/// Nesting cap: deeper input is an error, so it cannot overflow a 2 MiB thread stack.
+// shortcut: fixed cap sized for debug builds on a 2 MiB stack, raise it if the stack grows.
+const MAX_DEPTH: usize = 64;
+
 pub(crate) fn parse_expr(p: &mut Parser) -> Result<Expr, Error> {
-    parse_or(p)
+    nested(p, parse_or)
+}
+
+/// Run one recursive expression step, counting its depth against `MAX_DEPTH`.
+fn nested(p: &mut Parser, step: fn(&mut Parser) -> Result<Expr, Error>) -> Result<Expr, Error> {
+    if p.depth >= MAX_DEPTH {
+        return Err(parse_err(p.cur().pos, "expression nested too deeply"));
+    }
+    p.depth += 1;
+    let res = step(p);
+    p.depth -= 1;
+    res
 }
 
 fn parse_or(p: &mut Parser) -> Result<Expr, Error> {
@@ -52,7 +67,7 @@ fn parse_and(p: &mut Parser) -> Result<Expr, Error> {
 fn parse_not(p: &mut Parser) -> Result<Expr, Error> {
     if p.is_kw("NOT") {
         let tok = p.advance();
-        let inner = parse_not(p)?;
+        let inner = nested(p, parse_not)?;
         let end = inner.span.end;
         return Ok(Expr {
             kind: ExprKind::Unary {
@@ -286,7 +301,7 @@ fn parse_unary(p: &mut Parser) -> Result<Expr, Error> {
     match p.cur().kind {
         TokenKind::Minus => {
             let tok = p.advance();
-            let inner = parse_unary(p)?;
+            let inner = nested(p, parse_unary)?;
             let end = inner.span.end;
             Ok(Expr {
                 kind: ExprKind::Unary {
@@ -301,7 +316,7 @@ fn parse_unary(p: &mut Parser) -> Result<Expr, Error> {
         }
         TokenKind::Plus => {
             let tok = p.advance();
-            let inner = parse_unary(p)?;
+            let inner = nested(p, parse_unary)?;
             let end = inner.span.end;
             Ok(Expr {
                 kind: ExprKind::Unary {

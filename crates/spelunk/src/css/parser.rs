@@ -86,13 +86,45 @@ impl Frame {
     }
 }
 
+/// Deepest block nesting kept as a tree by [`parse_values`] (tree walks at this depth fit a 2 MiB stack).
+const MAX_NEST: usize = 2048;
+/// Deepest nesting the stylesheet and declaration parsers clone; deeper clones overflow a 2 MiB stack.
+const RULE_NEST: usize = 1024;
+
 /// Parse a CSS string into a nested list of [`Value`]s using an explicit stack.
 pub fn parse_values(input: &str) -> Vec<Value> {
+    parse_values_capped(input, MAX_NEST)
+}
+
+// shortcut: blocks nested deeper than max_nest stay flat tokens, revisit if a tree-walking pass needs deeper input
+fn parse_values_capped(input: &str, max_nest: usize) -> Vec<Value> {
     let tokens = tokenize(input);
     let mut root: Vec<Value> = Vec::new();
     let mut stack: Vec<Frame> = Vec::new();
+    let mut too_deep = 0usize; // openers past max_nest whose closers are still pending
 
     for tok in tokens {
+        let opens = matches!(
+            tok,
+            Token::OpenParen | Token::OpenSquare | Token::OpenCurly | Token::Function(_)
+        );
+        let closes = matches!(
+            tok,
+            Token::CloseParen | Token::CloseSquare | Token::CloseCurly
+        );
+        if (opens && stack.len() >= max_nest) || (closes && too_deep > 0) {
+            if opens {
+                too_deep += 1;
+            } else {
+                too_deep -= 1;
+            }
+            let val = Value::Token(tok);
+            match stack.last_mut() {
+                Some(parent) => parent.push(val),
+                None => root.push(val),
+            }
+            continue;
+        }
         match tok {
             Token::OpenParen => stack.push(Frame::Block {
                 open: '(',
@@ -295,13 +327,13 @@ fn parse_declarations_from_values(values: &[Value]) -> Vec<Declaration> {
 
 /// Parse a list of CSS declarations (e.g. a `style` attribute).
 pub fn parse_declarations(input: &str) -> Vec<Declaration> {
-    let values = parse_values(input);
+    let values = parse_values_capped(input, RULE_NEST);
     parse_declarations_from_values(&values)
 }
 
 /// Parse a CSS stylesheet into a list of [`Rule`]s.
 pub fn parse_stylesheet(input: &str) -> Vec<Rule> {
-    let values = parse_values(input);
+    let values = parse_values_capped(input, RULE_NEST);
     let mut out = Vec::new();
     let mut i = 0;
 
