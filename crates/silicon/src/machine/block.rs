@@ -20,6 +20,8 @@ pub(super) struct Block {
     status: u32,
     irq_enable: u32,
     done: bool,
+    reads: u64,
+    writes: u64,
 }
 
 impl Block {
@@ -29,6 +31,17 @@ impl Block {
             disk,
             ..Self::default()
         }
+    }
+
+    /// Accepted read and write command totals since the last reset.
+    pub(super) fn counts(&self) -> (u64, u64) {
+        (self.reads, self.writes)
+    }
+
+    /// Zero the command totals.
+    pub(super) fn reset_counts(&mut self) {
+        self.reads = 0;
+        self.writes = 0;
     }
 
     /// Borrow the raw disk image.
@@ -50,6 +63,11 @@ impl Block {
     fn execute(&mut self, cmd: u32, ram: &mut Ram, ram_size: usize) {
         if cmd != 1 && cmd != 2 {
             return;
+        }
+        if cmd == 1 {
+            self.reads = self.reads.saturating_add(1);
+        } else {
+            self.writes = self.writes.saturating_add(1);
         }
         let Some((disk_off, disk_end, byte_len)) = self.valid_ranges(ram_size) else {
             self.status = 1;

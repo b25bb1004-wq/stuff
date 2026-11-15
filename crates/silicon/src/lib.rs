@@ -13,6 +13,7 @@ mod exec;
 pub mod inst;
 pub mod machine;
 mod mmu;
+pub mod probe;
 mod trap;
 
 pub use bus::{Bus, Fault, Ram};
@@ -144,6 +145,7 @@ pub struct Cpu {
     pub virt: bool,
     csr: Csrs,
     reservation: Option<u64>,
+    pub(crate) probe: probe::HartCounts,
 }
 
 impl Cpu {
@@ -157,6 +159,7 @@ impl Cpu {
             virt: false,
             csr: Csrs::default(),
             reservation: None,
+            probe: probe::HartCounts::default(),
         }
     }
 

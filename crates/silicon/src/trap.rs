@@ -79,6 +79,7 @@ impl Cpu {
         fetch_fn: impl FnOnce(&Self, &mut B, u64) -> Result<(crate::inst::Inst, u32, u64), Trap>,
     ) -> (Step, bool) {
         if let Some(code) = self.pending_interrupt() {
+            self.probe.0.count_trap(code, true);
             self.enter(code, true, 0, 0, false);
             return (Step::Interrupt(code), false);
         }
@@ -97,6 +98,11 @@ impl Cpu {
                     code = 10;
                 }
                 let tval = if trap == Trap::Ebreak { self.pc } else { tval };
+                if trap == Trap::Ecall {
+                    let a7 = self.x.get(17).copied().unwrap_or(0);
+                    self.probe.0.record_ecall(a7, self.instret);
+                }
+                self.probe.0.count_trap(code, false);
                 let is_gva = (self.virt || from_hlv_hsv)
                     && matches!(code, 0 | 1 | 4 | 5 | 6 | 7 | 12 | 13 | 15 | 20 | 21 | 23);
                 self.enter(code, false, tval, trap.gpa_val(), is_gva);

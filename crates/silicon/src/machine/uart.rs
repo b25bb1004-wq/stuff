@@ -16,12 +16,26 @@ pub(super) struct Uart {
     lcr: u8,
     mcr: u8,
     scr: u8,
+    in_bytes: u64,
+    out_bytes: u64,
 }
 
 impl Uart {
     /// Queue input bytes for the guest to read from RBR.
     pub(super) fn push_input(&mut self, bytes: &[u8]) {
         self.rx.extend(bytes);
+        self.in_bytes = self.in_bytes.saturating_add(bytes.len() as u64);
+    }
+
+    /// Host-to-guest and guest-to-host byte totals since the last reset.
+    pub(super) fn counts(&self) -> (u64, u64) {
+        (self.in_bytes, self.out_bytes)
+    }
+
+    /// Zero the byte totals.
+    pub(super) fn reset_counts(&mut self) {
+        self.in_bytes = 0;
+        self.out_bytes = 0;
     }
 
     /// Drain bytes written by the guest to THR.
@@ -68,7 +82,10 @@ impl Uart {
         }
         let b = value as u8;
         match off {
-            0 => self.tx.push(b),
+            0 => {
+                self.tx.push(b);
+                self.out_bytes = self.out_bytes.saturating_add(1);
+            }
             1 => self.ier = b,
             3 => self.lcr = b,
             4 => self.mcr = b,

@@ -11,6 +11,7 @@ mod uart;
 use alloc::vec::Vec;
 
 use crate::inst::Inst;
+use crate::probe::{HartCounts, Probe};
 use crate::{Bus, Cpu, Fault, Ram, Step, Trap};
 
 use block::{Block, BLOCK_SIZE};
@@ -298,6 +299,25 @@ impl Machine {
         };
         self.cpu.csr_write(0xC01, self.board.mtime());
         step
+    }
+
+    /// Trap, ECALL and device counters since the last `probe_reset` (or since construction).
+    pub fn probe(&self) -> Probe {
+        let mut p = self.cpu.probe.0.clone();
+        let (uart_in, uart_out) = self.board.uart.counts();
+        let (block_reads, block_writes) = self.board.block.counts();
+        p.uart_in = uart_in;
+        p.uart_out = uart_out;
+        p.block_reads = block_reads;
+        p.block_writes = block_writes;
+        p
+    }
+
+    /// Zero every counter returned by `probe`; guest state is unchanged.
+    pub fn probe_reset(&mut self) {
+        self.cpu.probe = HartCounts::default();
+        self.board.uart.reset_counts();
+        self.board.block.reset_counts();
     }
 
     /// Step until the test finisher is written (`Pass` / `Fail(value >> 16)`) or `max_steps` ran.
