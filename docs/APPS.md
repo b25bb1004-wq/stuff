@@ -71,7 +71,7 @@ Each of the 25 systems has:
 | lithium | OS console: task interleave view | `run [--ticks N]` on Silicon | new |
 | kairos | scheduler visualiser: Gantt chart per CPU | `sim FILE` | new |
 | midas | allocator visualiser: buddy blocks and slab classes | `sim FILE` | new |
-| zeus | hypervisor console: two guests side by side | `run [--guests N]` on Silicon (host tool; the riscv `zeus` bin stays) | new |
+| zeus | hypervisor console: two guests side by side | `zeusctl run [--guest NAME[:MiB]]...` on Silicon (host tool named zeusctl, because the riscv `zeus` bin keeps the name) | new |
 
 ## Order
 Tools first, in batches of about five crates per task, never sharing a crate with a running task (T86a-e). Apps
