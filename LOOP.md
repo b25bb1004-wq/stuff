@@ -111,7 +111,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T25 | P2 | titan | Rust kernel: boot shim, traps, Sv39, heap (midas), console | argon-high | T23 T16 T13a | PASS |
 | T26 | P2 | titan | processes, user mode, syscalls, scheduler (kairos), ELF loading | opus-high | T25 T05 | PASS |
 | T27 | P2 | titan | block driver, hades mounted, file syscalls | hydrogen-high | T26 T07 | PASS |
-| T28 | P2 | titan | userland: init, shell (krypton), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
+| T28 | P2 | titan | userland: init, shell (krypton), ls cat echo mkdir rm ps | hydrogen | T27 T57 | RUNNING |
 | T29 | P2 | cobalt | Logos IR to RV64 code, linear-scan registers, ELF out | opus-high | T10 T22 | PASS |
 | T29a | P2 | cobalt | (T29a) integer subset Logos IR to RV64, stack slots, runs on Silicon | hydrogen-high | T10 T22 | PASS |
 | T30 | P2 | cobalt | constant folding, dead code, copy propagation | haiku | T29 | PASS |
@@ -140,7 +140,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T50a | P3 | aurum | node: block pool, fork choice, reorgs, sync messages, mempool | hydrogen-high | T49 | PASS |
 | T50b | P3 | aurum | gossip over xenon: sans-IO peers, stream framing, sync ticks | hydrogen-high | T50a T35 | PASS |
 | T51 | P3 | pandora | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | opus-high |  | PASS |
-| T52 | P3 | pandora | images as argo packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
+| T52 | P3 | pandora | images as argo packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | RUNNING |
 | T53 | P3 | krypton | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
 | T57 | P3 | krypton | executor, pipes, redirects, builtins, job control | hydrogen | T53 | PASS |
 | T54 | P3 | calliope | buffer (piece table), undo tree, multi-cursor, own regex engine | hydrogen-high |  | PASS |
