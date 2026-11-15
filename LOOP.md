@@ -2,12 +2,23 @@
 
 ## State
 - LEADER: Claude Opus since 2026-11-14 16:15
-- heartbeat: 2026-11-14 17:34
-- phase: P1 Cores. T04, T05, T07, T09, T10, T12, T16, T17, T19 PASS.
+- heartbeat: 2026-11-15 06:30
+- phase: P2 Machine. Running T21 chisel (hydrogen-high). CI live (T82). Argon at 29% (operator, 2026-11-15): Argon only for Opus-grade tasks, none dispatched until needed.
 - stop reason: none
-- Next for the leader (18:52, Claude usage limit hit): judge T18 when argon returns (check parked in briefs/leader/sinter_leader.rs). Briefs ready: T20 (haiku), T37 (hydrogen). Then T53, T43, T23 (not argon), T13 (needs riscv-tests download: ask operator).
+- Next for the leader: see "Claude board" below (the strata-board mod shows it in a "Claude" pane, command `/strata-claude`).
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
 - At most one Gemini worker (through `bash tools/lane.sh <lane> <id>`) plus one Claude Haiku worker, on different crates. Lanes and rules: docs/PLAN.md section 2.
+
+## Claude board (the leader's own work; `- [>]` doing, `- [ ]` next, `- [!]` blocked, `- [x]` done)
+- [x] T33 judge + bench fixes, commit 049e3f8
+- [x] T21 corpus (LLVM, validated), brief, leader check
+- [x] T82 CI workflow, green on ubuntu-latest
+- [>] T47 cairn registry: brief written, leader check next, then dispatch (hydrogen)
+- [ ] Judge T21 when the worker reports (copy chisel_leader.rs, gate, fresh seeds)
+- [ ] T13 riscv-tests (download approved): fetch, build as quartz data
+- [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
+- [ ] Look into the drillcore remote_leader flake
+- [!] T25 mantle, T31, T66: argon-high, held while Argon is at 29%
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
