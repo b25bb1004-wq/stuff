@@ -166,10 +166,10 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen-high | T10 T72 | PASS |
 | T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect; split T74a elysium core, T74a2 cobalt stepping, T74b UI | hydrogen-high | T17 T72 | T74a PASS, T74a2 RUNNING |
 | T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | T75a PASS, T75b PASS, T75c RUNNING (also builds the T88 apps) |
-| T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
+| T76 | P5 | site | accessibility, performance, cross-browser pass | haiku | T75 | WAITING (site busy with T75e) |
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen-high | T42 T50 T47 | PASS |
 | T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen-high | (T77 dropped: loopback only) | PASS |
-| T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
+| T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | leader | all | RUNNING (17 soak suites, seed 20261116031) |
 | T79a | P6 | fuzz | soak mercury | hydrogen | - | PASS |
 | T79b | P6 | fuzz | soak one crate per lane run: chisel elysium chronos argo krypton hades xenon logos pigment silicon | hydrogen | - | TODO |
 | T79c | P6 | fuzz | soak chisel | hydrogen | - | PASS |
@@ -188,8 +188,8 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T79p | P6 | fuzz | soak calliope | haiku | - | PASS |
 | T79q | P6 | fuzz | soak helios | haiku | - | PASS |
 | T79r | P6 | fuzz | soak midas | haiku | - | PASS |
-| T80 | P6 | review | security review of every crate, one report each | argon | all | TODO |
-| T81 | P6 | docs | README and runnable example per system, architecture book | flash | all | TODO |
+| T80 | P6 | review | security review of every crate, one report each | haiku x3 | all | RUNNING (reports/T80-<crate>.md) |
+| T81 | P6 | docs | README and runnable example per system, architecture book | haiku | all | RUNNING (READMEs and examples exist; checking they run) |
 | T81a | P6 | docs | README + demo: assay mercury | haiku | - | PASS |
 | T81b | P6 | docs | README + demo: indium lithium | haiku | - | PASS |
 | T81c | P6 | docs | README + demo: kairos | haiku | - | PASS |
@@ -400,3 +400,13 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T86q zeusctl | hydrogen-high | n/a | PASS | leader: lithium and titan guests side by side under zeus, both exit 0, all guests done; bad guest exit 2. 25 of 25 tools
 - 2026-11-16 | T74a elysium pause/resume | hydrogen-high | n/a | PASS | 150 random programs equal through start+resume; elysium, cobalt, athena, neon gates pass
 - 2026-11-16 | docs/TOOLS.md | haiku-medium | 125k | PASS | leader spot check vs hades --help; found convention gaps: logos no --help/--version (and no check/fmt), xenon exits 1 on usage with "error:" prefix, krypton no --version, pandora exit codes 125-127 (kept: container convention) -> T86s
+- 2026-11-16 03:30 | lanes | leader | - | NOTE | Argon quota out until about 2026-11-21; operator then said "forget agy": all work on Haiku subagents plus the leader from now on.
+- 2026-11-16 | T86r titan --disk | hydrogen (quota stop) + leader | - | PASS | leader fixed 1 lint + 2 test compile errors; two runs by hand persist a file
+- 2026-11-16 | T86s xenon, T86t krypton conventions | haiku | 104k | PASS | gates + hand tests (exit 2 usage, 1 runtime, prefixes)
+- 2026-11-16 | T89a athena sw | haiku | 92k | PASS | REVIEW B1: deletes only athena- caches, own-cache lookup
+- 2026-11-16 | T90 indium motion | haiku | 107k | PASS | LIVE linear() accepted by Chrome, 6 percent overshoot
+- 2026-11-16 | T91 silicon probe | haiku | 169k | PASS | exec.rs untouched; speed A/B was noise under load
+- 2026-11-16 | T93 zeus scene | haiku | 155k | PASS after ruling | worker changed the hypervisor trap path (broke guest interleaving); leader ruled revert, last_fault from the silicon probe
+- 2026-11-16 | T94 midas Sim | haiku | 130k | PASS | owned arena, generation handles, SAFETY comments
+- 2026-11-16 | T75c six demos + apps | argon | - | 5 of 6 PASS in Chrome | odyssey indium helios xenon pandora ok; iris traps in wasm -> T75d (krypton pid) then T75e RUNNING. Also reproduced REVIEW B2 live: odyssey app served calliope's old 2.0 MB wasm via global caches.match.
+- 2026-11-16 | T74a2 cobalt stepping | haiku (worktree ../strata-wt-t74a2) | 145k | RETRY | stepped by byte offset, locals named r<reg>; retry asks for real lines and Logos names
