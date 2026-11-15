@@ -164,7 +164,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T71 | P5 | neon | WebAssembly builds with our own glue (no wasm-bindgen): Silicon + Titan on a canvas, Logos playground | argon | T28 T18 | PASS |
 | T72 | P5 | athena | IDE shell: editor, file tree, terminal, run, test | hydrogen-high (design docs/FRONT.md by leader) | T71 T55 | PASS |
 | T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen-high | T10 T72 | PASS |
-| T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect | hydrogen | T17 T72 | TODO |
+| T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect; split T74a core (elysium+cobalt, after T86a and T75b free them) and T74b UI | hydrogen-high | T17 T72 | TODO |
 | T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | hydrogen-high in 3 parts (T75a shell + 8 demos, T75b, T75c), design docs/FRONT.md | T71 | T75a PASS, T75b RUNNING, T75c TODO |
 | T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen-high | T42 T50 T47 | PASS |
