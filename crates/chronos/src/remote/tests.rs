@@ -5,9 +5,11 @@ use std::sync::{Arc, Mutex};
 use assay::forall;
 use mercury::server::{Config, Router, Server};
 
-use super::http::http_post;
+use super::http::{http_post, http_post_auth};
 use super::pack::{decode_pack, encode_pack, MAX_PACK_OBJECTS};
 use super::{clone, serve, RemoteError};
+
+const TEST_TOKEN: &str = "test-push-token";
 use crate::{to_hex, Kind, MemStore, Repo, Signature};
 
 fn sig(name: &str, time: i64) -> Signature {
@@ -21,7 +23,7 @@ fn sig(name: &str, time: i64) -> Signature {
 
 fn start_server(repo: Arc<Mutex<Repo<MemStore>>>, prefix: &str) -> (Server, String) {
     let mut router = Router::new();
-    serve(repo, &mut router, prefix);
+    serve(repo, &mut router, prefix, Some(TEST_TOKEN));
     let cfg = Config {
         addr: "127.0.0.1:0".to_string(),
         threads: 8,
@@ -133,7 +135,9 @@ fn clone_pull_merge_push_and_sync() {
     assert_eq!(files.get("b.txt").unwrap().0, b"server b\n");
 
     // Push merged result back to server.
-    client1.push(&url, "main").unwrap();
+    client1
+        .push_with_token(&url, "main", Some(TEST_TOKEN))
+        .unwrap();
     let srv_head = shared.lock().unwrap().head();
     assert_eq!(srv_head, Some(merge_id));
 
@@ -165,7 +169,7 @@ fn push_rejected_stale_non_ff_and_bad_name() {
     let stale_body = format!("{} {} main\n\n", to_hex(&c1), to_hex(&_c_div));
     let mut stale_req = stale_body.into_bytes();
     stale_req.extend_from_slice(&encode_pack(&[]));
-    let resp = http_post(&url, "/push", stale_req).unwrap();
+    let resp = http_post_auth(&url, "/push", stale_req, Some(TEST_TOKEN)).unwrap();
     assert_eq!(String::from_utf8(resp).unwrap(), "ng main stale\n");
 
     // Non-fast-forward: old = c3 (matches current), new = c1 (ancestor, not descendant).
@@ -173,7 +177,7 @@ fn push_rejected_stale_non_ff_and_bad_name() {
     let nff_body = format!("{} {} main\n\n", to_hex(&c3), to_hex(&c1));
     let mut nff_req = nff_body.into_bytes();
     nff_req.extend_from_slice(&encode_pack(&[]));
-    let resp = http_post(&url, "/push", nff_req).unwrap();
+    let resp = http_post_auth(&url, "/push", nff_req, Some(TEST_TOKEN)).unwrap();
     assert_eq!(
         String::from_utf8(resp).unwrap(),
         "ng main non-fast-forward\n"
@@ -185,7 +189,7 @@ fn push_rejected_stale_non_ff_and_bad_name() {
         let bad_body = format!("{} {} {}\n\n", to_hex(&[0u8; 32]), to_hex(&c2), bad);
         let mut bad_req = bad_body.into_bytes();
         bad_req.extend_from_slice(&encode_pack(&[]));
-        let resp = http_post(&url, "/push", bad_req).unwrap();
+        let resp = http_post_auth(&url, "/push", bad_req, Some(TEST_TOKEN)).unwrap();
         assert_eq!(
             String::from_utf8(resp).unwrap(),
             format!("ng {bad} bad-name\n")
@@ -194,7 +198,9 @@ fn push_rejected_stale_non_ff_and_bad_name() {
 
     // Push a brand new branch.
     client1.branch("feature", &_c_div).unwrap();
-    client1.push(&url, "feature").unwrap();
+    client1
+        .push_with_token(&url, "feature", Some(TEST_TOKEN))
+        .unwrap();
     let branches = shared.lock().unwrap().branches();
     assert!(branches
         .iter()
@@ -242,7 +248,12 @@ fn malformed_push_and_oversized_count_rejected() {
 
     // Malformed body (no empty line separator) -> 400.
     assert_eq!(
-        http_post(&url, "/push", b"not-a-valid-push".to_vec()),
+        http_post_auth(
+            &url,
+            "/push",
+            b"not-a-valid-push".to_vec(),
+            Some(TEST_TOKEN)
+        ),
         Err(RemoteError::Http(400))
     );
 
@@ -253,7 +264,10 @@ fn malformed_push_and_oversized_count_rejected() {
     let header = format!("{} {} main\n\n", to_hex(&[0u8; 32]), to_hex(&[1u8; 32]));
     let mut req = header.into_bytes();
     req.extend_from_slice(&big_pack);
-    assert_eq!(http_post(&url, "/push", req), Err(RemoteError::Http(413)));
+    assert_eq!(
+        http_post_auth(&url, "/push", req, Some(TEST_TOKEN)),
+        Err(RemoteError::Http(413))
+    );
 
     srv.stop();
 }
@@ -279,7 +293,7 @@ fn concurrent_eight_threads_push() {
                 .unwrap();
             c.commit(&format!("commit {i}"), &sig("t", 20 + i)).unwrap();
             gate.wait();
-            c.push(&u, "main")
+            c.push_with_token(&u, "main", Some(TEST_TOKEN))
         }));
     }
 

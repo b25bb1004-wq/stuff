@@ -197,7 +197,10 @@ fn gen_valid_tree_entries(rng: &mut Rng) -> Vec<TreeEntry> {
     let mut entries = Vec::with_capacity(n);
     for _ in 0..n {
         let mode = *rng.pick(&[Mode::File, Mode::Exec, Mode::Dir]);
-        let name = rand_ascii_ident(rng, 16);
+        let mut name = rand_ascii_ident(rng, 16);
+        if name == "." || name == ".." {
+            name.insert(0, 'x'); // dot names are rejected by decode_tree, keep the generator valid
+        }
         let id = rand_id(rng);
         entries.push(TreeEntry { mode, name, id });
     }

@@ -6,10 +6,12 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use chronos::{
-    decode_commit, decode_tree, from_hex, to_hex, Change, DirStore, Mode, Repo, Signature,
+    decode_commit, decode_tree, from_hex, to_hex, validate_entry_name, Change, DirStore, Mode,
+    Repo, Signature,
 };
 
 const VERSION_STR: &str = "chronos 0.1.0";
@@ -52,7 +54,12 @@ Subcommands:
 
   status
       Show staged changes relative to HEAD.
-      Example: chronos status"
+      Example: chronos status
+
+  serve [--addr HOST:PORT] [--push-token-file PATH]
+      Serve /repo over HTTP. Fetch is open; POST /push needs the token in
+      the file (Authorization: Bearer TOKEN) and returns 403 without one.
+      Example: chronos serve --push-token-file ~/.chronos-push-token"
 }
 
 enum CliError {
@@ -319,12 +326,22 @@ fn cmd_branch(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
     Ok(())
 }
 
-fn disk_path_for_rel(root: &Path, rel: &str) -> PathBuf {
+fn disk_path_for_rel(root: &Path, rel: &str) -> Result<PathBuf, CliError> {
     let mut p = root.to_path_buf();
     for comp in rel.split('/') {
+        validate_entry_name(comp)
+            .map_err(|_| CliError::Op(format!("refusing unsafe path '{rel}'")))?;
         p.push(comp);
     }
-    p
+    let inside = p
+        .strip_prefix(root)
+        .is_ok_and(|rest| rest.components().all(|c| matches!(c, Component::Normal(_))));
+    if !inside {
+        return Err(CliError::Op(format!(
+            "refusing path '{rel}' outside the work tree"
+        )));
+    }
+    Ok(p)
 }
 
 fn prune_empty_parents(root: &Path, file_path: &Path) {
@@ -351,28 +368,97 @@ fn cmd_checkout(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError
         .checkout(name)
         .map_err(|e| CliError::Op(format!("checkout '{name}' failed: {e}")))?;
 
+    let mut targets = Vec::with_capacity(new_files.len());
+    for (rel, (bytes, exec)) in &new_files {
+        targets.push((disk_path_for_rel(&root, rel)?, bytes, *exec));
+    }
     for old_rel in old_files.keys() {
         if !new_files.contains_key(old_rel) {
-            let p = disk_path_for_rel(&root, old_rel);
+            let p = disk_path_for_rel(&root, old_rel)?;
             if p.exists() {
                 let _ = fs::remove_file(&p);
                 prune_empty_parents(&root, &p);
             }
         }
     }
-    for (rel, (bytes, exec)) in &new_files {
-        let p = disk_path_for_rel(&root, rel);
+    for (p, bytes, exec) in &targets {
         if let Some(parent) = p.parent() {
             fs::create_dir_all(parent).map_err(|e| {
                 CliError::Op(format!("failed to create '{}': {e}", parent.display()))
             })?;
         }
-        fs::write(&p, bytes)
+        fs::write(p, bytes)
             .map_err(|e| CliError::Op(format!("failed to write '{}': {e}", p.display())))?;
-        set_executable(&p, *exec);
+        set_executable(p, *exec);
     }
     println!("checked out {name}");
     Ok(())
+}
+
+fn cmd_serve(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    let mut addr = "127.0.0.1:8080".to_string();
+    let mut token_file: Option<PathBuf> = None;
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--addr" => {
+                addr = it
+                    .next()
+                    .ok_or_else(|| CliError::Usage("--addr requires HOST:PORT".to_string()))?
+                    .clone();
+            }
+            "--push-token-file" => {
+                let path = it.next().ok_or_else(|| {
+                    CliError::Usage("--push-token-file requires PATH".to_string())
+                })?;
+                token_file = Some(PathBuf::from(path));
+            }
+            other => return Err(CliError::Usage(format!("serve: unknown option '{other}'"))),
+        }
+    }
+    // Pushes stay disabled (403) unless a token file is given; the token is never taken from argv.
+    let token = match token_file {
+        Some(path) => {
+            let raw = fs::read_to_string(&path).map_err(|e| {
+                CliError::Usage(format!(
+                    "cannot read push token file '{}': {e}",
+                    path.display()
+                ))
+            })?;
+            let token = raw.trim().to_string();
+            if token.is_empty() {
+                return Err(CliError::Usage("push token file is empty".to_string()));
+            }
+            Some(token)
+        }
+        None => None,
+    };
+    let (_root, repo) = open_repo(base_dir)?;
+    let mut router = mercury::server::Router::new();
+    chronos::remote::serve(
+        Arc::new(Mutex::new(repo)),
+        &mut router,
+        "/repo",
+        token.as_deref(),
+    );
+    let config = mercury::server::Config {
+        addr,
+        ..mercury::server::Config::default()
+    };
+    let server = mercury::server::Server::start(config, router)
+        .map_err(|e| CliError::Op(format!("serve failed: {e}")))?;
+    println!(
+        "serving /repo on {} (pushes {})",
+        server.local_addr(),
+        if token.is_some() {
+            "enabled"
+        } else {
+            "disabled"
+        }
+    );
+    loop {
+        std::thread::park();
+    }
 }
 
 fn cmd_cat_file(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
@@ -473,6 +559,7 @@ fn run() -> Result<(), CliError> {
                 "checkout" => cmd_checkout(rest, base_ref),
                 "cat-file" => cmd_cat_file(rest, base_ref),
                 "status" => cmd_status(rest, base_ref),
+                "serve" => cmd_serve(rest, base_ref),
                 other => Err(CliError::Usage(format!("unknown subcommand '{other}'"))),
             }
         }
@@ -491,5 +578,29 @@ fn main() {
                 process::exit(1);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::disk_path_for_rel;
+    use std::path::Path;
+
+    #[test]
+    fn checkout_path_rejects_windows_unsafe_names() {
+        let root = Path::new("work");
+        for rel in [
+            "a\\b",
+            "C:x",
+            "dir/C:x",
+            "..\\..\\evil.bat",
+            "x:stream",
+            "a/../b",
+            "./x",
+        ] {
+            assert!(disk_path_for_rel(root, rel).is_err(), "{rel}");
+        }
+        let ok = disk_path_for_rel(root, "src/main.rs");
+        assert!(ok.is_ok_and(|p| p.starts_with(root)));
     }
 }

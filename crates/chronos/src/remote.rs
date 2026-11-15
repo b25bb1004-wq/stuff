@@ -22,7 +22,7 @@ use crate::merge::MergeError;
 use crate::repo::Repo;
 use crate::store::{validate_branch_name, Store};
 
-use http::{http_get, http_post};
+use http::{http_get, http_post, http_post_auth};
 use pack::MAX_PACK_OBJECTS;
 pub use pack::{decode_pack, encode_pack};
 pub use server::serve;
@@ -155,7 +155,18 @@ impl<S: Store> Repo<S> {
     }
 
     /// Send the local `branch` (objects the server lacks, using its refs as haves); fast-forward only.
+    /// Servers started with a push token reject this unless `push_with_token` is used.
     pub fn push(&mut self, url: &str, branch: &str) -> Result<(), RemoteError> {
+        self.push_with_token(url, branch, None)
+    }
+
+    /// Like [`Repo::push`], sending `token` as a bearer credential for `POST /push`.
+    pub fn push_with_token(
+        &mut self,
+        url: &str,
+        branch: &str,
+        token: Option<&str>,
+    ) -> Result<(), RemoteError> {
         let local_id = read_branch_id(self, branch).ok_or(RemoteError::Repo(Error::NotFound))?;
         let refs_bytes = http_get(url, "/refs")?;
         let remote_refs = parse_refs_body(&refs_bytes)?;
@@ -176,7 +187,7 @@ impl<S: Store> Repo<S> {
         body.extend_from_slice(header.as_bytes());
         body.extend_from_slice(&pack);
 
-        let resp_bytes = http_post(url, "/push", body)?;
+        let resp_bytes = http_post_auth(url, "/push", body, token)?;
         let resp_text = core::str::from_utf8(&resp_bytes).map_err(|_| RemoteError::Protocol)?;
         for raw_line in resp_text.split('\n') {
             let line = raw_line.trim_end_matches('\r');

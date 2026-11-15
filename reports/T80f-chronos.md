@@ -1,0 +1,7 @@
+# T80f chronos fix: H1 (tree/index/checkout names) and M1 (unauthenticated push)
+H1: one validator, store::validate_entry_name (non-empty, not "." or "..", no '/', '\\', ':' or NUL), used by decode_tree (format.rs), flatten_tree_to_index and validate_path (index.rs, store.rs) and checkout path building (bin/chronos.rs, which also checks the joined path stays under the work tree); bad names are parse errors on every platform.
+M1: serve(repo, router, prefix, push_token: Option<&str>); POST /push needs `Authorization: Bearer <token>` (constant-time compare) or gets 403; no token or empty token means every push is 403; GET /refs and POST /fetch stay open.
+CLI: `chronos serve [--addr HOST:PORT] [--push-token-file PATH]` reads the token from the file only, never argv; Repo::push_with_token sends it; Repo::push sends none.
+Tests: crates/chronos/tests/security.rs covers 403 without/with wrong token, 200 with the token, fetch open, and '\\', ':', "C:x", "..\\" and NUL rejected by parse, add and checkout; bin unit test covers checkout path building; existing push tests pass the token.
+Generators in format.rs and tests/soak.rs no longer emit "." or ".." names, since decode_tree now rejects them.
+Gate: cargo fmt -p chronos, then tools/check.sh chronos = CHECK PASS chronos (check.sh exports its own CARGO_TARGET_DIR=target/w-chronos, overriding the h-chronos prefix); not committed; L1/L2 from T80 untouched.

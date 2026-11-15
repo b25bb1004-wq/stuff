@@ -142,9 +142,23 @@ pub(crate) fn validate_path(path: &str) -> Result<(), Error> {
         return Err(Error::BadName);
     }
     for comp in path.split('/') {
-        if comp.is_empty() || comp == "." || comp == ".." {
+        if comp.is_empty() {
             return Err(Error::BadName);
         }
+        validate_entry_name(comp)?;
+    }
+    Ok(())
+}
+
+/// Shared rule for one tree entry or path component. Windows treats `\` as a separator and `:` as a
+/// drive prefix or stream marker, so both are rejected on every platform.
+pub fn validate_entry_name(name: &str) -> Result<(), Error> {
+    if name.is_empty()
+        || name == "."
+        || name == ".."
+        || name.bytes().any(|b| matches!(b, b'/' | b'\\' | b':' | 0))
+    {
+        return Err(Error::BadName);
     }
     Ok(())
 }

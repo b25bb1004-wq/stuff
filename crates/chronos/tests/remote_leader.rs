@@ -24,13 +24,15 @@ fn who(t: i64) -> Signature {
 
 type Shared = Arc<Mutex<Repo<MemStore>>>;
 
+const TOKEN: &str = "test-push-token";
+
 fn start() -> (Server, Shared, String) {
     let mut r = Repo::init(MemStore::default());
     r.add("README", b"monolith\n", false).unwrap();
     r.commit("root\n", &who(1)).unwrap();
     let shared = Arc::new(Mutex::new(r));
     let mut router = Router::new();
-    serve(Arc::clone(&shared), &mut router, "/repo");
+    serve(Arc::clone(&shared), &mut router, "/repo", Some(TOKEN));
     let srv = Server::start(Config::default(), router).unwrap();
     let url = format!("http://{}/repo", srv.local_addr());
     (srv, shared, url)
@@ -41,7 +43,7 @@ fn post(a: SocketAddr, path: &str, body: &[u8]) -> (u16, Vec<u8>) {
     s.set_read_timeout(Some(std::time::Duration::from_secs(10)))
         .unwrap();
     let head = format!(
-        "POST {path} HTTP/1.1\r\nHost: x\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        "POST {path} HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer test-push-token\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
         body.len()
     );
     s.write_all(head.as_bytes()).unwrap();
@@ -64,10 +66,10 @@ fn leader_three_clones_converge() {
     a.add("a.txt", b"from a\n", false).unwrap();
     a.add("README", b"monolith\nedited by a\n", false).unwrap();
     a.commit("a\n", &who(10)).unwrap();
-    a.push(&url, "main").unwrap();
+    a.push_with_token(&url, "main", Some(TOKEN)).unwrap();
     b.add("b.txt", b"from b\n", true).unwrap();
     b.commit("b\n", &who(11)).unwrap();
-    match b.push(&url, "main") {
+    match b.push_with_token(&url, "main", Some(TOKEN)) {
         Err(RemoteError::Rejected(r)) => {
             assert!(r.contains("non-fast-forward") || r.contains("stale"), "{r}")
         }
@@ -76,7 +78,7 @@ fn leader_three_clones_converge() {
     let before = refs(&sh);
     b.pull(&url, "main", &who(12)).unwrap();
     assert_eq!(refs(&sh), before, "pull must not move server refs");
-    b.push(&url, "main").unwrap();
+    b.push_with_token(&url, "main", Some(TOKEN)).unwrap();
     a.pull(&url, "main", &who(13)).unwrap();
     let c = clone(&url, MemStore::default()).unwrap();
     let tip = sh.lock().unwrap().head().unwrap();
@@ -96,7 +98,7 @@ fn leader_three_clones_converge() {
     a2.checkout("feature/x").unwrap();
     a2.add("f", b"f\n", false).unwrap();
     a2.commit("f\n", &who(14)).unwrap();
-    a2.push(&url, "feature/x").unwrap();
+    a2.push_with_token(&url, "feature/x", Some(TOKEN)).unwrap();
     assert!(refs(&sh).iter().any(|(n, _)| n == "feature/x"));
     srv.stop();
 }
@@ -115,7 +117,7 @@ fn leader_racing_pushers() {
                     .unwrap();
                 r.commit(&format!("w{i}\n"), &who(100 + i as i64)).unwrap();
                 barrier.wait();
-                let first = r.push(&url, "main");
+                let first = r.push_with_token(&url, "main", Some(TOKEN));
                 let won = first.is_ok();
                 if let Err(e) = &first {
                     match e {
@@ -130,7 +132,7 @@ fn leader_racing_pushers() {
                     tries += 1;
                     assert!(tries < 40, "worker {i} never landed");
                     r.pull(&url, "main", &who(200 + i as i64)).unwrap();
-                    res = r.push(&url, "main");
+                    res = r.push_with_token(&url, "main", Some(TOKEN));
                 }
                 won
             })
@@ -248,7 +250,7 @@ fn leader_fetch_sends_only_new_objects() {
     let old = a.head().unwrap();
     a.add("dir/new.txt", b"new\n", false).unwrap();
     let new = a.commit("n\n", &who(20)).unwrap();
-    a.push(&url, "main").unwrap();
+    a.push_with_token(&url, "main", Some(TOKEN)).unwrap();
     // commit + root tree + dir tree + blob = 4 new objects.
     let body = format!("want {}\nhave {}\n", to_hex(&new), to_hex(&old));
     let (st, pack) = post(srv.local_addr(), "/repo/fetch", body.as_bytes());

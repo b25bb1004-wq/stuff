@@ -26,4 +26,4 @@ pub use repo::Repo;
 pub use status::Change;
 #[cfg(feature = "std")]
 pub use store::DirStore;
-pub use store::{Files, MemStore, Store};
+pub use store::{validate_entry_name, Files, MemStore, Store};

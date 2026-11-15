@@ -8,6 +8,7 @@ use alloc::{
 use core::cmp::Ordering;
 
 use crate::id::{from_hex, to_hex, Error, Id};
+use crate::store::validate_entry_name;
 
 /// File or directory mode in a Git tree entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -90,12 +91,10 @@ pub fn decode_tree(mut data: &[u8]) -> Result<Vec<TreeEntry>, Error> {
         let rest = &data[sp + 1..];
         let nul = rest.iter().position(|&b| b == 0).ok_or(Error::Corrupt)?;
         let name_bytes = &rest[..nul];
-        if name_bytes.is_empty() || name_bytes.contains(&b'/') {
-            return Err(Error::Corrupt);
-        }
         let name = core::str::from_utf8(name_bytes)
             .map_err(|_| Error::Corrupt)?
             .to_string();
+        validate_entry_name(&name).map_err(|_| Error::Corrupt)?;
         let after_nul = &rest[nul + 1..];
         let id_bytes = after_nul.get(..32).ok_or(Error::Corrupt)?;
         let mut id = [0u8; 32];
@@ -311,7 +310,10 @@ mod tests {
             let mut entries = Vec::with_capacity(n);
             for _ in 0..n {
                 let mode = *rng.pick(&[Mode::File, Mode::Exec, Mode::Dir]);
-                let name = rand_ident(rng, 14);
+                let mut name = rand_ident(rng, 14);
+                if name == "." || name == ".." {
+                    name.insert(0, 'x'); // decode now rejects dot names, so keep the generator valid
+                }
                 let id = rand_id(rng);
                 entries.push(TreeEntry { mode, name, id });
             }

@@ -8,7 +8,7 @@ use std::vec;
 use std::vec::Vec;
 
 use mercury::server::Router;
-use mercury::Response;
+use mercury::{Request, Response};
 
 use super::pack::{decode_pack, encode_pack, MAX_PACK_BYTES, MAX_PACK_OBJECTS};
 use super::{
@@ -20,11 +20,16 @@ use crate::repo::Repo;
 use crate::store::Store;
 
 /// Mount the chronos HTTP protocol under `prefix` (e.g. `"/repo"`) on an `mercury` router.
+///
+/// `GET /refs` and `POST /fetch` are open. `POST /push` needs `Authorization: Bearer <push_token>`;
+/// with no (or an empty) token every push gets 403.
 pub fn serve<S: Store + Send + 'static>(
     repo: Arc<Mutex<Repo<S>>>,
     router: &mut Router,
     prefix: &str,
+    push_token: Option<&str>,
 ) {
+    let push_token: Option<String> = push_token.filter(|t| !t.is_empty()).map(str::to_string);
     let trimmed = prefix.trim_matches('/');
     let base = if trimmed.is_empty() {
         String::new()
@@ -50,7 +55,7 @@ pub fn serve<S: Store + Send + 'static>(
     router.route(
         "POST",
         &format!("{base}/push"),
-        Box::new(move |req| handle_push(&push_repo, &req.body)),
+        Box::new(move |req| handle_push(&push_repo, req, push_token.as_deref())),
     );
 }
 
@@ -164,8 +169,31 @@ fn parse_push_body(body: &[u8]) -> Result<(Vec<RefUpdate>, &[u8]), u16> {
     Ok((updates, &body[pos..]))
 }
 
-fn handle_push<S: Store>(repo: &Arc<Mutex<Repo<S>>>, body: &[u8]) -> Response {
-    let (updates, pack_bytes) = match parse_push_body(body) {
+/// Constant-time comparison so the token cannot be recovered by timing the reply.
+fn token_matches(req: &Request, expected: Option<&str>) -> bool {
+    let (Some(expected), Some(auth)) = (expected, req.header("Authorization")) else {
+        return false;
+    };
+    let Some(given) = auth.strip_prefix(b"Bearer ") else {
+        return false;
+    };
+    given.len() == expected.len()
+        && given
+            .iter()
+            .zip(expected.as_bytes())
+            .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+            == 0
+}
+
+fn handle_push<S: Store>(
+    repo: &Arc<Mutex<Repo<S>>>,
+    req: &Request,
+    push_token: Option<&str>,
+) -> Response {
+    if !token_matches(req, push_token) {
+        return text_response(403, "Forbidden", Vec::new());
+    }
+    let (updates, pack_bytes) = match parse_push_body(&req.body) {
         Ok(parsed) => parsed,
         Err(status) => return text_response(status, "Bad Request", Vec::new()),
     };

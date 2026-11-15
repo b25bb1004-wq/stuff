@@ -11,7 +11,7 @@ use crate::{
     format::{decode_tree, encode_tree, Mode, TreeEntry},
     id::{Error, Id, Kind},
     repo::Repo,
-    store::{validate_path, Store},
+    store::{validate_entry_name, validate_path, Store},
 };
 
 pub(crate) type IndexMap = BTreeMap<String, (Id, bool)>;
@@ -109,9 +109,7 @@ pub(crate) fn flatten_tree_to_index<S: Store>(
     }
     let entries = decode_tree(&data)?;
     for entry in entries {
-        if entry.name == "." || entry.name == ".." {
-            return Err(Error::Corrupt);
-        }
+        validate_entry_name(&entry.name).map_err(|_| Error::Corrupt)?;
         let full_path = if prefix.is_empty() {
             entry.name
         } else {

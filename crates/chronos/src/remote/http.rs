@@ -46,11 +46,21 @@ fn parse_url(url: &str) -> Result<ParsedUrl, RemoteError> {
 }
 
 pub(crate) fn http_get(url: &str, suffix: &str) -> Result<Vec<u8>, RemoteError> {
-    send_request(url, "GET", suffix, Vec::new())
+    send_request(url, "GET", suffix, Vec::new(), None)
 }
 
 pub(crate) fn http_post(url: &str, suffix: &str, body: Vec<u8>) -> Result<Vec<u8>, RemoteError> {
-    send_request(url, "POST", suffix, body)
+    send_request(url, "POST", suffix, body, None)
+}
+
+/// POST with an optional bearer token (used for `/push` on a token-protected server).
+pub(crate) fn http_post_auth(
+    url: &str,
+    suffix: &str,
+    body: Vec<u8>,
+    token: Option<&str>,
+) -> Result<Vec<u8>, RemoteError> {
+    send_request(url, "POST", suffix, body, token)
 }
 
 fn send_request(
@@ -58,6 +68,7 @@ fn send_request(
     method: &str,
     suffix: &str,
     body: Vec<u8>,
+    token: Option<&str>,
 ) -> Result<Vec<u8>, RemoteError> {
     let parsed = parse_url(url)?;
     let target = std::format!("{}{}", parsed.prefix, suffix);
@@ -65,6 +76,12 @@ fn send_request(
         ("Host".to_string(), parsed.host_header.into_bytes()),
         ("Connection".to_string(), b"close".to_vec()),
     ];
+    if let Some(token) = token {
+        headers.push((
+            "Authorization".to_string(),
+            std::format!("Bearer {token}").into_bytes(),
+        ));
+    }
     if body.is_empty() && method == "POST" {
         headers.push(("Content-Length".to_string(), b"0".to_vec()));
     }

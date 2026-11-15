@@ -10,12 +10,14 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use chronos::remote::{clone, decode_pack, encode_pack, serve, RemoteError};
 use chronos::{
-    encode_commit, encode_tree, from_hex, hash_object, to_hex, Commit, DirStore, Kind, MemStore,
-    Mode, Repo, Signature, Store, TreeEntry,
+    decode_tree, encode_commit, encode_tree, from_hex, hash_object, to_hex, Commit, DirStore, Kind,
+    MemStore, Mode, Repo, Signature, Store, TreeEntry,
 };
 use mercury::server::{Config, Router, Server};
 use mercury::{parse_response, write_request, Limits, Request};
 use sphinx::sha256::Sha256;
+
+const TEST_TOKEN: &str = "test-push-token";
 
 fn sig(name: &str, time: i64) -> Signature {
     Signature {
@@ -47,7 +49,7 @@ impl Drop for TempDirGuard {
 
 fn start_server<S: Store + Send + 'static>(repo: Arc<Mutex<Repo<S>>>) -> (Server, String) {
     let mut router = Router::new();
-    serve(repo, &mut router, "/repo");
+    serve(repo, &mut router, "/repo", Some(TEST_TOKEN));
     let cfg = Config {
         addr: "127.0.0.1:0".to_string(),
         threads: 4,
@@ -59,6 +61,15 @@ fn start_server<S: Store + Send + 'static>(repo: Arc<Mutex<Repo<S>>>) -> (Server
 }
 
 fn raw_http_post(addr: &str, path: &str, body: Vec<u8>) -> (u16, Vec<u8>) {
+    raw_http_post_auth(addr, path, body, Some(TEST_TOKEN))
+}
+
+fn raw_http_post_auth(
+    addr: &str,
+    path: &str,
+    body: Vec<u8>,
+    token: Option<&str>,
+) -> (u16, Vec<u8>) {
     let mut stream = TcpStream::connect(addr).unwrap();
     stream
         .set_read_timeout(Some(Duration::from_secs(5)))
@@ -67,6 +78,12 @@ fn raw_http_post(addr: &str, path: &str, body: Vec<u8>) -> (u16, Vec<u8>) {
         ("Host".to_string(), addr.as_bytes().to_vec()),
         ("Connection".to_string(), b"close".to_vec()),
     ];
+    if let Some(t) = token {
+        headers.push((
+            "Authorization".to_string(),
+            format!("Bearer {t}").into_bytes(),
+        ));
+    }
     if body.is_empty() {
         headers.push(("Content-Length".to_string(), b"0".to_vec()));
     }
@@ -510,4 +527,137 @@ fn object_id_from_hex_rejects_wrong_length_and_non_hex() {
     // 64 bytes of 2-byte UTF-8 character 'é' (32 chars) and 64 chars (128 bytes).
     assert_eq!(from_hex(&"é".repeat(32)), None);
     assert_eq!(from_hex(&"é".repeat(64)), None);
+}
+
+fn spawn_server(repo: Arc<Mutex<Repo<MemStore>>>, token: Option<&str>) -> Server {
+    let mut router = Router::new();
+    serve(repo, &mut router, "/repo", token);
+    let cfg = Config {
+        addr: "127.0.0.1:0".to_string(),
+        threads: 4,
+        ..Config::default()
+    };
+    Server::start(cfg, router).unwrap()
+}
+
+/// A valid one-commit push of `branch` onto an empty remote (old id is all zeros).
+fn forged_push(branch: &str) -> Vec<u8> {
+    let blob = b"hello\n".to_vec();
+    let tree = encode_tree(&[TreeEntry {
+        mode: Mode::File,
+        name: "f.txt".to_string(),
+        id: hash_object(Kind::Blob, &blob),
+    }]);
+    let commit = encode_commit(&Commit {
+        tree: hash_object(Kind::Tree, &tree),
+        parents: Vec::new(),
+        author: sig("forger", 1),
+        committer: sig("forger", 1),
+        message: "forged\n".to_string(),
+    });
+    let new_id = hash_object(Kind::Commit, &commit);
+    let pack = encode_pack(&[
+        (Kind::Blob, blob),
+        (Kind::Tree, tree),
+        (Kind::Commit, commit),
+    ]);
+    let mut body =
+        format!("{} {} {}\n\n", to_hex(&[0u8; 32]), to_hex(&new_id), branch).into_bytes();
+    body.extend_from_slice(&pack);
+    body
+}
+
+#[test]
+fn push_is_forbidden_without_configured_token() {
+    let shared = Arc::new(Mutex::new(Repo::init(MemStore::new())));
+    let srv = spawn_server(Arc::clone(&shared), None);
+    let addr = srv.local_addr().to_string();
+    let body = forged_push("main");
+    assert_eq!(
+        raw_http_post_auth(&addr, "/push", body.clone(), Some(TEST_TOKEN)).0,
+        403
+    );
+    assert_eq!(raw_http_post_auth(&addr, "/push", body, None).0, 403);
+    assert!(shared.lock().unwrap().branches().is_empty());
+    srv.stop();
+}
+
+#[test]
+fn push_needs_the_exact_token_and_fetch_stays_open() {
+    let shared = Arc::new(Mutex::new(Repo::init(MemStore::new())));
+    let srv = spawn_server(Arc::clone(&shared), Some(TEST_TOKEN));
+    let addr = srv.local_addr().to_string();
+    let body = forged_push("main");
+    assert_eq!(
+        raw_http_post_auth(&addr, "/push", body.clone(), None).0,
+        403
+    );
+    assert_eq!(
+        raw_http_post_auth(&addr, "/push", body.clone(), Some("wrong")).0,
+        403
+    );
+    assert!(shared.lock().unwrap().branches().is_empty());
+
+    let (status, resp) = raw_http_post_auth(&addr, "/push", body, Some(TEST_TOKEN));
+    assert_eq!(
+        (status, String::from_utf8(resp).unwrap()),
+        (200, "ok main\n".to_string())
+    );
+    assert_eq!(shared.lock().unwrap().branches().len(), 1);
+
+    // Fetch needs no token: a malformed fetch body reaches parsing and gets 400, not 403.
+    let (status, _) = raw_http_post_auth(&addr, "/fetch", b"want 00\n".to_vec(), None);
+    assert_eq!(status, 400);
+    srv.stop();
+}
+
+#[test]
+fn tree_and_index_reject_windows_unsafe_names() {
+    for bad in [
+        "a\\b",
+        "C:x",
+        "x:stream",
+        "..\\..\\evil.bat",
+        "a/b",
+        ".",
+        "..",
+    ] {
+        let mut raw = format!("100644 {bad}\0").into_bytes();
+        raw.extend_from_slice(&[7u8; 32]);
+        assert!(decode_tree(&raw).is_err(), "parse accepted {bad}");
+    }
+    for bad in ["a\\b", "C:x", "dir/C:x", "a\0b"] {
+        let mut repo = Repo::init(MemStore::new());
+        assert!(repo.add(bad, b"x", false).is_err(), "add accepted {bad:?}");
+    }
+}
+
+#[test]
+fn checkout_rejects_windows_unsafe_tree_names() {
+    for bad in ["a\\b", "C:x", "..\\evil.bat", "x:stream"] {
+        let mut repo = Repo::init(MemStore::new());
+        let blob = repo.put(Kind::Blob, b"x");
+        let tree = repo.put(
+            Kind::Tree,
+            &encode_tree(&[TreeEntry {
+                mode: Mode::File,
+                name: bad.to_string(),
+                id: blob,
+            }]),
+        );
+        let commit = repo.put(
+            Kind::Commit,
+            &encode_commit(&Commit {
+                tree,
+                parents: Vec::new(),
+                author: sig("a", 1),
+                committer: sig("a", 1),
+                message: "bad\n".to_string(),
+            }),
+        );
+        assert!(
+            repo.checkout(&to_hex(&commit)).is_err(),
+            "checkout accepted {bad}"
+        );
+    }
 }
