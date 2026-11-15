@@ -25,6 +25,7 @@
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
 - [>] T31 quartz H extension: brief + hyp_leader.rs (own two-stage model, coverage 22% ok / 46% pf / 31% gpf), dispatched (argon-high)
+- [ ] T40 varve B+tree: brief + tree_leader.rs (own page parser) ready; dispatch hydrogen-high when a lane frees
 - [ ] Argon (released to 5%, ask % after T31): then D4 MANTLE.md + T25, then T66
 
 ## Goal
@@ -111,7 +112,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
 | T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | PASS |
 | T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | PASS |
-| T40 | P3 | varve | B+tree with range scans | hydrogen | T39 | TODO |
+| T40 | P3 | varve | B+tree with range scans | hydrogen-high | T39 | TODO |
 | T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | TODO |
 | T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | TODO |
 | T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
@@ -219,3 +220,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 07:29 T39 dispatched (hydrogen-high). Operator released Argon down to 5%.
 - 2026-11-15 07:43 T39 varve PASS (hydrogen-high): leader check 9/9 + fresh seed, gate PASS; check fixed (fixed-length page contents).
 - 2026-11-15 07:45 T31 brief + leader check written (model self-test on two seeds), dispatched argon-high.
+- 2026-11-15 07:49 T40 brief + leader check written (lint vs stub), retagged hydrogen-high (merge rule + hostile pages).
