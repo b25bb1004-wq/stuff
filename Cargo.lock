@@ -107,6 +107,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "entropy"
+version = "0.1.0"
+
+[[package]]
 name = "hades"
 version = "0.1.0"
 dependencies = [
