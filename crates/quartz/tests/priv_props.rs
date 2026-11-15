@@ -115,12 +115,15 @@ fn csr_writes_stay_inside_the_warl_masks() {
         }
         let read = |a: u16| cpu.csr_read(a).unwrap();
         let mstatus = read(0x300);
-        assert_eq!(mstatus & !(0x7e_19aa | (2 << 32) | (2 << 34)), 0);
+        assert_eq!(
+            mstatus & !(0x7e_19aa | (2 << 32) | (2 << 34) | (1 << 38) | (1 << 39)),
+            0
+        );
         assert_ne!((mstatus >> 11) & 3, 2, "MPP is never the reserved value");
-        assert_eq!(read(0x302) & !0xb3ff, 0);
-        assert_eq!(read(0x303) & !0x222, 0);
-        assert_eq!(read(0x304) & !0xaaa, 0);
-        assert_eq!(read(0x344) & !0x222, 0, "no hardware pending bits were set");
+        assert_eq!(read(0x302) & !0xf0_b7ff, 0);
+        assert_eq!(read(0x303) & !0x1666, 0);
+        assert_eq!(read(0x304) & !0x1eee, 0);
+        assert_eq!(read(0x344) & !0x226, 0, "no hardware pending bits were set");
         assert!((read(0x305) & 3) <= 1);
         assert!((read(0x105) & 3) <= 1);
         assert_eq!(read(0x341) & 1, 0);

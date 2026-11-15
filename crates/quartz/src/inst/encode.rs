@@ -135,6 +135,39 @@ pub fn encode(inst: Inst) -> u32 {
         Inst::Sret => 0x1020_0073,
         Inst::Wfi => 0x1050_0073,
         Inst::SfenceVma { rs1, rs2 } => r_fmt(0x73, 0, 0x09, 0, rs1, rs2),
+        Inst::HfenceVvma { rs1, rs2 } => r_fmt(0x73, 0, 0x11, 0, rs1, rs2),
+        Inst::HfenceGvma { rs1, rs2 } => r_fmt(0x73, 0, 0x31, 0, rs1, rs2),
+        Inst::Hlv {
+            rd,
+            rs1,
+            width,
+            unsigned,
+            exec,
+        } => {
+            let f7 = match width {
+                1 => 0x30,
+                2 => 0x32,
+                4 => 0x34,
+                _ => 0x36,
+            };
+            let rs2 = if exec {
+                3
+            } else if unsigned && width != 8 {
+                1
+            } else {
+                0
+            };
+            r_fmt(0x73, 4, f7, rd, rs1, rs2)
+        }
+        Inst::Hsv { rs1, rs2, width } => {
+            let f7 = match width {
+                1 => 0x31,
+                2 => 0x33,
+                4 => 0x35,
+                _ => 0x37,
+            };
+            r_fmt(0x73, 4, f7, 0, rs1, rs2)
+        }
         Inst::LrW { rd, rs1, aq, rl } => amo_fmt(2, 0x02, aq, rl, rd, rs1, 0),
         Inst::LrD { rd, rs1, aq, rl } => amo_fmt(3, 0x02, aq, rl, rd, rs1, 0),
         Inst::ScW {

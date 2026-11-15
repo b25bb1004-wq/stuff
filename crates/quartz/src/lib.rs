@@ -46,6 +46,29 @@ pub enum Trap {
     LoadPageFault(u64),
     /// Store page fault.
     StorePageFault(u64),
+    /// Instruction fetch guest-page fault.
+    InstGuestPageFault {
+        /// Faulting guest virtual address.
+        gva: u64,
+        /// Faulting guest physical address.
+        gpa: u64,
+    },
+    /// Load guest-page fault.
+    LoadGuestPageFault {
+        /// Faulting guest virtual address.
+        gva: u64,
+        /// Faulting guest physical address.
+        gpa: u64,
+    },
+    /// Store or AMO guest-page fault.
+    StoreGuestPageFault {
+        /// Faulting guest virtual address.
+        gva: u64,
+        /// Faulting guest physical address.
+        gpa: u64,
+    },
+    /// Virtual-instruction fault from VS or VU mode.
+    VirtualInstruction(u32),
 }
 
 /// Privilege mode of the hart.
@@ -117,6 +140,8 @@ pub struct Cpu {
     pub instret: u64,
     /// Current privilege mode.
     pub mode: Mode,
+    /// Virtualization mode (the V bit; true in VS and VU, false at reset).
+    pub virt: bool,
     csr: Csrs,
     reservation: Option<u64>,
 }
@@ -129,6 +154,7 @@ impl Cpu {
             pc,
             instret: 0,
             mode: Mode::Machine,
+            virt: false,
             csr: Csrs::default(),
             reservation: None,
         }

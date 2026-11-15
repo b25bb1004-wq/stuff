@@ -191,6 +191,20 @@ pub enum Inst {
     Wfi,
     /// SFENCE.VMA: supervisor memory-management fence, a no-op here (no TLB).
     SfenceVma { rs1: u8, rs2: u8 },
+    /// HLV.*/HLVX.*: hypervisor virtual-machine load.
+    Hlv {
+        rd: u8,
+        rs1: u8,
+        width: u8,
+        unsigned: bool,
+        exec: bool,
+    },
+    /// HSV.*: hypervisor virtual-machine store.
+    Hsv { rs1: u8, rs2: u8, width: u8 },
+    /// HFENCE.VVMA: hypervisor virtual-machine memory-management fence.
+    HfenceVvma { rs1: u8, rs2: u8 },
+    /// HFENCE.GVMA: hypervisor guest-physical memory-management fence.
+    HfenceGvma { rs1: u8, rs2: u8 },
     /// LR.W: load-reserved word, sign-extended.
     LrW { rd: u8, rs1: u8, aq: bool, rl: bool },
     /// LR.D: load-reserved doubleword.

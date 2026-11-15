@@ -117,16 +117,56 @@ fn system(w: u32, rd: u8, rs1: u8, f3: u32) -> Option<Inst> {
                 rs1,
                 rs2: ((w >> 20) & 0x1f) as u8,
             }),
+            // HFENCE.VVMA: funct7 0x11, rd and funct3 zero.
+            _ if w & 0xfe00_7fff == 0x2200_0073 => Some(Inst::HfenceVvma {
+                rs1,
+                rs2: ((w >> 20) & 0x1f) as u8,
+            }),
+            // HFENCE.GVMA: funct7 0x31, rd and funct3 zero.
+            _ if w & 0xfe00_7fff == 0x6200_0073 => Some(Inst::HfenceGvma {
+                rs1,
+                rs2: ((w >> 20) & 0x1f) as u8,
+            }),
             _ => None,
         },
         1 => Some(Inst::Csrrw { rd, rs1, csr }),
         2 => Some(Inst::Csrrs { rd, rs1, csr }),
         3 => Some(Inst::Csrrc { rd, rs1, csr }),
+        4 => hyp_mem(w, rd, rs1),
         5 => Some(Inst::Csrrwi { rd, uimm, csr }),
         6 => Some(Inst::Csrrsi { rd, uimm, csr }),
         7 => Some(Inst::Csrrci { rd, uimm, csr }),
         _ => None,
     }
+}
+
+/// Hypervisor virtual-machine load and store instructions (SYSTEM, funct3 = 4).
+fn hyp_mem(w: u32, rd: u8, rs1: u8) -> Option<Inst> {
+    let rs2 = ((w >> 20) & 0x1f) as u8;
+    let f7 = w >> 25;
+    let (width, unsigned, exec) = match (f7, rs2) {
+        (0x30, 0) => (1, false, false),
+        (0x30, 1) => (1, true, false),
+        (0x32, 0) => (2, false, false),
+        (0x32, 1) => (2, true, false),
+        (0x32, 3) => (2, true, true),
+        (0x34, 0) => (4, false, false),
+        (0x34, 1) => (4, true, false),
+        (0x34, 3) => (4, true, true),
+        (0x36, 0) => (8, false, false),
+        (0x31, _) if rd == 0 => return Some(Inst::Hsv { rs1, rs2, width: 1 }),
+        (0x33, _) if rd == 0 => return Some(Inst::Hsv { rs1, rs2, width: 2 }),
+        (0x35, _) if rd == 0 => return Some(Inst::Hsv { rs1, rs2, width: 4 }),
+        (0x37, _) if rd == 0 => return Some(Inst::Hsv { rs1, rs2, width: 8 }),
+        _ => return None,
+    };
+    Some(Inst::Hlv {
+        rd,
+        rs1,
+        width,
+        unsigned,
+        exec,
+    })
 }
 
 fn op_imm(w: u32, rd: u8, rs1: u8, f3: u32) -> Option<Inst> {

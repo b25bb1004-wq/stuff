@@ -35,8 +35,10 @@ impl Default for DecodeEntry {
 struct ItlbEntry {
     vpage: u64,
     satp: u64,
+    hgatp: u64,
     ppage: u64,
     mode: u8,
+    virt: bool,
     epoch: u64,
 }
 
@@ -87,15 +89,23 @@ impl DecodeCache {
         };
     }
 
-    /// Look up a cached Sv39 instruction-fetch translation for `(vpage, satp, mode)`.
+    /// Look up a cached Sv39 instruction-fetch translation for `(vpage, satp, hgatp, mode, virt)`.
     #[inline]
-    pub(crate) fn lookup_itlb(&self, vpage: u64, satp: u64, mode: Mode) -> Option<u64> {
+    pub(crate) fn lookup_itlb(
+        &self,
+        vpage: u64,
+        (satp, hgatp): (u64, u64),
+        mode: Mode,
+        virt: bool,
+    ) -> Option<u64> {
         let idx = (vpage as usize) & ITLB_MASK;
         let e = &self.itlb[idx];
         if e.epoch == self.itlb_epoch
             && e.vpage == vpage
             && e.satp == satp
+            && e.hgatp == hgatp
             && e.mode == mode.level() as u8
+            && e.virt == virt
         {
             Some(e.ppage)
         } else {
@@ -105,13 +115,22 @@ impl DecodeCache {
 
     /// Insert a validated Sv39 instruction-fetch translation.
     #[inline]
-    pub(crate) fn insert_itlb(&mut self, vpage: u64, satp: u64, mode: Mode, ppage: u64) {
+    pub(crate) fn insert_itlb(
+        &mut self,
+        vpage: u64,
+        (satp, hgatp): (u64, u64),
+        mode: Mode,
+        virt: bool,
+        ppage: u64,
+    ) {
         let idx = (vpage as usize) & ITLB_MASK;
         self.itlb[idx] = ItlbEntry {
             vpage,
             satp,
+            hgatp,
             ppage,
             mode: mode.level() as u8,
+            virt,
             epoch: self.itlb_epoch,
         };
     }

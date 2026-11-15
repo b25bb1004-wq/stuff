@@ -43,7 +43,7 @@ fn mstatus_keeps_only_writable_bits_and_fixed_xl() {
     cpu.csr_write(0x300, u64::MAX);
     let m = cpu.csr_read(0x300).unwrap();
     // UXL and SXL read 2; the writable bits are MIE SIE MPIE SPIE SPP MPP MPRV SUM MXR TVM TW TSR.
-    assert_eq!(m, (2 << 32) | (2 << 34) | 0x7e_19aa);
+    assert_eq!(m, (2 << 32) | (2 << 34) | (1 << 38) | (1 << 39) | 0x7e_19aa);
 }
 
 #[test]
@@ -96,13 +96,13 @@ fn delegation_and_enable_masks() {
     cpu.csr_write(0x302, u64::MAX);
     assert_eq!(
         cpu.csr_read(0x302),
-        Some(0xb3ff),
+        Some(0xf0_b7ff),
         "ecall from M (11) is never delegated"
     );
     cpu.csr_write(0x303, u64::MAX);
-    assert_eq!(cpu.csr_read(0x303), Some(0x222));
+    assert_eq!(cpu.csr_read(0x303), Some(0x1666));
     cpu.csr_write(0x304, u64::MAX);
-    assert_eq!(cpu.csr_read(0x304), Some(0xaaa));
+    assert_eq!(cpu.csr_read(0x304), Some(0x1eee));
 }
 
 #[test]
@@ -156,7 +156,7 @@ fn mip_software_bits_and_hardware_pending() {
     cpu.csr_write(0x344, u64::MAX);
     assert_eq!(
         cpu.csr_read(0x344),
-        Some(0x222),
+        Some(0x226),
         "MSIP, MTIP, MEIP are hardware only"
     );
     cpu.csr_write(0x344, 0);

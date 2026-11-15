@@ -1,10 +1,10 @@
 //! Trap entry, interrupt selection and the full-hart `tick`.
 use crate::bus::Bus;
-use crate::csr::{MIE, MPIE, MPP, SIE, SPIE, SPP};
+use crate::csr::{HSTATUS_GVA, H_INT, MIE, MPIE, MPP, MPV, MSTATUS_GVA, SIE, SPIE, SPP, SPV, SPVP};
 use crate::{Cpu, Mode, Step, Trap};
 
-/// Interrupt cause codes in priority order: MEI, MSI, MTI, SEI, SSI, STI.
-const PRIORITY: [u64; 6] = [11, 3, 7, 9, 1, 5];
+/// Interrupt cause codes in priority order: MEI, MSI, MTI, SEI, SSI, STI, SGEI, VSEI, VSSI, VSTI.
+const PRIORITY: [u64; 10] = [11, 3, 7, 9, 1, 5, 12, 10, 2, 6];
 
 /// Bit `n` of `v`; false for `n` out of range.
 fn bit(v: u64, n: u64) -> bool {
@@ -45,6 +45,20 @@ impl Trap {
             Trap::InstPageFault(a) => (12, a),
             Trap::LoadPageFault(a) => (13, a),
             Trap::StorePageFault(a) => (15, a),
+            Trap::InstGuestPageFault { gva, .. } => (20, gva),
+            Trap::LoadGuestPageFault { gva, .. } => (21, gva),
+            Trap::VirtualInstruction(w) => (22, u64::from(w)),
+            Trap::StoreGuestPageFault { gva, .. } => (23, gva),
+        }
+    }
+
+    /// Guest physical address shifted right by 2 for guest-page faults, or 0 otherwise.
+    fn gpa_val(&self) -> u64 {
+        match *self {
+            Trap::InstGuestPageFault { gpa, .. }
+            | Trap::LoadGuestPageFault { gpa, .. }
+            | Trap::StoreGuestPageFault { gpa, .. } => gpa >> 2,
+            _ => 0,
         }
     }
 }
@@ -65,7 +79,7 @@ impl Cpu {
         fetch_fn: impl FnOnce(&Self, &mut B, u64) -> Result<(crate::inst::Inst, u32, u64), Trap>,
     ) -> (Step, bool) {
         if let Some(code) = self.pending_interrupt() {
-            self.enter(code, true, 0);
+            self.enter(code, true, 0, 0, false);
             return (Step::Interrupt(code), false);
         }
         match self.step_inner_with(bus, fetch_fn) {
@@ -77,16 +91,22 @@ impl Cpu {
                 };
                 (step, flags.sfence)
             }
-            Err(trap) => {
-                let (code, tval) = trap.cause(self.mode);
+            Err((trap, from_hlv_hsv)) => {
+                let (mut code, tval) = trap.cause(self.mode);
+                if trap == Trap::Ecall && self.virt && self.mode == Mode::Supervisor {
+                    code = 10;
+                }
                 let tval = if trap == Trap::Ebreak { self.pc } else { tval };
-                self.enter(code, false, tval);
+                let is_gva = (self.virt || from_hlv_hsv)
+                    && matches!(code, 0 | 1 | 4 | 5 | 6 | 7 | 12 | 13 | 15 | 20 | 21 | 23);
+                self.enter(code, false, tval, trap.gpa_val(), is_gva);
                 (Step::Exception(trap), false)
             }
         }
     }
 
-    /// The interrupt to take now, if any. M-destined interrupts come before S-destined ones.
+    /// The interrupt to take now, if any. M-destined interrupts come before HS-destined ones,
+    /// which come before VS-destined ones.
     fn pending_interrupt(&self) -> Option<u64> {
         let pend = self.csr.mip & self.csr.mie;
         if pend == 0 {
@@ -94,52 +114,113 @@ impl Cpu {
         }
         let st = self.csr.mstatus;
         let m_on = self.mode != Mode::Machine || (st & MIE) != 0;
-        let s_on = self.mode == Mode::User || (self.mode == Mode::Supervisor && (st & SIE) != 0);
-        let deleg = self.csr.mideleg;
+        let hs_on = self.virt
+            || self.mode == Mode::User
+            || (self.mode == Mode::Supervisor && (st & SIE) != 0);
+        let vs_on = self.virt && (self.mode == Mode::User || (self.csr.vsstatus & SIE) != 0);
+        let mdeleg = self.csr.mideleg | H_INT;
+        let hdeleg = self.csr.hideleg;
         let to_m = PRIORITY
             .iter()
             .copied()
-            .find(|&c| m_on && bit(pend, c) && !bit(deleg, c));
-        let to_s = PRIORITY
+            .find(|&c| m_on && bit(pend, c) && !bit(mdeleg, c));
+        let to_hs = PRIORITY
             .iter()
             .copied()
-            .find(|&c| s_on && bit(pend, c) && bit(deleg, c));
-        to_m.or(to_s)
+            .find(|&c| hs_on && bit(pend, c) && bit(mdeleg, c) && !bit(hdeleg, c));
+        let to_vs = PRIORITY
+            .iter()
+            .copied()
+            .find(|&c| vs_on && bit(pend, c) && bit(mdeleg, c) && bit(hdeleg, c));
+        to_m.or(to_hs).or(to_vs)
     }
 
     /// Take a trap (or interrupt, with `interrupt` set) with cause `code` into its handler.
-    /// Delegated traps from S or U go to S-mode; everything else goes to M-mode.
-    fn enter(&mut self, code: u64, interrupt: bool, tval: u64) {
+    fn enter(&mut self, code: u64, interrupt: bool, tval: u64, gpa2: u64, is_gva: bool) {
         self.reservation = None;
-        let deleg = if interrupt {
-            self.csr.mideleg
+        let mdeleg = if interrupt {
+            self.csr.mideleg | H_INT
         } else {
             self.csr.medeleg
         };
-        let cause = if interrupt { (1 << 63) | code } else { code };
+        let hdeleg = if interrupt {
+            self.csr.hideleg
+        } else {
+            self.csr.hedeleg
+        };
         let epc = self.pc;
         let old = self.mode;
-        let st = self.csr.mstatus;
-        if bit(deleg, code) && old != Mode::Machine {
+        let old_virt = self.virt;
+        if old != Mode::Machine && bit(mdeleg, code) {
+            if old_virt && bit(hdeleg, code) {
+                let vs_code = if interrupt { code - 1 } else { code };
+                let vs_cause = if interrupt {
+                    (1 << 63) | vs_code
+                } else {
+                    vs_code
+                };
+                self.csr.vsepc = epc;
+                self.csr.vscause = vs_cause;
+                self.csr.vstval = tval;
+                let vs = self.csr.vsstatus;
+                let mut s = (vs & !(SPIE | SPP | SIE)) | ((vs & SIE) << 4);
+                if old == Mode::Supervisor {
+                    s |= SPP;
+                }
+                self.csr.vsstatus = s;
+                self.mode = Mode::Supervisor;
+                self.virt = true;
+                self.pc = vector(self.csr.vstvec, vs_code, interrupt);
+                return;
+            }
+            let cause = if interrupt { (1 << 63) | code } else { code };
             self.csr.sepc = epc;
             self.csr.scause = cause;
             self.csr.stval = tval;
-            // SPIE takes SIE (bit 1 moves to bit 5), SIE is cleared, SPP records the mode.
+            self.csr.htval = gpa2;
+            self.csr.htinst = 0;
+            let st = self.csr.mstatus;
             let mut s = (st & !(SPIE | SPP | SIE)) | ((st & SIE) << 4);
             if old == Mode::Supervisor {
                 s |= SPP;
             }
             self.csr.mstatus = s;
+            let mut hs = self.csr.hstatus & !(SPV | HSTATUS_GVA);
+            if old_virt {
+                hs |= SPV;
+                if old == Mode::Supervisor {
+                    hs |= SPVP;
+                } else {
+                    hs &= !SPVP;
+                }
+            }
+            if is_gva {
+                hs |= HSTATUS_GVA;
+            }
+            self.csr.hstatus = hs;
             self.mode = Mode::Supervisor;
+            self.virt = false;
             self.pc = vector(self.csr.stvec, code, interrupt);
         } else {
+            let cause = if interrupt { (1 << 63) | code } else { code };
             self.csr.mepc = epc;
             self.csr.mcause = cause;
             self.csr.mtval = tval;
-            // MPIE takes MIE (bit 3 moves to bit 7), MIE is cleared, MPP records the mode.
-            let s = (st & !(MPIE | MPP | MIE)) | ((st & MIE) << 4) | (old.level() << 11);
+            self.csr.mtval2 = gpa2;
+            self.csr.mtinst = 0;
+            let st = self.csr.mstatus;
+            let mut s = (st & !(MPIE | MPP | MIE | MPV | MSTATUS_GVA))
+                | ((st & MIE) << 4)
+                | (old.level() << 11);
+            if old_virt {
+                s |= MPV;
+            }
+            if is_gva {
+                s |= MSTATUS_GVA;
+            }
             self.csr.mstatus = s;
             self.mode = Mode::Machine;
+            self.virt = false;
             self.pc = vector(self.csr.mtvec, code, interrupt);
         }
     }

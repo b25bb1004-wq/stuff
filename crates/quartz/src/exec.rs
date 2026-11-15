@@ -1,8 +1,9 @@
 //! Fetch, decode and execute one instruction. Effects are computed first and committed last,
 //! so a trap leaves the cpu exactly as it was.
 use crate::bus::Bus;
-use crate::csr::{MIE, MPIE, MPP, MPRV, SIE, SPIE, SPP, TSR, TVM, TW};
+use crate::csr::{MIE, MPIE, MPP, MPRV, MPV, SIE, SPIE, SPP, SPV, TSR, TVM, TW, VTSR, VTVM, VTW};
 use crate::inst::{decode, decode_c, Inst};
+use crate::mmu::extend;
 use crate::{Access, Cpu, Mode, Trap};
 
 /// Everything one instruction changes, produced before anything is committed.
@@ -10,7 +11,9 @@ struct Effect {
     pc: u64,
     rd: Option<(u8, u64)>,
     csr: Option<(u16, u64)>,
+    csr2: Option<(u16, u64)>,
     mode: Option<Mode>,
+    virt: Option<bool>,
     reservation: Option<Option<u64>>,
     wfi: bool,
     sfence: bool,
@@ -23,7 +26,9 @@ impl Effect {
             pc,
             rd: None,
             csr: None,
+            csr2: None,
             mode: None,
+            virt: None,
             reservation: None,
             wfi: false,
             sfence: false,
@@ -47,16 +52,6 @@ enum Op {
     Replace,
     Set,
     Clear,
-}
-
-/// Sign or zero extend the low `size` bytes of `raw`.
-fn extend(raw: u64, size: u8, signed: bool) -> u64 {
-    let shift = 64 - 8 * u32::from(size);
-    if signed {
-        (((raw << shift) as i64) >> shift) as u64
-    } else {
-        (raw << shift) >> shift
-    }
 }
 
 /// Fail with `FetchMisaligned` unless `target` is a multiple of 2 (IALIGN=16).
@@ -91,18 +86,21 @@ pub(crate) struct StepFlags {
 }
 
 impl Cpu {
-    /// Execute one instruction using `fetch_fn` and commit it.
+    /// Execute one instruction using `fetch_fn` and commit it. On error, returns `(Trap, from_hlv_hsv)`.
     #[inline(always)]
     pub(crate) fn step_inner_with<B: Bus>(
         &mut self,
         bus: &mut B,
         fetch_fn: impl FnOnce(&Self, &mut B, u64) -> Result<(Inst, u32, u64), Trap>,
-    ) -> Result<StepFlags, Trap> {
+    ) -> Result<StepFlags, (Trap, bool)> {
         let pc = self.pc;
-        check_pc(pc)?;
-        let (inst, word, len) = fetch_fn(self, bus, pc)?;
+        check_pc(pc).map_err(|t| (t, false))?;
+        let (inst, word, len) = fetch_fn(self, bus, pc).map_err(|t| (t, false))?;
         let next = pc.wrapping_add(len);
-        let eff = self.execute(inst, word, next, bus)?;
+        let from_hlv_hsv = matches!(inst, Inst::Hlv { .. } | Inst::Hsv { .. });
+        let eff = self
+            .execute(inst, word, next, bus)
+            .map_err(|t| (t, from_hlv_hsv))?;
         if let Some((rd, value)) = eff.rd {
             self.set(rd, value);
         }
@@ -110,8 +108,14 @@ impl Cpu {
         if let Some((addr, value)) = eff.csr {
             self.csr_write(addr, value);
         }
+        if let Some((addr, value)) = eff.csr2 {
+            self.csr_write(addr, value);
+        }
         if let Some(mode) = eff.mode {
             self.mode = mode;
+        }
+        if let Some(virt) = eff.virt {
+            self.virt = virt;
         }
         if let Some(res) = eff.reservation {
             self.reservation = res;
@@ -123,23 +127,19 @@ impl Cpu {
         if wrote_csr != Some(0xb00) {
             self.csr.mcycle = self.csr.mcycle.wrapping_add(1);
         }
+        let sfence =
+            eff.sfence || eff.virt.is_some() || matches!(wrote_csr, Some(0x180 | 0x280 | 0x680));
         Ok(StepFlags {
             wfi: eff.wfi,
-            sfence: eff.sfence,
+            sfence,
         })
-    }
-
-    /// Execute one instruction and commit it. Returns true if it was WFI.
-    #[allow(dead_code)]
-    pub(crate) fn step_inner(&mut self, bus: &mut impl Bus) -> Result<bool, Trap> {
-        self.step_inner_with(bus, |cpu, bus, pc| cpu.fetch(bus, pc))
-            .map(|f| f.wfi)
     }
 
     /// Execute the instruction at `pc`. On `Err`, pc, registers and CSRs are unchanged.
     pub fn step(&mut self, bus: &mut impl Bus) -> Result<(), Trap> {
         self.step_inner_with(bus, |cpu, bus, pc| cpu.fetch(bus, pc))
             .map(|_| ())
+            .map_err(|(t, _)| t)
     }
 
     /// Fetch and decode one 16-bit compressed or 32-bit instruction at `pc`.
@@ -196,6 +196,7 @@ impl Cpu {
     fn execute(&self, inst: Inst, word: u32, next: u64, bus: &mut impl Bus) -> Outcome {
         let pc = self.pc;
         let illegal = Trap::IllegalInstruction(word);
+        let virt_inst = Trap::VirtualInstruction(word);
         match inst {
             Inst::Jal { rd, imm } => jump(pc.wrapping_add(imm as u64), next, rd),
             Inst::Jalr { rd, rs1, imm } => {
@@ -250,6 +251,20 @@ impl Cpu {
             Inst::Sd { rs1, rs2, imm } => {
                 self.store(bus, rs1, rs2, imm, 8).map(|()| Effect::at(next))
             }
+            Inst::Hlv {
+                rd,
+                rs1,
+                width,
+                unsigned,
+                exec,
+            } => Ok(Effect::wb(
+                next,
+                rd,
+                self.hlv(bus, word, rs1, width, unsigned, exec)?,
+            )),
+            Inst::Hsv { rs1, rs2, width } => self
+                .hsv(bus, word, rs1, rs2, width)
+                .map(|()| Effect::at(next)),
             Inst::Ecall => Err(Trap::Ecall),
             Inst::Ebreak => Err(Trap::Ebreak),
             Inst::Fence | Inst::FenceI => Ok(Effect::at(next)),
@@ -313,10 +328,13 @@ impl Cpu {
             Inst::Mret => self.mret(word),
             Inst::Sret => self.sret(word),
             Inst::Wfi => {
-                let trapped = self.mode == Mode::User
-                    || (self.mode == Mode::Supervisor && (self.csr.mstatus & TW) != 0);
-                if trapped {
+                if (self.mode != Mode::Machine && (self.csr.mstatus & TW) != 0)
+                    || (!self.virt && self.mode == Mode::User)
+                {
                     return Err(illegal);
+                }
+                if self.virt && (self.mode == Mode::User || (self.csr.hstatus & VTW) != 0) {
+                    return Err(virt_inst);
                 }
                 Ok(Effect {
                     wfi: true,
@@ -324,9 +342,39 @@ impl Cpu {
                 })
             }
             Inst::SfenceVma { .. } => {
-                let trapped = self.mode == Mode::User
-                    || (self.mode == Mode::Supervisor && (self.csr.mstatus & TVM) != 0);
-                if trapped {
+                if self.virt {
+                    if self.mode == Mode::User || (self.csr.hstatus & VTVM) != 0 {
+                        return Err(virt_inst);
+                    }
+                } else if self.mode == Mode::User
+                    || (self.mode == Mode::Supervisor && (self.csr.mstatus & TVM) != 0)
+                {
+                    return Err(illegal);
+                }
+                Ok(Effect {
+                    sfence: true,
+                    ..Effect::at(next)
+                })
+            }
+            Inst::HfenceVvma { .. } => {
+                if self.virt {
+                    return Err(virt_inst);
+                }
+                if self.mode == Mode::User {
+                    return Err(illegal);
+                }
+                Ok(Effect {
+                    sfence: true,
+                    ..Effect::at(next)
+                })
+            }
+            Inst::HfenceGvma { .. } => {
+                if self.virt {
+                    return Err(virt_inst);
+                }
+                if self.mode == Mode::User
+                    || (self.mode == Mode::Supervisor && (self.csr.mstatus & TVM) != 0)
+                {
                     return Err(illegal);
                 }
                 Ok(Effect {
@@ -344,11 +392,10 @@ impl Cpu {
     /// CSR read-modify-write. The write happens only when `writes` is set (CSRRW always, the
     /// set and clear forms only with a non-zero source field).
     fn csr_op(&self, word: u32, rd: u8, csr: u16, src: u64, op: Op, writes: bool) -> Outcome {
-        let illegal = Trap::IllegalInstruction(word);
-        if !self.csr_allowed(csr, writes) {
-            return Err(illegal);
-        }
-        let old = self.csr_read(csr).ok_or(illegal)?;
+        let eff_csr = self.csr_check(csr, writes, word)?;
+        let old = self
+            .csr_read(eff_csr)
+            .ok_or(Trap::IllegalInstruction(word))?;
         let new = match op {
             Op::Replace => src,
             Op::Set => old | src,
@@ -356,34 +403,53 @@ impl Cpu {
         };
         Ok(Effect {
             rd: Some((rd, old)),
-            csr: writes.then_some((csr, new)),
+            csr: writes.then_some((eff_csr, new)),
             ..Effect::at(self.pc.wrapping_add(4))
         })
     }
 
-    /// MRET: return to MPP, with MIE taken from MPIE; pc goes to mepc.
+    /// MRET: return to MPP, with MIE taken from MPIE and virt from MPV; pc goes to mepc.
     fn mret(&self, word: u32) -> Outcome {
-        if self.mode != Mode::Machine {
+        if self.mode != Mode::Machine || self.virt {
             return Err(Trap::IllegalInstruction(word));
         }
         let st = self.csr.mstatus;
         let to = Mode::from_field(st >> 11);
-        let mut new = (st & !(MIE | MPIE | MPP)) | ((st & MPIE) >> 4) | MPIE;
+        let to_virt = to != Mode::Machine && (st & MPV) != 0;
+        let mut new = (st & !(MIE | MPIE | MPP | MPV)) | ((st & MPIE) >> 4) | MPIE;
         if to != Mode::Machine {
             new &= !MPRV;
         }
         Ok(Effect {
             mode: Some(to),
+            virt: Some(to_virt),
             csr: Some((0x300, new)),
             ..Effect::at(self.csr.mepc)
         })
     }
 
-    /// SRET: return to SPP, with SIE taken from SPIE; pc goes to sepc.
+    /// SRET: return from HS (using mstatus/hstatus.SPV/sepc) or VS (using vsstatus/vsepc).
     fn sret(&self, word: u32) -> Outcome {
+        if self.virt {
+            if self.mode == Mode::User || (self.csr.hstatus & VTSR) != 0 {
+                return Err(Trap::VirtualInstruction(word));
+            }
+            let vs = self.csr.vsstatus;
+            let to = if vs & SPP != 0 {
+                Mode::Supervisor
+            } else {
+                Mode::User
+            };
+            let new = (vs & !(SIE | SPIE | SPP)) | ((vs & SPIE) >> 4) | SPIE;
+            return Ok(Effect {
+                mode: Some(to),
+                virt: Some(true),
+                csr: Some((0x200, new)),
+                ..Effect::at(self.csr.vsepc)
+            });
+        }
         let st = self.csr.mstatus;
-        let trapped = self.mode == Mode::User || (self.mode == Mode::Supervisor && (st & TSR) != 0);
-        if trapped {
+        if self.mode == Mode::User || (self.mode == Mode::Supervisor && (st & TSR) != 0) {
             return Err(Trap::IllegalInstruction(word));
         }
         let to = if st & SPP != 0 {
@@ -391,18 +457,18 @@ impl Cpu {
         } else {
             Mode::User
         };
+        let to_virt = (self.csr.hstatus & SPV) != 0;
         let new = (st & !(SIE | SPIE | SPP)) | ((st & SPIE) >> 4) | SPIE;
         Ok(Effect {
             mode: Some(to),
+            virt: Some(to_virt),
             csr: Some((0x300, new)),
+            csr2: Some((0x600, self.csr.hstatus & !SPV)),
             ..Effect::at(self.csr.sepc)
         })
     }
 
     /// Load `size` bytes from `rs1 + imm`, extended to 64 bits.
-    ///
-    /// Misaligned loads are performed byte by byte in little-endian order; every byte is translated
-    /// before any bus read so a fault on any byte reports the first faulting virtual address.
     fn load(
         &self,
         bus: &mut impl Bus,
@@ -432,9 +498,6 @@ impl Cpu {
     }
 
     /// Store the low `size` bytes of `rs2` at `rs1 + imm`.
-    ///
-    /// Misaligned stores translate every byte before writing any byte, so a translation fault
-    /// leaves memory unchanged and reports the first faulting virtual address.
     fn store(&self, bus: &mut impl Bus, rs1: u8, rs2: u8, imm: i64, size: u8) -> Result<(), Trap> {
         let addr = self.reg(rs1).wrapping_add(imm as u64);
         if addr & (u64::from(size) - 1) == 0 {

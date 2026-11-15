@@ -321,12 +321,13 @@ fn fetch_cached(cpu: &Cpu, board: &mut Board, pc: u64) -> Result<(Inst, u32, u64
         pc
     } else {
         let vpage = pc >> 12;
-        let satp = cpu.satp();
+        let keys = cpu.itlb_keys();
         let mode = cpu.mode;
+        let virt = cpu.virt;
         if let Some(ppage) = board
             .cache
             .as_ref()
-            .and_then(|c| c.lookup_itlb(vpage, satp, mode))
+            .and_then(|c| c.lookup_itlb(vpage, keys, mode, virt))
         {
             ppage | (pc & 0xFFF)
         } else {
@@ -334,7 +335,7 @@ fn fetch_cached(cpu: &Cpu, board: &mut Board, pc: u64) -> Result<(Inst, u32, u64
             let pa = cpu.translate_fetch_tracked(board, pc, &mut pt_mask)?;
             if let Some(cache) = &mut board.cache {
                 cache.pt_pages_mask |= pt_mask;
-                cache.insert_itlb(vpage, satp, mode, pa & !0xFFF);
+                cache.insert_itlb(vpage, keys, mode, virt, pa & !0xFFF);
             }
             pa
         }
