@@ -112,6 +112,35 @@ _start:
     li a1, 1
     call print_str
 
+    # Spawn fsdemo only if open("/", 1) succeeds
+    la a0, n_root
+    li a1, 1
+    li a2, 1
+    li a7, 3
+    ecall
+    bltz a0, skip_fsdemo
+    li a7, 4
+    ecall
+
+    la a0, n_fsdemo
+    li a1, 6
+    li a2, 0
+    li a3, 0
+    li a7, 5
+    ecall
+    li a7, 6
+    ecall
+    mv s3, a0
+    la a0, s_fsdemo_ex
+    li a1, 20
+    call print_str
+    mv a0, s3
+    call print_int
+    la a0, s_nl
+    li a1, 1
+    call print_str
+
+skip_fsdemo:
     # Call ps and print buffer
     la a0, ps_buf
     li a1, 512
@@ -198,6 +227,8 @@ s_fault_ex:
     .ascii "init: fault exited "
 s_evil_ex:
     .ascii "init: evil exited "
+s_fsdemo_ex:
+    .ascii "init: fsdemo exited "
 s_uptime:
     .ascii "init: uptime ok\n"
 s_nl:
@@ -214,5 +245,9 @@ n_fault:
     .ascii "fault"
 n_evil:
     .ascii "evil"
+n_fsdemo:
+    .ascii "fsdemo"
+n_root:
+    .ascii "/"
 ps_buf:
     .space 512

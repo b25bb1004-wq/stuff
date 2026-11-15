@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 midas = { path = "../midas" }
 kairos = { path = "../kairos", default-features = false }
+hades = { path = "../hades" }
 
 [build-dependencies]
 chisel = { path = "../chisel" }

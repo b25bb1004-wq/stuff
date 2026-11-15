@@ -8,6 +8,7 @@ use titan::uaccess::Errno;
 
 use crate::proc::KernelState;
 use crate::progs;
+use crate::vfs;
 use crate::vm;
 use crate::{TrapFrame, Uart, TICKS};
 
@@ -46,15 +47,40 @@ pub fn handle_syscall(ks: &mut KernelState, tf: &mut TrapFrame) -> *mut TrapFram
             ks.exit_current(code)
         }
         SYS_WRITE => {
-            let res = sys_write(pt_root, a0, a1, a2);
+            let res = if a0 == 1 || a0 == 2 {
+                sys_write_uart(pt_root, a1, a2)
+            } else {
+                vfs::sys_write_fd(ks, pid, pt_root, a0, a1, a2)
+            };
             finish_syscall(tf, res)
         }
         SYS_READ => {
-            let res = sys_read(pt_root, a0, a1, a2);
+            let res = if a0 == 0 {
+                sys_read_stdin(pt_root, a1, a2)
+            } else {
+                vfs::sys_read_fd(ks, pid, pt_root, a0, a1, a2)
+            };
             finish_syscall(tf, res)
         }
-        SYS_OPEN | SYS_CLOSE | SYS_MKDIR | SYS_UNLINK | SYS_READDIR => {
-            finish_syscall(tf, Errno::NotFound.as_isize())
+        SYS_OPEN => {
+            let res = vfs::sys_open(ks, pid, pt_root, a0, a1, a2);
+            finish_syscall(tf, res)
+        }
+        SYS_CLOSE => {
+            let res = vfs::sys_close(ks, pid, a0);
+            finish_syscall(tf, res)
+        }
+        SYS_MKDIR => {
+            let res = vfs::sys_mkdir(ks, pt_root, a0, a1);
+            finish_syscall(tf, res)
+        }
+        SYS_UNLINK => {
+            let res = vfs::sys_unlink(ks, pt_root, a0, a1);
+            finish_syscall(tf, res)
+        }
+        SYS_READDIR => {
+            let res = vfs::sys_readdir(ks, pid, pt_root, a0, a1, a2);
+            finish_syscall(tf, res)
         }
         SYS_SPAWN => {
             let res = sys_spawn(ks, pid, pt_root, a0, a1, a2, a3);
@@ -118,10 +144,7 @@ fn finish_syscall(tf: &mut TrapFrame, ret: isize) -> *mut TrapFrame {
     tf as *mut TrapFrame
 }
 
-fn sys_write(pt_root: u64, fd: u64, ptr: u64, len: u64) -> isize {
-    if fd != 1 && fd != 2 {
-        return Errno::BadFd.as_isize();
-    }
+fn sys_write_uart(pt_root: u64, ptr: u64, len: u64) -> isize {
     if let Err(e) = vm::validate_user_read(pt_root, ptr, len) {
         return e.as_isize();
     }
@@ -140,10 +163,7 @@ fn sys_write(pt_root: u64, fd: u64, ptr: u64, len: u64) -> isize {
     len as isize
 }
 
-fn sys_read(pt_root: u64, fd: u64, ptr: u64, len: u64) -> isize {
-    if fd != 0 {
-        return Errno::BadFd.as_isize();
-    }
+fn sys_read_stdin(pt_root: u64, ptr: u64, len: u64) -> isize {
     if let Err(e) = vm::validate_user_write(pt_root, ptr, len) {
         return e.as_isize();
     }

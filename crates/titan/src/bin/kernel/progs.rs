@@ -6,6 +6,7 @@ static PONG_ELF: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/pong.elf"));
 static HOG_ELF: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/hog.elf"));
 static FAULT_ELF: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/fault.elf"));
 static EVIL_ELF: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/evil.elf"));
+static FSDEMO_ELF: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/fsdemo.elf"));
 
 /// Look up an embedded ELF image by program name.
 pub fn find_builtin(name: &str) -> Option<&'static [u8]> {
@@ -16,6 +17,7 @@ pub fn find_builtin(name: &str) -> Option<&'static [u8]> {
         "hog" => Some(HOG_ELF),
         "fault" => Some(FAULT_ELF),
         "evil" => Some(EVIL_ELF),
+        "fsdemo" => Some(FSDEMO_ELF),
         _ => None,
     }
 }

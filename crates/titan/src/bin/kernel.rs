@@ -31,6 +31,14 @@ mod proc;
 mod syscall;
 
 #[cfg(target_os = "none")]
+#[path = "kernel/blk.rs"]
+mod blk;
+
+#[cfg(target_os = "none")]
+#[path = "kernel/vfs.rs"]
+mod vfs;
+
+#[cfg(target_os = "none")]
 mod kernel {
     extern crate alloc;
 
@@ -42,11 +50,13 @@ mod kernel {
     use core::ptr::{read_volatile, write_volatile};
     use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
+    use hades::{BlockDevice, Fs};
     use midas::{Heap, Locked};
     use titan::frames::PAGE_SIZE;
     use titan::sv39::{FrameAlloc, PageTable, Pte};
     use titan::trap::Cause;
 
+    use crate::blk::{self, Blk};
     use crate::proc::{KernelState, KERNEL};
     use crate::progs;
     use crate::syscall;
@@ -536,6 +546,23 @@ mod kernel {
         let _ = writeln!(Uart, "ticks ok");
         let _ = writeln!(Uart, "boot ok");
 
+        let fs = if blk::probe_sectors() == 0 {
+            None
+        } else {
+            let blk = Blk::new();
+            let blocks = blk.block_count();
+            match Fs::mount(blk) {
+                Ok(mounted) => {
+                    let _ = writeln!(Uart, "fs: mounted {blocks} blocks");
+                    Some(mounted)
+                }
+                Err(_) => {
+                    let _ = writeln!(Uart, "fs: mount failed");
+                    None
+                }
+            }
+        };
+
         // Disable S-mode interrupts while initializing processes (`sret` to U-mode enables them via SPIE).
         // SAFETY: Clearing `SIE` keeps S-mode trap handling non-reentrant.
         unsafe { asm!("csrc sstatus, {sie}", sie = in(reg) 2u64, options(nomem, nostack)) };
@@ -543,7 +570,7 @@ mod kernel {
         let free_before_init = vm::free_frame_count();
         let init_tf = {
             let mut guard = KERNEL.lock();
-            let ks = guard.insert(KernelState::new(free_before_init));
+            let ks = guard.insert(KernelState::new(free_before_init, fs));
             let Some(init_elf) = progs::find_builtin("init") else {
                 fail("missing init elf");
             };

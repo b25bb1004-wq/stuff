@@ -6,6 +6,7 @@ use alloc::vec;
 use core::fmt::Write;
 use core::ptr::read_volatile;
 
+use hades::Fs;
 use kairos::{Class, Config as SchedConfig, Decision, Scheduler, TaskId};
 use midas::Locked;
 use titan::elf;
@@ -14,6 +15,8 @@ use titan::proc::{Pid, ProcState, Table, WaitStatus};
 use titan::sv39::{FrameAlloc, PageTable, Pte};
 use titan::uaccess::{Errno, USER_MIN};
 
+use crate::blk::Blk;
+use crate::vfs::FdTable;
 use crate::vm::{self, CLINT_BASE, FRAMES, USER_STACK_BOTTOM, USER_STACK_PAGES, USER_STACK_TOP};
 use crate::{finisher_exit, TrapFrame, Uart, FINISHER_FAIL, FINISHER_PASS};
 
@@ -37,6 +40,7 @@ pub struct KernelProc {
     _kstack: Box<[u128]>,
     pub tf_addr: u64,
     pub frames_freed: bool,
+    pub fds: FdTable,
 }
 
 pub struct KernelState {
@@ -46,10 +50,11 @@ pub struct KernelState {
     pub tid_to_pid: BTreeMap<TaskId, Pid>,
     pub current: Option<Pid>,
     pub initial_free_frames: usize,
+    pub fs: Option<Fs<Blk>>,
 }
 
 impl KernelState {
-    pub fn new(initial_free_frames: usize) -> Self {
+    pub fn new(initial_free_frames: usize, fs: Option<Fs<Blk>>) -> Self {
         Self {
             table: Table::new(),
             sched: Scheduler::new(1, SchedConfig::default()),
@@ -57,6 +62,7 @@ impl KernelState {
             tid_to_pid: BTreeMap::new(),
             current: None,
             initial_free_frames,
+            fs,
         }
     }
 
@@ -212,6 +218,7 @@ impl KernelState {
                 _kstack: kstack,
                 tf_addr,
                 frames_freed: false,
+                fds: FdTable::new(),
             },
         );
         Ok(pid)
@@ -254,7 +261,11 @@ impl KernelState {
 
         if pid == 1 {
             vm::switch_to_kernel_pt();
+            if let Some(fs) = self.fs.take() {
+                let _ = fs.unmount();
+            }
             for p in self.procs.values_mut() {
+                p.fds.clear();
                 if !p.frames_freed {
                     vm::destroy_user_pt(p.pt_root, &p.user_pages);
                     p.user_pages.clear();
@@ -274,6 +285,7 @@ impl KernelState {
 
         vm::switch_to_kernel_pt();
         if let Some(p) = self.procs.get_mut(&pid) {
+            p.fds.clear();
             if !p.frames_freed {
                 vm::destroy_user_pt(p.pt_root, &p.user_pages);
                 p.user_pages.clear();
@@ -293,6 +305,7 @@ impl KernelState {
     pub fn kill_child(&mut self, caller_pid: Pid, target_pid: Pid) -> Result<(), Errno> {
         let woke = self.table.kill_child(caller_pid, target_pid)?;
         if let Some(p) = self.procs.get_mut(&target_pid) {
+            p.fds.clear();
             if !p.frames_freed {
                 vm::destroy_user_pt(p.pt_root, &p.user_pages);
                 p.user_pages.clear();
