@@ -116,7 +116,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T29a | P2 | cobalt | (T29a) integer subset Logos IR to RV64, stack slots, runs on Silicon | hydrogen-high | T10 T22 | PASS |
 | T30 | P2 | cobalt | constant folding, dead code, copy propagation | haiku | T29 | PASS |
 | T31 | P2 | silicon | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | PASS |
-| T32 | P2 | zeus | hypervisor: 2 guests (lithium + titan), virtual console and timer, isolation | opus-high | T31 T24 T26 | RUNNING |
+| T32 | P2 | zeus | hypervisor: 2 guests (lithium + titan), virtual console and timer, isolation | opus-high | T31 T24 T26 | PASS |
 | T33 | P2 | silicon | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
 | T34 | P3 | xenon | protocol core from `docs/XENON.md`, no I/O inside | hydrogen-high | T04 T20 D2 | PASS |
 | T35 | P3 | xenon | UDP transport, echo and file-transfer tools | hydrogen | T34 | PASS |
@@ -365,3 +365,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T67 | agy hydrogen-high | - | PASS | odyssey paint/fetch/script/shell, 137 tests; leader mutated-response fuzz
 - 2026-11-16 | T52 | agy hydrogen-high | - | PASS | pandora images via argo, run -d, ps, kill, rm; leader fixed .so exec bit (design gap), stale-state checks; WSL green
 - 2026-11-16 | T28 | agy hydrogen-high | - | PASS | titan userland: Rust multicall ELF (sh on krypton, ls cat echo mkdir rm ps), argv, redirects, append; leader raw-byte fuzz
+- 2026-11-16 | T32 zeus | hydrogen-high (design by leader) | n/a | PASS | 14 tests + leader GPA scan (4063 faults exact); lithium interleave differs by quantum, accepted

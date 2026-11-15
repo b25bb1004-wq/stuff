@@ -227,3 +227,8 @@ dependencies = [
 [[package]]
 name = "zeus"
 version = "0.1.0"
+dependencies = [
+ "chisel",
+ "lithium",
+ "silicon",
+]
