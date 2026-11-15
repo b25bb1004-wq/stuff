@@ -1,8 +1,5 @@
 :root {
-  --t-fast: 120ms;
-  --t-med: 240ms;
-  --t-slow: 600ms;
-  --ease: cubic-bezier(.2, .7, .2, 1);
+  /* Durations, easing and the reduced-motion switch come from /_kit/tokens.css. */
   --left-w: 220px;
   --panel-h: 210px;
 }
@@ -1414,11 +1411,3 @@ textarea {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    transition-duration: 0ms !important;
-    animation-duration: 0ms !important;
-  }
-}

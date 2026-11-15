@@ -362,6 +362,8 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
     assert!(athena_js.contains("serviceWorker"));
 
     let css = std::fs::read_to_string(tmp.join("style.css")).unwrap();
+    // Since T101 the shared tokens live in the kit's tokens.css, which index.html links first.
+    let tokens = std::fs::read_to_string(tmp.join("_kit").join("tokens.css")).unwrap();
     for token in [
         "--bg",
         "--panel",
@@ -378,8 +380,8 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
         "--t-slow",
     ] {
         assert!(
-            css.contains(token),
-            "style.css missing required token {token}"
+            css.contains(token) || tokens.contains(token),
+            "style.css and _kit/tokens.css both lack required token {token}"
         );
     }
     assert!(css.contains("window-controls-overlay"));

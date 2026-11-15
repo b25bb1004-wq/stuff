@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SELFTEST</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="motion.css">
+<script src="motion-table.js"></script>
+<script src="motion.js"></script>
+<style>
+  body { padding: var(--sp-4); }
+  pre { white-space: pre-wrap; font-family: var(--font-code); font-size: var(--fs-code); }
+</style>
+</head>
+<body>
+<h1>Motion self-test</h1>
+<pre id="out"></pre>
+<div id="box"></div>
+<span id="num">0</span>
+<script>
+(function () {
+  "use strict";
+  var out = document.getElementById("out");
+  var root = document.documentElement;
+  var pass = 0;
+  var total = 0;
+  var pending = [];
+
+  function check(name, ok, why) {
+    total += 1;
+    if (ok) pass += 1;
+    out.textContent += (ok ? "PASS " + name : "FAIL " + name + " " + (why || "")) + "\n";
+  }
+  function token(name) {
+    return getComputedStyle(root).getPropertyValue(name).trim();
+  }
+
+  // Tokens of 4.2 are present with their values.
+  check("tokens", token("--t-press") === 80 + "ms" && token("--t-med") === 240 + "ms" &&
+    token("--t-hero") === 1200 + "ms" && token("--stagger") === 30 + "ms" && token("--d-2") === "8px",
+    "token values differ from section 4.2");
+
+  // Springs: the generated table ends at the target, overshoots only where it should, and settles in time.
+  // Firm and heavy: no overshoot beyond the settle tolerance. Live: 4 to 8 percent. Settle: section 4.2.
+  var limits = { firm: { settle: 280, over: [-Infinity, 5] }, live: { settle: 450, over: [40, 80] }, heavy: { settle: 700, over: [-Infinity, 5] } };
+  if (typeof MOTION_TABLE !== "object") {
+    check("spring-table", false, "motion-table.js is not served");
+  } else {
+    Object.keys(limits).forEach(function (name) {
+      var t = MOTION_TABLE[name];
+      if (!t) { check("spring-" + name, false, "missing"); return; }
+      var p = t.points;
+      var peak = Math.max.apply(null, p) - 1000;
+      var endsAtTarget = Math.abs(p[p.length - 1] - 1000) <= 10;
+      var lim = limits[name];
+      var overOk = peak >= lim.over[0] && peak <= lim.over[1];
+      check("spring-" + name, endsAtTarget && overOk && t.ms <= lim.settle,
+        "end " + p[p.length - 1] + " peak " + peak + " settle " + t.ms + "ms");
+    });
+  }
+
+  // Reduced motion, forced by the kit's own switch: each call ends in the same frame.
+  root.dataset.motion = "reduce";
+  check("reduced-flag", Motion.reduced() === true, "Motion.reduced() is false under data-motion=reduce");
+  var box = document.getElementById("box");
+  var handle = Motion.enter(box);
+  check("reduced-enter", box.getAnimations().length === 0 && typeof handle.finish === "function",
+    "an animation started under forced reduced motion");
+  Motion.count(document.getElementById("num"), 42);
+  check("reduced-count", document.getElementById("num").textContent === "42",
+    "count did not show the end value at once");
+  delete root.dataset.motion;
+
+  // Normal motion touches only opacity and transform.
+  var check2 = document.createElement("div");
+  document.body.appendChild(check2);
+  Motion.enter(check2, { dist: 3, dir: 1 });
+  Motion.exit(check2, { dist: 2 });
+  var allowed = { opacity: 1, transform: 1, offset: 1, easing: 1, composite: 1, computedOffset: 1 };
+  var props = [];
+  document.getAnimations().forEach(function (a) {
+    a.effect.getKeyframes().forEach(function (k) {
+      Object.keys(k).forEach(function (key) { if (!allowed[key]) props.push(key); });
+    });
+  });
+  check("only-opacity-transform", props.length === 0, "animates " + props.join(","));
+  document.getAnimations().forEach(function (a) { a.cancel(); });
+  check2.remove();
+
+  // The public API is complete.
+  var api = ["enter", "exit", "stagger", "flip", "swap", "count", "tween", "canvas", "hero", "reduced"];
+  check("api", api.every(function (n) { return typeof Motion[n] === "function"; }), "a Motion function is missing");
+
+  // A tween reaches its end value.
+  var seen = 0;
+  pending.push(Motion.tween(40, "firm", function (k) { seen = k; }).done.then(function () {
+    check("tween-end", Math.abs(seen - 1) < 1e-9, "last value " + seen);
+  }));
+
+  Promise.all(pending).then(function () {
+    document.title = "SELFTEST " + (pass === total ? "PASS " : "FAIL ") + pass + "/" + total;
+    out.textContent += "DONE " + pass + "/" + total + "\n";
+  });
+})();
+</script>
+</body>
+</html>

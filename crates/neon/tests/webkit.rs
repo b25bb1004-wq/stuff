@@ -1,12 +1,23 @@
 //! Tests for `neon::webkit`: the kit file list, the bundle lint, the service worker template and the hash.
 #![allow(clippy::unwrap_used)]
 
-use neon::webkit::{content_hash, lint, sw_js, FILES};
+use neon::webkit::{content_hash, lint, lint_page, sw_js, FILES};
 
 #[test]
-fn files_lists_the_three_kit_files() {
+fn files_lists_the_kit_files() {
     let names: Vec<&str> = FILES.iter().map(|(name, _)| *name).collect();
-    assert_eq!(names, ["tokens.css", "wasm.js", "term.js"]);
+    assert_eq!(
+        names,
+        [
+            "tokens.css",
+            "wasm.js",
+            "term.js",
+            "motion.css",
+            "motion-table.js",
+            "motion.js",
+            "selftest.html"
+        ]
+    );
     for (name, text) in FILES {
         assert!(!text.is_empty(), "empty kit file {name}");
     }
@@ -40,8 +51,48 @@ fn lint_rejects_layout_animating_transitions() {
     ] {
         assert!(!lint(sample).is_empty(), "accepted {sample}");
     }
-    assert!(lint(".a { transition: opacity 120ms, transform 120ms; }").is_empty());
-    assert!(lint(".a { transition-duration: 120ms; }").is_empty());
+    assert!(lint(".a { transition: opacity var(--t-fast), transform var(--t-fast); }").is_empty());
+    assert!(lint(".a { transition-duration: var(--t-fast); }").is_empty());
+}
+
+#[test]
+fn lint_rejects_will_change_and_set_interval() {
+    assert!(!lint(".a { will-change: transform; }").is_empty());
+    assert!(!lint("setInterval(tick, 16);").is_empty());
+}
+
+#[test]
+fn lint_rejects_bare_durations_outside_token_files() {
+    for sample in [
+        ".a { animation-duration: 200ms; }",
+        ".a { transition-duration: .5s; }",
+        "el.animate(f, { duration: 300 + 1s });",
+        ".a { --x: 0.01ms; }",
+    ] {
+        assert!(!lint(sample).is_empty(), "accepted {sample}");
+    }
+    assert!(lint(".a { animation-duration: var(--t-med); }").is_empty());
+    assert!(lint(".a { --x: 10 px; font-size: 1.5rem; }").is_empty());
+    let tokens = "/* neon-tokens */\n.a { --t-press: 80ms; }";
+    assert!(lint(tokens).is_empty(), "{:?}", lint(tokens));
+}
+
+#[test]
+fn lint_rejects_keyframes_and_transitions_on_other_properties() {
+    assert!(!lint("@keyframes spin { from { transform: none } to { left: 0 } }").is_empty());
+    assert!(
+        lint("@keyframes fade { from { opacity: 0 } to { opacity: 1; transform: none } }")
+            .is_empty()
+    );
+    assert!(!lint(".a { transition: background-color 1s; }").is_empty());
+    assert!(!lint(".a { transition: all 1s; }").is_empty());
+}
+
+#[test]
+fn lint_page_rejects_request_animation_frame_but_kit_lint_does_not() {
+    let sample = "requestAnimationFrame(tick);";
+    assert!(!lint_page(sample).is_empty());
+    assert!(lint(sample).is_empty());
 }
 
 #[test]
