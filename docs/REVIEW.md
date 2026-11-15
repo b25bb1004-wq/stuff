@@ -11,8 +11,8 @@ counted with `find crates -name "*.rs" | xargs cat | wc -l`, 1,816 `#[test]` fun
    the 25 cores: the same loader, terminal and tokens were written again for each page.
 3. The worst defect is in the service workers: opening Athena deletes the offline cache of every other app, and
    apps can be served another app's old `site.wasm`.
-4. The repository is public while the quality bar says it is private, and it tracks process files, a personal
-   name and local paths. That needs a decision before anything else is pushed.
+4. The repository is public by the operator's decision (2026-11-15), but the quality bar still says private,
+   and the tree tracks process files and local user paths. That needs a clean-up before the next push.
 5. Rule 4 ("untrusted input never panics") is enforced by review only. The gate lints `unwrap` but not
    `expect`, `panic!` or `assert!`, and a few library functions still panic on caller data.
 
@@ -157,14 +157,17 @@ and `crates/cobalt` had uncommitted worker edits at the time, so their numbers c
 - Check: the self-test page planned in `docs/PLAN-NEXT.md` times every example of every app and prints
   `PASS run-time <id>` when a run is under 50 ms or is sliced.
 
-### B6. Public repository against quality bar 10 (high; a decision, not a code bug)
-- `gh repo view --json visibility` prints `PUBLIC`. `LOOP.md:59` says "pushes go only to the private repo".
-- Tracked files contain the operator's first name (one line each in `AGENTS.md` and `docs/PLAN.md`), local user
-  paths (three lines in `docs/PLAN.md`), and model lane names with usage notes (`LOOP.md`, `docs/PLAN.md`).
-  No key or token was found in the sampled files; that is not a full secret scan.
-- Check: `git grep -nE "Users[\\\\/]|/mnt/c/" -- . ":!crates"` prints nothing, a grep for the name prints
-  nothing, and `LOOP.md` bar 10 matches what `gh repo view` reports. Old commits keep the text; only a history
-  rewrite or a fresh repository removes it.
+### B6. Public repository hygiene against quality bar 10 (high; mostly a clean-up, not a code bug)
+- `gh repo view --json visibility` prints `PUBLIC`, and `AGENTS.md:32` records that as the operator's decision
+  of 2026-11-15. `LOOP.md:59` still says "pushes go only to the private repo": the two files disagree.
+- The operator's first name was removed from `AGENTS.md` and `docs/PLAN.md` on 2026-11-16 (commit `148059b`).
+  Still tracked: local user paths in `docs/PLAN.md` (3 lines), in 21 files under `briefs/` and 2 under
+  `reports/`, and model lane names with usage notes (`LOOP.md`, `docs/PLAN.md`). No key or token was found in
+  the sampled files; that is not a full secret scan.
+- Failure: anyone can read the old commits. Removing a line today does not remove it from history; only a
+  history rewrite or a fresh repository does.
+- Check: `git grep -cE "Users[\\\\/]|/mnt/c/" -- . ":!crates" ":!docs/REVIEW.md"` prints nothing, and
+  `grep -n "private repo" LOOP.md` prints nothing.
 
 ### B7. The zero-dependency rule has a written exception the operator has now withdrawn (low)
 - `docs/SPEC.md:11` ("The web front end may load animation libraries") and `docs/PLAN.md:219`.
@@ -194,7 +197,7 @@ natively, on our CPU and in a browser tab. The plan in `docs/PLAN-NEXT.md` build
 ## D. Decisions for the leader (not worker tasks)
 | Id | Decision | Suggested answer |
 |---|---|---|
-| D1 | Is the repository public? (B6, A4) | Yes, but scrub the name and paths, move loop files out, add `README.md`, fix bar 10 |
+| D1 | Public repository clean-up (B6, A4) | Scrub local paths, decide on old history, move loop files out, add `README.md`, fix bar 10 |
 | D2 | Zero dependencies for JavaScript too (B7) | Yes: edit `docs/SPEC.md` rule 1 and `docs/PLAN.md` section 8 |
 | D3 | Duplicate service binaries (A3) | Images run the tools; delete the copies after iridium has `serve` |
 | D4 | Rename `CAIRNPKG1` / `CAIRNSIG1` now (A5) | Yes, before any package is published |
