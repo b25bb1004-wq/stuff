@@ -265,3 +265,15 @@ fn regex_random_no_panic_forall() {
         }
     });
 }
+
+#[test]
+fn regex_deep_nesting_is_rejected_not_overflowed() {
+    // Failure input: 100k '(' used to recurse until the stack overflowed.
+    let deep = "(".repeat(100_000);
+    assert!(Regex::new(&deep).is_err());
+    let balanced = format!("{}a{}", "(".repeat(100_000), ")".repeat(100_000));
+    assert!(Regex::new(&balanced).is_err());
+    // Nesting just under the cap still compiles.
+    let ok = format!("{}a{}", "(".repeat(200), ")".repeat(200));
+    assert!(Regex::new(&ok).is_ok());
+}

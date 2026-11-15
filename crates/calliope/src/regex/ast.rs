@@ -16,6 +16,7 @@ pub(crate) fn parse_pattern(pattern: &str) -> Result<ParsedPattern, RegexError> 
         src: pattern,
         pos: 0,
         num_captures: 0,
+        depth: 0,
     };
     let ast = parser.parse_alt(false)?;
     if parser.pos != parser.src.len() {
@@ -30,10 +31,14 @@ pub(crate) fn parse_pattern(pattern: &str) -> Result<ParsedPattern, RegexError> 
     })
 }
 
+/// Maximum group nesting; the parser recurses once per level, so this bounds stack use.
+const MAX_GROUP_DEPTH: usize = 256;
+
 struct Parser<'a> {
     src: &'a str,
     pos: usize,
     num_captures: usize,
+    depth: usize,
 }
 
 impl<'a> Parser<'a> {
@@ -235,7 +240,16 @@ impl<'a> Parser<'a> {
             Some(self.num_captures)
         };
 
-        let body = self.parse_alt(true)?;
+        if self.depth >= MAX_GROUP_DEPTH {
+            return Err(RegexError {
+                pos: open_pos,
+                msg: "groups nested too deeply",
+            });
+        }
+        self.depth += 1;
+        let body = self.parse_alt(true);
+        self.depth -= 1;
+        let body = body?;
         if self.peek() != Some(')') {
             return Err(RegexError {
                 pos: open_pos,

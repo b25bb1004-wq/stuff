@@ -11,6 +11,7 @@ path = "src/bin/aurum.rs"
 
 [dependencies]
 elysium = { path = "../elysium" }
+entropy = { path = "../entropy" }
 logos = { path = "../logos" }
 sphinx = { path = "../sphinx" }
 cobalt = { path = "../cobalt" }

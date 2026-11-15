@@ -601,3 +601,30 @@ fn trap_site_records_failing_op_and_clears_on_clean_run() {
     );
     assert_eq!(vm.trap_site(), None);
 }
+
+#[test]
+fn register_stack_growth_is_charged_to_heap_budget() {
+    // Failure input: a 4096-register function recursing without a base case. The register
+    // stack used to grow to max_depth * 4096 values outside the heap budget.
+    let recurse = Func {
+        name: "main".into(),
+        params: 0,
+        regs: 4096,
+        code: vec![Call(0, 0, 0, 0), Ret(0)],
+    };
+    let m = Module {
+        consts: vec![],
+        imports: vec![],
+        funcs: vec![recurse],
+        entry: 0,
+    };
+    let mut vm = Vm::new(m, &[]).unwrap();
+    let limits = Limits {
+        fuel: u64::MAX,
+        max_heap_bytes: 1024 * 1024,
+        max_depth: 1024,
+    };
+    assert_eq!(vm.run(&mut NoHost, limits), Err(Trap::StackOverflow));
+    // Growth stops after about 1 MiB / (4096 * 16 bytes) = 16 frames, not at max_depth.
+    assert!(vm.trap_site().is_some());
+}

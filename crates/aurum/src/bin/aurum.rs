@@ -4,14 +4,10 @@
 use aurum::{
     merkle_proof, merkle_root, Address, Block, BlockError, Chain, DecodeError, Tx, TxError,
 };
-use sphinx::sha256;
-use std::collections::hash_map::RandomState;
 use std::env;
 use std::fs;
-use std::hash::{BuildHasher, Hasher};
 use std::io::{self, Read, Write};
-use std::process::{self, ExitCode};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::process::ExitCode;
 
 const CHAIN_MAGIC: &[u8; 8] = b"AURUMCH1";
 const MAX_CHAIN_ENTRIES: usize = 65_536;
@@ -108,7 +104,7 @@ FLAGS:
 /// Handle `aurum keygen -o KEYFILE`.
 fn cmd_keygen(args: &[String]) -> Result<(), CliError> {
     let out_path = parse_single_output_flag(args, "keygen -o KEYFILE")?;
-    let seed = generate_seed();
+    let seed = generate_seed()?;
     let addr = derive_address(&seed);
     write_output(&out_path, format!("{}\n", to_hex(&seed)).as_bytes())?;
     if out_path != "-" {
@@ -332,26 +328,11 @@ fn parse_usize_flag(val: &str) -> Result<usize, CliError> {
         .map_err(|_| CliError::usage(format!("invalid --proof index '{val}'")))
 }
 
-fn generate_seed() -> [u8; 32] {
-    let mut material = Vec::with_capacity(128);
-    for _ in 0..4 {
-        let h = RandomState::new().build_hasher().finish();
-        material.extend_from_slice(&h.to_le_bytes());
-    }
-    let now_ns = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| d.as_nanos());
-    material.extend_from_slice(&now_ns.to_le_bytes());
-    material.extend_from_slice(&Instant::now().elapsed().as_nanos().to_le_bytes());
-    material.extend_from_slice(&process::id().to_le_bytes());
-    #[cfg(unix)]
-    if let Ok(mut file) = fs::File::open("/dev/urandom") {
-        let mut os_bytes = [0u8; 32];
-        if file.read_exact(&mut os_bytes).is_ok() {
-            material.extend_from_slice(&os_bytes);
-        }
-    }
-    sha256::digest(&material)
+/// Key seed from the OS CSPRNG; an error instead of a weak fallback (T80 aurum keygen).
+fn generate_seed() -> Result<[u8; 32], CliError> {
+    let mut seed = [0u8; 32];
+    entropy::fill(&mut seed).map_err(|e| CliError::fail(format!("keygen: {e}")))?;
+    Ok(seed)
 }
 
 fn derive_address(seed: &[u8; 32]) -> Address {

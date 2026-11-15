@@ -25,10 +25,14 @@ impl ChaChaRng {
 
     /// Load the next 64-byte keystream block into the buffer.
     fn refill(&mut self) {
+        // Fail closed: a wrapped 32-bit counter would repeat the keystream. Call `reseed` first.
+        let next = self
+            .counter
+            .checked_add(1)
+            .expect("ChaCha keystream exhausted after 2^32 blocks: reseed before drawing more");
         self.buf = [0; 64];
         chacha20::xor(&self.key, &ZERO_NONCE, self.counter, &mut self.buf);
-        // shortcut: the 32-bit block counter repeats after 256 GiB of output, reseed before that
-        self.counter = self.counter.wrapping_add(1);
+        self.counter = next;
         self.pos = 0;
     }
 
@@ -117,6 +121,24 @@ mod tests {
             chunk.copy_from_slice(&words.next_u64().to_le_bytes());
         }
         assert_eq!(from_u64, whole);
+    }
+
+    #[test]
+    fn last_block_before_wrap_is_served() {
+        // Failure input: counter at 2^32 - 1 used to wrap to 0 and repeat the keystream.
+        let mut rng = ChaChaRng::from_seed([9; 32]);
+        rng.counter = u32::MAX - 1;
+        let mut out = [0u8; 64];
+        rng.fill(&mut out);
+        assert_eq!(rng.counter, u32::MAX);
+    }
+
+    #[test]
+    #[should_panic(expected = "keystream exhausted")]
+    fn counter_wrap_fails_closed() {
+        let mut rng = ChaChaRng::from_seed([9; 32]);
+        rng.counter = u32::MAX;
+        rng.fill(&mut [0u8; 1]);
     }
 
     #[test]

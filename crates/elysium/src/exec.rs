@@ -288,6 +288,13 @@ fn push_call_frame(
     spend(&mut vm.fuel_used, 1, limits.fuel)?;
     let new_bp = reg_stack.len();
     let callee_regs = usize::from(callee.regs);
+    // The register stack counts against the heap byte budget; overflowing it is a stack overflow.
+    let reg_bytes = (new_bp + callee_regs)
+        .checked_mul(core::mem::size_of::<Value>())
+        .ok_or(Trap::StackOverflow)?;
+    if reg_bytes > limits.max_heap_bytes {
+        return Err(Trap::StackOverflow);
+    }
     reg_stack.resize(new_bp + callee_regs, Value::Unit);
     let src = caller_bp + usize::from(first);
     let n_u = usize::from(n);

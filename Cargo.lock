@@ -35,6 +35,7 @@ dependencies = [
  "assay",
  "cobalt",
  "elysium",
+ "entropy",
  "logos",
  "sphinx",
  "xenon",
