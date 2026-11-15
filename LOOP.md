@@ -16,6 +16,9 @@
 - [x] T47 cairn registry PASS (leader check: clippy fixes only)
 - [x] T21 chisel PASS (leader check fixed: hex li, x0)
 - [>] T22 chisel ELF: LLD fixture + brief + leader check, dispatched (hydrogen)
+- [x] D1 docs/CINNABAR.md (Python reference, vectors, stats; check validated on a model)
+- [>] T14 onyx Cinnabar: dispatched (hydrogen)
+- [ ] D2 docs/TREMOR.md, D3 docs/VARVE.md (unblock T34, T39 once Argon allows)
 - [ ] T13 riscv-tests (download approved): fetch, build as quartz data
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
@@ -84,7 +87,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T13a | P1 | quartz | A and C extensions, LLVM as oracle (split from T13) | hydrogen-high | T12 | PASS |
 | T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
-| T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
+| T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | RUNNING |
 | T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | PASS |
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | PASS |
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | RUNNING |
@@ -205,3 +208,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 06:39 T47 dispatched (hydrogen): brief + leader check registry_leader.rs committed.
 - 2026-11-15 06:48 T47 cairn PASS (hydrogen): format, byte flips, registry codes, install\/lock\/remove, malicious registry, concurrency; fresh seeds, workspace gate. Committed missed reports T13a T21 T33 T46.
 - 2026-11-15 06:48 T22 dispatched (hydrogen): LLD fixture prog.elf (runs to Pass, dirty bss fails), elf_leader.rs linted on a stub.
+- 2026-11-15 06:52 D1 written; T14 dispatched (hydrogen). cinnabar_leader.rs passes on a throwaway Rust model (scratchpad), clippy clean.
