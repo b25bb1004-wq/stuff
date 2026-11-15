@@ -213,7 +213,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T80h | P6 | review | security review aurum, findings proven by tests | hydrogen-high | - | RUNNING |
 | T80i | P6 | review | security review silicon, findings proven by tests | hydrogen-high | - | RUNNING |
 | T80j | P6 | review | security review hades, findings proven by tests | hydrogen-high | - | RUNNING |
-| T80k | P6 | review | security review sphinx + medusa, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80k | P6 | review | security review sphinx + medusa, findings proven by tests | hydrogen-high | - | PASS |
 | T80l | P6 | review | security review logos, findings proven by tests | hydrogen-high | - | RUNNING |
 | T80m | P6 | review | security review helios, findings proven by tests | hydrogen-high | - | RUNNING |
 | T81i | P6 | docs | README + demo elysium logos | haiku | - | PASS |
@@ -349,3 +349,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-15 18:52 | T80c | hydrogen-high | - | PASS | findings fail on HEAD src, fixed; gate CHECK PASS workspace
 - 2026-11-15 18:52 | T80e | hydrogen-high | - | PASS | findings fail on HEAD src, fixed; gate CHECK PASS workspace
 - 2026-11-15 | T80g | agy hydrogen-high | - | PASS | elysium: no findings, 10 attack tests
+- 2026-11-15 | T80k | agy hydrogen-high | - | PASS | sphinx: ed25519 accepted small-order public keys (forgery); fixed, proven

@@ -52,7 +52,7 @@ pub fn sign(seed: &[u8; 32], message: &[u8]) -> [u8; 64] {
 }
 
 /// Verify a signature: checks [S]B = R + [k]A by comparing encodings. Rejects S >= L,
-/// points that do not decode, and non-canonical y encodings. Public data only.
+/// points that do not decode, non-canonical y encodings, and small-order public keys. Public data only.
 pub fn verify(public: &[u8; 32], message: &[u8], signature: &[u8; 64]) -> Result<(), Error> {
     let mut r_enc = [0u8; 32];
     r_enc.copy_from_slice(&signature[..32]);
@@ -62,6 +62,9 @@ pub fn verify(public: &[u8; 32], message: &[u8], signature: &[u8; 64]) -> Result
         return Err(Error::BadSignature);
     }
     let a_point = edwards::decode(public).ok_or(Error::BadSignature)?;
+    if a_point.is_small_order() {
+        return Err(Error::BadSignature);
+    }
     let r_point = edwards::decode(&r_enc).ok_or(Error::BadSignature)?;
     let k = challenge(&r_enc, public, message);
     let d2 = edwards::curve_d2();

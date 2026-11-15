@@ -119,6 +119,12 @@ impl Point {
         out[31] |= x.is_odd() << 7;
         out
     }
+
+    /// True when `[8]self` is the identity point (the 8-torsion subgroup).
+    pub(crate) fn is_small_order(&self) -> bool {
+        let p8 = self.double().double().double();
+        p8.x.is_zero() && p8.y.eq(&p8.z)
+    }
 }
 
 /// Decode a point (RFC 8032 section 5.1.3). Public data only, so branches are allowed.
