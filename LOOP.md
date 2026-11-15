@@ -421,3 +421,13 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T80f bounds, odyssey | haiku | 314k | PASS | all T80 highs fixed except athena/src/wasm.rs:30 raw (ptr,len) copy (same fix as neon guest_alloc.rs)
 - 2026-11-16 | T89b, docs scrub, T74b core, T92 snapshots | haiku | 600k | PASS | T74b UI not started (next: T74c workbench UI + athena pointer fix)
 - 2026-11-16 04:00 | STOP | leader | - | NOTE | usage limit hit. Stopped mid-task: T76 site a11y (crates/site web/apps/tests), T74a3 + T86u (crates/logos, crates/cobalt), Titan video pilot (~/monolith-video/titan). Their partial edits are uncommitted in the tree: regate before keeping. Soak T79: chronos suite failed during the chronos edit; rerun on committed code. Next: T74c, T83 release prep, PLAN-NEXT T95+.
+- 2026-11-16 05:00 | RESUME | leader | - | NOTE | operator: "get the work done fast", "use 50 sub agents"; leader runs 4 to 7 Haiku workers at a time (build CPU and file ownership are the limit)
+- 2026-11-16 | T79 soak | leader | - | PASS | 17 suites; chronos parse_tz non-ASCII panic fixed, indium soak bound raised (9cdc397)
+- 2026-11-16 | T119 + T120 | haiku | 139k | PASS | leader fixed cobalt/titan/zeus/pandora callers (f46e276)
+- 2026-11-16 | T74a3 + T86u | haiku | 192k | PASS | (16a2cfa)
+- 2026-11-16 | T74c | haiku | 255k | PASS | leader updated 2 tests for new stepping; Chrome: breakpoint, F5, F10, vars, highlight; for-loop var not shown (e417317)
+- 2026-11-16 | T76 | haiku | 213k | PASS | (58d070e)
+- 2026-11-16 | T95 | haiku | 155k | PASS | (1ac5c81)
+- 2026-11-16 | T80 low | haiku | 135k | PASS | worker overwrote reports/T80g.md and leader then T80h.md: both restored, new report reports/T80-low.md; leader moved aurum keygen to entropy (80fb512)
+- 2026-11-16 | READMEs athena, bench; CHANGELOG | haiku + leader | 100k | PASS | (0af3826)
+- 2026-11-16 | dispatched T96, T97, T99, T101 | haiku | - | RUNNING |
