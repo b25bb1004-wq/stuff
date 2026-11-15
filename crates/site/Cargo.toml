@@ -5,7 +5,23 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
+neon = { path = "../neon" }
+iridium = { path = "../iridium" }
+hades = { path = "../hades" }
+chisel = { path = "../chisel" }
+silicon = { path = "../silicon" }
+lithium = { path = "../lithium" }
+sphinx = { path = "../sphinx" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+athena = { path = "../athena" }
+
+[dev-dependencies]
+assay = { path = "../assay" }
 
 [lints]
 workspace = true

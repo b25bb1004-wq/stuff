@@ -244,6 +244,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "site"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "athena",
+ "chisel",
+ "hades",
+ "iridium",
+ "lithium",
+ "neon",
+ "silicon",
+ "sphinx",
+]
+
+[[package]]
 name = "sphinx"
 version = "0.1.0"
 dependencies = [
