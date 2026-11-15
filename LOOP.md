@@ -431,3 +431,9 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T80 low | haiku | 135k | PASS | worker overwrote reports/T80g.md and leader then T80h.md: both restored, new report reports/T80-low.md; leader moved aurum keygen to entropy (80fb512)
 - 2026-11-16 | READMEs athena, bench; CHANGELOG | haiku + leader | 100k | PASS | (0af3826)
 - 2026-11-16 | dispatched T96, T97, T99, T101 | haiku | - | RUNNING |
+- 2026-11-16 | T101 | haiku | 180k | PASS | Chrome: wasm, debugger, Titan terminal, one athena- cache (b83c66c)
+- 2026-11-16 | T99 | haiku | 197k | PASS | Chrome: Titan boot and echo, logos, chronos, iris (8c27ec6)
+- 2026-11-16 | T96 | haiku | 359k (1 retry) | PASS | retry: generated motion files checked in with golden test, 4.8 lint rules; leader removed Athena duplicate tokens and fixed its token test; Chrome self-test 10/10 (d073717)
+- 2026-11-16 | T100 | haiku | 131k | PASS | Chrome REVIEW B1 (Athena keeps other caches) and B2 (site.wasm only in core cache); old core caches now kept, about 3 MB per release (9d1c0e5)
+- 2026-11-16 | T97 | haiku | 190k | PASS | property test: seek then replay equals the straight run (f6d16cc)
+- 2026-11-16 | dispatched T98, T102, T103 | haiku | - | RUNNING |
