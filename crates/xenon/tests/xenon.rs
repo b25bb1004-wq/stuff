@@ -246,6 +246,7 @@ fn wrong_server_key_resends_6_initials_then_times_out() {
 fn server_drops_short_low_order_and_half_open_cap_and_resends_repeat() {
     let cfg = Config {
         max_half_open: 2,
+        max_connections: 256,
         ..Config::default()
     };
     let mut server = Server::new([3; 32], [4; 32], cfg);
@@ -293,6 +294,33 @@ fn server_drops_short_low_order_and_half_open_cap_and_resends_repeat() {
     assert!(server.cids().is_empty());
 
     // Now c3 is accepted
+    assert_eq!(server.handle(&i3, exp), Some(c3.cid()));
+}
+
+#[test]
+fn total_connection_cap_refuses_new_initials_until_expiry() {
+    let cfg = Config {
+        max_connections: 2,
+        ..Config::default()
+    };
+    let mut server = Server::new([3; 32], [4; 32], cfg);
+    let pubk = server.public_key();
+
+    let mut c1 = Connection::connect(pubk, [10; 32], cfg, 0);
+    let mut c2 = Connection::connect(pubk, [11; 32], cfg, 0);
+    let mut c3 = Connection::connect(pubk, [12; 32], cfg, 0);
+    let i1 = c1.poll_transmit(0).unwrap();
+    let i2 = c2.poll_transmit(0).unwrap();
+    let i3 = c3.poll_transmit(0).unwrap();
+    assert_eq!(server.handle(&i1, 0), Some(c1.cid()));
+    assert_eq!(server.handle(&i2, 0), Some(c2.cid()));
+
+    // Over the total cap: refused even though half-open count is well under max_half_open
+    assert_eq!(server.handle(&i3, 0), None);
+
+    // Once the held connections expire, the slot frees up
+    let exp = server.timeout().unwrap();
+    server.on_timeout(exp);
     assert_eq!(server.handle(&i3, exp), Some(c3.cid()));
 }
 

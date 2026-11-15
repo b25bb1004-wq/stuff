@@ -125,6 +125,7 @@ fn leader_handshake_known_answer() {
         conn_window: 300,
         idle_timeout_ms: 1234,
         max_half_open: 3,
+        max_connections: 256,
     };
     for (cc, sc) in [
         (Config::default(), Config::default()),
@@ -237,6 +238,7 @@ fn leader_wrong_key_short_initial_and_resends() {
         [0x34; 32],
         Config {
             max_half_open: 2,
+            max_connections: 256,
             ..Config::default()
         },
     );

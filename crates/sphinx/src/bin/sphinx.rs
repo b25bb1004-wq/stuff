@@ -6,10 +6,8 @@ use sphinx::ed25519;
 use sphinx::hmac::hmac_sha256;
 use sphinx::sha256::Sha256;
 use sphinx::sha512::Sha512;
-use std::collections::hash_map::RandomState;
 use std::env;
 use std::fs::{self, File, OpenOptions};
-use std::hash::{BuildHasher, Hasher};
 use std::io::{self, Read, Write};
 use std::process::ExitCode;
 
@@ -121,19 +119,8 @@ fn write_output(out_path: Option<&str>, data: &[u8]) -> Result<(), CliError> {
     }
 }
 
-fn fill_random(buf: &mut [u8]) {
-    if let Ok(mut f) = File::open("/dev/urandom") {
-        if f.read_exact(buf).is_ok() {
-            return;
-        }
-    }
-    for (i, chunk) in buf.chunks_mut(8).enumerate() {
-        let mut h = RandomState::new().build_hasher();
-        h.write_usize(i);
-        let bytes = h.finish().to_le_bytes();
-        let n = chunk.len();
-        chunk.copy_from_slice(&bytes[..n]);
-    }
+fn fill_random(buf: &mut [u8]) -> Result<(), CliError> {
+    entropy::fill(buf).map_err(|e| CliError::Op(e.to_string()))
 }
 
 fn write_secret_key32(path: &str, key: &[u8; 32]) -> Result<(), CliError> {
@@ -243,7 +230,7 @@ fn cmd_keygen(args: &[String]) -> Result<(), CliError> {
         )));
     }
     let mut seed = [0u8; 32];
-    fill_random(&mut seed);
+    fill_random(&mut seed)?;
     if path == "-" {
         io::stdout()
             .write_all(&seed)
@@ -307,7 +294,7 @@ fn cmd_seal(args: &[String]) -> Result<(), CliError> {
     let key = read_key32(key_path)?;
     let plaintext = read_input(in_path)?;
     let mut nonce = [0u8; 12];
-    fill_random(&mut nonce);
+    fill_random(&mut nonce)?;
     let body = aead::seal(&key, &nonce, b"", &plaintext);
     let mut out = Vec::with_capacity(nonce.len() + body.len());
     out.extend_from_slice(&nonce);

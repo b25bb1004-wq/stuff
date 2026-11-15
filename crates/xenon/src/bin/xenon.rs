@@ -1,14 +1,13 @@
 //! CLI wrapper for Xenon UDP echo and file transfer.
 #![forbid(unsafe_code)]
 
-use sphinx::sha256::Sha256;
 use sphinx::x25519;
 use std::env;
 use std::fmt;
 use std::fs::File;
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::atomic::AtomicBool;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 use xenon::{echo, echo_server, recv_file, send_file, Config, Lossy};
 
 const VERSION: &str = "xenon 0.1.0";
@@ -125,7 +124,7 @@ fn run() -> Result<(), CliError> {
             if args.len() != 2 {
                 return Err(CliError::usage("usage: xenon keygen"));
             }
-            let secret = make_seed(b"keygen");
+            let secret = make_seed()?;
             let pubkey = x25519::public_key(&secret);
             println!("secret: {}", to_hex(&secret));
             println!("public: {}", to_hex(&pubkey));
@@ -143,7 +142,7 @@ fn run() -> Result<(), CliError> {
             echo_server(
                 socket,
                 secret,
-                make_seed(b"echo-server"),
+                make_seed()?,
                 Config::default(),
                 Lossy::default(),
                 &stop,
@@ -165,7 +164,7 @@ fn run() -> Result<(), CliError> {
                 socket,
                 addr,
                 pubkey,
-                make_seed(b"echo"),
+                make_seed()?,
                 Config::default(),
                 Lossy::default(),
                 text.as_bytes(),
@@ -192,7 +191,7 @@ fn run() -> Result<(), CliError> {
             let (len, hash) = recv_file(
                 socket,
                 secret,
-                make_seed(b"recv"),
+                make_seed()?,
                 Config::default(),
                 Lossy::default(),
                 &mut out,
@@ -218,7 +217,7 @@ fn run() -> Result<(), CliError> {
                 socket,
                 addr,
                 pubkey,
-                make_seed(b"send"),
+                make_seed()?,
                 Config::default(),
                 Lossy::default(),
                 &mut input,
@@ -263,16 +262,11 @@ fn parse_addr_key(
     Ok((addr, key))
 }
 
-fn make_seed(tag: &[u8]) -> [u8; 32] {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| d.as_nanos());
-    let pid = std::process::id();
-    let mut h = Sha256::new();
-    h.update(tag);
-    h.update(&nanos.to_le_bytes());
-    h.update(&pid.to_le_bytes());
-    h.finalize()
+/// Fresh 32-byte secret from the OS CSPRNG; fails closed when there is none.
+fn make_seed() -> Result<[u8; 32], CliError> {
+    let mut seed = [0u8; 32];
+    entropy::fill(&mut seed).map_err(|e| CliError::runtime(e.to_string()))?;
+    Ok(seed)
 }
 
 fn parse_hex32(s: &str) -> Result<[u8; 32], CliError> {

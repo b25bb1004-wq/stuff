@@ -110,7 +110,7 @@ pub fn run_aurum(
     let my_validator_secret = demo_validator_secret(cfg.id);
     let my_validator_addr = ed25519::public_key(&my_validator_secret);
     let my_xenon_secret = demo_xenon_secret(cfg.id);
-    let my_seed = fresh_peer_seed(cfg.id);
+    let my_seed = fresh_peer_seed()?;
 
     let listen_addr = resolve_first(&cfg.listen)?;
     let socket =
@@ -315,16 +315,11 @@ fn demo_xenon_secret(id: u8) -> [u8; 32] {
     sha256::digest(format!("monolith-demo-xenon-{id}").as_bytes())
 }
 
-fn fresh_peer_seed(id: u8) -> [u8; 32] {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let mut buf = Vec::with_capacity(32);
-    buf.extend_from_slice(b"monolith-demo-seed-");
-    buf.push(id);
-    buf.extend_from_slice(&nanos.to_le_bytes());
-    sha256::digest(&buf)
+/// Handshake RNG seed from the OS CSPRNG; fails closed when there is none.
+fn fresh_peer_seed() -> Result<[u8; 32], String> {
+    let mut seed = [0u8; 32];
+    entropy::fill(&mut seed).map_err(|e| format!("peer seed: {e}"))?;
+    Ok(seed)
 }
 
 fn unix_timestamp_secs() -> u64 {

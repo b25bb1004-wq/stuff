@@ -1,0 +1,6 @@
+- sphinx: fill_random now calls entropy::fill (no /dev/urandom or SipHash fallback); an Err exits 1 with `sphinx: <error>`; entropy added to [dependencies]; wasm32-unknown-unknown lib build passes.
+- xenon: make_seed() now takes its bytes from entropy::fill (keygen, echo-server, echo, recv, send), fails closed, and no longer hashes time and pid.
+- xenon: Config.max_connections (default 256) refuses new Initials at the total cap in server.rs; test total_connection_cap_refuses_new_initials_until_expiry in tests/xenon.rs; test Config literals got the field.
+- deploy: fresh_peer_seed() now returns Result and fills from entropy::fill; run_aurum propagates the error with `?`.
+- Gates: tools/check.sh sphinx, xenon and deploy each print CHECK PASS (fmt, clippy -D warnings, tests, zero-dep check).
+- Cargo.lock gained three `entropy` path-dependency lines from the new Cargo.toml entries; nothing committed.

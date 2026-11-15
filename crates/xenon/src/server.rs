@@ -73,6 +73,9 @@ impl Server {
         if half_open >= self.config.max_half_open {
             return None;
         }
+        if self.connections.len() >= self.config.max_connections {
+            return None;
+        }
 
         let opened = crypto::open_initial(&self.secret, &self.public_key, datagram)?;
         let mut e_s = [0u8; 32];

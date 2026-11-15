@@ -379,6 +379,7 @@ fn soak_server(seed: u64, budget: Duration, corpus: &Corpus) -> u64 {
 
     let cfg = Config {
         max_half_open: 8,
+        max_connections: 256,
         ..Config::default()
     };
     let mut server = Server::new(corpus.server_secret, key_from_rng(&mut rng), cfg);

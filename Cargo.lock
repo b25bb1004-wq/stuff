@@ -94,6 +94,7 @@ dependencies = [
  "argo",
  "assay",
  "aurum",
+ "entropy",
  "iridium",
  "mercury",
  "sphinx",
@@ -285,6 +286,7 @@ name = "sphinx"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "entropy",
 ]
 
 [[package]]
@@ -305,6 +307,7 @@ name = "xenon"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "entropy",
  "sphinx",
 ]
 

@@ -199,6 +199,7 @@ fn half_open_flood_bounded_and_expires_cleanly() {
     let (secret, s_seed, _) = test_keys();
     let cfg = Config {
         max_half_open: 16,
+        max_connections: 256,
         ..Config::default()
     };
     let mut server = Server::new(secret, s_seed, cfg);
@@ -241,6 +242,7 @@ fn hostile_extreme_peer_config_params_do_not_panic_or_allocate() {
         conn_window: u64::MAX,
         idle_timeout_ms: u64::MAX,
         max_half_open: usize::MAX,
+        max_connections: 256,
     };
     let (mut client, cid) = complete_handshake(&mut server, c_seed, hostile_cfg, 0);
 
@@ -264,6 +266,7 @@ fn large_payload_respects_stream_and_conn_flow_control() {
         conn_window: 1536,
         idle_timeout_ms: 30_000,
         max_half_open: 16,
+        max_connections: 256,
     };
     let mut server = Server::new(secret, s_seed, cfg);
     let (mut client, cid) = complete_handshake(&mut server, c_seed, cfg, 0);

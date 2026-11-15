@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 argo = { path = "../argo" }
+entropy = { path = "../entropy" }
 aurum = { path = "../aurum" }
 iridium = { path = "../iridium" }
 mercury = { path = "../mercury" }

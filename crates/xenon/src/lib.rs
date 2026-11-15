@@ -76,6 +76,8 @@ pub struct Config {
     pub idle_timeout_ms: u64,
     /// Maximum concurrent half-open connections on a server.
     pub max_half_open: usize,
+    /// Maximum total connections (half-open or live) a server holds; new Initials beyond it are refused.
+    pub max_connections: usize,
 }
 
 impl Default for Config {
@@ -86,6 +88,7 @@ impl Default for Config {
             conn_window: 1_048_576,
             idle_timeout_ms: 30_000,
             max_half_open: 256,
+            max_connections: 256,
         }
     }
 }
