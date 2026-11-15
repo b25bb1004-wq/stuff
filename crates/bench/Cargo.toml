@@ -6,6 +6,14 @@ license = "MIT"
 publish = false
 
 [dependencies]
+aurum = { path = "../aurum" }
+iridium = { path = "../iridium" }
+mercury = { path = "../mercury" }
+sphinx = { path = "../sphinx" }
+xenon = { path = "../xenon" }
+
+[dev-dependencies]
+assay = { path = "../assay" }
 
 [lints]
 workspace = true

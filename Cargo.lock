@@ -28,6 +28,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bench"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "aurum",
+ "iridium",
+ "mercury",
+ "sphinx",
+ "xenon",
+]
+
+[[package]]
 name = "calliope"
 version = "0.1.0"
 dependencies = [

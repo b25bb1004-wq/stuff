@@ -168,7 +168,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | claude | T71 | TODO |
 | T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen | T42 T50 T47 | TODO |
-| T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen-high | (T77 dropped: loopback only) | RUNNING |
+| T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen-high | (T77 dropped: loopback only) | PASS |
 | T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
 | T79a | P6 | fuzz | soak mercury | hydrogen | - | PASS |
 | T79b | P6 | fuzz | soak one crate per lane run: chisel elysium chronos argo krypton hades xenon logos pigment silicon | hydrogen | - | TODO |
@@ -367,3 +367,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T28 | agy hydrogen-high | - | PASS | titan userland: Rust multicall ELF (sh on krypton, ls cat echo mkdir rm ps), argv, redirects, append; leader raw-byte fuzz
 - 2026-11-16 | T32 zeus | hydrogen-high (design by leader) | n/a | PASS | 14 tests + leader GPA scan (4063 faults exact); lithium interleave differs by quantum, accepted
 - 2026-11-16 | T71 neon | hydrogen-high | n/a | PASS | wasm Silicon+Titan page and Logos playground; leader Chrome check: session equals native transcript, 360 px ok
+- 2026-11-16 | T78 bench | hydrogen-high | n/a | PASS | 15 self-checking benches; full run twice within 8%; broken check exits 1; docs/BENCH.md by leader
