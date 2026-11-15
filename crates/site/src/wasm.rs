@@ -31,6 +31,12 @@ fn copy_slice_from_guest<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8]> {
     Some(unsafe { core::slice::from_raw_parts(ptr, len) })
 }
 
+/// The ABI number of these exports (see `SITE_ABI`).
+#[no_mangle]
+pub extern "C" fn site_abi() -> u32 {
+    crate::SITE_ABI
+}
+
 /// Return a pointer to the last output or error buffer produced by `site`.
 #[no_mangle]
 pub extern "C" fn site_last_ptr() -> *const u8 {

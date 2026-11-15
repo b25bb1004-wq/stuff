@@ -134,10 +134,44 @@
     };
   }
 
+  // Reload once when this kit and the wasm disagree on the ABI (a stale cache served one of them).
+  // The sessionStorage guard stops a reload loop; without storage we never reload.
+  function checkAbi(api) {
+    const guard = "monolith.abi-reloaded";
+    fetch("../_kit/abi.json")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((info) => {
+        if (!info || typeof api.exports.site_abi !== "function") {
+          return;
+        }
+        if (info.abi === api.exports.site_abi()) {
+          try {
+            window.sessionStorage.removeItem(guard);
+          } catch (_err) {
+            // Storage is optional here.
+          }
+          return;
+        }
+        try {
+          if (window.sessionStorage.getItem(guard)) {
+            return;
+          }
+          window.sessionStorage.setItem(guard, "1");
+        } catch (_err) {
+          return;
+        }
+        window.location.reload();
+      })
+      .catch(() => {});
+  }
+
   function loadWasmOnce() {
     if (!wasmPromise) {
       wasmPromise = window.Neon.load("../site.wasm")
-        .then((api) => wrapWasm(api))
+        .then((api) => {
+          checkAbi(api);
+          return wrapWasm(api);
+        })
         .catch((err) => {
           wasmPromise = null;
           throw err;

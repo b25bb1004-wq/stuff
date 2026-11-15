@@ -264,6 +264,17 @@ fn pack_produces_all_installable_apps_and_launcher() {
         assert!(std::fs::metadata(&p).unwrap().len() > 0);
     }
 
+    let abi_text = std::fs::read_to_string(tmp.join("_kit/abi.json")).unwrap();
+    assert!(
+        abi_text.contains(&format!("\"abi\": {}", site::SITE_ABI)),
+        "_kit/abi.json must carry SITE_ABI: {abi_text}"
+    );
+    let wasm = std::fs::read(tmp.join("site.wasm")).unwrap();
+    assert!(
+        wasm.windows(b"site_abi".len()).any(|w| w == b"site_abi"),
+        "site.wasm must export site_abi"
+    );
+
     let expected_apps: [(&str, &str); 23] = [
         ("titan", "Titan"),
         ("iridium", "Iridium"),
@@ -349,7 +360,10 @@ fn pack_produces_all_installable_apps_and_launcher() {
             "{id}/sw.js must not search every cache on the origin"
         );
         assert!(sw_text.contains("key.startsWith(CACHE_PREFIX)"));
-        assert!(sw_text.contains("key.startsWith(\"monolith-core-\")"));
+        assert!(
+            !sw_text.contains("startsWith(\"monolith-core-\")"),
+            "{id}/sw.js must not delete old core caches (other apps' old workers may read them)"
+        );
         assert!(
             !sw_text.contains("athena"),
             "{id}/sw.js must not touch athena caches"
@@ -358,6 +372,12 @@ fn pack_produces_all_installable_apps_and_launcher() {
         let core_assets = extract_sw_assets(&sw_text, "const CORE_ASSETS = ");
         assert!(core_assets.contains(&String::from("../site.wasm")));
         assert!(core_assets.contains(&String::from("../titan.elf")));
+        assert!(core_assets.contains(&String::from("../_kit/abi.json")));
+        assert_eq!(
+            sw_text.matches("site.wasm").count(),
+            1,
+            "{id}/sw.js must list site.wasm exactly once"
+        );
         let assets = extract_sw_assets(&sw_text, "const ASSETS = ");
         assert!(!assets.is_empty());
         for asset in core_assets.iter().chain(assets.iter()) {

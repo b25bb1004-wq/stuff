@@ -217,6 +217,9 @@ fn pack_kit_and_launcher(apps_src: &Path, out: &Path) -> Result<(), String> {
     for (name, text) in webkit::FILES {
         write_checked(&kit_out.join(name), text.as_bytes())?;
     }
+    // The kit compares this with the wasm's `site_abi()` (see `kit.js`).
+    let abi = format!("{{\"abi\": {}}}\n", crate::SITE_ABI);
+    write_checked(&kit_out.join("abi.json"), abi.as_bytes())?;
 
     let launcher_out = out.join("apps");
     let icons_out = launcher_out.join("icons");
@@ -243,6 +246,11 @@ fn pack_apps(apps_src: &Path, out: &Path) -> Result<(), String> {
 
         copy_checked(&app_src.join("index.html"), &app_out.join("index.html"))?;
         copy_checked(&app_src.join("app.js"), &app_out.join("app.js"))?;
+        for name in OPTIONAL_APP_ASSETS {
+            if app_src.join(name).is_file() {
+                copy_checked(&app_src.join(name), &app_out.join(name))?;
+            }
+        }
 
         write_checked(
             &app_out.join("icon-192.png"),
@@ -318,6 +326,7 @@ fn core_assets() -> Vec<String> {
             .iter()
             .map(|(name, _)| format!("../_kit/{name}")),
     );
+    list.push("../_kit/abi.json".to_owned());
     list
 }
 
@@ -330,6 +339,9 @@ const APP_ASSETS: [&str; 6] = [
     "icon-512.png",
     "icon-maskable-512.png",
 ];
+
+/// Extra per-app files, cached only where the app has them.
+const OPTIONAL_APP_ASSETS: [&str; 2] = ["app.css", "sig.js"];
 
 fn hash_files<S: AsRef<str>>(app_out: &Path, rels: &[S]) -> Result<String, String> {
     let mut hash_buf = Vec::new();
@@ -395,12 +407,8 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter(
-              (key) =>
-                (key.startsWith(CACHE_PREFIX) || key.startsWith("monolith-core-")) &&
-                key !== CACHE_NAME &&
-                key !== CORE_CACHE
-            )
+            // Only this app's old caches. Old core caches stay: another app's old worker may still read them.
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
             .map((key) => caches.delete(key))
         )
       )
@@ -438,13 +446,19 @@ fn build_service_worker(app: &AppSpec, app_out: &Path) -> Result<String, String>
     let core = core_assets();
     let core_cache = format!("monolith-core-{}", hash_files(app_out, core.as_slice())?);
     let cache_prefix = format!("monolith-{}-", app.id);
-    let cache_name = format!("{cache_prefix}{}", hash_files(app_out, &APP_ASSETS)?);
+    let mut own: Vec<&str> = APP_ASSETS.to_vec();
+    own.extend(
+        OPTIONAL_APP_ASSETS
+            .into_iter()
+            .filter(|name| app_out.join(name).is_file()),
+    );
+    let cache_name = format!("{cache_prefix}{}", hash_files(app_out, &own)?);
     Ok(SW_TEMPLATE
         .replace("__CORE_CACHE__", &core_cache)
         .replace("__CACHE_PREFIX__", &cache_prefix)
         .replace("__CACHE_NAME__", &cache_name)
         .replace("__CORE_ASSETS__", &js_string_array(core.as_slice()))
-        .replace("__ASSETS__", &js_string_array(&APP_ASSETS)))
+        .replace("__ASSETS__", &js_string_array(&own)))
 }
 
 fn copy_checked(src: &Path, dst: &Path) -> Result<(), String> {
