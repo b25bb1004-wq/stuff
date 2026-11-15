@@ -24,3 +24,6 @@
 10. Finish by writing `reports/<id>.md`, at most 10 lines: what was built, the last line of the
     gate output, the number of tests, anything missing or uncertain. Your final message is that
     same report and nothing else.
+
+## Team runs
+If `comms/ROSTER.md` exists and lists your ID, follow its protocol: read the other outboxes at each milestone and post to `comms/<your ID>.md`.

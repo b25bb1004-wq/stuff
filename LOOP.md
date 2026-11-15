@@ -1,9 +1,9 @@
-# Strata loop board (the single source of truth; re-read this, not the chat)
+# Monolith loop board (the single source of truth; re-read this, not the chat)
 
 ## State
 - LEADER: Claude Opus since 2026-11-14 16:15
 - heartbeat: 2026-11-15 17:37
-- phase: P2-P6. Running T25 mantle (argon-high), T63 facet (hydrogen-high), T81e-h (hydrogen), T30 (haiku). CI live (T82). Argon released down to 5% (operator, 2026-11-15; was 29%): argon-high tasks may run; no tool shows usage, so the leader asks the operator for the % after each Argon run and stops at 5%.
+- phase: P2-P6. Running T25 titan (argon-high), T63 iris (hydrogen-high), T81e-h (hydrogen), T30 (haiku). CI live (T82). Argon released down to 5% (operator, 2026-11-15; was 29%): argon-high tasks may run; no tool shows usage, so the leader asks the operator for the % after each Argon run and stops at 5%.
 - stop reason: none
 - Next for the leader: see "Claude board" below (the strata-board mod shows it in a "Claude" pane, command `/strata-claude`).
 - Stand-in or second judge: Gemini Orchestrator through agy (command in docs/PLAN.md section 9).
@@ -13,30 +13,30 @@
 - [x] T33 judge + bench fixes, commit 049e3f8
 - [x] T21 corpus (LLVM, validated), brief, leader check
 - [x] T82 CI workflow, green on ubuntu-latest
-- [x] T47 cairn registry PASS (leader check: clippy fixes only)
+- [x] T47 argo registry PASS (leader check: clippy fixes only)
 - [x] T21 chisel PASS (leader check fixed: hex li, x0)
 - [x] T22 chisel ELF PASS (first try)
-- [x] D1 docs/CINNABAR.md (Python reference, vectors, stats; check validated on a model)
-- [x] T14 onyx Cinnabar PASS (first try)
-- [x] D2 docs/TREMOR.md, D3 docs/VARVE.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
-- [x] T39 varve pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
-- [x] T34 tremor PASS on retry 1 (ACK/PTO fix); drillcore racing-pushers check fixed (reachability, not first-parent)
-- [x] T55 slate app: brief + app_leader.rs (edit/motion tables, screens, scroll, files, Mica highlight, fuzz undo-all), dispatched (hydrogen)
-- [x] T48 seam: exact brief (encodings, RFC 6962 Merkle, state root, append order) written; dispatched to one Haiku subagent (operator 2026-11-15); seam_leader.rs ready (lint vs stub, RFC 6962 model self-check OK)
-- [x] T13 quartz PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
-- [x] docs/MANTLE.md v1 written by the leader (operator: Fable rewrite dropped); T25 dispatched to argon-high
-- [x] drillcore concurrent push flake fixed (Barrier), in b27f121
-- [x] T31 quartz H extension: brief + hyp_leader.rs (own two-stage model, coverage 22% ok / 46% pf / 31% gpf), dispatched (argon-high)
-- [x] T40 varve B+tree: brief + tree_leader.rs (own page parser), dispatched (hydrogen-high)
+- [x] D1 docs/MEDUSA.md (Python reference, vectors, stats; check validated on a model)
+- [x] T14 sphinx Medusa PASS (first try)
+- [x] D2 docs/XENON.md, D3 docs/IRIDIUM.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
+- [x] T39 iridium pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
+- [x] T34 xenon PASS on retry 1 (ACK/PTO fix); chronos racing-pushers check fixed (reachability, not first-parent)
+- [x] T55 calliope app: brief + app_leader.rs (edit/motion tables, screens, scroll, files, Logos highlight, fuzz undo-all), dispatched (hydrogen)
+- [x] T48 aurum: exact brief (encodings, RFC 6962 Merkle, state root, append order) written; dispatched to one Haiku subagent (operator 2026-11-15); seam_leader.rs ready (lint vs stub, RFC 6962 model self-check OK)
+- [x] T13 silicon PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
+- [x] docs/TITAN.md v1 written by the leader (operator: Fable rewrite dropped); T25 dispatched to argon-high
+- [x] chronos concurrent push flake fixed (Barrier), in b27f121
+- [x] T31 silicon H extension: brief + hyp_leader.rs (own two-stage model, coverage 22% ok / 46% pf / 31% gpf), dispatched (argon-high)
+- [x] T40 iridium B+tree: brief + tree_leader.rs (own page parser), dispatched (hydrogen-high)
 - [x] T29a, T79c-g, T81a-d committed and pushed
-- [>] T50b seam net: leader fix (redial stalled links) done, workspace gate running, then commit
-- [>] Judge Haiku soaks: T79m onyx, T79n varve (SQL depth fix), T79o spelunk (3 fixes), T79p slate, T79q tectonic, T79r quarry
+- [>] T50b aurum net: leader fix (redial stalled links) done, workspace gate running, then commit
+- [>] Judge Haiku soaks: T79m sphinx, T79n iridium (SQL depth fix), T79o odyssey (3 fixes), T79p calliope, T79q helios, T79r midas
 - [>] Judge hydrogen soaks T79h-l (fresh-seed long runs done), commit
-- [ ] Judge T30 sinter optimiser (Haiku running); write opt_leader.rs
+- [ ] Judge T30 cobalt optimiser (Haiku running); write opt_leader.rs
 - [x] T81e-h READMEs: output pasted, committed
-- [ ] Judge T63 facet compositor (hydrogen-high running); write facet_leader.rs
-- [ ] Judge T25 mantle (Argon running); write mantle_leader.rs; ask operator for Argon %
-- [ ] Backlog: glint spring stall at low stiffness; tectonic tone() huge alloc and unbounded script log
+- [ ] Judge T63 iris compositor (hydrogen-high running); write facet_leader.rs
+- [ ] Judge T25 titan (Argon running); write mantle_leader.rs; ask operator for Argon %
+- [ ] Backlog: indium spring stall at low stiffness; helios tone() huge alloc and unbounded script log
 - [ ] Vault note + skills for this round
 
 ## Goal
@@ -51,9 +51,9 @@ top to bottom, and deployable.
 4. Published test vectors or an independent implementation confirm: crypto, CPU (official
    RISC-V tests), file system (crash injection), database (crash injection), net (loss,
    reorder, duplicate simulation).
-5. Strata OS boots to a shell in the emulator, natively and in the browser.
+5. Monolith OS boots to a shell in the emulator, natively and in the browser.
 6. The hypervisor runs two guest kernels at once.
-7. A Mica program compiles to RV64, runs in Strata OS, and gives the same output on the VM.
+7. A Logos program compiles to RV64, runs in Monolith OS, and gives the same output on the VM.
 8. Services have a container image, graceful shutdown and a measured load test.
 9. The web front (site + IDE) passes desktop, mobile and reduced-motion checks.
 10. No secret, key or personal data in the repository; pushes go only to the private repo `b25bb1004-wq/stuff`.
@@ -83,143 +83,151 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | id | phase | crate | what | worker | needs | status |
 |---|---|---|---|---|---|---|
 | T00 | P0 | assay, tools | workspace, gate, test kit, loop files | leader | | PASS |
-| T01 | P1 | onyx | SHA-2, HMAC, HKDF, ChaCha20-Poly1305 | haiku | | PASS |
-| T02 | P1 | quarry | buddy + slab allocator, GlobalAlloc | haiku | | PASS |
-| T03 | P1 | quartz | RV64IM decode, encode, execute | haiku | | PASS |
-| T06 | P1 | shale | block layer, on-disk format, mkfs, read/write path | haiku | | PASS |
-| T08 | P1 | mica | language design `docs/MICA.md` + bytecode `docs/MBC.md` | leader | | PASS |
-| T11 | P1 | geode | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | PASS |
-| T05 | P1 | geyser | fair scheduler core + simulator | hydrogen |  | PASS |
-| T09 | P1 | mica | finish parser, printer, corpus, fuzz (files exist: read them first) | hydrogen | T08 | PASS |
-| T04 | P1 | onyx | X25519, Ed25519 (brief written) | haiku | T01 | PASS |
-| T17 | P1 | geode | interpreter, heap, mark-sweep GC, fuel, `Host` trait | argon | T11 | PASS |
-| T10 | P1 | mica | type checker, layer checker, IR | argon-high | T09 | PASS |
-| T19 | P1 | mica | reference interpreter for the typed IR (oracle for T18, T29, T30) | hydrogen | T10 | PASS |
-| T18 | P1 | sinter | Mica IR to Geode bytecode; `mica run`, `mica test` commands | argon | T10 T17 T19 | PASS |
-| T07 | P1 | shale | journal, fsck, crash injection at every write | haiku | T06 | PASS |
-| T12 | P1 | quartz | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
-| T13 | P1 | quartz | official riscv-tests as data (needs download: operator) | hydrogen | T13a | PASS |
-| T13a | P1 | quartz | A and C extensions, LLVM as oracle (split from T13) | hydrogen-high | T12 | PASS |
-| T16 | P1 | quarry | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
-| T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
-| T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | PASS |
-| T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | PASS |
+| T01 | P1 | sphinx | SHA-2, HMAC, HKDF, ChaCha20-Poly1305 | haiku | | PASS |
+| T02 | P1 | midas | buddy + slab allocator, GlobalAlloc | haiku | | PASS |
+| T03 | P1 | silicon | RV64IM decode, encode, execute | haiku | | PASS |
+| T06 | P1 | hades | block layer, on-disk format, mkfs, read/write path | haiku | | PASS |
+| T08 | P1 | logos | language design `docs/LOGOS.md` + bytecode `docs/MBC.md` | leader | | PASS |
+| T11 | P1 | elysium | module, verifier, binary encode/decode (`docs/MBC.md`) | haiku | T08 | PASS |
+| T05 | P1 | kairos | fair scheduler core + simulator | hydrogen |  | PASS |
+| T09 | P1 | logos | finish parser, printer, corpus, fuzz (files exist: read them first) | hydrogen | T08 | PASS |
+| T04 | P1 | sphinx | X25519, Ed25519 (brief written) | haiku | T01 | PASS |
+| T17 | P1 | elysium | interpreter, heap, mark-sweep GC, fuel, `Host` trait | argon | T11 | PASS |
+| T10 | P1 | logos | type checker, layer checker, IR | argon-high | T09 | PASS |
+| T19 | P1 | logos | reference interpreter for the typed IR (oracle for T18, T29, T30) | hydrogen | T10 | PASS |
+| T18 | P1 | cobalt | Logos IR to Elysium bytecode; `logos run`, `logos test` commands | argon | T10 T17 T19 | PASS |
+| T07 | P1 | hades | journal, fsck, crash injection at every write | haiku | T06 | PASS |
+| T12 | P1 | silicon | Zicsr, M/S/U modes, traps, Sv39 paging | haiku | T03 | PASS |
+| T13 | P1 | silicon | official riscv-tests as data (needs download: operator) | hydrogen | T13a | PASS |
+| T13a | P1 | silicon | A and C extensions, LLVM as oracle (split from T13) | hydrogen-high | T12 | PASS |
+| T16 | P1 | midas | const constructor, global allocator, big alignments, `check()` | haiku | T02 | PASS |
+| T15 | P1 | kairos | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
+| T14 | P1 | sphinx | Medusa: own cipher from `docs/MEDUSA.md`, labelled experimental | hydrogen | T01 D1 | PASS |
+| T20 | P1 | sphinx | ChaCha20 random generator, sealed-box helper | haiku | T04 | PASS |
 | T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | PASS |
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | PASS |
-| T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
-| T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | haiku | T22 T23 | PASS |
-| T25 | P2 | mantle | Rust kernel: boot shim, traps, Sv39, heap (quarry), console | argon-high | T23 T16 T13a | PASS |
-| T26 | P2 | mantle | processes, user mode, syscalls, scheduler (geyser), ELF loading | opus-high | T25 T05 | TODO |
-| T27 | P2 | mantle | block driver, shale mounted, file syscalls | argon | T26 T07 | TODO |
-| T28 | P2 | mantle | userland: init, shell (crust), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
-| T29 | P2 | sinter | Mica IR to RV64 code, linear-scan registers, ELF out | opus-high | T10 T22 | PASS |
-| T29a | P2 | sinter | (T29a) integer subset Mica IR to RV64, stack slots, runs on Quartz | hydrogen-high | T10 T22 | PASS |
-| T30 | P2 | sinter | constant folding, dead code, copy propagation | haiku | T29 | PASS |
-| T31 | P2 | quartz | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | PASS |
-| T32 | P2 | bedrock | hypervisor: 2 guests (flint + mantle), virtual console and timer, isolation | opus-high | T31 T24 T26 | TODO |
-| T33 | P2 | quartz | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
-| T34 | P3 | tremor | protocol core from `docs/TREMOR.md`, no I/O inside | hydrogen-high | T04 T20 D2 | PASS |
-| T35 | P3 | tremor | UDP transport, echo and file-transfer tools | hydrogen | T34 | PASS |
-| T36 | P3 | outcrop | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
-| T37 | P3 | outcrop | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
-| T38 | P3 | outcrop | WebSocket, ranges, chunked bodies | hydrogen | T37 | PASS |
-| T39 | P3 | varve | pager, write-ahead log, crash recovery | hydrogen-high | D3 | PASS |
-| T40 | P3 | varve | B+tree with range scans | hydrogen-high | T39 | PASS |
-| T41 | P3 | varve | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | PASS |
-| T41a | P3 | varve | SQL core: parser, catalog, single-table DML and SELECT, indexes maintained, transactions | hydrogen-high | T40 | PASS |
-| T41b | P3 | varve | joins, index use in plans, EXPLAIN | hydrogen-high | T41a | PASS |
-| T42 | P3 | varve | server, client tool, one writer and many readers | hydrogen | T41 T37 | PASS |
-| T43 | P3 | drillcore | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
-| T44 | P3 | drillcore | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
-| T45 | P3 | drillcore | push and pull over HTTP (outcrop) | hydrogen | T44 T37 | PASS |
-| T46 | P3 | cairn | manifest, versions, dependency solver, lock file | hydrogen |  | PASS |
-| T47 | P3 | cairn | registry on outcrop, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | PASS |
-| T48 | P3 | seam | blocks, Merkle tree, signed transactions, state, validation | haiku | T04 | PASS |
-| T49 | P3 | seam | contracts: Mica on Geode, fuel as gas, `chain` layer | hydrogen | T48 T18 | PASS |
-| T50 | P3 | seam | node: gossip over tremor, sync, fork choice | opus-high | T49 T35 | PASS |
-| T50a | P3 | seam | node: block pool, fork choice, reorgs, sync messages, mempool | hydrogen-high | T49 | PASS |
-| T50b | P3 | seam | gossip over tremor: sans-IO peers, stream framing, sync ticks | hydrogen-high | T50a T35 | PASS |
-| T51 | P3 | vug | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | opus-high |  | TODO |
-| T52 | P3 | vug | images as cairn packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
-| T53 | P3 | crust | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
-| T57 | P3 | crust | executor, pipes, redirects, builtins, job control | hydrogen | T53 | PASS |
-| T54 | P3 | slate | buffer (piece table), undo tree, multi-cursor, own regex engine | hydrogen-high |  | PASS |
-| T55 | P3 | slate | terminal interface, key maps, files, Mica highlighting | hydrogen | T54 T09 | PASS |
+| T23 | P2 | silicon | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
+| T24 | P2 | lithium | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | haiku | T22 T23 | PASS |
+| T25 | P2 | titan | Rust kernel: boot shim, traps, Sv39, heap (midas), console | argon-high | T23 T16 T13a | PASS |
+| T26 | P2 | titan | processes, user mode, syscalls, scheduler (kairos), ELF loading | opus-high | T25 T05 | RUNNING |
+| T27 | P2 | titan | block driver, hades mounted, file syscalls | argon | T26 T07 | TODO |
+| T28 | P2 | titan | userland: init, shell (krypton), ls cat echo mkdir rm ps | hydrogen | T27 T57 | TODO |
+| T29 | P2 | cobalt | Logos IR to RV64 code, linear-scan registers, ELF out | opus-high | T10 T22 | PASS |
+| T29a | P2 | cobalt | (T29a) integer subset Logos IR to RV64, stack slots, runs on Silicon | hydrogen-high | T10 T22 | PASS |
+| T30 | P2 | cobalt | constant folding, dead code, copy propagation | haiku | T29 | PASS |
+| T31 | P2 | silicon | hypervisor extension: HS, VS, VU, two-stage paging | argon-high | T13a | PASS |
+| T32 | P2 | zeus | hypervisor: 2 guests (lithium + titan), virtual console and timer, isolation | opus-high | T31 T24 T26 | TODO |
+| T33 | P2 | silicon | speed: decoded-block cache, benchmark | hydrogen | T23 | PASS |
+| T34 | P3 | xenon | protocol core from `docs/XENON.md`, no I/O inside | hydrogen-high | T04 T20 D2 | PASS |
+| T35 | P3 | xenon | UDP transport, echo and file-transfer tools | hydrogen | T34 | PASS |
+| T36 | P3 | mercury | HTTP/1.1 parser and writer, no I/O inside | hydrogen |  | PASS |
+| T37 | P3 | mercury | server: thread pool, keep-alive, static files, routes, limits, graceful stop | hydrogen | T36 T15 | PASS |
+| T38 | P3 | mercury | WebSocket, ranges, chunked bodies | hydrogen | T37 | PASS |
+| T39 | P3 | iridium | pager, write-ahead log, crash recovery | hydrogen-high | D3 | PASS |
+| T40 | P3 | iridium | B+tree with range scans | hydrogen-high | T39 | PASS |
+| T41 | P3 | iridium | SQL: parser, planner, executor, indexes, transactions | argon-high | T40 | PASS |
+| T41a | P3 | iridium | SQL core: parser, catalog, single-table DML and SELECT, indexes maintained, transactions | hydrogen-high | T40 | PASS |
+| T41b | P3 | iridium | joins, index use in plans, EXPLAIN | hydrogen-high | T41a | PASS |
+| T42 | P3 | iridium | server, client tool, one writer and many readers | hydrogen | T41 T37 | PASS |
+| T43 | P3 | chronos | objects, refs, index, commit, log, branch, checkout | hydrogen | T01 | PASS |
+| T44 | P3 | chronos | diff (Myers), 3-way merge, status | hydrogen-high | T43 | PASS |
+| T45 | P3 | chronos | push and pull over HTTP (mercury) | hydrogen | T44 T37 | PASS |
+| T46 | P3 | argo | manifest, versions, dependency solver, lock file | hydrogen |  | PASS |
+| T47 | P3 | argo | registry on mercury, signed packages (Ed25519), install, remove | hydrogen | T46 T04 T37 | PASS |
+| T48 | P3 | aurum | blocks, Merkle tree, signed transactions, state, validation | haiku | T04 | PASS |
+| T49 | P3 | aurum | contracts: Logos on Elysium, fuel as gas, `chain` layer | hydrogen | T48 T18 | PASS |
+| T50 | P3 | aurum | node: gossip over xenon, sync, fork choice | opus-high | T49 T35 | PASS |
+| T50a | P3 | aurum | node: block pool, fork choice, reorgs, sync messages, mempool | hydrogen-high | T49 | PASS |
+| T50b | P3 | aurum | gossip over xenon: sans-IO peers, stream framing, sync ticks | hydrogen-high | T50a T35 | PASS |
+| T51 | P3 | pandora | Linux container runtime: namespaces, cgroups v2, pivot root (runs in WSL) | opus-high |  | TODO |
+| T52 | P3 | pandora | images as argo packages, `run`, `ps`, `kill` | hydrogen | T51 T47 | TODO |
+| T53 | P3 | krypton | shell language: parser, expansion, globbing | hydrogen-high |  | PASS |
+| T57 | P3 | krypton | executor, pipes, redirects, builtins, job control | hydrogen | T53 | PASS |
+| T54 | P3 | calliope | buffer (piece table), undo tree, multi-cursor, own regex engine | hydrogen-high |  | PASS |
+| T55 | P3 | calliope | terminal interface, key maps, files, Logos highlighting | hydrogen | T54 T09 | PASS |
 | T58 | P4 | pigment | framebuffer, lines, rectangles, anti-aliased polygons, blending | haiku |  | PASS |
 | T59 | P4 | pigment | inflate, deflate, PNG read and write | hydrogen-high | T58 | PASS |
 | T60 | P4 | pigment | own bitmap font, text layout, wrapping | hydrogen | T58 | PASS |
-| T61 | P4 | glint | widget tree, flex layout, events, focus, themes | hydrogen | T60 | PASS |
-| T62 | P4 | glint | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | haiku | T61 | PASS |
-| T63 | P4 | facet | compositor: windows, tiling and floating, damage, input, animated moves | hydrogen-high | T62 | PASS |
-| T64 | P4 | facet | client protocol + apps: terminal (crust), editor (slate), files | hydrogen | T63 T57 T55 | TODO |
-| T65 | P4 | spelunk | HTML and CSS parsers | hydrogen |  | PASS |
-| T66 | P4 | spelunk | cascade, block and inline layout, flex subset | opus-high | T65 T60 | TODO |
-| T66b | P4 | spelunk | flex layout subset | haiku | T66a | PASS |
-| T66a | P4 | spelunk | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | PASS |
-| T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
-| T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | PASS |
-| T69 | P4 | tectonic | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
-| T70a | P4 | tectonic | audio mixer, scene stack, input record and replay | hydrogen | T69 | PASS |
-| T70 | P4 | tectonic | (T70b) Mica scripting, one original small game | hydrogen | T70a T18 | PASS |
-| T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Quartz + Mantle on a canvas, Mica playground | argon | T28 T18 | TODO |
-| T72 | P5 | lapidary | IDE shell: editor, file tree, terminal, run, test | claude | T71 T55 | TODO |
-| T73 | P5 | lapidary | language service: errors, hover, go to definition, format | hydrogen | T10 T72 | TODO |
-| T74 | P5 | lapidary | debugger for Geode: breakpoints, step, inspect | hydrogen | T17 T72 | TODO |
-| T75 | P5 | site | the Strata site: 25 systems, each with a live demo, scroll-driven motion | claude | T71 | TODO |
+| T61 | P4 | indium | widget tree, flex layout, events, focus, themes | hydrogen | T60 | PASS |
+| T62 | P4 | indium | widgets (button, field, list, scroll, tabs, menu), spring and ease animation | haiku | T61 | PASS |
+| T63 | P4 | iris | compositor: windows, tiling and floating, damage, input, animated moves | hydrogen-high | T62 | PASS |
+| T64 | P4 | iris | client protocol + apps: terminal (krypton), editor (calliope), files | hydrogen-high | T63 T57 T55 | RUNNING |
+| T65 | P4 | odyssey | HTML and CSS parsers | hydrogen |  | PASS |
+| T66 | P4 | odyssey | cascade, block and inline layout, flex subset | opus-high | T65 T60 | TODO |
+| T66b | P4 | odyssey | flex layout subset | haiku | T66a | PASS |
+| T66a | P4 | odyssey | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | PASS |
+| T67 | P4 | odyssey | paint, fetch over HTTP, page scripts in Logos, browser shell in indium | argon | T66 T62 T18 T37 | TODO |
+| T68 | P4 | helios | entity system, fixed time step, maths | haiku |  | PASS |
+| T69 | P4 | helios | 2D renderer, collisions and impulse physics | hydrogen-high | T68 T58 | PASS |
+| T70a | P4 | helios | audio mixer, scene stack, input record and replay | hydrogen | T69 | PASS |
+| T70 | P4 | helios | (T70b) Logos scripting, one original small game | hydrogen | T70a T18 | PASS |
+| T71 | P5 | web | WebAssembly builds with our own glue (no wasm-bindgen): Silicon + Titan on a canvas, Logos playground | argon | T28 T18 | TODO |
+| T72 | P5 | athena | IDE shell: editor, file tree, terminal, run, test | claude | T71 T55 | TODO |
+| T73 | P5 | athena | language service: errors, hover, go to definition, format | hydrogen | T10 T72 | TODO |
+| T74 | P5 | athena | debugger for Elysium: breakpoints, step, inspect | hydrogen | T17 T72 | TODO |
+| T75 | P5 | site | the Monolith site: 25 systems, each with a live demo, scroll-driven motion | claude | T71 | TODO |
 | T76 | P5 | site | accessibility, performance, cross-browser pass | claude | T75 | TODO |
 | T77 | P6 | deploy | static binaries, container images, compose file, health checks | hydrogen | T42 T50 T47 | TODO |
-| T78 | P6 | bench | load tools and numbers for outcrop, varve, tremor, seam in `docs/BENCH.md` | hydrogen | T77 | TODO |
+| T78 | P6 | bench | load tools and numbers for mercury, iridium, xenon, aurum in `docs/BENCH.md` | hydrogen | T77 | TODO |
 | T79 | P6 | fuzz | one-hour soak of every parser and decoder with new seeds | hydrogen | all | TODO |
-| T79a | P6 | fuzz | soak outcrop | hydrogen | - | PASS |
-| T79b | P6 | fuzz | soak one crate per lane run: chisel geode drillcore cairn crust shale tremor mica pigment quartz | hydrogen | - | TODO |
+| T79a | P6 | fuzz | soak mercury | hydrogen | - | PASS |
+| T79b | P6 | fuzz | soak one crate per lane run: chisel elysium chronos argo krypton hades xenon logos pigment silicon | hydrogen | - | TODO |
 | T79c | P6 | fuzz | soak chisel | hydrogen | - | PASS |
-| T79d | P6 | fuzz | soak geode | hydrogen | - | PASS |
-| T79e | P6 | fuzz | soak drillcore | hydrogen | - | PASS |
-| T79f | P6 | fuzz | soak cairn | hydrogen | - | PASS |
-| T79g | P6 | fuzz | soak crust | hydrogen | - | PASS |
-| T79h | P6 | fuzz | soak shale | hydrogen | - | PASS |
-| T79i | P6 | fuzz | soak tremor | hydrogen | - | PASS |
-| T79j | P6 | fuzz | soak mica | hydrogen | - | PASS |
+| T79d | P6 | fuzz | soak elysium | hydrogen | - | PASS |
+| T79e | P6 | fuzz | soak chronos | hydrogen | - | PASS |
+| T79f | P6 | fuzz | soak argo | hydrogen | - | PASS |
+| T79g | P6 | fuzz | soak krypton | hydrogen | - | PASS |
+| T79h | P6 | fuzz | soak hades | hydrogen | - | PASS |
+| T79i | P6 | fuzz | soak xenon | hydrogen | - | PASS |
+| T79j | P6 | fuzz | soak logos | hydrogen | - | PASS |
 | T79k | P6 | fuzz | soak pigment | hydrogen | - | PASS |
-| T79l | P6 | fuzz | soak quartz | hydrogen | - | PASS |
-| T79m | P6 | fuzz | soak onyx | haiku | - | PASS |
-| T79n | P6 | fuzz | soak varve | haiku | - | PASS |
-| T79o | P6 | fuzz | soak spelunk | haiku | - | PASS |
-| T79p | P6 | fuzz | soak slate | haiku | - | PASS |
-| T79q | P6 | fuzz | soak tectonic | haiku | - | PASS |
-| T79r | P6 | fuzz | soak quarry | haiku | - | PASS |
+| T79l | P6 | fuzz | soak silicon | hydrogen | - | PASS |
+| T79m | P6 | fuzz | soak sphinx | haiku | - | PASS |
+| T79n | P6 | fuzz | soak iridium | haiku | - | PASS |
+| T79o | P6 | fuzz | soak odyssey | haiku | - | PASS |
+| T79p | P6 | fuzz | soak calliope | haiku | - | PASS |
+| T79q | P6 | fuzz | soak helios | haiku | - | PASS |
+| T79r | P6 | fuzz | soak midas | haiku | - | PASS |
 | T80 | P6 | review | security review of every crate, one report each | argon | all | TODO |
 | T81 | P6 | docs | README and runnable example per system, architecture book | flash | all | TODO |
-| T81a | P6 | docs | README + demo: assay outcrop | haiku | - | PASS |
-| T81b | P6 | docs | README + demo: glint flint | haiku | - | PASS |
-| T81c | P6 | docs | README + demo: geyser | haiku | - | PASS |
+| T81a | P6 | docs | README + demo: assay mercury | haiku | - | PASS |
+| T81b | P6 | docs | README + demo: indium lithium | haiku | - | PASS |
+| T81c | P6 | docs | README + demo: kairos | haiku | - | PASS |
 | T81d | P6 | docs | architecture book docs/BOOK.md | haiku | - | PASS |
-| T81e | P6 | docs | README + demo: cairn | hydrogen | - | PASS |
+| T81e | P6 | docs | README + demo: argo | hydrogen | - | PASS |
 | T81f | P6 | docs | README + demo: chisel | hydrogen | - | PASS |
-| T81g | P6 | docs | README + demo: crust | hydrogen | - | PASS |
-| T81h | P6 | docs | README + demo: drillcore | hydrogen | - | PASS |
+| T81g | P6 | docs | README + demo: krypton | hydrogen | - | PASS |
+| T81h | P6 | docs | README + demo: chronos | hydrogen | - | PASS |
 | T82 | P6 | ci | GitHub Actions workflow for the gate | hydrogen |  | PASS |
 | T83 | P6 | release | version tag, change log, demo video | leader | all | TODO |
-| T79s | P6 | fuzz | soak seam | haiku | - | PASS |
-| T79t | P6 | fuzz | soak glint | haiku | - | PASS |
-| T79u | P6 | fuzz | soak geyser | haiku | - | PASS |
-| T80a | P6 | review | security review outcrop, findings proven by tests | hydrogen-high | - | PASS |
-| T80b | P6 | review | security review tremor, findings proven by tests | hydrogen-high | - | PASS |
-| T80c | P6 | review | security review drillcore, findings proven by tests | hydrogen-high | - | PASS |
-| T80d | P6 | review | security review cairn, findings proven by tests | hydrogen-high | - | RUNNING |
-| T80e | P6 | review | security review crust, findings proven by tests | hydrogen-high | - | PASS |
-| T81i | P6 | docs | README + demo geode mica | haiku | - | PASS |
-| T81j | P6 | docs | README + demo onyx pigment | haiku | - | PASS |
-| T81k | P6 | docs | README + demo quarry quartz | haiku | - | PASS |
-| T81l | P6 | docs | README + demo seam shale | haiku | - | PASS |
-| T81m | P6 | docs | README + demo sinter slate | haiku | - | PASS |
-| T81n | P6 | docs | README + demo spelunk tectonic | haiku | - | PASS |
-| T81o | P6 | docs | README + demo varve vug | haiku | - | PASS |
-| T81p | P6 | docs | README + demo facet mantle tremor | haiku | - | PASS |
+| T79s | P6 | fuzz | soak aurum | haiku | - | PASS |
+| T79t | P6 | fuzz | soak indium | haiku | - | PASS |
+| T79u | P6 | fuzz | soak kairos | haiku | - | PASS |
+| T80a | P6 | review | security review mercury, findings proven by tests | hydrogen-high | - | PASS |
+| T80b | P6 | review | security review xenon, findings proven by tests | hydrogen-high | - | PASS |
+| T80c | P6 | review | security review chronos, findings proven by tests | hydrogen-high | - | PASS |
+| T80d | P6 | review | security review argo, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80e | P6 | review | security review krypton, findings proven by tests | hydrogen-high | - | PASS |
+| T80f | P6 | review | security review iridium, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80g | P6 | review | security review elysium, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80h | P6 | review | security review aurum, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80i | P6 | review | security review silicon, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80j | P6 | review | security review hades, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80k | P6 | review | security review sphinx + medusa, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80l | P6 | review | security review logos, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80m | P6 | review | security review helios, findings proven by tests | hydrogen-high | - | RUNNING |
+| T81i | P6 | docs | README + demo elysium logos | haiku | - | PASS |
+| T81j | P6 | docs | README + demo sphinx pigment | haiku | - | PASS |
+| T81k | P6 | docs | README + demo midas silicon | haiku | - | PASS |
+| T81l | P6 | docs | README + demo aurum hades | haiku | - | PASS |
+| T81m | P6 | docs | README + demo cobalt calliope | haiku | - | PASS |
+| T81n | P6 | docs | README + demo odyssey helios | haiku | - | PASS |
+| T81o | P6 | docs | README + demo iridium pandora | haiku | - | PASS |
+| T81p | P6 | docs | README + demo iris titan xenon | haiku | - | PASS |
 
 Later phases get their task rows when P1 is green (see the build order in `docs/SPEC.md`):
-P2 chisel, sinter, quartz devices, flint, mantle, bedrock. P3 tremor, outcrop, varve, drillcore,
-cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 web front, IDE, containers, load tests. P6 hardening.
+P2 chisel, cobalt, silicon devices, lithium, titan, zeus. P3 xenon, mercury, iridium, chronos,
+argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, helios. P5 web front, IDE, containers, load tests. P6 hardening.
 
 ## Round log (append only: date time | task | worker | tokens | verdict | note)
 - 2026-11-14 14:56 | T00 | leader | n/a | PASS | scaffold gate green, 24 crates, test kit 3 tests

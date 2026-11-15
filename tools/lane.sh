@@ -26,11 +26,11 @@ ID="${2:-}"
 CRATE="$(grep -o 'crates/[a-z_]*' "briefs/$ID.md" | head -1 | cut -d/ -f2)"
 [ -n "$CRATE" ] || { echo "brief names no crates/<name> path"; exit 2; }
 mkdir -p .loop-local
-# At most seven workers (5 hydrogen + 2 haiku), never two on one crate (operator rule 2026-11-15; was two).
+# At most CAP workers (default 11; operator asked for 10 hydrogen at once 2026-11-15), never two on one crate (operator rule 2026-11-15; was two).
 LOCK=".loop-local/BUSY.$CRATE"
 if [ -e "$LOCK" ]; then echo "a worker is already on $CRATE: $(cat "$LOCK")"; exit 3; fi
 N=$( (ls .loop-local/BUSY* 2>/dev/null || true) | wc -l)
-if [ "$N" -ge 7 ]; then echo "seven workers already running: $(cat .loop-local/BUSY* | tr '
+if [ "$N" -ge "${CAP:-11}" ]; then echo "${CAP:-11} workers already running: $(cat .loop-local/BUSY* | tr '
 ' ';')"; exit 3; fi
 echo "$ID on $1 since $(date '+%Y-%m-%d %H:%M')" > "$LOCK"
 trap 'rm -f "$LOCK"' EXIT
@@ -40,6 +40,6 @@ CMDS=("bash tools/check.sh $CRATE" "cargo fmt -p $CRATE" "cargo check -p $CRATE 
 RULES=""; LIST=""
 for c in "${CMDS[@]}"; do RULES="$RULES\"command($c)\","; LIST="$LIST  $c ;"; done
 echo "{\"permissions\":{\"allow\":[${RULES%,}]}}" > ".loop-local/settings.$ID.json"
-PROMPT="You are a worker on the Monolith project in this folder. Read briefs/_RULES.md, then briefs/$ID.md, and do exactly that task. Touch only the files the brief lists. You can edit files freely. The ONLY shell commands that will run are these, typed exactly, one per call, with no cd, pipes or extra flags: $LIST every other command is denied. Use them to fix until the last line of 'bash tools/check.sh $CRATE' is CHECK PASS $CRATE. Finish by writing reports/$ID.md (at most 10 lines) and print that report as your final answer."
+PROMPT="You are a worker on the Monolith project in this folder. Read briefs/_RULES.md, then briefs/$ID.md, and do exactly that task. Touch only the files the brief lists, plus your own outbox comms/$ID.md if comms/ROSTER.md exists (read it and the other outboxes). You can edit files freely. The ONLY shell commands that will run are these, typed exactly, one per call, with no cd, pipes or extra flags: $LIST every other command is denied. Use them to fix until the last line of 'bash tools/check.sh $CRATE' is CHECK PASS $CRATE. Finish by writing reports/$ID.md (at most 10 lines) and print that report as your final answer."
 "$AGY" -p "$PROMPT" --model "$M" --mode accept-edits --settings ".loop-local/settings.$ID.json" \
   --print-timeout "${TIMEOUT:-60m}" 2>&1 | tee ".loop-local/$ID.$1.log" | tail -15
