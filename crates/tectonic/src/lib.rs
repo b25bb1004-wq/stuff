@@ -7,11 +7,13 @@ extern crate alloc;
 #[cfg(test)]
 extern crate std;
 
+pub mod audio;
 mod clock;
 pub mod draw;
 pub mod ecs;
 pub mod fx;
 pub mod phys;
 pub mod rng;
+pub mod scene;
 
 pub use clock::Clock;
