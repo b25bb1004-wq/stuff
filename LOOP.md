@@ -14,7 +14,7 @@
 - [x] T21 corpus (LLVM, validated), brief, leader check
 - [x] T82 CI workflow, green on ubuntu-latest
 - [>] T47 cairn registry: brief written, leader check next, then dispatch (hydrogen)
-- [ ] Judge T21 when the worker reports (copy chisel_leader.rs, gate, fresh seeds)
+- [x] T21 chisel PASS (leader check fixed: hex li, x0)
 - [ ] T13 riscv-tests (download approved): fetch, build as quartz data
 - [ ] Write docs/MANTLE.md v1 before T25 (argon-high, needs Argon budget)
 - [ ] Look into the drillcore remote_leader flake
@@ -85,7 +85,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T15 | P1 | geyser | work-stealing thread pool on std threads, driven by the core | haiku | T05 | PASS |
 | T14 | P1 | onyx | Cinnabar: own cipher from `docs/CINNABAR.md`, labelled experimental | hydrogen | T01 D1 | TODO |
 | T20 | P1 | onyx | ChaCha20 random generator, sealed-box helper | haiku | T04 | PASS |
-| T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | RUNNING |
+| T21 | P2 | chisel | RV64IMAC assembler: text, labels, directives | hydrogen | T13a | PASS |
 | T22 | P2 | chisel | ELF64 writer and loader | hydrogen | T21 | TODO |
 | T23 | P2 | quartz | devices: UART, timer, interrupt controller, block, framebuffer, keys; `Machine` | hydrogen-high | T12 | PASS |
 | T24 | P2 | flint | kernel in pure assembly: boot, traps, console, timer, 2 tasks, 3 syscalls | argon | T22 T23 | TODO |
@@ -200,3 +200,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 06:00 T33 PASS (hydrogen + leader fixes): leader check 4/4 incl. satp-switch remap; bench RAM override removed, inline(always) on step/tick restored cache-off to ~6% below pre-cache (accepted, test mode); bench total 1.55x.
 - 2026-11-15 06:12 T21 dispatched hydrogen-high: brief + LLVM corpus (2758 lines, 9312 B, 317 labels validated) + leader check (corpus, c_pairs/amo, 3000 random insts, li64 by execution, fixtures run, errors, alignment, speed).
 - 2026-11-15 06:28 T82 CI PASS (leader): .github/workflows/gate.yml green on ubuntu-latest. Pinned Rust 1.98.0 (1.100 clippy adds needless_bool), Python 3.14 + pillow/tinycss2/soupsieve/bs4 at dev versions (regex and HTML oracles differ across versions); Linux because crust tests compare with Linux bash (dev PC uses WSL bash).
+- 2026-11-15 06:38 T21 chisel PASS (hydrogen-high): corpus = LLVM, c_pairs, amo, quartz fixtures, fresh seeds, workspace gate. Leader check had 2 bugs of its own (hex li parse, li to x0).

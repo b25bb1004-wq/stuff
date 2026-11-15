@@ -63,7 +63,13 @@ fn body(line: &str) -> &str {
 fn parse_li(text: &str) -> Option<(u8, i64)> {
     let rest = text.strip_prefix("li ")?;
     let (r, v) = rest.split_once(',')?;
-    Some((reg(r.trim())?, v.trim().parse().ok()?))
+    let v = v.trim();
+    let (neg, mag) = v.strip_prefix('-').map_or((false, v), |m| (true, m));
+    let x = match mag.strip_prefix("0x") {
+        Some(h) => u64::from_str_radix(h, 16).ok()? as i64,
+        None => mag.parse::<i64>().ok()?,
+    };
+    Some((reg(r.trim())?, if neg { x.wrapping_neg() } else { x }))
 }
 
 /// Runs straight-line 4-byte code from zeroed registers; returns the register file.
@@ -125,7 +131,11 @@ fn leader_corpus_equals_llvm() {
     for (off, ln, rd, v) in li2 {
         let x = run_regs(&out.bytes[off..off + 8]);
         for (r, &val) in x.iter().enumerate() {
-            let want = if r == rd as usize { v as u64 } else { 0 };
+            let want = if r == rd as usize && rd != 0 {
+                v as u64
+            } else {
+                0
+            };
             assert_eq!(val, want, "line {ln}: {:?} register x{r}", lines[ln - 1]);
         }
     }
