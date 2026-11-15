@@ -1,1 +1,9 @@
-//! Athena: the browser IDE (T72).
+//! Athena: browser IDE shell for Logos and Titan (T72).
+
+#![cfg_attr(not(target_arch = "wasm32"), forbid(unsafe_code))]
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod pack;
+pub mod service;
+#[cfg(target_arch = "wasm32")]
+pub mod wasm;

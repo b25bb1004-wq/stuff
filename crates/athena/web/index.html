@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Athena — Monolith IDE</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="athena.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-name">Athena</span>
+      <span class="active-file" id="active-file-name">main.logos</span>
+      <span class="save-status" id="save-status" aria-live="polite">saved</span>
+    </div>
+    <div class="topbar-actions">
+      <span class="wasm-status" id="wasm-status" aria-live="polite">loading wasm…</span>
+      <button type="button" class="btn btn-primary" id="btn-run" disabled>Run</button>
+      <button type="button" class="btn" id="btn-test" disabled>Test</button>
+      <button type="button" class="btn" id="btn-theme" aria-label="Toggle color theme">Theme</button>
+    </div>
+  </header>
+
+  <nav class="mobile-tabs" aria-label="Mobile workspace tabs" role="tablist">
+    <button type="button" class="mobile-tab is-active" role="tab" aria-selected="true" data-mobile-view="files">Files</button>
+    <button type="button" class="mobile-tab" role="tab" aria-selected="false" data-mobile-view="editor">Editor</button>
+    <button type="button" class="mobile-tab" role="tab" aria-selected="false" data-mobile-view="output">Output</button>
+    <button type="button" class="mobile-tab" role="tab" aria-selected="false" data-mobile-view="terminal">Terminal</button>
+  </nav>
+
+  <main class="workspace" id="workspace" data-mobile-view="editor">
+    <aside class="pane pane-files" id="pane-files" aria-label="Files">
+      <div class="pane-head">
+        <h2 class="pane-title">Files</h2>
+        <button type="button" class="btn btn-sm" id="btn-new-file">+ New</button>
+      </div>
+      <form class="inline-form" id="new-file-form" hidden>
+        <input type="text" class="inline-input" id="new-file-input" placeholder="file.logos" aria-label="New file name">
+        <div class="inline-form-actions">
+          <button type="submit" class="btn btn-sm btn-primary">Create</button>
+          <button type="button" class="btn btn-sm" id="btn-new-cancel">Cancel</button>
+        </div>
+        <div class="inline-error" id="new-file-error" role="alert"></div>
+      </form>
+      <ul class="file-list" id="file-list"></ul>
+    </aside>
+
+    <div class="resizer" id="resizer-left" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize file tree"></div>
+
+    <section class="pane pane-editor" id="pane-editor" aria-label="Editor">
+      <div class="pane-head">
+        <span class="editor-meta" id="editor-meta">Ln 1, Col 1</span>
+        <span class="editor-hints">Tab: 4 spaces · Ctrl+Enter: Run · Ctrl+S: Save</span>
+      </div>
+      <div class="editor-empty" id="editor-empty" hidden>
+        <p>No file open. Create a new file in the Files pane.</p>
+      </div>
+      <div class="editor-wrap" id="editor-wrap">
+        <div class="gutter" id="editor-gutter" aria-hidden="true">1</div>
+        <div class="code-stack">
+          <pre class="code-highlight" id="code-highlight" aria-hidden="true"><code id="code-highlight-inner"></code></pre>
+          <textarea class="code-input" id="code-input" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Logos source editor"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <div class="resizer" id="resizer-right" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize output pane"></div>
+
+    <section class="pane pane-right" id="pane-right" aria-label="Output and terminal">
+      <div class="pane-head pane-tabs" role="tablist" aria-label="Output tabs">
+        <button type="button" class="tab-btn is-active" id="tab-output" role="tab" aria-selected="true" aria-controls="panel-output" data-tab="output">Output</button>
+        <button type="button" class="tab-btn" id="tab-tests" role="tab" aria-selected="false" aria-controls="panel-tests" data-tab="tests">Tests</button>
+        <button type="button" class="tab-btn" id="tab-terminal" role="tab" aria-selected="false" aria-controls="panel-terminal" data-tab="terminal">Terminal</button>
+      </div>
+
+      <div class="tab-panel" id="panel-output" role="tabpanel" aria-labelledby="tab-output">
+        <div class="diag-list" id="diag-list" aria-label="Diagnostics"></div>
+        <pre class="run-out" id="run-out"></pre>
+      </div>
+
+      <div class="tab-panel" id="panel-tests" role="tabpanel" aria-labelledby="tab-tests" hidden>
+        <div class="test-summary" id="test-summary">Click Test to run unit tests and properties.</div>
+        <ul class="test-list" id="test-list"></ul>
+      </div>
+
+      <div class="tab-panel tab-panel-term" id="panel-terminal" role="tabpanel" aria-labelledby="tab-terminal" hidden>
+        <div class="term-status-bar">
+          <span>Titan RISC-V</span>
+          <span class="term-status" id="titan-status">not booted</span>
+        </div>
+        <pre class="term-out" id="term-out"></pre>
+        <form class="term-form" id="term-form">
+          <input type="text" class="term-in" id="term-in" disabled placeholder="open Terminal tab to boot" aria-label="Terminal input">
+          <button type="submit" class="btn btn-sm btn-primary" id="term-send" disabled>Send</button>
+        </form>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

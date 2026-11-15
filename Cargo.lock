@@ -16,6 +16,17 @@ name = "assay"
 version = "0.1.0"
 
 [[package]]
+name = "athena"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "calliope",
+ "cobalt",
+ "logos",
+ "neon",
+]
+
+[[package]]
 name = "aurum"
 version = "0.1.0"
 dependencies = [
