@@ -24,10 +24,34 @@ fn nested(p: &mut Parser, step: fn(&mut Parser) -> Result<Expr, Error>) -> Resul
     res
 }
 
+struct DepthGuard<'a> {
+    parser: &'a mut Parser,
+    saved: usize,
+}
+
+impl Drop for DepthGuard<'_> {
+    fn drop(&mut self) {
+        self.parser.depth = self.saved;
+    }
+}
+
+fn bump_chain_depth(p: &mut Parser) -> Result<(), Error> {
+    if p.depth >= MAX_DEPTH {
+        return Err(parse_err(p.cur().pos, "expression nested too deeply"));
+    }
+    p.depth += 1;
+    Ok(())
+}
+
 fn parse_or(p: &mut Parser) -> Result<Expr, Error> {
     let mut left = parse_and(p)?;
-    while p.eat_kw("OR") {
-        let right = parse_and(p)?;
+    let guard = DepthGuard {
+        saved: p.depth,
+        parser: p,
+    };
+    while guard.parser.eat_kw("OR") {
+        bump_chain_depth(guard.parser)?;
+        let right = parse_and(guard.parser)?;
         let span = Span {
             start: left.span.start,
             end: right.span.end,
@@ -46,8 +70,13 @@ fn parse_or(p: &mut Parser) -> Result<Expr, Error> {
 
 fn parse_and(p: &mut Parser) -> Result<Expr, Error> {
     let mut left = parse_not(p)?;
-    while p.eat_kw("AND") {
-        let right = parse_not(p)?;
+    let guard = DepthGuard {
+        saved: p.depth,
+        parser: p,
+    };
+    while guard.parser.eat_kw("AND") {
+        bump_chain_depth(guard.parser)?;
+        let right = parse_not(guard.parser)?;
         let span = Span {
             start: left.span.start,
             end: right.span.end,
@@ -85,10 +114,15 @@ fn parse_not(p: &mut Parser) -> Result<Expr, Error> {
 
 fn parse_eq(p: &mut Parser) -> Result<Expr, Error> {
     let mut left = parse_cmp(p)?;
+    let guard = DepthGuard {
+        saved: p.depth,
+        parser: p,
+    };
     loop {
-        if p.eat_kw("IS") {
-            let negated = p.eat_kw("NOT");
-            let null_tok = p.expect_kw("NULL")?;
+        if guard.parser.eat_kw("IS") {
+            bump_chain_depth(guard.parser)?;
+            let negated = guard.parser.eat_kw("NOT");
+            let null_tok = guard.parser.expect_kw("NULL")?;
             let span = Span {
                 start: left.span.start,
                 end: null_tok.end,
@@ -102,13 +136,14 @@ fn parse_eq(p: &mut Parser) -> Result<Expr, Error> {
             };
             continue;
         }
-        let op = match p.cur().kind {
+        let op = match guard.parser.cur().kind {
             TokenKind::Eq | TokenKind::EqEq => BinaryOp::Eq,
             TokenKind::Ne => BinaryOp::Ne,
             _ => break,
         };
-        p.advance();
-        let right = parse_cmp(p)?;
+        bump_chain_depth(guard.parser)?;
+        guard.parser.advance();
+        let right = parse_cmp(guard.parser)?;
         let span = Span {
             start: left.span.start,
             end: right.span.end,
@@ -127,27 +162,36 @@ fn parse_eq(p: &mut Parser) -> Result<Expr, Error> {
 
 fn parse_cmp(p: &mut Parser) -> Result<Expr, Error> {
     let mut left = parse_concat(p)?;
+    let guard = DepthGuard {
+        saved: p.depth,
+        parser: p,
+    };
     loop {
-        if p.is_kw("NOT")
-            && (p.is_kw_at(1, "IN") || p.is_kw_at(1, "BETWEEN") || p.is_kw_at(1, "LIKE"))
+        if guard.parser.is_kw("NOT")
+            && (guard.parser.is_kw_at(1, "IN")
+                || guard.parser.is_kw_at(1, "BETWEEN")
+                || guard.parser.is_kw_at(1, "LIKE"))
         {
-            p.advance();
-            left = parse_predicate(p, left, true)?;
+            bump_chain_depth(guard.parser)?;
+            guard.parser.advance();
+            left = parse_predicate(guard.parser, left, true)?;
             continue;
         }
-        if p.is_kw("IN") || p.is_kw("BETWEEN") || p.is_kw("LIKE") {
-            left = parse_predicate(p, left, false)?;
+        if guard.parser.is_kw("IN") || guard.parser.is_kw("BETWEEN") || guard.parser.is_kw("LIKE") {
+            bump_chain_depth(guard.parser)?;
+            left = parse_predicate(guard.parser, left, false)?;
             continue;
         }
-        let op = match p.cur().kind {
+        let op = match guard.parser.cur().kind {
             TokenKind::Lt => BinaryOp::Lt,
             TokenKind::Le => BinaryOp::Le,
             TokenKind::Gt => BinaryOp::Gt,
             TokenKind::Ge => BinaryOp::Ge,
             _ => break,
         };
-        p.advance();
-        let right = parse_concat(p)?;
+        bump_chain_depth(guard.parser)?;
+        guard.parser.advance();
+        let right = parse_concat(guard.parser)?;
         let span = Span {
             start: left.span.start,
             end: right.span.end,
@@ -226,8 +270,13 @@ fn parse_predicate(p: &mut Parser, left: Expr, negated: bool) -> Result<Expr, Er
 
 fn parse_concat(p: &mut Parser) -> Result<Expr, Error> {
     let mut left = parse_add(p)?;
-    while p.eat(TokenKind::Concat) {
-        let right = parse_add(p)?;
+    let guard = DepthGuard {
+        saved: p.depth,
+        parser: p,
+    };
+    while guard.parser.eat(TokenKind::Concat) {
+        bump_chain_depth(guard.parser)?;
+        let right = parse_add(guard.parser)?;
         let span = Span {
             start: left.span.start,
             end: right.span.end,
@@ -246,14 +295,19 @@ fn parse_concat(p: &mut Parser) -> Result<Expr, Error> {
 
 fn parse_add(p: &mut Parser) -> Result<Expr, Error> {
     let mut left = parse_mul(p)?;
+    let guard = DepthGuard {
+        saved: p.depth,
+        parser: p,
+    };
     loop {
-        let op = match p.cur().kind {
+        let op = match guard.parser.cur().kind {
             TokenKind::Plus => BinaryOp::Add,
             TokenKind::Minus => BinaryOp::Sub,
             _ => break,
         };
-        p.advance();
-        let right = parse_mul(p)?;
+        bump_chain_depth(guard.parser)?;
+        guard.parser.advance();
+        let right = parse_mul(guard.parser)?;
         let span = Span {
             start: left.span.start,
             end: right.span.end,
@@ -272,15 +326,20 @@ fn parse_add(p: &mut Parser) -> Result<Expr, Error> {
 
 fn parse_mul(p: &mut Parser) -> Result<Expr, Error> {
     let mut left = parse_unary(p)?;
+    let guard = DepthGuard {
+        saved: p.depth,
+        parser: p,
+    };
     loop {
-        let op = match p.cur().kind {
+        let op = match guard.parser.cur().kind {
             TokenKind::Star => BinaryOp::Mul,
             TokenKind::Slash => BinaryOp::Div,
             TokenKind::Percent => BinaryOp::Mod,
             _ => break,
         };
-        p.advance();
-        let right = parse_unary(p)?;
+        bump_chain_depth(guard.parser)?;
+        guard.parser.advance();
+        let right = parse_unary(guard.parser)?;
         let span = Span {
             start: left.span.start,
             end: right.span.end,

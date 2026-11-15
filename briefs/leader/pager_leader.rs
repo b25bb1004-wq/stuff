@@ -416,7 +416,7 @@ fn leader_formats_byte_exact() {
     let mut p = Pager::open(m, l).unwrap();
     let main0 = sh.borrow().files[0].cur.clone();
     assert_eq!(main0.len(), PAGE, "fresh main file is page 0");
-    assert_eq!(&main0[..8], b"IRIDIUM\0v1");
+    assert_eq!(&main0[..8], b"IRIDI\0v1");
     assert_eq!(u32_at(&main0, 8), 4096);
     assert_eq!(
         (
@@ -477,7 +477,7 @@ fn leader_formats_byte_exact() {
             "page CRC in frame {k}"
         );
         if pn == 0 {
-            assert_eq!(&img[..8], b"IRIDIUM\0v1");
+            assert_eq!(&img[..8], b"IRIDI\0v1");
             assert_eq!(
                 (u64_at(img, 12), u64_at(img, 20), u64_at(img, 36)),
                 (2, 0, 1)

@@ -1,5 +1,6 @@
 //! Signed binary package format (`CAIRNPKG1` / `CAIRNSIG1`).
 
+use std::collections::HashSet;
 use std::fmt;
 
 use sphinx::ed25519;
@@ -152,6 +153,7 @@ pub fn decode(body: &[u8]) -> Result<Package, PkgError> {
     let count = cur.read_u32()? as usize;
     let mut files: Vec<(String, Vec<u8>)> = Vec::with_capacity(count.min(1024));
     let mut prev_path: Option<String> = None;
+    let mut seen_paths: HashSet<&str> = HashSet::with_capacity(count.min(1024));
 
     for _ in 0..count {
         let plen = cur.read_u16()? as usize;
@@ -166,8 +168,17 @@ pub fn decode(body: &[u8]) -> Result<Package, PkgError> {
                 ));
             }
         }
+        for (idx, b) in path.bytes().enumerate() {
+            if b == b'/' && seen_paths.contains(&path[..idx]) {
+                return Err(PkgError::Malformed(format!(
+                    "path '{path}' collides with file '{}'",
+                    &path[..idx]
+                )));
+            }
+        }
         let dlen = cur.read_u32()? as usize;
         let data = cur.take(dlen)?;
+        seen_paths.insert(path);
         prev_path = Some(path.to_string());
         files.push((path.to_string(), data.to_vec()));
     }

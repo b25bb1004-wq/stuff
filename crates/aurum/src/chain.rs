@@ -5,7 +5,7 @@ use crate::contract::Receipt;
 use crate::merkle::merkle_root;
 use crate::state::State;
 use crate::tx::Tx;
-use crate::{Address, BlockError, Hash, MAX_TXS};
+use crate::{Address, BlockError, Hash, MAX_DATA, MAX_TXS};
 use sphinx::ed25519;
 
 /// An in-memory chain of blocks with its account state.
@@ -173,6 +173,63 @@ impl Chain {
         self.blocks.push(block);
         self.receipts.push(receipts);
         Ok(())
+    }
+
+    /// Build the next block from `candidates` in a single pass, skipping transactions that fail
+    /// validation or state application, and return `(block, next_chain)`.
+    pub(crate) fn propose_from_mempool(
+        &self,
+        seed: &[u8; 32],
+        time: u64,
+        candidates: &[Tx],
+    ) -> Option<(Block, Chain)> {
+        let proposer = ed25519::public_key(seed);
+        if proposer != self.expected_proposer() || time <= self.tip().time {
+            return None;
+        }
+        let mut state = self.state.clone();
+        let mut txs = Vec::with_capacity(candidates.len().min(MAX_TXS));
+        let mut receipts = Vec::with_capacity(candidates.len().min(MAX_TXS));
+        for tx in candidates {
+            if txs.len() >= MAX_TXS {
+                break;
+            }
+            if tx.data.len() > MAX_DATA {
+                continue;
+            }
+            let (balance, nonce) = state.account(&tx.from);
+            if tx.nonce != nonce {
+                continue;
+            }
+            let Some(total) = tx.amount.checked_add(tx.fee) else {
+                continue;
+            };
+            if balance < total || nonce == u64::MAX {
+                continue;
+            }
+            let mut next_state = state.clone();
+            if let Ok(receipt) = next_state.apply(tx, &proposer) {
+                state = next_state;
+                txs.push(tx.clone());
+                receipts.push(receipt);
+            }
+        }
+        let mut header = Header {
+            height: self.height().wrapping_add(1),
+            parent: self.tip().hash(),
+            tx_root: tx_root(&txs),
+            state_root: state.root(),
+            time,
+            proposer,
+            sig: [0u8; 64],
+        };
+        header.sign(seed);
+        let block = Block { header, txs };
+        let mut next_chain = self.clone();
+        next_chain.state = state;
+        next_chain.blocks.push(block.clone());
+        next_chain.receipts.push(receipts);
+        Some((block, next_chain))
     }
 
     /// The tip block; genesis when no block has been appended.

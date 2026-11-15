@@ -8,7 +8,7 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use crate::net::codec::{encode_rows, read_frame, write_frame};
+use crate::net::codec::{encode_rows, read_frame_stoppable, write_frame};
 use crate::sql::{Db, Rows};
 use crate::FileStorage;
 
@@ -40,6 +40,7 @@ pub struct Server {
     local_addr: SocketAddr,
     shared: Arc<Shared>,
     accept_thread: Option<JoinHandle<()>>,
+    listener_keepalive: Option<TcpListener>,
 }
 
 impl Server {
@@ -51,6 +52,7 @@ impl Server {
 
         let listener = TcpListener::bind(addr)?;
         let local_addr = listener.local_addr()?;
+        let listener_keepalive = listener.try_clone()?;
 
         let shared = Arc::new(Shared {
             state: Mutex::new(DbState {
@@ -72,6 +74,7 @@ impl Server {
             local_addr,
             shared,
             accept_thread: Some(accept_thread),
+            listener_keepalive: Some(listener_keepalive),
         })
     }
 
@@ -91,8 +94,9 @@ impl Server {
         };
 
         self.shared.stopping.store(true, Ordering::Release);
-        let _ = TcpStream::connect(wake_addr(self.local_addr));
+        let _ = TcpStream::connect_timeout(&wake_addr(self.local_addr), Duration::from_millis(50));
         let _ = accept_handle.join();
+        self.listener_keepalive.take();
 
         {
             let mut st = lock_unpoison(&self.shared.state);
@@ -158,7 +162,8 @@ fn accept_loop(listener: TcpListener, shared: Arc<Shared>) {
 }
 
 fn handle_client(conn_id: u64, mut stream: TcpStream, shared: Arc<Shared>) {
-    while let Ok(Some(frame)) = read_frame(&mut stream) {
+    let _ = stream.set_read_timeout(Some(Duration::from_millis(50)));
+    while let Ok(Some(frame)) = read_frame_stoppable(&mut stream, &shared.stopping) {
         let sql = match std::str::from_utf8(&frame) {
             Ok(s) => s,
             Err(_) => {
@@ -192,6 +197,7 @@ fn handle_client(conn_id: u64, mut stream: TcpStream, shared: Arc<Shared>) {
         }
     }
 
+    let _ = stream.shutdown(Shutdown::Write);
     cleanup_conn(&shared, conn_id);
 }
 

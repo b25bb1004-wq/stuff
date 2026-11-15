@@ -206,11 +206,11 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T80a | P6 | review | security review mercury, findings proven by tests | hydrogen-high | - | PASS |
 | T80b | P6 | review | security review xenon, findings proven by tests | hydrogen-high | - | PASS |
 | T80c | P6 | review | security review chronos, findings proven by tests | hydrogen-high | - | PASS |
-| T80d | P6 | review | security review argo, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80d | P6 | review | security review argo, findings proven by tests | hydrogen-high | - | PASS |
 | T80e | P6 | review | security review krypton, findings proven by tests | hydrogen-high | - | PASS |
-| T80f | P6 | review | security review iridium, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80f | P6 | review | security review iridium, findings proven by tests | hydrogen-high | - | PASS |
 | T80g | P6 | review | security review elysium, findings proven by tests | hydrogen-high | - | PASS |
-| T80h | P6 | review | security review aurum, findings proven by tests | hydrogen-high | - | RUNNING |
+| T80h | P6 | review | security review aurum, findings proven by tests | hydrogen-high | - | PASS |
 | T80i | P6 | review | security review silicon, findings proven by tests | hydrogen-high | - | PASS |
 | T80j | P6 | review | security review hades, findings proven by tests | hydrogen-high | - | PASS |
 | T80k | P6 | review | security review sphinx + medusa, findings proven by tests | hydrogen-high | - | PASS |
@@ -356,3 +356,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-15 | T80m | agy hydrogen-high | - | PASS | helios: tone alloc, script log, Fx::round; proven
 - 2026-11-15 | T80j | agy hydrogen-high | - | PASS | hades: dir entry, fsck cycle, free inode findings; proven
 - 2026-11-15 | T64 | agy hydrogen-high | - | PASS | iris: Terminal, Editor, Files apps + Desktop, 3 golden hashes
+- 2026-11-15 | T80d | agy hydrogen-high | - | PASS | argo: dep mismatch, HTTP flood, solver blowup; retry1 fixed soak generator collisions
+- 2026-11-15 | T80f | agy hydrogen-high | - | PASS | iridium: corrupt record, codec, server stop; retry1; leader dropped page0 range check (broke reopen) and fixed rename magic in pager tests
+- 2026-11-15 | T80h | agy hydrogen-high | - | PASS | aurum: forged tx sig, contract caps, mempool, net stream caps; 5 tests fail on HEAD

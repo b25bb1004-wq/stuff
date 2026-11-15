@@ -1,6 +1,7 @@
 //! Wire framing and row serialization for the Iridium network protocol.
 
 use std::io::{self, Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::sql::{Rows, Value};
 
@@ -153,23 +154,62 @@ impl<'a> Cursor<'a> {
 
 /// Read one length-prefixed frame; returns `Ok(None)` on clean EOF at frame boundary.
 pub(crate) fn read_frame<R: Read>(r: &mut R) -> io::Result<Option<Vec<u8>>> {
-    let mut hdr = [0u8; 4];
-    let mut read = 0;
-    while read < 4 {
-        match r.read(&mut hdr[read..]) {
+    read_frame_inner(r, None)
+}
+
+/// Read one length-prefixed frame, returning `Ok(None)` if `stopping` becomes true on timeout.
+pub(crate) fn read_frame_stoppable<R: Read>(
+    r: &mut R,
+    stopping: &AtomicBool,
+) -> io::Result<Option<Vec<u8>>> {
+    read_frame_inner(r, Some(stopping))
+}
+
+fn is_stopping(stopping: Option<&AtomicBool>) -> bool {
+    stopping.is_some_and(|flag| flag.load(Ordering::Acquire))
+}
+
+fn read_exact_stoppable<R: Read>(
+    r: &mut R,
+    buf: &mut [u8],
+    stopping: Option<&AtomicBool>,
+    allow_clean_eof: bool,
+    eof_msg: &'static str,
+) -> io::Result<bool> {
+    let mut pos = 0;
+    while pos < buf.len() {
+        if is_stopping(stopping) {
+            return Ok(false);
+        }
+        match r.read(&mut buf[pos..]) {
             Ok(0) => {
-                if read == 0 {
-                    return Ok(None);
+                if allow_clean_eof && pos == 0 {
+                    return Ok(false);
                 }
-                return Err(io::Error::new(
-                    io::ErrorKind::UnexpectedEof,
-                    "truncated frame header",
-                ));
+                return Err(io::Error::new(io::ErrorKind::UnexpectedEof, eof_msg));
             }
-            Ok(n) => read += n,
+            Ok(n) => pos += n,
             Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e)
+                if e.kind() == io::ErrorKind::WouldBlock || e.kind() == io::ErrorKind::TimedOut =>
+            {
+                if is_stopping(stopping) {
+                    return Ok(false);
+                }
+            }
             Err(e) => return Err(e),
         }
+    }
+    Ok(true)
+}
+
+fn read_frame_inner<R: Read>(
+    r: &mut R,
+    stopping: Option<&AtomicBool>,
+) -> io::Result<Option<Vec<u8>>> {
+    let mut hdr = [0u8; 4];
+    if !read_exact_stoppable(r, &mut hdr, stopping, true, "truncated frame header")? {
+        return Ok(None);
     }
     let len = u32::from_be_bytes(hdr) as usize;
     if len > MAX_FRAME_LEN {
@@ -179,7 +219,9 @@ pub(crate) fn read_frame<R: Read>(r: &mut R) -> io::Result<Option<Vec<u8>>> {
         ));
     }
     let mut payload = vec![0u8; len];
-    r.read_exact(&mut payload)?;
+    if !read_exact_stoppable(r, &mut payload, stopping, false, "truncated frame payload")? {
+        return Ok(None);
+    }
     Ok(Some(payload))
 }
 

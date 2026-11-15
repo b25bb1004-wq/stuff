@@ -187,6 +187,10 @@ impl Catalog {
     }
 }
 
+fn escape_ident(s: &str) -> String {
+    s.replace('"', "\"\"")
+}
+
 fn build_table_def(ct: &CreateTableStmt, root: u64, sql: String) -> Result<TableDef, Error> {
     let mut seen = BTreeSet::new();
     let mut pk_count = 0usize;
@@ -279,7 +283,9 @@ pub(crate) fn exec_create_table<S: Storage>(
             let idx_tree = Tree::create(pager)?;
             let idx_sql = format!(
                 "CREATE UNIQUE INDEX \"{}\" ON \"{}\" (\"{}\")",
-                idx_name, tdef.name, col.name
+                escape_ident(&idx_name),
+                escape_ident(&tdef.name),
+                escape_ident(&col.name)
             );
             let idx_seq = cat.alloc_seq();
             let idx_rec = encode_record(&[

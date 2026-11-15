@@ -15,6 +15,8 @@ pub const REDIAL_US: u64 = 2_000_000;
 pub const MAX_MSG: usize = 4 << 20;
 
 const MAX_PENDING_GOSSIP: usize = 10_000;
+const MAX_RECV_BUFFERED: usize = MAX_MSG * 4;
+const MAX_RECV_STREAMS: usize = 256;
 const STREAM_RESET_CODE: u64 = 1;
 const READ_CHUNK: usize = 4096;
 
@@ -32,6 +34,7 @@ struct LinkIo {
     send_queue: VecDeque<Vec<u8>>,
     active_send: Option<(u64, Vec<u8>, usize)>,
     recv_streams: BTreeMap<u64, RecvStream>,
+    recv_bytes: usize,
 }
 
 fn push_bounded(queue: &mut VecDeque<Vec<u8>>, bytes: Vec<u8>) {
@@ -46,6 +49,7 @@ impl LinkIo {
         self.send_queue.clear();
         self.active_send = None;
         self.recv_streams.clear();
+        self.recv_bytes = 0;
     }
 
     fn pump_connected(&mut self, conn: &mut Connection) {
@@ -101,9 +105,13 @@ impl LinkIo {
 
     fn drain_streams(&mut self, conn: &mut Connection) -> Vec<Msg> {
         while let Some(sid) = conn.accept_stream() {
-            self.recv_streams
-                .entry(sid)
-                .or_insert_with(|| RecvStream::Open(Vec::new()));
+            if !self.recv_streams.contains_key(&sid) {
+                if self.recv_streams.len() >= MAX_RECV_STREAMS {
+                    let _ = conn.reset(sid, STREAM_RESET_CODE);
+                } else {
+                    self.recv_streams.insert(sid, RecvStream::Open(Vec::new()));
+                }
+            }
         }
         let sids: Vec<u64> = self.recv_streams.keys().copied().collect();
         let mut out = Vec::new();
@@ -119,11 +127,15 @@ impl LinkIo {
                     Ok(0) => break,
                     Ok(n) => match state {
                         RecvStream::Open(buf) => {
-                            if buf.len().saturating_add(n) > MAX_MSG {
+                            if buf.len().saturating_add(n) > MAX_MSG
+                                || self.recv_bytes.saturating_add(n) > MAX_RECV_BUFFERED
+                            {
+                                self.recv_bytes = self.recv_bytes.saturating_sub(buf.len());
                                 *state = RecvStream::Dropped;
                                 reset_stream = true;
                             } else {
                                 buf.extend_from_slice(&tmp[..n]);
+                                self.recv_bytes = self.recv_bytes.saturating_add(n);
                             }
                         }
                         RecvStream::Dropped => {}
@@ -138,11 +150,14 @@ impl LinkIo {
                 let _ = conn.reset(sid, STREAM_RESET_CODE);
             }
             if remove {
-                self.recv_streams.remove(&sid);
+                if let Some(RecvStream::Open(buf)) = self.recv_streams.remove(&sid) {
+                    self.recv_bytes = self.recv_bytes.saturating_sub(buf.len());
+                }
                 continue;
             }
             if conn.stream_finished(sid) {
                 if let Some(RecvStream::Open(buf)) = self.recv_streams.remove(&sid) {
+                    self.recv_bytes = self.recv_bytes.saturating_sub(buf.len());
                     match Msg::decode(&buf) {
                         Ok(msg) => out.push(msg),
                         Err(_) => {

@@ -11,12 +11,15 @@ pub use msg::Msg;
 use crate::block::Block;
 use crate::chain::Chain;
 use crate::tx::Tx;
-use crate::{Address, BlockError, Hash, MAX_TXS};
+use crate::{Address, Hash, MAX_DATA};
 use sphinx::ed25519;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Maximum number of orphan blocks retained before evicting the oldest.
 const MAX_ORPHANS: usize = 256;
+
+/// Maximum number of pending transactions retained in the mempool.
+const MAX_MEMPOOL: usize = 10_000;
 
 /// A validated block together with the chain state ending at that block.
 #[derive(Debug, Clone)]
@@ -127,26 +130,9 @@ impl Node {
         if proposer != self.chosen.expected_proposer() || time <= self.chosen.tip().time {
             return None;
         }
-        let mut cursor = 0usize;
-        let mut batch = Vec::with_capacity(self.mempool.len().min(MAX_TXS));
-        Self::fill_batch(&self.mempool, &mut cursor, &mut batch);
-        let block = loop {
-            match self.chosen.propose(seed, time, batch.clone()) {
-                Ok(block) => break block,
-                Err(BlockError::BadTx { index, .. }) => {
-                    if index >= batch.len() {
-                        return None;
-                    }
-                    batch.remove(index);
-                    Self::fill_batch(&self.mempool, &mut cursor, &mut batch);
-                }
-                Err(_) => return None,
-            }
-        };
-        let mut next_chain = self.chosen.clone();
-        if next_chain.append(block.clone()).is_err() {
-            return None;
-        }
+        let (block, next_chain) = self
+            .chosen
+            .propose_from_mempool(seed, time, &self.mempool)?;
         let hash = block.hash();
         self.valid.insert(
             hash,
@@ -165,17 +151,6 @@ impl Node {
         self.reorgs
     }
 
-    /// Append mempool txs from `cursor` into `batch` until `batch` reaches `MAX_TXS`.
-    fn fill_batch(mempool: &[Tx], cursor: &mut usize, batch: &mut Vec<Tx>) {
-        while batch.len() < MAX_TXS {
-            let Some(tx) = mempool.get(*cursor) else {
-                break;
-            };
-            *cursor = cursor.saturating_add(1);
-            batch.push(tx.clone());
-        }
-    }
-
     /// Retrieve a clone of a known block (valid or orphan).
     fn get_known_block(&self, hash: &Hash) -> Option<Block> {
         if let Some(vb) = self.valid.get(hash) {
@@ -184,10 +159,16 @@ impl Node {
         self.orphans.get(hash).cloned()
     }
 
-    /// Process an incoming transaction, adding to mempool and gossiping once if new.
+    /// Process an incoming transaction, adding to mempool and gossiping once if new and valid.
     fn handle_tx(&mut self, tx: Tx) -> Vec<Msg> {
+        if tx.data.len() > MAX_DATA || !tx.verify() {
+            return Vec::new();
+        }
         let id = tx.id();
         if self.mempool_ids.contains(&id) || self.chosen_txs.contains(&id) {
+            return Vec::new();
+        }
+        if self.mempool.len() >= MAX_MEMPOOL {
             return Vec::new();
         }
         self.mempool_ids.insert(id);

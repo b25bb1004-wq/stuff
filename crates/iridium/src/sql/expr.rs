@@ -196,7 +196,7 @@ pub(crate) fn eval_group(
             }
             let text_chars: Vec<char> = value_to_text(&val).chars().collect();
             let pat_chars: Vec<char> = value_to_text(&pat).chars().collect();
-            let matched = like_match(&text_chars, &pat_chars);
+            let matched = like_match(&text_chars, &pat_chars)?;
             let res = if *negated { !matched } else { matched };
             Ok(Value::Int(i64::from(res)))
         }

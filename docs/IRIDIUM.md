@@ -18,7 +18,7 @@ the isolation level. Tasks: T39 pager + log + recovery, T40 B+tree, T41 SQL, T42
 - Page size 4096. Page `n` is at offset `n * 4096` in the main file. All integers little-endian.
 - Every page ends with a 4-byte CRC-32 (IEEE, reflected, poly 0xEDB88320) of its first 4092 bytes.
   A main-file page with a bad CRC and no newer copy in the log is `Error::Corrupt`, never a panic.
-- Page 0, header: `b"IRIDIUM\0v1"`, page size u32 (4096), page count u64 (pages in use, including
+- Page 0, header: `b"IRIDI\0v1"`, page size u32 (4096), page count u64 (pages in use, including
   page 0), free-list head u64 (0 = empty), catalog root u64, change counter u64, rest zero.
 - Free page (kind 5): next free page u64 at byte 16. Allocation pops the free list, else grows
   the page count. Freed pages go to the head of the list.

@@ -39,7 +39,7 @@ fn open_empty_initializes_page0_and_log_header() {
     let (main, log) = p.into_storage();
 
     assert_eq!(main.bytes().len(), PAGE);
-    assert_eq!(&main.bytes()[0..8], b"IRIDIUM\0v1");
+    assert_eq!(&main.bytes()[0..8], b"IRIDI\0v1");
     assert_eq!(
         u32::from_le_bytes(main.bytes()[8..12].try_into().unwrap()),
         4096

@@ -177,6 +177,9 @@ pub(crate) fn exec_update<S: Storage>(
     let mut updates = Vec::with_capacity(matches.len());
 
     for (old_rowid, old_row) in &matches {
+        if old_row.len() != table.columns.len() {
+            return Err(Error::Corrupt);
+        }
         let mut new_row = old_row.clone();
         let tr = [TableRowRef {
             rowid: Some(*old_rowid),
@@ -184,7 +187,8 @@ pub(crate) fn exec_update<S: Storage>(
         }];
         let row_data = RowData { tables: &tr };
         for &(col_idx, expr) in &assign_cols {
-            new_row[col_idx] = eval_row(expr, &ctx, Some(&row_data))?;
+            let slot = new_row.get_mut(col_idx).ok_or(Error::Corrupt)?;
+            *slot = eval_row(expr, &ctx, Some(&row_data))?;
         }
         validate_row_types_and_not_null(&table, &new_row, true)?;
 

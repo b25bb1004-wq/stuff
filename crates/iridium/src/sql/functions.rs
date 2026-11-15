@@ -287,27 +287,112 @@ pub(crate) fn value_to_text(v: &Value) -> String {
     }
 }
 
-pub(crate) fn like_match(text: &[char], pat: &[char]) -> bool {
-    let (mut ti, mut pi) = (0usize, 0usize);
-    let (mut star_p, mut star_t) = (None, 0usize);
-    while ti < text.len() {
-        if pi < pat.len() && (pat[pi] == '_' || pat[pi].eq_ignore_ascii_case(&text[ti])) {
-            ti += 1;
-            pi += 1;
-        } else if pi < pat.len() && pat[pi] == '%' {
-            star_p = Some(pi);
-            star_t = ti;
-            pi += 1;
-        } else if let Some(sp) = star_p {
-            pi = sp + 1;
-            star_t += 1;
-            ti = star_t;
+const MAX_LIKE_STEPS: usize = 10_000_000;
+
+pub(crate) fn like_match(text: &[char], pat: &[char]) -> Result<bool, Error> {
+    let parts: Vec<&[char]> = pat.split(|&c| c == '%').collect();
+    if parts.len() == 1 {
+        return Ok(chars_match(text, pat));
+    }
+    let first = parts[0];
+    if text.len() < first.len() || !chars_match(&text[..first.len()], first) {
+        return Ok(false);
+    }
+    let mut start = first.len();
+    let last = parts[parts.len() - 1];
+    if text.len() - start < last.len() || !chars_match(&text[text.len() - last.len()..], last) {
+        return Ok(false);
+    }
+    let end = text.len() - last.len();
+    let mut steps = 0usize;
+    for &seg in &parts[1..parts.len() - 1] {
+        if seg.is_empty() {
+            continue;
+        }
+        let found = if seg.contains(&'_') {
+            find_segment_with_wildcard(&text[start..end], seg, &mut steps)?
         } else {
-            return false;
+            find_segment_kmp(&text[start..end], seg)
+        };
+        let Some(pos) = found else {
+            return Ok(false);
+        };
+        start += pos + seg.len();
+    }
+    Ok(true)
+}
+
+fn chars_match(text: &[char], pat: &[char]) -> bool {
+    text.len() == pat.len()
+        && text
+            .iter()
+            .zip(pat.iter())
+            .all(|(&tc, &pc)| pc == '_' || pc.eq_ignore_ascii_case(&tc))
+}
+
+fn find_segment_kmp(haystack: &[char], needle: &[char]) -> Option<usize> {
+    if needle.is_empty() {
+        return Some(0);
+    }
+    if needle.len() > haystack.len() {
+        return None;
+    }
+    let mut lps = vec![0usize; needle.len()];
+    let mut len = 0usize;
+    let mut i = 1usize;
+    while i < needle.len() {
+        if needle[i].eq_ignore_ascii_case(&needle[len]) {
+            len += 1;
+            lps[i] = len;
+            i += 1;
+        } else if len != 0 {
+            len = lps[len - 1];
+        } else {
+            lps[i] = 0;
+            i += 1;
         }
     }
-    while pi < pat.len() && pat[pi] == '%' {
-        pi += 1;
+    let mut hi = 0usize;
+    let mut ni = 0usize;
+    while hi < haystack.len() {
+        if needle[ni].eq_ignore_ascii_case(&haystack[hi]) {
+            hi += 1;
+            ni += 1;
+            if ni == needle.len() {
+                return Some(hi - ni);
+            }
+        } else if ni != 0 {
+            ni = lps[ni - 1];
+        } else {
+            hi += 1;
+        }
     }
-    pi == pat.len()
+    None
+}
+
+fn find_segment_with_wildcard(
+    haystack: &[char],
+    needle: &[char],
+    steps: &mut usize,
+) -> Result<Option<usize>, Error> {
+    if needle.len() > haystack.len() {
+        return Ok(None);
+    }
+    for pos in 0..=haystack.len() - needle.len() {
+        let mut matched = true;
+        for (j, &pc) in needle.iter().enumerate() {
+            *steps += 1;
+            if *steps > MAX_LIKE_STEPS {
+                return Err(Error::TooLarge);
+            }
+            if pc != '_' && !pc.eq_ignore_ascii_case(&haystack[pos + j]) {
+                matched = false;
+                break;
+            }
+        }
+        if matched {
+            return Ok(Some(pos));
+        }
+    }
+    Ok(None)
 }

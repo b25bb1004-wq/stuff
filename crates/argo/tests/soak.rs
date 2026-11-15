@@ -165,13 +165,19 @@ fn gen_rel_path(rng: &mut Rng) -> String {
     path
 }
 
+fn paths_collide(a: &str, b: &str) -> bool {
+    a == b
+        || (b.len() > a.len() && b.starts_with(a) && b.as_bytes()[a.len()] == b'/')
+        || (a.len() > b.len() && a.starts_with(b) && a.as_bytes()[b.len()] == b'/')
+}
+
 fn gen_package(rng: &mut Rng) -> Package {
     let manifest = gen_manifest(rng);
     let file_count = rng.below(9);
-    let mut files = Vec::with_capacity(file_count);
+    let mut files: Vec<(String, Vec<u8>)> = Vec::with_capacity(file_count);
     for _ in 0..file_count {
         let path = gen_rel_path(rng);
-        if files.iter().any(|(p, _)| p == &path) {
+        if files.iter().any(|(p, _)| paths_collide(p, &path)) {
             continue;
         }
         let data = rng.bytes(512);

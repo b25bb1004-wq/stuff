@@ -19,6 +19,21 @@ const CONTRACT_MAX_HEAP_BYTES: usize = 1024 * 1024;
 /// Maximum call frame depth for a single contract call.
 const CONTRACT_MAX_DEPTH: u32 = 64;
 
+/// Maximum Elysium fuel allowed for a single contract call.
+const CONTRACT_MAX_FUEL: u64 = 2_000_000;
+
+/// Maximum total bytes buffered in `writes` during a single contract call (1 MiB).
+const CONTRACT_MAX_WRITE_BYTES: usize = 1024 * 1024;
+
+/// Maximum number of distinct keys buffered in `writes` during a single contract call.
+const CONTRACT_MAX_WRITES: usize = 4096;
+
+/// Maximum total bytes buffered in `events` during a single contract call (256 KiB).
+const CONTRACT_MAX_EVENT_BYTES: usize = 256 * 1024;
+
+/// Maximum number of events emitted during a single contract call.
+const CONTRACT_MAX_EVENTS: usize = 1024;
+
 /// Host imports permitted for on-chain contracts.
 const ALLOWED_IMPORTS: [&str; 6] = [
     "chain.get",
@@ -124,7 +139,9 @@ pub(crate) struct CallOutcome {
 struct ChainHost<'a> {
     committed: &'a BTreeMap<Vec<u8>, Vec<u8>>,
     writes: BTreeMap<Vec<u8>, Vec<u8>>,
+    write_bytes: usize,
     events: Vec<String>,
+    event_bytes: usize,
     caller: Address,
     input: &'a [u8],
     value: u64,
@@ -185,6 +202,24 @@ impl Host for ChainHost<'_> {
             "chain.set" => {
                 let key = Self::get_bytes(args.first().copied(), heap)?.to_vec();
                 let val = Self::get_bytes(args.get(1).copied(), heap)?.to_vec();
+                let (prev_val_len, is_new) = match self.writes.get(&key) {
+                    Some(prev) => (prev.len(), false),
+                    None => (0, true),
+                };
+                if is_new && self.writes.len() >= CONTRACT_MAX_WRITES {
+                    return Err(Trap::Host(String::from("write count limit")));
+                }
+                let added_key = if is_new { key.len() } else { 0 };
+                let next_bytes = self
+                    .write_bytes
+                    .saturating_sub(prev_val_len)
+                    .checked_add(added_key)
+                    .and_then(|n| n.checked_add(val.len()))
+                    .ok_or_else(|| Trap::Host(String::from("write size overflow")))?;
+                if next_bytes > CONTRACT_MAX_WRITE_BYTES {
+                    return Err(Trap::Host(String::from("write size limit")));
+                }
+                self.write_bytes = next_bytes;
                 self.writes.insert(key, val);
                 Ok(Value::Unit)
             }
@@ -193,7 +228,18 @@ impl Host for ChainHost<'_> {
                 Ok(Value::Ref(h))
             }
             "chain.emit" => {
+                if self.events.len() >= CONTRACT_MAX_EVENTS {
+                    return Err(Trap::Host(String::from("event count limit")));
+                }
                 let event = Self::get_str(args.first().copied(), heap)?;
+                let next_bytes = self
+                    .event_bytes
+                    .checked_add(event.len())
+                    .ok_or_else(|| Trap::Host(String::from("event size overflow")))?;
+                if next_bytes > CONTRACT_MAX_EVENT_BYTES {
+                    return Err(Trap::Host(String::from("event size limit")));
+                }
+                self.event_bytes = next_bytes;
                 self.events.push(String::from(event));
                 Ok(Value::Unit)
             }
@@ -245,13 +291,15 @@ pub(crate) fn execute_contract(
     let mut host = ChainHost {
         committed: &contract.storage,
         writes: BTreeMap::new(),
+        write_bytes: 0,
         events: Vec::new(),
+        event_bytes: 0,
         caller,
         input,
         value,
     };
     let limits = Limits {
-        fuel,
+        fuel: fuel.min(CONTRACT_MAX_FUEL),
         max_heap_bytes: CONTRACT_MAX_HEAP_BYTES,
         max_depth: CONTRACT_MAX_DEPTH,
     };

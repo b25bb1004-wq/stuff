@@ -10,12 +10,13 @@ use std::time::Duration;
 use mercury::{parse_response, write_request, Error as HttpError, Limits, Request};
 
 use crate::lock;
-use crate::manifest::Manifest;
+use crate::manifest::{is_valid_name, Manifest};
 use crate::pkg::{self, Package, PkgError};
 use crate::solve::{self, Index, Solution, SolveError};
 use crate::version::{Req, Version};
 
 const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
+const MAX_HTTP_RESPONSE_BYTES: usize = MAX_BODY_BYTES + 16 * 1024;
 
 /// Errors returned by [`install`], [`remove`], and [`installed`].
 #[derive(Debug)]
@@ -57,6 +58,38 @@ impl From<io::Error> for InstallError {
     }
 }
 
+fn find_header_end(buf: &[u8]) -> Option<usize> {
+    buf.windows(4).position(|w| w == b"\r\n\r\n").map(|i| i + 4)
+}
+
+fn parse_content_length(headers: &[u8]) -> Option<usize> {
+    let text = std::str::from_utf8(headers).ok()?;
+    for line in text.split("\r\n").skip(1) {
+        if let Some((name, val)) = line.split_once(':') {
+            if name.trim().eq_ignore_ascii_case("content-length") {
+                return val.trim().parse::<usize>().ok();
+            }
+        }
+    }
+    None
+}
+
+fn is_chunked(headers: &[u8]) -> bool {
+    let Ok(text) = std::str::from_utf8(headers) else {
+        return false;
+    };
+    for line in text.split("\r\n").skip(1) {
+        if let Some((name, val)) = line.split_once(':') {
+            if name.trim().eq_ignore_ascii_case("transfer-encoding")
+                && val.to_ascii_lowercase().contains("chunked")
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn http_get(addr: SocketAddr, target: &str) -> Result<Vec<u8>, InstallError> {
     let mut stream = TcpStream::connect(addr)?;
     let timeout = Duration::from_secs(30);
@@ -83,25 +116,71 @@ fn http_get(addr: SocketAddr, target: &str) -> Result<Vec<u8>, InstallError> {
     };
     let mut buf = Vec::with_capacity(4096);
     let mut tmp = [0u8; 8192];
+    let mut hdr_end: Option<usize> = None;
+    let mut checked_headers = false;
+    let mut next_parse_at: usize = 0;
 
     let resp = loop {
-        match parse_response(&buf, &limits, false) {
-            Ok((resp, _)) => break resp,
-            Err(HttpError::Incomplete) => {
-                let n = stream.read(&mut tmp)?;
-                if n == 0 {
-                    return Err(InstallError::Http(
-                        "unexpected EOF reading HTTP response".to_string(),
-                    ));
+        if hdr_end.is_none() {
+            hdr_end = find_header_end(&buf);
+        }
+        let should_parse = if let Some(h) = hdr_end {
+            if !checked_headers {
+                checked_headers = true;
+                if let Some(cl) = parse_content_length(&buf[..h]) {
+                    if cl > MAX_BODY_BYTES {
+                        return Err(InstallError::Http(
+                            "HTTP response exceeds maximum size".to_string(),
+                        ));
+                    }
                 }
-                buf.extend_from_slice(&tmp[..n]);
+                true
+            } else if let Some(cl) = parse_content_length(&buf[..h]) {
+                buf.len() >= h.saturating_add(cl)
+            } else if is_chunked(&buf[..h]) {
+                buf.ends_with(b"0\r\n\r\n")
+                    || (buf.ends_with(b"\r\n\r\n")
+                        && buf[buf.len().saturating_sub(512)..]
+                            .windows(5)
+                            .any(|w| w == b"\r\n0\r\n"))
+            } else {
+                false
             }
-            Err(e) => {
-                return Err(InstallError::Http(format!(
-                    "malformed HTTP response: {e:?}"
-                )));
+        } else {
+            buf.len() >= next_parse_at
+        };
+
+        if should_parse {
+            match parse_response(&buf, &limits, false) {
+                Ok((resp, _)) => break resp,
+                Err(HttpError::Incomplete) => {
+                    next_parse_at = buf.len().saturating_mul(2).max(16 * 1024);
+                }
+                Err(e) => {
+                    return Err(InstallError::Http(format!(
+                        "malformed HTTP response: {e:?}"
+                    )));
+                }
             }
         }
+
+        let n = stream.read(&mut tmp)?;
+        if n == 0 {
+            if !buf.is_empty() {
+                if let Ok((resp, _)) = parse_response(&buf, &limits, false) {
+                    break resp;
+                }
+            }
+            return Err(InstallError::Http(
+                "unexpected EOF reading HTTP response".to_string(),
+            ));
+        }
+        if buf.len().saturating_add(n) > MAX_HTTP_RESPONSE_BYTES {
+            return Err(InstallError::Http(
+                "HTTP response exceeds maximum size".to_string(),
+            ));
+        }
+        buf.extend_from_slice(&tmp[..n]);
     };
 
     if !(200..300).contains(&resp.status) {
@@ -125,6 +204,11 @@ fn parse_index(bytes: &[u8]) -> Result<Index, InstallError> {
         let name = parts
             .next()
             .ok_or_else(|| InstallError::Http("missing name in index".to_string()))?;
+        if !is_valid_name(name) {
+            return Err(InstallError::Http(format!(
+                "invalid package name '{name}' in index"
+            )));
+        }
         let ver_str = parts
             .next()
             .ok_or_else(|| InstallError::Http("missing version in index".to_string()))?;
@@ -133,6 +217,11 @@ fn parse_index(bytes: &[u8]) -> Result<Index, InstallError> {
 
         let mut deps = Vec::new();
         while let Some(dep) = parts.next() {
+            if !is_valid_name(dep) {
+                return Err(InstallError::Http(format!(
+                    "invalid dependency name '{dep}' in index"
+                )));
+            }
             let req_str = parts
                 .next()
                 .ok_or_else(|| InstallError::Http("missing req in index".to_string()))?;
@@ -178,6 +267,30 @@ fn write_package_to_disk(
     Ok(())
 }
 
+fn verify_manifest_deps(manifest: &Manifest, solution: &Solution) -> Result<(), InstallError> {
+    for (dep_name, dep_req) in &manifest.dependencies {
+        let Some(dep_ver) = solution.get(dep_name) else {
+            return Err(InstallError::Package(
+                manifest.name.clone(),
+                PkgError::Malformed(format!(
+                    "missing solved dependency '{dep_name}' required by {} {}",
+                    manifest.name, manifest.version
+                )),
+            ));
+        };
+        if !dep_req.matches(dep_ver) {
+            return Err(InstallError::Package(
+                manifest.name.clone(),
+                PkgError::Malformed(format!(
+                    "solved dependency '{dep_name}' {dep_ver} does not satisfy {dep_req} required by {} {}",
+                    manifest.name, manifest.version
+                )),
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Resolve and install `deps` from `registry` into `root`, verifying all signatures against `trusted`.
 pub fn install(
     registry: SocketAddr,
@@ -201,6 +314,19 @@ pub fn install(
         let already =
             existing_lock.get(name) == Some(&ver) && pkg_manifest_path(root, name, ver).exists();
         if already {
+            let text = fs::read_to_string(pkg_manifest_path(root, name, ver))?;
+            let manifest = Manifest::parse(&text)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
+            if manifest.name != *name || manifest.version != ver {
+                return Err(InstallError::Package(
+                    name.clone(),
+                    PkgError::Malformed(format!(
+                        "installed manifest names {} {}, expected {} {}",
+                        manifest.name, manifest.version, name, ver
+                    )),
+                ));
+            }
+            verify_manifest_deps(&manifest, &solution)?;
             continue;
         }
         let target = format!("/pkg/{name}/{ver}");
@@ -216,6 +342,7 @@ pub fn install(
                 )),
             ));
         }
+        verify_manifest_deps(&package.manifest, &solution)?;
         to_install.push((name.clone(), ver, package));
     }
 
