@@ -251,3 +251,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 13:37 | T49 | hydrogen | agy quota | PASS | contracts_leader 2/2 both seeds, seam_leader 8/8; gates pass
 - 2026-11-15 13:44 | T61 | hydrogen | agy quota | PASS | glint_leader 3/3 both seeds; two silent brief points taken from worker; gates pass
 - 2026-11-15 13:54 | T66a | haiku | 206,836 | PASS | layout_leader 2/2 both seeds; empty anon block not generated (aligned to worker); gates pass
+- 2026-11-15 14:00 | dispatch | 5 hydrogen + 2 haiku | - | RUNNING | T29a T50a hydrogen-high; T42 T70b T79a hydrogen; T62 T66b haiku
