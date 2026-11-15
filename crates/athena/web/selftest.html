@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SELFTEST</title>
+<link rel="stylesheet" href="/_kit/tokens.css">
+<link rel="stylesheet" href="/_kit/motion.css">
+<link rel="stylesheet" href="style.css">
+<script src="/_kit/motion.js"></script>
+<style>
+  body { padding: var(--sp-4); }
+  pre { white-space: pre-wrap; font-family: var(--font-code); font-size: var(--fs-code); }
+</style>
+</head>
+<body>
+<h1>Athena motion self-test</h1>
+<pre id="out"></pre>
+<div id="host" style="position: relative; height: 40px;">
+  <div class="run-hair" hidden></div>
+  <div class="run-ticks" hidden></div>
+</div>
+<div id="box"></div>
+<script type="module">
+import { showEl, afterPaint, createRunLine, tokenMs } from "./athena-motion.js";
+
+const out = document.getElementById("out");
+const root = document.documentElement;
+let pass = 0;
+let total = 0;
+
+function check(name, ok, why) {
+  total += 1;
+  if (ok) pass += 1;
+  out.textContent += (ok ? "PASS " : "FAIL ") + name + (ok ? "" : " " + (why || "")) + "\n";
+}
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const onlyOpacityTransform = (el) => el.getAnimations().every((a) =>
+  a.effect.getKeyframes().every((k) => Object.keys(k).every((key) =>
+    ["opacity", "transform", "offset", "easing", "composite", "computedOffset"].includes(key))));
+
+async function run() {
+  // The kit API Athena builds on is present.
+  check("kit-api", ["enter", "exit", "flip", "tween"].every((n) => typeof Motion[n] === "function"),
+    "a Motion function is missing");
+
+  // The firm spring from motion.css: its settle time is the token value.
+  check("firm-token", tokenMs("--spring-firm-t") === 270, "--spring-firm-t is " + tokenMs("--spring-firm-t"));
+
+  // Panels, tabs and the palette fade in on firm, and only opacity and transform move.
+  const box = document.getElementById("box");
+  Motion.enter(box, { curve: "firm", dist: 1 });
+  const anims = box.getAnimations();
+  check("firm-enter", anims.length === 1 && anims[0].effect.getTiming().duration === 270 && onlyOpacityTransform(box),
+    "animations " + anims.length);
+  anims.forEach((a) => a.cancel());
+
+  // showEl shows a hidden element and hides another at once.
+  const tab = document.createElement("div");
+  tab.hidden = true;
+  box.appendChild(tab);
+  showEl(tab, true);
+  check("showel-show", tab.hidden === false && tab.getAnimations().length === 1, "shown without a firm enter");
+  showEl(tab, false);
+  check("showel-hide", tab.hidden === true, "not hidden");
+  tab.remove();
+
+  // Reduced motion shows end states at once: no animation starts.
+  root.dataset.motion = "reduce";
+  const quiet = document.createElement("div");
+  quiet.hidden = true;
+  box.appendChild(quiet);
+  showEl(quiet, true);
+  check("reduced-showel", quiet.hidden === false && quiet.getAnimations().length === 0, "an animation started");
+  quiet.remove();
+  delete root.dataset.motion;
+
+  // The Run line: the sweep and the ticks land on the fixture, and the tick colour follows the result.
+  const host = document.getElementById("host");
+  const hair = host.querySelector(".run-hair");
+  const ticks = host.querySelector(".run-ticks");
+  const line = createRunLine(host);
+  line.start();
+  check("run-start", hair.hidden === false && ticks.hidden === false && hair.style.transform === "scaleX(0)",
+    "hair " + hair.style.transform);
+  line.land("error: unexpected token");
+  check("run-error-tick", ticks.children.length === 1 && ticks.children[0].className === "run-tick is-bad",
+    "ticks " + ticks.children.length);
+  await wait(tokenMs("--t-large") + tokenMs("--spring-firm-t") + 100);
+  check("run-sweep-end", hair.style.transform === "scaleX(1)" && hair.hidden === true,
+    "transform " + hair.style.transform + " hidden " + hair.hidden);
+
+  line.start();
+  line.land("42\n");
+  check("run-ok-ticks", ticks.children.length === 2 && ticks.children[0].className === "run-tick" &&
+    ticks.children[1].className === "run-tick", "ticks " + ticks.children.length);
+  line.start();
+  check("run-restart-clears", ticks.children.length === 0 && hair.hidden === false, "ticks kept");
+  await wait(tokenMs("--t-large") + tokenMs("--spring-firm-t") + 100);
+
+  // Reduced motion: the sweep ends in the same call, and a normal run after it is visible again.
+  root.dataset.motion = "reduce";
+  line.start();
+  check("reduced-run", hair.style.transform === "scaleX(1)", "transform " + hair.style.transform);
+  await wait(50);
+  delete root.dataset.motion;
+  line.start();
+  await wait(tokenMs("--t-large") + tokenMs("--spring-firm-t") + 100);
+  check("run-after-reduced", hair.style.opacity === "" && hair.style.transform === "scaleX(1)",
+    "opacity " + hair.style.opacity);
+
+  // afterPaint runs its callback once the kit frame loop has ticked.
+  let painted = false;
+  afterPaint(() => { painted = true; });
+  await wait(tokenMs("--t-press") + 100);
+  check("after-paint", painted, "callback did not run");
+
+  // The page wiring: the kit files and the Run line and debugger hooks are in the shipped markup.
+  try {
+    const html = await (await fetch("index.html")).text();
+    check("index-kit-links", html.includes("/_kit/motion.css") && html.includes("/_kit/motion.js"),
+      "index.html does not load the motion kit");
+    check("index-run-line", html.includes('id="run-hair"') && html.includes('id="run-ticks"'),
+      "run line markup missing");
+    const css = await (await fetch("style.css")).text();
+    check("style-run-tick", css.includes(".run-tick") && css.includes(".run-hair"), "run line styles missing");
+  } catch (e) {
+    check("index-fetch", false, String(e));
+  }
+
+  document.title = "SELFTEST " + (pass === total ? "PASS " : "FAIL ") + pass + "/" + total;
+  out.textContent += "DONE " + pass + "/" + total + "\n";
+}
+
+run();
+</script>
+</body>
+</html>

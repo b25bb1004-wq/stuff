@@ -6,17 +6,20 @@ use neon::webkit::{content_hash, run_cargo, sw_js, FILES as KIT_FILES};
 
 use crate::icons::render_icon_png;
 
-const STATIC_WEB_FILES: [&str; 6] = [
+const STATIC_WEB_FILES: [&str; 8] = [
+    "athena-motion.js",
     "debug.js",
     "index.html",
     "athena.js",
+    "selftest.html",
     "workbench.js",
     "style.css",
     "manifest.webmanifest",
 ];
 
 /// Files the bundle ships besides the kit and the generated `sw.js`.
-const BUNDLE_FILES: [&str; 11] = [
+const BUNDLE_FILES: [&str; 13] = [
+    "athena-motion.js",
     "debug.js",
     "athena.js",
     "athena.wasm",
@@ -25,6 +28,7 @@ const BUNDLE_FILES: [&str; 11] = [
     "icon-maskable-512.png",
     "index.html",
     "manifest.webmanifest",
+    "selftest.html",
     "style.css",
     "titan.elf",
     "workbench.js",

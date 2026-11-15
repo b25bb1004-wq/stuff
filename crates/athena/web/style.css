@@ -767,6 +767,39 @@ textarea {
   border-radius: 6px;
 }
 
+/* Run line (docs/PLAN-NEXT.md 4.5): a hairline sweeps the top edge; a tick lands per compile or run result. */
+.run-hair,
+.run-ticks {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.run-hair {
+  height: 1px;
+  background: var(--accent);
+  transform-origin: 0 50%;
+}
+
+.run-ticks {
+  height: 8px;
+}
+
+.run-tick {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 8px;
+  background: var(--accent);
+}
+
+.run-tick.is-bad {
+  background: var(--bad);
+}
+
 .dbg-band {
   position: absolute;
   left: 0;

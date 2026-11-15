@@ -8,9 +8,11 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="stylesheet" href="/_kit/tokens.css">
+  <link rel="stylesheet" href="/_kit/motion.css">
   <link rel="stylesheet" href="style.css">
   <script src="/_kit/wasm.js"></script>
   <script src="/_kit/term.js"></script>
+  <script src="/_kit/motion.js"></script>
   <script type="module" src="athena.js"></script>
 </head>
 <body>
@@ -148,6 +150,8 @@
       </div>
 
       <section class="editor-area" id="editor-area" aria-label="Editor">
+        <div class="run-hair" id="run-hair" aria-hidden="true" hidden></div>
+        <div class="run-ticks" id="run-ticks" aria-hidden="true" hidden></div>
         <div class="debug-toolbar" id="debug-toolbar" role="toolbar" aria-label="Debug" hidden>
           <button type="button" class="btn btn-sm" id="dbg-continue" title="Continue (F5)">Continue</button>
           <button type="button" class="btn btn-sm" id="dbg-step-over" title="Step Over (F10)">Over</button>

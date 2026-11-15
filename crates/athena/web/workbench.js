@@ -1,3 +1,5 @@
+import { showEl, leave } from "./athena-motion.js";
+
 const PALETTE_COMMANDS = [
   { id: "run", label: "Run", shortcut: "Ctrl+Enter" },
   { id: "test", label: "Test", shortcut: "Alt+T" },
@@ -118,6 +120,7 @@ export function createWorkbench(app) {
   let sidebarView = "explorer";
   let sidebarOpen = true;
   let panelOpen = true;
+  const bottomPanel = $("bottom-panel");
   let activePanelTab = "problems";
   let editingState = null;
   let pendingCloseTab = null;
@@ -223,7 +226,7 @@ export function createWorkbench(app) {
 
   function syncSidebarViews() {
     workbench.setAttribute("data-sidebar-open", sidebarOpen ? "true" : "false");
-    for (const [key, node] of Object.entries(sidebarViews)) node.hidden = key !== sidebarView;
+    for (const [key, node] of Object.entries(sidebarViews)) showEl(node, key === sidebarView);
     if (!isMobile()) {
       for (const b of actButtons) {
         const active = sidebarOpen && b.dataset.view === sidebarView;
@@ -260,9 +263,16 @@ export function createWorkbench(app) {
   for (const b of mobileActButtons) b.addEventListener("click", () => setMobileView(b.dataset.mobile));
 
   function setPanelOpen(open) {
+    const was = panelOpen;
     panelOpen = open;
-    workbench.setAttribute("data-panel-open", panelOpen ? "true" : "false");
     btnPanelToggle.textContent = panelOpen ? "Hide" : "Show";
+    if (open === was) return;
+    if (open) {
+      workbench.setAttribute("data-panel-open", "true");
+      Motion.enter(bottomPanel, { curve: "firm", dist: 1 });
+    } else {
+      leave(bottomPanel, () => panelOpen, () => workbench.setAttribute("data-panel-open", "false"));
+    }
   }
 
   function togglePanel() {
@@ -282,7 +292,7 @@ export function createWorkbench(app) {
       b.classList.toggle("is-active", active);
       b.setAttribute("aria-selected", active ? "true" : "false");
     }
-    for (const [key, body] of Object.entries(panelBodies)) body.hidden = key !== tab;
+    for (const [key, body] of Object.entries(panelBodies)) showEl(body, key === tab);
     if (tab === "terminal") app.onTerminalTabOpened();
     if (isMobile()) setMobileView("panel");
   }
@@ -698,7 +708,10 @@ export function createWorkbench(app) {
   }
 
   function openPalette(mode) {
-    if (!paletteState.open) paletteState.lastFocus = document.activeElement;
+    if (!paletteState.open) {
+      paletteState.lastFocus = document.activeElement;
+      Motion.enter($("palette-dialog"), { curve: "firm", dist: 1 });
+    }
     paletteState.open = true;
     paletteState.mode = mode;
     paletteState.selectedIndex = 0;
@@ -713,7 +726,7 @@ export function createWorkbench(app) {
   function closePalette(restoreFocus) {
     if (!paletteState.open) return;
     paletteState.open = false;
-    paletteBackdrop.hidden = true;
+    leave(paletteDialog, () => paletteState.open, () => { paletteBackdrop.hidden = true; });
     const prev = paletteState.lastFocus;
     paletteState.lastFocus = null;
     if (restoreFocus && prev && typeof prev.focus === "function") prev.focus();

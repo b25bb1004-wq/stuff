@@ -1,5 +1,6 @@
 import { createWorkbench } from "./workbench.js";
 import { createDebugUi } from "./debug.js";
+import { afterPaint, createRunLine } from "./athena-motion.js";
 
 const STORAGE_KEY = "athena.files.v1";
 const TABS_KEY = "athena.tabs.v1";
@@ -728,10 +729,12 @@ function runActiveFile() {
   runOut.classList.remove("is-error");
   runOut.textContent = "running…";
   const src = codeInput.value;
-  requestAnimationFrame(() => {
+  runLine.start();
+  afterPaint(() => {
     const text = readNeonLast(withBytes(encoder.encode(src), (ptr, len) => wasm.logos_run(ptr, len, LOGOS_FUEL)));
     runOut.textContent = text || "(no output)";
     if (text.startsWith("error: ") || text.startsWith("trap: ")) runOut.classList.add("is-error");
+    runLine.land(text);
     refreshAnalysis();
   });
 }
@@ -773,7 +776,7 @@ function testActiveFile() {
   testSummary.className = "test-summary";
   testSummary.textContent = "running tests…";
   const src = codeInput.value;
-  requestAnimationFrame(() => renderTestResults(readAthenaLast(withBytes(encoder.encode(src), (p, n) => wasm.athena_test(p, n, LOGOS_FUEL)))));
+  afterPaint(() => renderTestResults(readAthenaLast(withBytes(encoder.encode(src), (p, n) => wasm.athena_test(p, n, LOGOS_FUEL)))));
 }
 
 function runAllTests() {
@@ -844,6 +847,7 @@ async function loadWasm() {
   return (await Neon.load("athena.wasm")).exports;
 }
 
+const runLine = createRunLine(document.getElementById("editor-area"));
 const debug = createDebugUi({ wasm: () => wasm, withBytes, readAthenaLast, activeFile: () => activeFile, setStatus: (m, e) => { transientStatus = true; setEditorStatus(m, e); } });
 const workbench = createWorkbench({
   getFileNames: sortedFileNames, getFileContent, getOpenTabs: () => [...openTabs],

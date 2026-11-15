@@ -107,8 +107,13 @@ export function createDebugUi(deps) {
     marks.style.width = `${gutter.offsetWidth}px`;
     marks.replaceChildren(...nodes);
     const y = live > 0 ? top(live) - codeInput.scrollTop : 0;
-    band.hidden = !(live > 0 && y + LINE_PX > 0 && y < codeInput.clientHeight);
-    band.style.top = `${y}px`;
+    const show = live > 0 && y + LINE_PX > 0 && y < codeInput.clientHeight;
+    // A new line slides the bar (Motion.flip); scrolling alone just moves it.
+    const slide = show && !band.hidden && band.dataset.line !== String(live);
+    band.dataset.line = show ? String(live) : "";
+    if (slide) Motion.flip(band, () => { band.style.top = `${y}px`; });
+    else band.style.top = `${y}px`;
+    band.hidden = !show;
     toolbar.hidden = !session;
   }
 
