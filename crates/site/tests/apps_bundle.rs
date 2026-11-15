@@ -382,6 +382,9 @@ fn pack_produces_all_installable_apps_and_launcher() {
     assert_eq!(systems.len(), 25, "launcher must list all 25 systems");
 
     for href in extract_attr_values(&launcher_html, "href") {
+        if href.starts_with('#') {
+            continue;
+        }
         if href.ends_with(".css") || href == "../" {
             let target = launcher_dir.join(&href);
             assert!(target.exists(), "broken launcher href {href}");

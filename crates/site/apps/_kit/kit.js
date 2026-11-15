@@ -79,20 +79,20 @@
   }
 
   async function instantiateWasm() {
-    if (typeof WebAssembly.instantiateStreaming === "function") {
-      try {
-        const res = await WebAssembly.instantiateStreaming(fetch("../site.wasm"), {});
-        return res.instance.exports;
-      } catch (_err) {
-        /* Fallback when server sends a non-wasm MIME type. */
-      }
-    }
     const resp = await fetch("../site.wasm");
     if (!resp.ok) {
       throw new Error(`failed to fetch site.wasm: ${resp.status}`);
     }
-    const buf = await resp.arrayBuffer();
-    const res = await WebAssembly.instantiate(buf, {});
+    if (typeof WebAssembly.instantiateStreaming === "function") {
+      try {
+        /* The clone keeps one fetch: the buffered path below reads it after a MIME mismatch. */
+        const res = await WebAssembly.instantiateStreaming(Promise.resolve(resp.clone()), {});
+        return res.instance.exports;
+      } catch (_err) {
+        /* Fall through to the buffered path. */
+      }
+    }
+    const res = await WebAssembly.instantiate(await resp.arrayBuffer(), {});
     return res.instance.exports;
   }
 
@@ -239,6 +239,10 @@
     const themeStore = makeStore(appId, "theme");
 
     document.title = `Monolith ${appName}`;
+    const appRoot = document.getElementById("app-root");
+    if (appRoot) {
+      appRoot.tabIndex = -1;
+    }
     document.body.classList.add("kit-app-body");
 
     if (window.navigator && "serviceWorker" in window.navigator) {
@@ -252,7 +256,7 @@
     icon.alt = "";
     icon.width = 20;
     icon.height = 20;
-    const title = createEl("span", "kit-titlebar-name", `Monolith ${appName}`);
+    const title = createEl("h1", "kit-titlebar-name", `Monolith ${appName}`);
     brand.appendChild(icon);
     brand.appendChild(title);
 
@@ -265,7 +269,6 @@
 
     const themeBtn = createEl("button", "", "Theme: Auto");
     themeBtn.type = "button";
-    themeBtn.setAttribute("aria-label", "Toggle color theme");
 
     const aboutBtn = createEl("button", "", "About");
     aboutBtn.type = "button";
@@ -314,7 +317,8 @@
     dialog.appendChild(dHead);
     dialog.appendChild(dBody);
 
-    document.body.insertBefore(header, document.body.firstChild);
+    const skip = document.querySelector(".skip-link");
+    document.body.insertBefore(header, skip ? skip.nextSibling : document.body.firstChild);
     document.body.appendChild(dialog);
 
     function applyTheme(theme) {

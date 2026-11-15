@@ -74,6 +74,7 @@
   const termOut = createEl("pre", "titan-out", "");
   termOut.id = "titan-out";
   termOut.setAttribute("aria-live", "polite");
+  termOut.tabIndex = 0;
 
   const form = createEl("form", "titan-form");
   const inputLabel = createEl("label", "sr-only", "Titan shell command");

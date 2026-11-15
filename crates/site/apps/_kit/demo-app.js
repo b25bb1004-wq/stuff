@@ -37,18 +37,16 @@
     }
 
     const tabsBar = createEl("div", "demo-tabs");
-    tabsBar.setAttribute("role", "tablist");
+    tabsBar.setAttribute("role", "group");
     tabsBar.setAttribute("aria-label", "View switch");
 
     const tabInput = createEl("button", "demo-tab", "Input");
     tabInput.type = "button";
-    tabInput.setAttribute("role", "tab");
-    tabInput.setAttribute("aria-selected", "true");
+    tabInput.setAttribute("aria-pressed", "true");
 
     const tabOutput = createEl("button", "demo-tab", "Output");
     tabOutput.type = "button";
-    tabOutput.setAttribute("role", "tab");
-    tabOutput.setAttribute("aria-selected", "false");
+    tabOutput.setAttribute("aria-pressed", "false");
 
     tabsBar.appendChild(tabInput);
     tabsBar.appendChild(tabOutput);
@@ -97,7 +95,11 @@
     textarea.value = savedInput !== null ? savedInput : defaultText;
 
     leftPane.appendChild(leftBar);
+    const hint = createEl("p", "demo-hint", "Tab indents 4 spaces. Press Esc to leave the editor.");
+    hint.id = "demo-editor-hint";
+    textarea.setAttribute("aria-describedby", hint.id);
     leftPane.appendChild(textarea);
+    leftPane.appendChild(hint);
 
     const rightPane = createEl("section", "demo-pane is-hidden-mobile");
     rightPane.setAttribute("aria-label", "Output and history");
@@ -110,10 +112,15 @@
     rightBar.appendChild(status);
 
     const outputWrap = createEl("div", "demo-output-wrap");
+    outputWrap.tabIndex = 0;
+    outputWrap.setAttribute("role", "region");
+    outputWrap.setAttribute("aria-label", "Output text");
     const outPre = createEl("pre", "demo-output", "Press Run or Ctrl+Enter to execute.");
     outPre.setAttribute("aria-live", "polite");
     const canvas = createEl("canvas", "demo-canvas");
     canvas.hidden = true;
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", `Rendered frame from ${config.name || config.id}`);
     outputWrap.appendChild(outPre);
     outputWrap.appendChild(canvas);
 
@@ -122,6 +129,7 @@
     historyHead.appendChild(createEl("span", "demo-toolbar-label", "History (last 20)"));
     const clearHistBtn = createEl("button", "", "Clear");
     clearHistBtn.type = "button";
+    clearHistBtn.setAttribute("aria-label", "Clear run history");
     historyHead.appendChild(clearHistBtn);
     const historyList = createEl("div", "demo-history-list");
     historySection.appendChild(historyHead);
@@ -140,8 +148,8 @@
 
     function setActiveTab(tab) {
       const showInput = tab === "input";
-      tabInput.setAttribute("aria-selected", showInput ? "true" : "false");
-      tabOutput.setAttribute("aria-selected", showInput ? "false" : "true");
+      tabInput.setAttribute("aria-pressed", showInput ? "true" : "false");
+      tabOutput.setAttribute("aria-pressed", showInput ? "false" : "true");
       leftPane.classList.toggle("is-hidden-mobile", !showInput);
       rightPane.classList.toggle("is-hidden-mobile", showInput);
     }
@@ -249,6 +257,9 @@
         textarea.selectionStart = start + 4;
         textarea.selectionEnd = start + 4;
         saveInput();
+      } else if (ev.key === "Escape") {
+        ev.preventDefault();
+        runBtn.focus();
       } else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
         ev.preventDefault();
         runCurrent();

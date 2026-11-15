@@ -7,13 +7,13 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <a class="skip-link" href="#systems">Skip to systems</a>
+  <a class="skip-link" href="#systems">Skip to main content</a>
 
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="#top">MONOLITH</a>
       <span class="topbar-meta" id="wasm-status" aria-live="polite">wasm idle</span>
-      <button type="button" class="btn-ghost" id="theme-toggle" aria-label="Toggle color theme">Theme: Auto</button>
+      <button type="button" class="btn-ghost" id="theme-toggle">Theme: Auto</button>
     </div>
   </header>
 
@@ -42,7 +42,7 @@
         </div>
       </aside>
 
-      <main id="systems" class="systems-list"></main>
+      <main id="systems" class="systems-list" tabindex="-1"></main>
     </div>
   </div>
 
@@ -50,7 +50,7 @@
     <p>Monolith · zero external crates · local WebAssembly bundle</p>
   </footer>
 
-  <script src="systems.js"></script>
-  <script src="site.js"></script>
+  <script src="systems.js" defer></script>
+  <script src="site.js" defer></script>
 </body>
 </html>

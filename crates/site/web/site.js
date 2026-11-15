@@ -53,20 +53,20 @@
   });
 
   async function instantiateWasm() {
-    if (typeof WebAssembly.instantiateStreaming === "function") {
-      try {
-        const res = await WebAssembly.instantiateStreaming(fetch("site.wasm"), {});
-        return res.instance.exports;
-      } catch (_err) {
-        /* Fallback when server sends a non-wasm MIME type. */
-      }
-    }
     const resp = await fetch("site.wasm");
     if (!resp.ok) {
       throw new Error(`failed to fetch site.wasm: ${resp.status}`);
     }
-    const buf = await resp.arrayBuffer();
-    const res = await WebAssembly.instantiate(buf, {});
+    if (typeof WebAssembly.instantiateStreaming === "function") {
+      try {
+        /* The clone keeps one fetch: the buffered path below reads it after a MIME mismatch. */
+        const res = await WebAssembly.instantiateStreaming(Promise.resolve(resp.clone()), {});
+        return res.instance.exports;
+      } catch (_err) {
+        /* Fall through to the buffered path. */
+      }
+    }
+    const res = await WebAssembly.instantiate(await resp.arrayBuffer(), {});
     return res.instance.exports;
   }
 
@@ -163,12 +163,22 @@
 
     const outPre = createEl("pre", "demo-output", "Click Run to execute in WebAssembly.");
     outPre.setAttribute("aria-live", "polite");
+    outPre.tabIndex = 0;
 
     const canvas = createEl("canvas", "demo-canvas");
     canvas.hidden = true;
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", `Rendered frame from ${labelText}`);
 
     resetBtn.addEventListener("click", () => {
       textarea.value = defaultInput || "";
+    });
+
+    textarea.addEventListener("keydown", (ev) => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+        ev.preventDefault();
+        runBtn.click();
+      }
     });
 
     runBtn.addEventListener("click", async () => {
@@ -237,8 +247,10 @@
     box.appendChild(bar);
     box.appendChild(textarea);
     box.appendChild(controls);
-    box.appendChild(outPre);
-    box.appendChild(canvas);
+    const stage = createEl("div", "demo-stage");
+    stage.appendChild(outPre);
+    stage.appendChild(canvas);
+    box.appendChild(stage);
     return box;
   }
 
@@ -253,9 +265,10 @@
     const termOut = createEl("pre", "demo-output", "");
     termOut.id = "titan-out";
     termOut.setAttribute("aria-live", "polite");
+    termOut.tabIndex = 0;
 
     const form = createEl("form", "term-form");
-    const inputLabel = createEl("label", "skip-link", "Titan shell command");
+    const inputLabel = createEl("label", "sr-only", "Titan shell command");
     inputLabel.setAttribute("for", "titan-in");
     const input = document.createElement("input");
     input.type = "text";
@@ -410,9 +423,16 @@
     textarea.id = "logos-src";
     textarea.value = LOGOS_EXAMPLES.hello;
     textarea.spellcheck = false;
+    textarea.addEventListener("keydown", (ev) => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+        ev.preventDefault();
+        runBtn.click();
+      }
+    });
 
     const outPre = createEl("pre", "demo-output", "Select an example and click Run.");
     outPre.setAttribute("aria-live", "polite");
+    outPre.tabIndex = 0;
 
     select.addEventListener("change", () => {
       if (Object.prototype.hasOwnProperty.call(LOGOS_EXAMPLES, select.value)) {
