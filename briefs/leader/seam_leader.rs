@@ -356,7 +356,8 @@ fn merkle_matches_model() {
             let p = merkle_proof(&ls, i);
             assert_eq!(p, m_path(i, &ls), "proof n {n} i {i}");
             assert!(merkle_verify(&root, &ls[i], i, n, &p), "verify n {n} i {i}");
-            if n > 1 {
+            // equal leaves make a wrong-index proof legitimately verify
+            if n > 1 && ls[i] != ls[(i + 1) % n] {
                 assert!(
                     !merkle_verify(&root, &ls[i], (i + 1) % n, n, &p),
                     "index n {n} i {i}"
