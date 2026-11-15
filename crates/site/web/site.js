@@ -372,7 +372,8 @@
       status.textContent = "running…";
       try {
         const wasm = await ensureWasm();
-        requestAnimationFrame(() => {
+        /* A task break lets the running status paint before the run; rAF is reserved for the kit. */
+        setTimeout(() => {
           try {
             const bytes = encoder.encode(textarea.value);
             const len = withGuestBytes(wasm, bytes, (ptr, bLen) =>
@@ -416,6 +417,19 @@
     row.appendChild(link);
     box.appendChild(row);
     return box;
+  }
+
+  /* Core sample hero (4.5): the layer chips stack up from below on the first load of a session.
+  A key, click, wheel or touch finishes it at once; reduced motion shows the end picture. */
+  function playCoreSample() {
+    if (!window.Motion) {
+      return;
+    }
+    Motion.hero("site", (ctl) => {
+      const handles = Motion.stagger(layerDiagram, { curve: "heavy", dist: 3, fill: "backwards" });
+      ctl.onSkip(() => handles.forEach((h) => h.finish()));
+      return Promise.all(handles.map((h) => h.done));
+    });
   }
 
   function buildPage() {
@@ -491,18 +505,33 @@
       setActiveLayer(systems[0].num);
     }
 
+    playCoreSample();
+
+    /* Kit motion when it loaded; the CSS end state (is-visible) shows the section either way. */
+    const motion = window.Motion || null;
+    const staggerMs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--stagger")) || 0;
+    let revealed = 0;
+
     if ("IntersectionObserver" in window) {
       const revealObserver = new IntersectionObserver(
         (entries) => {
           for (const entry of entries) {
             if (entry.isIntersecting) {
-              entry.target.classList.add("is-visible");
+              if (!entry.target.classList.contains("is-visible")) {
+                entry.target.classList.add("is-visible");
+                if (motion) {
+                  /* Sections that arrive together enter one stagger step apart, at most eight steps. */
+                  motion.enter(entry.target, { dist: 2, dur: "slow", delay: Math.min(revealed, 7) * staggerMs });
+                  revealed += 1;
+                }
+              }
               const num = sectionToNum.get(entry.target);
               if (num !== undefined) {
                 setActiveLayer(num);
               }
             }
           }
+          revealed = 0;
         },
         { threshold: 0.12 }
       );

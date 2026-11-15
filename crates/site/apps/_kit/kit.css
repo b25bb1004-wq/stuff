@@ -1,12 +1,15 @@
-/* Colour, type and space tokens come from tokens.css. This file keeps the motion tokens and
-   the T76 border contrast (3:1) for --line, which overrides the softer neon value in each theme. */
+/* Colour, type, space and motion tokens come from tokens.css and motion.css (generated springs).
+   This file keeps the T76 border contrast (3:1) for --line, which overrides the softer neon value in each theme. */
 @import url("tokens.css");
+@import url("motion.css");
+
+/* Cross-page hand-off (4.4): the launcher icon and the app's title bar icon share one name, so the
+   browser morphs one into the other where view transitions exist; elsewhere the page just loads. */
+@view-transition {
+  navigation: auto;
+}
 
 :root {
-  --t-fast: 120ms;
-  --t-med: 240ms;
-  --t-slow: 600ms;
-  --ease: cubic-bezier(.2, .7, .2, 1);
   --line: #636b78;
 }
 
@@ -119,6 +122,7 @@ button:disabled {
   height: 20px;
   border-radius: 4px;
   flex-shrink: 0;
+  view-transition-name: app-icon;
 }
 
 .kit-titlebar-name {
@@ -572,6 +576,23 @@ a.app-card:active {
   flex-shrink: 0;
 }
 
+/* Launcher arrival (4.5): icons settle in build order, one stagger step apart (--i is set per card). */
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(var(--d-2));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.launcher-grid .app-card {
+  animation: arrive var(--spring-firm-t) var(--spring-firm) backwards;
+  animation-delay: calc(min(var(--i, 0), 7) * var(--stagger));
+}
+
 .app-card-body {
   min-width: 0;
   flex: 1 1 auto;
@@ -665,13 +686,9 @@ a.app-card:active {
   }
 }
 
+/* Durations and the end state under reduced motion come from tokens.css; only the scroll rule is local. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  html {
+    scroll-behavior: auto;
   }
 }

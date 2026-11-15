@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SITE SELFTEST</title>
+<link rel="stylesheet" href="_kit/tokens.css">
+<link rel="stylesheet" href="_kit/motion.css">
+<script src="_kit/motion-table.js"></script>
+<script src="_kit/motion.js"></script>
+<style>
+  body { padding: var(--sp-4); }
+  pre { white-space: pre-wrap; font-family: var(--font-code); font-size: var(--fs-code); }
+</style>
+</head>
+<body>
+<main>
+<h1>Site motion self-test</h1>
+<pre id="out"></pre>
+<div id="box"></div>
+</main>
+<script>
+(function () {
+  "use strict";
+  var out = document.getElementById("out");
+  var root = document.documentElement;
+  var pass = 0;
+  var total = 0;
+
+  function check(name, ok, why) {
+    total += 1;
+    if (ok) pass += 1;
+    out.textContent += (ok ? "PASS " + name : "FAIL " + name + " " + (why || "")) + "\n";
+  }
+  function token(name) {
+    return getComputedStyle(root).getPropertyValue(name).trim();
+  }
+
+  // Site tokens come from tokens.css (4.2): the values are present on this page.
+  check("tokens", token("--t-press") === 80 + "ms" && token("--t-slow") === 600 + "ms" &&
+    token("--t-hero") === 1200 + "ms" && token("--ease") !== "", "section 4.2 values missing");
+
+  // Springs: the generated table ends at the target and settles inside its token (4.2).
+  var limits = { firm: 280, live: 450, heavy: 700 };
+  if (typeof MOTION_TABLE !== "object") {
+    check("spring-table", false, "motion-table.js is not served");
+  } else {
+    Object.keys(limits).forEach(function (name) {
+      var t = MOTION_TABLE[name];
+      var ok = !!t && t.ms <= limits[name] && Math.abs(t.points[t.points.length - 1] - 1000) <= 10;
+      check("spring-" + name, ok, "missing, late or not ending at target");
+    });
+  }
+
+  // The public API the site uses.
+  var api = ["enter", "exit", "stagger", "flip", "swap", "count", "tween", "canvas", "hero", "reduced"];
+  check("motion-api", typeof Motion === "object" && api.every(function (n) { return typeof Motion[n] === "function"; }),
+    "a Motion function is missing");
+
+  // Reduced motion: each call shows its end state at once and starts no animation.
+  root.dataset.motion = "reduce";
+  var box = document.getElementById("box");
+  var handle = Motion.enter(box, { dist: 3 });
+  var stagger = Motion.stagger(box, { curve: "heavy", dist: 3, fill: "backwards" });
+  check("reduced-enter", Motion.reduced() === true && box.getAnimations().length === 0 &&
+    typeof handle.finish === "function" && stagger.length === 0, "an animation started under reduced motion");
+  delete root.dataset.motion;
+
+  // Normal motion touches only opacity and transform.
+  var probe = document.createElement("div");
+  document.body.appendChild(probe);
+  Motion.enter(probe, { dist: 3, dir: 1 });
+  Motion.exit(probe, { dist: 2 });
+  var allowed = { opacity: 1, transform: 1, offset: 1, easing: 1, composite: 1, computedOffset: 1 };
+  var props = [];
+  document.getAnimations().forEach(function (a) {
+    a.effect.getKeyframes().forEach(function (k) {
+      Object.keys(k).forEach(function (key) { if (!allowed[key]) props.push(key); });
+    });
+  });
+  check("only-opacity-transform", props.length === 0, "animates " + props.join(","));
+  document.getAnimations().forEach(function (a) { a.cancel(); });
+  probe.remove();
+
+  // The site's own files: no token redefinitions, and no rAF outside the kit.
+  var fetches = ["style.css", "site.js"].map(function (f) {
+    return fetch(f).then(function (r) { return r.text(); });
+  });
+  Promise.all(fetches).then(function (texts) {
+    var css = texts[0];
+    var js = texts[1];
+    check("site-css-tokens-only", !/--t-[a-z-]+\s*:/.test(css) && !/--ease\s*:/.test(css),
+      "style.css redefines a motion token");
+    check("site-css-no-bare-durations", !/\d(ms|s)[;\s,)}]/.test(css), "style.css has a bare duration");
+    check("site-js-no-raf", js.indexOf("requestAnimationFrame") === -1, "site.js calls requestAnimationFrame");
+    check("site-js-hero", js.indexOf('Motion.hero("site"') !== -1, "core sample hero is not wired");
+  }).catch(function (err) {
+    check("site-files", false, String(err));
+  }).then(function () {
+    document.title = "SITE SELFTEST " + (pass === total ? "PASS " : "FAIL ") + pass + "/" + total;
+    out.textContent += "DONE " + pass + "/" + total + "\n";
+  });
+})();
+</script>
+</body>
+</html>

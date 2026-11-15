@@ -1,12 +1,9 @@
-/* Colour, type and space tokens come from _kit/tokens.css. This file keeps the motion tokens and
-   the T76 border contrast (3:1) for --line, which overrides the softer neon value in each theme. */
+/* Colour, type, space and motion tokens come from _kit/tokens.css and _kit/motion.css (generated springs).
+   This file keeps the T76 border contrast (3:1) for --line, which overrides the softer neon value in each theme. */
 @import url("_kit/tokens.css");
+@import url("_kit/motion.css");
 
 :root {
-  --t-fast: 120ms;
-  --t-med: 240ms;
-  --t-slow: 600ms;
-  --ease: cubic-bezier(.2, .7, .2, 1);
   --line: #636b78;
 }
 
@@ -247,10 +244,10 @@ body {
   scroll-margin-top: 72px;
 }
 
+/* Hidden until the observer adds is-visible; Motion.enter (site.js) plays the travel. */
 .system-card.reveal {
   opacity: 0;
   transform: translateY(16px);
-  transition: opacity var(--t-slow) var(--ease), transform var(--t-slow) var(--ease);
 }
 
 .system-card.reveal.is-visible {
@@ -521,14 +518,10 @@ button:disabled {
   }
 }
 
+/* Durations come from tokens.css under reduced motion; the end picture is set here. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  html {
+    scroll-behavior: auto;
   }
 
   .system-card.reveal {
