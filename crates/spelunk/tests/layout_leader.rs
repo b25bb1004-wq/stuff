@@ -226,7 +226,7 @@ fn decl(r: &mut Rng) -> Decl {
                 "color: purple",
                 "padding: x",
                 "margin: 1px 2px 3px 4px 5px",
-                "display: flex",
+                "display: grid",
                 "font-size: big",
                 "height: -",
                 "bogus: 3px",

@@ -3,24 +3,51 @@
 use crate::dom::NodeId;
 use crate::style::{Computed, Display, Len};
 
+use super::flex;
 use super::inline::{self, Item};
 use super::{margin_px, BoxRect, Ctx, MAX_DEPTH};
 
 /// Lay out block `id` in a containing block at `cb_x` with width `cb_w`, its border box
 /// starting at `border_top`. Returns the border-box height.
 pub(crate) fn block(ctx: &mut Ctx, id: NodeId, cb_x: i32, cb_w: i32, border_top: i32) -> i32 {
+    let Some(st) = ctx.style(id) else {
+        return 0;
+    };
+    let (ml, content_w) = horizontal(&st, cb_w);
+    let report = matches!(st.display, Display::Block | Display::Flex);
+    place(
+        ctx,
+        id,
+        cb_x.saturating_add(ml),
+        border_top,
+        content_w,
+        0,
+        report,
+    )
+}
+
+/// Lay out `id` with its border box at (`border_x`, `border_top`) and content width `content_w`,
+/// adding `extra_h` to its content height. Its box is reported when `report`. Returns the
+/// border-box height.
+pub(crate) fn place(
+    ctx: &mut Ctx,
+    id: NodeId,
+    border_x: i32,
+    border_top: i32,
+    content_w: i32,
+    extra_h: i32,
+    report: bool,
+) -> i32 {
     if ctx.depth >= MAX_DEPTH {
         return 0;
     }
     let Some(st) = ctx.style(id) else {
         return 0;
     };
-    let (ml, content_w) = horizontal(&st, cb_w);
-    let border_x = cb_x.saturating_add(ml);
     let [pt, pr, pb, pl] = st.padding;
     let [bt, br, bb, bl] = st.border;
     let bw = content_w.saturating_add(sum([pl, pr, bl, br]));
-    let slot = (st.display == Display::Block).then(|| {
+    let slot = report.then(|| {
         ctx.boxes.push((
             id,
             BoxRect {
@@ -35,13 +62,19 @@ pub(crate) fn block(ctx: &mut Ctx, id: NodeId, cb_x: i32, cb_w: i32, border_top:
     let content_x = border_x.saturating_add(bl).saturating_add(pl);
     let content_y = border_top.saturating_add(bt).saturating_add(pt);
     ctx.depth += 1;
-    let auto_h = children(ctx, id, content_x, content_y, content_w);
+    let auto_h = if st.display == Display::Flex {
+        flex::children(ctx, id, st, content_x, content_y, content_w)
+    } else {
+        children(ctx, id, content_x, content_y, content_w)
+    };
     ctx.depth -= 1;
     let content_h = match st.height {
         Len::Px(h) => h,
         // Negative margins can sum below zero; a box never has a negative height.
         Len::Auto => auto_h.max(0),
-    };
+    }
+    .saturating_add(extra_h)
+    .max(0);
     let bh = content_h.saturating_add(sum([pt, pb, bt, bb]));
     if let Some(entry) = slot.and_then(|i| ctx.boxes.get_mut(i)) {
         entry.1 = BoxRect {

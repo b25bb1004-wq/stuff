@@ -1,9 +1,13 @@
 //! Computed style: the cascade (UA sheet, `<style>` sheets, `style` attributes) with inheritance.
 
 mod cascade;
+mod flex;
 mod values;
 
 use crate::dom::Document;
+
+pub(crate) use flex::FLEX_INITIAL;
+pub use flex::{compute_flex, Flex, FlexAlign, FlexDir, FlexJustify};
 
 /// Outer display type of an element.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,6 +18,8 @@ pub enum Display {
     Inline,
     /// Not rendered, with its subtree.
     None,
+    /// Flex container: laid out like a block, its element children are flex items.
+    Flex,
 }
 
 /// A length in CSS pixels, or `auto`.
@@ -63,5 +69,8 @@ pub(crate) const INITIAL: Computed = Computed {
 
 /// Compute the style of every element. Indexed by `NodeId`; `None` for non-elements.
 pub fn compute(doc: &Document) -> Vec<Option<Computed>> {
-    cascade::compute(doc)
+    cascade::compute_all(doc)
+        .into_iter()
+        .map(|c| c.map(|(s, _)| s))
+        .collect()
 }

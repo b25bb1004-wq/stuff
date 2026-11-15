@@ -2,7 +2,7 @@
 
 use crate::css::{Token, Value};
 
-use super::{Display, Len};
+use super::{Display, FlexAlign, FlexDir, FlexJustify, Len};
 
 /// One typed value produced by a declaration; shorthands expand to several.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,10 +16,15 @@ pub(crate) enum Prop {
     Color([u8; 4]),
     Background([u8; 4]),
     FontPx(i32),
+    FlexDir(FlexDir),
+    FlexJustify(FlexJustify),
+    FlexAlign(FlexAlign),
+    FlexGrow(u32),
+    Gap(i32),
 }
 
 /// Number of cascade slots: the cascade keeps one winner per slot.
-pub(crate) const SLOTS: usize = 18;
+pub(crate) const SLOTS: usize = 23;
 
 impl Prop {
     /// The cascade slot this value competes in.
@@ -34,6 +39,11 @@ impl Prop {
             Prop::Color(_) => 15,
             Prop::Background(_) => 16,
             Prop::FontPx(_) => 17,
+            Prop::FlexDir(_) => 18,
+            Prop::FlexJustify(_) => 19,
+            Prop::FlexAlign(_) => 20,
+            Prop::FlexGrow(_) => 21,
+            Prop::Gap(_) => 22,
         }
     }
 }
@@ -71,6 +81,11 @@ fn parse_tokens(name: &str, t: &[&Value]) -> Option<Vec<Prop>> {
         "color" => vec![Prop::Color(color(one(t)?)?)],
         "background-color" => vec![Prop::Background(color(one(t)?)?)],
         "font-size" => vec![Prop::FontPx(font(one(t)?)?)],
+        "flex-direction" => vec![Prop::FlexDir(flex_dir(one(t)?)?)],
+        "justify-content" => vec![Prop::FlexJustify(justify(one(t)?)?)],
+        "align-items" => vec![Prop::FlexAlign(align(one(t)?)?)],
+        "flex-grow" => vec![Prop::FlexGrow(grow(one(t)?)?)],
+        "gap" => vec![Prop::Gap(pad(one(t)?)?)],
         _ => {
             let margin = name.strip_prefix("margin-").and_then(side_index);
             let padding = name.strip_prefix("padding-").and_then(side_index);
@@ -133,6 +148,51 @@ fn display(v: &Value) -> Option<Display> {
         "block" => Some(Display::Block),
         "inline" => Some(Display::Inline),
         "none" => Some(Display::None),
+        "flex" => Some(Display::Flex),
+        _ => None,
+    }
+}
+
+fn keyword(v: &Value) -> Option<String> {
+    ident(v).map(str::to_ascii_lowercase)
+}
+
+fn flex_dir(v: &Value) -> Option<FlexDir> {
+    match keyword(v)?.as_str() {
+        "row" => Some(FlexDir::Row),
+        "column" => Some(FlexDir::Column),
+        _ => None,
+    }
+}
+
+fn justify(v: &Value) -> Option<FlexJustify> {
+    match keyword(v)?.as_str() {
+        "flex-start" => Some(FlexJustify::Start),
+        "center" => Some(FlexJustify::Center),
+        "flex-end" => Some(FlexJustify::End),
+        "space-between" => Some(FlexJustify::SpaceBetween),
+        _ => None,
+    }
+}
+
+fn align(v: &Value) -> Option<FlexAlign> {
+    match keyword(v)?.as_str() {
+        "flex-start" => Some(FlexAlign::Start),
+        "center" => Some(FlexAlign::Center),
+        "flex-end" => Some(FlexAlign::End),
+        "stretch" => Some(FlexAlign::Stretch),
+        _ => None,
+    }
+}
+
+/// `flex-grow`: a non-negative whole number.
+fn grow(v: &Value) -> Option<u32> {
+    match v {
+        Value::Token(Token::Number { value, .. })
+            if *value >= 0.0 && value.fract() == 0.0 && *value <= f64::from(u32::MAX) =>
+        {
+            Some(*value as u32)
+        }
         _ => None,
     }
 }

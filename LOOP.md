@@ -144,7 +144,7 @@ Status: TODO, RUNNING, PASS, RETRY, ESCALATE. `needs` must be PASS before dispat
 | T64 | P4 | facet | client protocol + apps: terminal (crust), editor (slate), files | hydrogen | T63 T57 T55 | TODO |
 | T65 | P4 | spelunk | HTML and CSS parsers | hydrogen |  | PASS |
 | T66 | P4 | spelunk | cascade, block and inline layout, flex subset | argon-high | T65 T60 | TODO |
-| T66b | P4 | spelunk | flex layout subset | haiku | T66a | RUNNING |
+| T66b | P4 | spelunk | flex layout subset | haiku | T66a | PASS |
 | T66a | P4 | spelunk | cascade, block and inline layout (flex is T66b) | haiku | T65 T60 | PASS |
 | T67 | P4 | spelunk | paint, fetch over HTTP, page scripts in Mica, browser shell in glint | argon | T66 T62 T18 T37 | TODO |
 | T68 | P4 | tectonic | entity system, fixed time step, maths | haiku |  | PASS |
@@ -255,3 +255,4 @@ cairn, seam, vug, crust, slate. P4 pigment, glint, facet, spelunk, tectonic. P5 
 - 2026-11-15 14:00 | dispatch | 5 hydrogen + 2 haiku | - | RUNNING | T29a T50a hydrogen-high; T42 T70b T79a hydrogen; T62 T66b haiku
 - 2026-11-15 14:08 | T79a | hydrogen | agy quota | PASS | outcrop soak 7.4M cases fresh seed; lane is single-crate, rest split to T79b
 - 2026-11-15 14:14 | T62 | haiku | 139,418 | PASS | widgets_leader 4/4 both seeds; leader fixed nav reveal-without-change; gates pass
+- 2026-11-15 14:21 | T66b | haiku | 199,110 | PASS | flex_leader 2/2 both seeds + mutation bites; leader's own T66a check fixed (display: flex was in its invalid pool); gates pass

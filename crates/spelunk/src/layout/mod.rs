@@ -1,10 +1,11 @@
-//! Block and inline layout over computed styles. Flex and grid are not handled here.
+//! Block, inline and flex layout over computed styles. Grid is not handled here.
 
 mod block;
+mod flex;
 mod inline;
 
 use crate::dom::{Document, NodeId};
-use crate::style::{Computed, Display, Len};
+use crate::style::{compute_flex, Computed, Display, Flex, Len, FLEX_INITIAL};
 
 // shortcut: boxes nested deeper than 256 levels are not laid out, which keeps recursion bounded
 // on hostile input; upgrade to an explicit work stack if deep documents must render.
@@ -51,6 +52,7 @@ pub struct Layout {
 pub(crate) struct Ctx<'a> {
     pub(crate) doc: &'a Document,
     styles: &'a [Option<Computed>],
+    flexes: Vec<Option<Flex>>,
     pub(crate) boxes: Vec<(NodeId, BoxRect)>,
     pub(crate) runs: Vec<TextRun>,
     pub(crate) depth: usize,
@@ -61,6 +63,15 @@ impl Ctx<'_> {
     pub(crate) fn style(&self, id: NodeId) -> Option<Computed> {
         self.styles.get(id).copied().flatten()
     }
+
+    /// The flex properties of element `id` (initial values for non-elements).
+    pub(crate) fn flex_of(&self, id: NodeId) -> Flex {
+        self.flexes
+            .get(id)
+            .copied()
+            .flatten()
+            .unwrap_or(FLEX_INITIAL)
+    }
 }
 
 /// Lay out `doc` in a viewport `viewport_w` pixels wide, using the styles from `style::compute`.
@@ -68,6 +79,7 @@ pub fn layout(doc: &Document, styles: &[Option<Computed>], viewport_w: i32) -> L
     let mut ctx = Ctx {
         doc,
         styles,
+        flexes: compute_flex(doc),
         boxes: Vec::new(),
         runs: Vec::new(),
         depth: 0,

@@ -4,6 +4,7 @@ use crate::css::{parse_declarations, parse_stylesheet, Declaration, Rule, Token,
 use crate::dom::{Data, Document, NodeId};
 use crate::select::{parse_selectors, Selector};
 
+use super::flex::{Flex, FLEX_INITIAL};
 use super::values::{parse_decl, Prop, SLOTS};
 use super::{Computed, INITIAL};
 
@@ -30,7 +31,8 @@ struct Entry {
 type Winners = [Option<(Key, Prop)>; SLOTS];
 
 /// Cascade every element of `doc` and apply inheritance (pre-order, so parents come first).
-pub(crate) fn compute(doc: &Document) -> Vec<Option<Computed>> {
+/// Returns the computed style and the flex properties of each element.
+pub(crate) fn compute_all(doc: &Document) -> Vec<Option<(Computed, Flex)>> {
     let mut entries = Vec::new();
     collect(UA_SHEET, 0, &mut entries);
     for id in doc.elements() {
@@ -38,17 +40,19 @@ pub(crate) fn compute(doc: &Document) -> Vec<Option<Computed>> {
             collect(&child_text(doc, id), 1, &mut entries);
         }
     }
-    let mut out: Vec<Option<Computed>> = vec![None; doc.nodes.len()];
+    let mut out: Vec<Option<(Computed, Flex)>> = vec![None; doc.nodes.len()];
     for id in doc.elements() {
         let winners = winners(doc, id, &entries);
         let parent = doc
             .nodes
             .get(id)
             .and_then(|n| n.parent)
-            .and_then(|p| out.get(p).copied().flatten());
+            .and_then(|p| out.get(p).copied().flatten())
+            .map(|(c, _)| c);
         let style = apply(&winners, parent);
+        let flex = apply_flex(&winners);
         if let Some(slot) = out.get_mut(id) {
-            *slot = Some(style);
+            *slot = Some((style, flex));
         }
     }
     out
@@ -147,9 +151,30 @@ fn apply(winners: &Winners, parent: Option<Computed>) -> Computed {
             Prop::Color(col) => c.color = col,
             Prop::Background(col) => c.background = col,
             Prop::FontPx(f) => c.font_px = f,
+            Prop::FlexDir(_)
+            | Prop::FlexJustify(_)
+            | Prop::FlexAlign(_)
+            | Prop::FlexGrow(_)
+            | Prop::Gap(_) => {}
         }
     }
     c
+}
+
+/// Apply the flex winners to the initial flex values (none of them inherit).
+fn apply_flex(winners: &Winners) -> Flex {
+    let mut f = FLEX_INITIAL;
+    for (_, prop) in winners.iter().flatten() {
+        match *prop {
+            Prop::FlexDir(d) => f.dir = d,
+            Prop::FlexJustify(j) => f.justify = j,
+            Prop::FlexAlign(a) => f.align = a,
+            Prop::FlexGrow(g) => f.grow = g,
+            Prop::Gap(g) => f.gap = g,
+            _ => {}
+        }
+    }
+    f
 }
 
 fn set<T>(arr: &mut [T; 4], i: usize, v: T) {

@@ -42,7 +42,7 @@ fn push_children(ctx: &Ctx, id: NodeId, st: Computed, out: &mut Vec<Item>, depth
                 };
                 match cs.display {
                     Display::None => {}
-                    Display::Block => out.push(Item::Block(c)),
+                    Display::Block | Display::Flex => out.push(Item::Block(c)),
                     Display::Inline => push_children(ctx, c, cs, out, depth + 1),
                 }
             }
