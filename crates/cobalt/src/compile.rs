@@ -1,4 +1,5 @@
 //! Lowering from checked `logos::ir::Program` to `elysium::Module`.
+use crate::debug::{func_debug, Debug};
 use crate::meta::encode_meta;
 use crate::{Compiled, CompiledProp};
 use alloc::format;
@@ -38,6 +39,11 @@ pub fn compile(p: &ir::Program) -> Compiled {
         spans.push(vec![Span { start: 0, end: 0 }; 2]);
     }
 
+    let debug = Debug {
+        line_starts: Vec::new(),
+        functions: funcs.iter().map(func_debug).collect(),
+    };
+
     if !p.props.is_empty() {
         cx.consts.push(Const::Bytes(encode_meta(p)));
     }
@@ -72,6 +78,7 @@ pub fn compile(p: &ir::Program) -> Compiled {
         tests: p.tests.clone(),
         props,
         spans,
+        debug,
     }
 }
 

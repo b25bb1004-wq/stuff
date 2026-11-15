@@ -5,6 +5,7 @@
 extern crate alloc;
 
 mod compile;
+mod debug;
 mod meta;
 pub mod opt;
 mod run;
@@ -19,6 +20,10 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 pub use compile::compile;
+pub use debug::{
+    compile_with_source, first_pc_of_line, line_of, locals_at, step, Debug, FuncDebug, LocalVar,
+    Step, STEP_BUDGET,
+};
 pub use run::{run_main, run_prop, run_test};
 
 /// A Logos program compiled to a Elysium bytecode module with source spans and test metadata.
@@ -34,6 +39,8 @@ pub struct Compiled {
     pub props: Vec<CompiledProp>,
     /// Instruction source spans: `spans[func][op]` is the source span of that op.
     pub spans: Vec<Vec<logos::Span>>,
+    /// Debug tables (function names and locals) for the source-level debugger.
+    pub debug: Debug,
 }
 
 /// A compiled property test entry.
