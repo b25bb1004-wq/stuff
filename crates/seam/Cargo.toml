@@ -10,6 +10,7 @@ geode = { path = "../geode" }
 mica = { path = "../mica" }
 onyx = { path = "../onyx" }
 sinter = { path = "../sinter" }
+tremor = { path = "../tremor" }
 
 [dev-dependencies]
 assay = { path = "../assay" }

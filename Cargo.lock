@@ -44,6 +44,8 @@ name = "facet"
 version = "0.1.0"
 dependencies = [
  "assay",
+ "glint",
+ "pigment",
 ]
 
 [[package]]
@@ -75,6 +77,16 @@ version = "0.1.0"
 dependencies = [
  "assay",
  "pigment",
+]
+
+[[package]]
+name = "mantle"
+version = "0.1.0"
+dependencies = [
+ "assay",
+ "chisel",
+ "quarry",
+ "quartz",
 ]
 
 [[package]]

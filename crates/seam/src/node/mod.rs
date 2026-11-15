@@ -1,6 +1,7 @@
 //! Node state: block tree, orphan pool, fork choice, reorgs, mempool, and message handling.
 
 mod msg;
+pub mod net;
 
 #[cfg(test)]
 mod tests;
