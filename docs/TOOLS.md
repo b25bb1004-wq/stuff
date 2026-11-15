@@ -203,6 +203,7 @@ Build: `cargo build --release -p krypton --bin krypton` (the `std` feature is on
 - `krypton FILE [ARGS...]`: run a script file with positional arguments.
 - `krypton`: interactive shell, reading stdin.
 - `krypton --help`: show help.
+- `krypton --version`: print `krypton 0.1.0`. Bad options exit 2; a missing script file exits 1 with the `krypton: ` prefix; a script's own exit status passes through (T86t).
 
 Example: `krypton -c 'echo hello'`
 
@@ -274,7 +275,7 @@ Build: `cargo build --release -p xenon --bin xenon`
 
 Example: `xenon echo 127.0.0.1:9000 <pubkey-hex> hello`
 
-Notes: there is no `--help` or `--version`. The source prints usage errors as `error: usage: ...` and exits 1, not 2, and its errors use the `error:` prefix instead of `xenon:`.
+Notes: follows the tool conventions (T86s): `--help`, `--version`, usage errors exit 2, runtime errors exit 1, `xenon: ` prefix.
 
 ## lithium
 
