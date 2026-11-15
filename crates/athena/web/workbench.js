@@ -11,7 +11,13 @@ const PALETTE_COMMANDS = [
   { id: "goto-definition", label: "Go to Definition", shortcut: "F12" },
   { id: "show-hover", label: "Show Hover", shortcut: "Ctrl+I" },
   { id: "focus-terminal", label: "Focus Terminal", shortcut: "Alt+J" },
-  { id: "install-app", label: "Install App", shortcut: "Alt+I" }
+  { id: "install-app", label: "Install App", shortcut: "Alt+I" },
+  { id: "debug-continue", label: "Debug: Continue", shortcut: "F5" },
+  { id: "debug-step-over", label: "Debug: Step Over", shortcut: "F10" },
+  { id: "debug-step-into", label: "Debug: Step Into", shortcut: "F11" },
+  { id: "debug-step-out", label: "Debug: Step Out", shortcut: "Shift+F11" },
+  { id: "debug-restart", label: "Debug: Restart", shortcut: "Ctrl+Shift+F5" },
+  { id: "debug-stop", label: "Debug: Stop", shortcut: "Shift+F5" }
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -100,7 +106,7 @@ export function createWorkbench(app) {
 
   const actButtons = Array.from(document.querySelectorAll(".act-btn[data-view]"));
   const mobileActButtons = Array.from(document.querySelectorAll(".act-btn[data-mobile]"));
-  const sidebarViews = { explorer: $("sidebar-explorer"), search: $("sidebar-search"), testing: $("sidebar-testing") };
+  const sidebarViews = { explorer: $("sidebar-explorer"), search: $("sidebar-search"), testing: $("sidebar-testing"), debug: $("sidebar-debug") };
   const panelTabButtons = Array.from(document.querySelectorAll(".tab-btn[data-panel-tab]"));
   const panelBodies = {
     problems: $("panel-problems"),
@@ -196,7 +202,7 @@ export function createWorkbench(app) {
     workbench.setAttribute("data-mobile-view", view);
     for (const b of actButtons) {
       const v = b.dataset.view;
-      const active = (view === "files" && v === "explorer") || (view === "search" && v === "search");
+      const active = (view === "files" && v === "explorer") || (view === "search" && v === "search") || (view === "debug" && v === "debug");
       if (isMobile()) {
         b.classList.toggle("is-active", active);
         b.setAttribute("aria-pressed", active ? "true" : "false");
@@ -207,8 +213,8 @@ export function createWorkbench(app) {
       b.classList.toggle("is-active", active);
       b.setAttribute("aria-pressed", active ? "true" : "false");
     }
-    if (view === "files" || view === "search") {
-      sidebarView = view === "files" ? "explorer" : "search";
+    if (view === "files" || view === "search" || view === "debug") {
+      sidebarView = view === "files" ? "explorer" : view;
       syncSidebarViews();
     } else if (view === "panel" && activePanelTab === "terminal") {
       app.onTerminalTabOpened();
@@ -629,7 +635,13 @@ export function createWorkbench(app) {
       setPanelTab("terminal");
       app.focusTerminalInput();
     },
-    "install-app": () => triggerInstall()
+    "install-app": () => triggerInstall(),
+    "debug-continue": () => app.debugCommand("debug-continue"),
+    "debug-step-over": () => app.debugCommand("debug-step-over"),
+    "debug-step-into": () => app.debugCommand("debug-step-into"),
+    "debug-step-out": () => app.debugCommand("debug-step-out"),
+    "debug-restart": () => app.debugCommand("debug-restart"),
+    "debug-stop": () => app.debugCommand("debug-stop")
   };
 
   function executeCommand(id) {

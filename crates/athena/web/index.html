@@ -49,6 +49,12 @@
         </svg>
         <span class="act-label">Testing</span>
       </button>
+      <button type="button" class="act-btn" id="act-debug" data-view="debug" aria-label="Run and Debug" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 5v14l11-7z"></path>
+        </svg>
+        <span class="act-label">Debug</span>
+      </button>
       <button type="button" class="act-btn mobile-only-act" id="act-mobile-editor" data-mobile="editor" aria-label="Editor" aria-pressed="false">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m8 9-4 3 4 3"></path>
@@ -102,6 +108,22 @@
         <div class="testing-sidebar-summary" id="testing-sidebar-summary">Select Run All or test a file.</div>
         <ul class="testing-sidebar-list" id="testing-sidebar-list"></ul>
       </div>
+
+      <div class="sidebar-view" id="sidebar-debug" hidden>
+        <div class="pane-head">
+          <h2 class="pane-title">Run and Debug</h2>
+          <button type="button" class="btn btn-sm btn-primary" id="debug-start">Start (F5)</button>
+        </div>
+        <div class="debug-summary" id="debug-summary">Click the gutter to set a breakpoint, then press F5.</div>
+        <div class="debug-section">
+          <h3 class="debug-heading">Variables</h3>
+          <ul class="debug-list" id="debug-vars" aria-label="Variables"></ul>
+        </div>
+        <div class="debug-section">
+          <h3 class="debug-heading">Call Stack</h3>
+          <ul class="debug-list" id="debug-frames" aria-label="Call stack"></ul>
+        </div>
+      </div>
     </aside>
 
     <div class="resizer resizer-v" id="resizer-left" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize sidebar"></div>
@@ -123,6 +145,14 @@
       </div>
 
       <section class="editor-area" id="editor-area" aria-label="Editor">
+        <div class="debug-toolbar" id="debug-toolbar" role="toolbar" aria-label="Debug" hidden>
+          <button type="button" class="btn btn-sm" id="dbg-continue" title="Continue (F5)">Continue</button>
+          <button type="button" class="btn btn-sm" id="dbg-step-over" title="Step Over (F10)">Over</button>
+          <button type="button" class="btn btn-sm" id="dbg-step-into" title="Step Into (F11)">Into</button>
+          <button type="button" class="btn btn-sm" id="dbg-step-out" title="Step Out (Shift+F11)">Out</button>
+          <button type="button" class="btn btn-sm" id="dbg-restart" title="Restart (Ctrl+Shift+F5)">Restart</button>
+          <button type="button" class="btn btn-sm btn-danger" id="dbg-stop" title="Stop (Shift+F5)">Stop</button>
+        </div>
         <div class="editor-empty" id="editor-empty" hidden>
           <p>No file open. Select a file in Explorer or press Ctrl+P.</p>
         </div>

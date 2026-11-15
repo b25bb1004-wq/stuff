@@ -2,6 +2,7 @@
 
 use std::sync::Mutex;
 
+use neon::guest_alloc::{Live, LiveTable};
 pub use neon::wasm::{
     logos_run, neon_alloc, neon_free, neon_last_len, neon_last_ptr, titan_boot, titan_output,
     titan_pump, titan_send,
@@ -12,6 +13,8 @@ use crate::lang::{definition, format as format_source, hover};
 use crate::service::{check, highlight, run_tests, Style};
 
 static ATHENA_LAST_BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
+/// Buffers from `athena_alloc` that are not freed yet. Athena reads only pairs recorded here.
+static ATHENA_LIVE: Mutex<LiveTable> = Mutex::new(LiveTable::new());
 
 fn set_last(bytes: Vec<u8>) -> usize {
     let len = bytes.len();
@@ -20,15 +23,55 @@ fn set_last(bytes: Vec<u8>) -> usize {
     len
 }
 
+/// Allocate `len` bytes in wasm linear memory for the page to fill. Returns null on failure.
+/// Neon's allocator does the work and keeps its own table (used by `titan_*` and `logos_run`);
+/// this copy records the same pair so athena's reads can check it.
+#[no_mangle]
+pub extern "C" fn athena_alloc(len: usize) -> *mut u8 {
+    let ptr = neon::wasm::neon_alloc(len);
+    if len > 0 && !ptr.is_null() {
+        ATHENA_LIVE
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .record(Live {
+                ptr: ptr as usize,
+                len,
+                cap: len,
+            });
+    }
+    ptr
+}
+
+/// Free a buffer from [`athena_alloc`]. Pairs that were not handed out, or were already freed, are ignored.
+#[no_mangle]
+pub extern "C" fn athena_free(ptr: *mut u8, len: usize) {
+    if len == 0 || ptr.is_null() {
+        return;
+    }
+    let taken = ATHENA_LIVE
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .take(ptr as usize, len);
+    if taken.is_some() {
+        neon::wasm::neon_free(ptr, len);
+    }
+}
+
+/// Borrow the guest bytes at `(ptr, len)`. Only a pair that `athena_alloc` handed out and that is still
+/// live is read; any other pair (a stale, forged or oversized one) gives `None`.
 fn copy_slice_from_guest<'a>(ptr: *const u8, len: usize) -> Option<&'a [u8]> {
     if len == 0 {
         return Some(&[]);
     }
-    if ptr.is_null() {
+    let known = ATHENA_LIVE
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .contains(ptr as usize, len);
+    if !known {
         return None;
     }
-    // SAFETY: Caller passed `(ptr, len)` obtained from `neon_alloc(len)` and filled it in linear
-    // memory for this single-threaded wasm call; we borrow it only for the duration of the call.
+    // SAFETY: `(ptr, len)` is a live buffer from `athena_alloc(len)` that `athena_free` has not released,
+    // so it is valid for `len` bytes. The guest is single-threaded and we borrow it only for this call.
     Some(unsafe { core::slice::from_raw_parts(ptr, len) })
 }
 

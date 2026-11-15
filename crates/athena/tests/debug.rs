@@ -62,8 +62,13 @@ fn over_does_not_enter_the_call() {
     let st = d.step(Step::Over, &[]);
     assert_eq!(st.line, CALL_LINE);
     assert_eq!(names(&st), ["main"]);
+    // Line 4 is main's last statement, so Over runs the call and finishes main.
     let st = d.step(Step::Over, &[]);
-    assert_eq!(names(&st).len(), 1, "over must not stop inside add: {st:?}");
+    assert!(
+        !names(&st).contains(&"add"),
+        "over must not stop inside add: {st:?}"
+    );
+    assert_eq!(st.status, Status::Done);
 }
 
 #[test]
@@ -117,10 +122,12 @@ fn selecting_a_frame_shows_its_variables() {
     let caller = d.select(1).unwrap();
     assert_eq!(caller.selected, 1);
     assert_eq!(names(&caller), ["add", "main"]);
-    assert!(
-        caller.vars.is_empty(),
-        "main has only a let-style binding, which is not recorded"
-    );
+    let vars: Vec<(&str, &str)> = caller
+        .vars
+        .iter()
+        .map(|v| (v.name.as_str(), v.value.as_str()))
+        .collect();
+    assert_eq!(vars, [("x", "1")], "main's `var x` is in scope at the call");
     assert!(d.select(9).is_err());
 }
 

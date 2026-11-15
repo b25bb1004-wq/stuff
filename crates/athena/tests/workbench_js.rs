@@ -127,6 +127,12 @@ fn palette_commands_have_handlers_and_shortcut_labels() {
         "show-hover",
         "focus-terminal",
         "install-app",
+        "debug-continue",
+        "debug-step-over",
+        "debug-step-into",
+        "debug-step-out",
+        "debug-restart",
+        "debug-stop",
     ]
     .into_iter()
     .map(String::from)
@@ -135,6 +141,67 @@ fn palette_commands_have_handlers_and_shortcut_labels() {
     assert_eq!(
         parsed_ids, expected_ids,
         "palette command ids do not match required set"
+    );
+}
+
+#[test]
+fn debug_ui_is_packed_and_wired() {
+    let web_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("web");
+    let debug_js = std::fs::read_to_string(web_dir.join("debug.js")).unwrap();
+    let workbench_js = std::fs::read_to_string(web_dir.join("workbench.js")).unwrap();
+    let athena_js = std::fs::read_to_string(web_dir.join("athena.js")).unwrap();
+    let pack_rs = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src")
+            .join("pack.rs"),
+    )
+    .unwrap();
+
+    assert!(
+        pack_rs.contains("\"debug.js\""),
+        "pack.rs must copy debug.js"
+    );
+    assert!(
+        athena_js.contains("./debug.js"),
+        "athena.js must import debug.js"
+    );
+    assert!(
+        debug_js.contains("athena.breakpoints.v1"),
+        "breakpoints need their storage key"
+    );
+    for id in [
+        "debug-continue",
+        "debug-step-over",
+        "debug-step-into",
+        "debug-step-out",
+        "debug-restart",
+        "debug-stop",
+    ] {
+        assert!(
+            debug_js.contains(&format!("\"{id}\"")),
+            "debug.js lacks command `{id}`"
+        );
+        assert!(
+            workbench_js.contains(&format!("\"{id}\": () => app.debugCommand(\"{id}\")")),
+            "workbench.js lacks the palette handler for `{id}`"
+        );
+    }
+    for key in ["\"F5\"", "\"F10\"", "\"F11\""] {
+        assert!(
+            debug_js.contains(key),
+            "debug.js lacks the F-key handler {key}"
+        );
+    }
+    assert!(
+        debug_js.contains("ev.shiftKey"),
+        "Shift+F5 and Shift+F11 need the shift check"
+    );
+    for forbidden in ["alert(", "confirm(", "prompt("] {
+        assert!(!debug_js.contains(forbidden), "debug.js uses `{forbidden}`");
+    }
+    assert!(
+        debug_js.contains("requestAnimationFrame"),
+        "budget pauses must continue from requestAnimationFrame"
     );
 }
 

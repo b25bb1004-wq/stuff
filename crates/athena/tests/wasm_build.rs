@@ -282,6 +282,7 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
         "icon-192.png",
         "icon-512.png",
         "icon-maskable-512.png",
+        "debug.js",
     ]
     .into_iter()
     .map(String::from)
@@ -524,6 +525,8 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
         "athena_debug_step",
         "athena_debug_frame",
         "athena_debug_stop",
+        "athena_alloc",
+        "athena_free",
     ] {
         assert!(
             exports.contains(required),

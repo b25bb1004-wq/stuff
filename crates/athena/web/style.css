@@ -653,6 +653,7 @@ textarea {
 
 /* Editor */
 .editor-area {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
@@ -676,6 +677,7 @@ textarea {
 }
 
 .gutter {
+  cursor: pointer;
   flex: 0 0 auto;
   min-width: 44px;
   padding: 12px 8px;
@@ -784,6 +786,127 @@ textarea {
 
 .editor-status.is-error {
   color: var(--bad);
+}
+
+/* Debugger (web/debug.js): floating toolbar, paused line, gutter marks, Run and Debug view */
+.debug-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: calc(100% - 24px);
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.dbg-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: var(--accent);
+  opacity: 0.18;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dbg-marks {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.dbg-dot,
+.dbg-arrow {
+  position: absolute;
+  left: 6px;
+}
+
+.dbg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bad);
+}
+
+.dbg-arrow {
+  left: 4px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid var(--accent);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+
+.debug-summary {
+  padding: 8px 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.debug-section {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.debug-heading {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.debug-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.debug-item {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.debug-value {
+  color: var(--ok);
+}
+
+.debug-empty {
+  color: var(--muted);
+}
+
+.debug-frame {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.debug-frame:hover,
+.debug-frame[aria-pressed="true"] {
+  color: var(--text);
+}
+
+.debug-frame[aria-pressed="true"] {
+  color: var(--accent);
 }
 
 /* Bottom Panel */
@@ -1240,7 +1363,8 @@ textarea {
   }
 
   .workbench[data-mobile-view="files"] .sidebar,
-  .workbench[data-mobile-view="search"] .sidebar {
+  .workbench[data-mobile-view="search"] .sidebar,
+  .workbench[data-mobile-view="debug"] .sidebar {
     display: flex !important;
   }
 

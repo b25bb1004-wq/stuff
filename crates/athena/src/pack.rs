@@ -5,7 +5,8 @@ use std::process::Command;
 
 use crate::icons::render_icon_png;
 
-const STATIC_WEB_FILES: [&str; 5] = [
+const STATIC_WEB_FILES: [&str; 6] = [
+    "debug.js",
     "index.html",
     "athena.js",
     "workbench.js",
@@ -13,7 +14,8 @@ const STATIC_WEB_FILES: [&str; 5] = [
     "manifest.webmanifest",
 ];
 
-const BUNDLE_FILES: [&str; 11] = [
+const BUNDLE_FILES: [&str; 12] = [
+    "debug.js",
     "athena.js",
     "athena.wasm",
     "icon-192.png",

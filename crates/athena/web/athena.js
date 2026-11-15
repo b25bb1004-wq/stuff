@@ -1,4 +1,5 @@
 import { createWorkbench } from "./workbench.js";
+import { createDebugUi } from "./debug.js";
 
 const STORAGE_KEY = "athena.files.v1";
 const TABS_KEY = "athena.tabs.v1";
@@ -208,12 +209,12 @@ function deleteFile(name) {
 
 function withBytes(bytes, fn) {
   const len = bytes.length;
-  const ptr = wasm.neon_alloc(len);
+  const ptr = wasm.athena_alloc(len);
   try {
     if (len > 0) new Uint8Array(wasm.memory.buffer, ptr, len).set(bytes);
     return fn(ptr, len);
   } finally {
-    wasm.neon_free(ptr, len);
+    wasm.athena_free(ptr, len);
   }
 }
 
@@ -642,7 +643,7 @@ function syncEditorFromState() {
   updateGutter(src);
   updateCursorMeta();
   refreshAnalysis();
-  syncScroll();
+  syncScroll(); debug.refresh();
 }
 
 codeInput.addEventListener("input", () => {
@@ -866,11 +867,12 @@ async function loadWasm() {
   return (await WebAssembly.instantiate(await resp.arrayBuffer(), {})).instance.exports;
 }
 
+const debug = createDebugUi({ wasm: () => wasm, withBytes, readAthenaLast, activeFile: () => activeFile, setStatus: (m, e) => { transientStatus = true; setEditorStatus(m, e); } });
 const workbench = createWorkbench({
   getFileNames: sortedFileNames, getFileContent, getOpenTabs: () => [...openTabs],
   getActiveFile: () => activeFile, isDirty, setActiveFile, openFileAt, saveFile,
   discardDraft, closeTab, cycleTab, createFile, renameFile, deleteFile,
-  runActiveFile, testActiveFile, runAllTests, formatActiveFile,
+  runActiveFile, testActiveFile, runAllTests, formatActiveFile, debugCommand: (id) => debug.command(id),
   goToDefinitionAtCaret: () => goToDefinitionAtOffset(codeInput.selectionStart || 0, true),
   showHoverAtCaret, focusEditor: () => codeInput.focus(),
   focusTerminalInput: () => { bootTitanIfNeeded(); termIn.focus(); },
