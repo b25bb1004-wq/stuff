@@ -7,6 +7,7 @@ pub use neon::wasm::{
     titan_pump, titan_send,
 };
 
+use crate::lang::{definition, format as format_source, hover};
 use crate::service::{check, highlight, run_tests, Style};
 
 static ATHENA_LAST_BUF: Mutex<Vec<u8>> = Mutex::new(Vec::new());
@@ -134,4 +135,43 @@ pub extern "C" fn athena_test(ptr: *const u8, len: usize, fuel: u64) -> usize {
             .collect(),
     };
     set_last(lines.join("\n").into_bytes())
+}
+
+/// Resolve the declaration byte range `start end` for the identifier at `offset`.
+#[no_mangle]
+pub extern "C" fn athena_definition(ptr: *const u8, len: usize, offset: usize) -> usize {
+    let Some(bytes) = copy_slice_from_guest(ptr, len) else {
+        return set_last(Vec::new());
+    };
+    let src = String::from_utf8_lossy(bytes);
+    match definition(&src, offset) {
+        Some((start, end)) => set_last(format!("{start} {end}").into_bytes()),
+        None => set_last(Vec::new()),
+    }
+}
+
+/// Return hover text for the identifier or literal at `offset` in Logos source at `(ptr, len)`.
+#[no_mangle]
+pub extern "C" fn athena_hover(ptr: *const u8, len: usize, offset: usize) -> usize {
+    let Some(bytes) = copy_slice_from_guest(ptr, len) else {
+        return set_last(Vec::new());
+    };
+    let src = String::from_utf8_lossy(bytes);
+    match hover(&src, offset) {
+        Some(text) => set_last(text.into_bytes()),
+        None => set_last(Vec::new()),
+    }
+}
+
+/// Format Logos source at `(ptr, len)`, writing `ok\n<text>` or `error: <message>`.
+#[no_mangle]
+pub extern "C" fn athena_format(ptr: *const u8, len: usize) -> usize {
+    let Some(bytes) = copy_slice_from_guest(ptr, len) else {
+        return set_last(b"error: invalid source pointer".to_vec());
+    };
+    let src = String::from_utf8_lossy(bytes);
+    match format_source(&src) {
+        Ok(formatted) => set_last(format!("ok\n{formatted}").into_bytes()),
+        Err(msg) => set_last(format!("error: {}", sanitize_line(&msg)).into_bytes()),
+    }
 }

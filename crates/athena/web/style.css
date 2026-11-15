@@ -476,6 +476,46 @@ textarea {
   text-decoration: underline wavy var(--bad);
 }
 
+.editor-status {
+  padding: 4px 12px;
+  min-height: 28px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-status.is-error {
+  color: var(--bad);
+}
+
+.hover-tooltip {
+  position: fixed;
+  z-index: 20;
+  max-width: min(340px, calc(100vw - 16px));
+  padding: 4px 8px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  transition: opacity var(--t-fast) var(--ease);
+}
+
+.hover-tooltip[hidden] {
+  display: none;
+}
+
 .pane-tabs {
   justify-content: flex-start;
   padding: 0 8px;

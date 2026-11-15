@@ -18,6 +18,7 @@
       <span class="wasm-status" id="wasm-status" aria-live="polite">loading wasm…</span>
       <button type="button" class="btn btn-primary" id="btn-run" disabled>Run</button>
       <button type="button" class="btn" id="btn-test" disabled>Test</button>
+      <button type="button" class="btn" id="btn-format" disabled>Format</button>
       <button type="button" class="btn" id="btn-theme" aria-label="Toggle color theme">Theme</button>
     </div>
   </header>
@@ -51,7 +52,7 @@
     <section class="pane pane-editor" id="pane-editor" aria-label="Editor">
       <div class="pane-head">
         <span class="editor-meta" id="editor-meta">Ln 1, Col 1</span>
-        <span class="editor-hints">Tab: 4 spaces · Ctrl+Enter: Run · Ctrl+S: Save</span>
+        <span class="editor-hints">Tab: 4 spaces · Ctrl+Enter: Run · Shift+Alt+F: Format · F12: Def · Ctrl+I: Hover</span>
       </div>
       <div class="editor-empty" id="editor-empty" hidden>
         <p>No file open. Create a new file in the Files pane.</p>
@@ -63,6 +64,7 @@
           <textarea class="code-input" id="code-input" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Logos source editor"></textarea>
         </div>
       </div>
+      <div class="editor-status" id="editor-status" aria-live="polite"></div>
     </section>
 
     <div class="resizer" id="resizer-right" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize output pane"></div>
@@ -97,5 +99,6 @@
       </div>
     </section>
   </main>
+  <div class="hover-tooltip" id="hover-tooltip" role="tooltip" hidden></div>
 </body>
 </html>

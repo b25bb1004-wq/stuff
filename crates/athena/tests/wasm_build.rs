@@ -99,6 +99,11 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
             "athena.js must never call {forbidden}"
         );
     }
+    assert!(js.contains("F12"), "athena.js must handle F12");
+    assert!(
+        js.contains("role=\"tooltip\"") || js.contains("setAttribute(\"role\", \"tooltip\")"),
+        "athena.js must set tooltip role"
+    );
 
     let css = std::fs::read_to_string(tmp.join("style.css")).unwrap();
     for token in [
@@ -200,6 +205,9 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
         "athena_check",
         "athena_highlight",
         "athena_test",
+        "athena_definition",
+        "athena_hover",
+        "athena_format",
     ] {
         assert!(
             exports.contains(required),
