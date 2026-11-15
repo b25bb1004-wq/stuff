@@ -78,7 +78,7 @@ fn unknown_subcommand_and_bad_flags_exit_two() {
     for args in [
         &["bogus"][..],
         &[][..],
-        &["boot", "--disk", "disk.img"][..],
+        &["boot", "--disk"][..],
         &["boot", "--kernel"][..],
         &["boot", "--script"][..],
         &["boot", "--unknown"][..],
@@ -198,6 +198,92 @@ fn boot_script_default_kernel_and_interactive_work() {
     );
     let stdout = String::from_utf8_lossy(&interactive.stdout);
     assert!(stdout.contains("interactive-ok"), "stdout: {stdout}");
+
+    let _ = fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn boot_disk_persists_across_runs_and_rejects_bad_image() {
+    let kernel = default_kernel_path();
+    if !kernel.exists() {
+        eprintln!(
+            "skipping kernel CLI disk test (missing {})",
+            kernel.display()
+        );
+        return;
+    }
+
+    let dir = temp_dir("disk_cli");
+    let bad_disk = dir.join("bad.img");
+    fs::write(&bad_disk, b"not a valid disk").unwrap();
+    let bad_out = run_titan(
+        &[
+            "boot",
+            "--kernel",
+            kernel.to_str().unwrap(),
+            "--disk",
+            bad_disk.to_str().unwrap(),
+        ],
+        None,
+        None,
+    );
+    assert_eq!(bad_out.status.code(), Some(1));
+    let bad_stderr = String::from_utf8_lossy(&bad_out.stderr);
+    assert!(bad_stderr.starts_with("titan:"), "stderr: {bad_stderr}");
+    assert_eq!(fs::read(&bad_disk).unwrap(), b"not a valid disk");
+
+    let disk_img = dir.join("persist.img");
+    let script1 = dir.join("write.txt");
+    let script2 = dir.join("read.txt");
+    fs::write(&script1, "echo cli-persist-ok > /cli.txt\n").unwrap();
+    fs::write(&script2, "cat /cli.txt\n").unwrap();
+
+    let run1 = run_titan(
+        &[
+            "boot",
+            "--kernel",
+            kernel.to_str().unwrap(),
+            "--disk",
+            disk_img.to_str().unwrap(),
+            "--script",
+            script1.to_str().unwrap(),
+        ],
+        None,
+        None,
+    );
+    assert_eq!(
+        run1.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&run1.stderr)
+    );
+    assert!(
+        disk_img.exists(),
+        "expected --disk to create {}",
+        disk_img.display()
+    );
+
+    let run2 = run_titan(
+        &[
+            "boot",
+            "--kernel",
+            kernel.to_str().unwrap(),
+            "--disk",
+            disk_img.to_str().unwrap(),
+            "--script",
+            script2.to_str().unwrap(),
+        ],
+        None,
+        None,
+    );
+    assert_eq!(
+        run2.status.code(),
+        Some(0),
+        "stderr: {}",
+        String::from_utf8_lossy(&run2.stderr)
+    );
+    let stdout2 = String::from_utf8_lossy(&run2.stdout);
+    assert!(stdout2.contains("cli-persist-ok"), "stdout: {stdout2}");
 
     let _ = fs::remove_dir_all(&dir);
 }

@@ -34,7 +34,12 @@ pub struct Titan {
 impl Titan {
     /// Boot a Titan kernel ELF image with 32 MiB RAM and a Hades shell disk.
     pub fn boot(elf_bytes: &[u8]) -> Result<Titan, String> {
-        let disk = build_shell_disk()?;
+        Self::boot_with_disk(elf_bytes, default_disk()?)
+    }
+
+    /// Boot a Titan kernel ELF image with 32 MiB RAM and the given Hades disk image.
+    pub fn boot_with_disk(elf_bytes: &[u8], disk: Vec<u8>) -> Result<Titan, String> {
+        validate_disk(&disk)?;
         let image = elf::read(elf_bytes).map_err(|e| format!("elf read failed: {e}"))?;
         let cfg = Config {
             ram_size: RAM_SIZE,
@@ -56,6 +61,11 @@ impl Titan {
             rx_was_nonempty: false,
             exited: None,
         })
+    }
+
+    /// Return a copy of the guest disk image after any writes performed so far.
+    pub fn disk_bytes(&self) -> Vec<u8> {
+        self.machine.board.disk().to_vec()
     }
 
     /// Queue `line` followed by a newline on the guest UART RX FIFO.
@@ -139,7 +149,8 @@ impl Titan {
     }
 }
 
-fn build_shell_disk() -> Result<Vec<u8>, String> {
+/// Build the default formatted Hades disk image containing `/hello.txt` and `/etc/shell`.
+pub fn default_disk() -> Result<Vec<u8>, String> {
     let mut disk = MemDisk::new(DISK_BLOCKS);
     mkfs(&mut disk, MkfsOptions::default()).map_err(|e| format!("mkfs failed: {e:?}"))?;
     let mut fs = Fs::mount(disk).map_err(|e| format!("mount failed: {e:?}"))?;
@@ -159,6 +170,32 @@ fn build_shell_disk() -> Result<Vec<u8>, String> {
     Ok(disk.bytes().to_vec())
 }
 
+fn validate_disk(disk: &[u8]) -> Result<(), String> {
+    if disk.is_empty() {
+        return Err(String::from("disk image is empty"));
+    }
+    if !disk.len().is_multiple_of(hades::BLOCK) {
+        return Err(format!(
+            "disk image size ({} bytes) is not a multiple of {}-byte block",
+            disk.len(),
+            hades::BLOCK
+        ));
+    }
+    let blocks = u64::try_from(disk.len() / hades::BLOCK)
+        .map_err(|_| String::from("disk image block count overflow"))?;
+    let mut mem = MemDisk::new(blocks);
+    mem.bytes_mut().copy_from_slice(disk);
+    let mut fs = Fs::mount(mem).map_err(|e| format!("disk mount failed: {e:?}"))?;
+    let stat = fs
+        .stat("/etc/shell")
+        .map_err(|e| format!("disk missing /etc/shell: {e:?}"))?;
+    if stat.kind != hades::Kind::File {
+        return Err(String::from("disk /etc/shell is not a regular file"));
+    }
+    let _ = fs.unmount();
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
@@ -172,8 +209,8 @@ mod tests {
     }
 
     #[test]
-    fn build_shell_disk_mounts_and_has_expected_files() {
-        let bytes = build_shell_disk().unwrap();
+    fn default_disk_mounts_and_has_expected_files() {
+        let bytes = default_disk().unwrap();
         let blocks = u64::try_from(bytes.len() / 4096).unwrap();
         let mut disk = MemDisk::new(blocks);
         disk.bytes_mut().copy_from_slice(&bytes);
@@ -182,5 +219,25 @@ mod tests {
         let mut buf = [0u8; 8];
         let n = fs.read("/hello.txt", 0, &mut buf).unwrap();
         assert_eq!(&buf[..n], b"hello");
+    }
+
+    #[test]
+    fn boot_with_disk_rejects_invalid_images() {
+        assert!(Titan::boot_with_disk(&[], Vec::new()).is_err());
+        assert!(Titan::boot_with_disk(&[], vec![0u8; 512]).is_err());
+        assert!(Titan::boot_with_disk(&[], vec![0u8; 4097]).is_err());
+        assert!(Titan::boot_with_disk(&[], vec![0u8; 256 * hades::BLOCK]).is_err());
+
+        let mut no_shell = MemDisk::new(DISK_BLOCKS);
+        mkfs(&mut no_shell, MkfsOptions::default()).unwrap();
+        assert!(Titan::boot_with_disk(&[], no_shell.bytes().to_vec()).is_err());
+
+        let mut dir_shell = MemDisk::new(DISK_BLOCKS);
+        mkfs(&mut dir_shell, MkfsOptions::default()).unwrap();
+        let mut fs = Fs::mount(dir_shell).unwrap();
+        fs.mkdir("/etc").unwrap();
+        fs.mkdir("/etc/shell").unwrap();
+        let dir_shell = fs.unmount().unwrap();
+        assert!(Titan::boot_with_disk(&[], dir_shell.bytes().to_vec()).is_err());
     }
 }
