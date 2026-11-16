@@ -493,3 +493,5 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - LESSON: any crate a no-std crate depends on must take aci as an optional dep behind std; put this in every remaining brief
 - 2026-11-16 | WAVE 5: ACI T7 mercury/xenon/argo, T9 silicon/elysium/cobalt/logos, T10 aurum/pandora/lithium/zeusctl/titan | haiku x3 | 3 x 240k | running | titan gate required for T9 and T10 (no-std rule)
 - 2026-11-16 | ACI T7 mercury, xenon, argo | haiku | 259k | PASS | leader ran a live serve/get cycle; note xenon keygen prints its secret key in text mode and JSON mode (by design for a keygen, flag for phase 4 key handling)
+- 2026-11-16 | ACI T9 silicon, elysium, cobalt, logos | haiku | 250k | PASS after leader fix | cobalt check returned a failure whose hint repeated the same command; leader made it return diagnostics as data (ok:true, exit 1) and mapped missing files to not_found; installers now ship aci
+- 2026-11-16 | 5-hour usage limit hit at 7pm IST mid-wave; T10 and T11 workers stopped and were resumed after the reset (work on disk kept)
