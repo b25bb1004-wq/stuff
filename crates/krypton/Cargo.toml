@@ -7,13 +7,14 @@ publish = false
 
 [features]
 default = ["std"]
-std = []
+std = ["dep:aci"]
 
 [[bin]]
 name = "krypton"
 required-features = ["std"]
 
 [dependencies]
+aci = { path = "../aci", optional = true }
 
 [dev-dependencies]
 assay = { path = "../assay" }

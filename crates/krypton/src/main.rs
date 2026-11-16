@@ -1,12 +1,14 @@
 //! `krypton` POSIX shell binary.
 #![deny(unsafe_code)]
 
+use std::ffi::OsString;
 use std::io::{self, BufRead, IsTerminal, Read, Write};
 use std::process::ExitCode;
 
 use krypton::exec::Shell;
 
 mod interactive;
+mod json_mode;
 mod term;
 
 /// Script text with CRLF line endings read as LF: a CR right before LF is part of the line ending.
@@ -139,13 +141,22 @@ fn run_file(
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
+    let rest = args.get(1..).unwrap_or(&[]);
+    let describe: Vec<OsString> = rest.iter().map(OsString::from).collect();
+    if aci::envelope::take_describe_flag(&describe) {
+        println!("{}", json_mode::describe());
+        return ExitCode::SUCCESS;
+    }
+    if rest.first().map(String::as_str) == Some("--json") {
+        return json_mode::run(rest.get(1..).unwrap_or(&[]));
+    }
+
     let mut shell = Shell::new();
     shell.set_escapes(krypton::Escapes::host());
     let mut stdin = io::stdin();
     let mut stdout = io::stdout();
     let mut stderr = io::stderr();
 
-    let rest = args.get(1..).unwrap_or(&[]);
     let code = match rest.first().map(String::as_str) {
         Some("--help") | Some("-h") => {
             print_help();

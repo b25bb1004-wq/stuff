@@ -20,6 +20,7 @@ Rules
 - Under `--json`, stdout is exactly one JSON object and a newline, also for usage errors (code `usage`, exit 2).
   The human `<tool>: message` line on stderr stays.
 - Build `data` from the same values the text path prints: share the computation, do not parse your own text output.
+- Usage-error hints say `run: <tool> --describe` (agents read the manifest, not --help). A failure keeps the exit code the text path gives for the same failure.
 - Field names come from ACI.md's shared list. Paths through `Json::path`. Program or file text through `capped`.
 - No `unsafe`, no external crates, no panics on user input.
 - Do not commit, push, stash or `git checkout` files. Do not invoke skills. Do not start other agents.

@@ -151,6 +151,7 @@ dependencies = [
 name = "iridium"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
 ]
 
@@ -177,6 +178,7 @@ dependencies = [
 name = "krypton"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
 ]
 
