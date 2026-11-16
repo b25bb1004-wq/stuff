@@ -2,15 +2,20 @@
 
 //! Command-line tool for inspecting, verifying, disassembling, and running MBC1 modules.
 
+use aci::envelope::{self, Code, DEFAULT_LIMIT, MAX_LIMIT};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind, Manifest};
 use elysium::{
     decode, verify, Const, DecodeError, Heap, Limits, LoadError, Module, NoHost, Obj, Op, Trap,
     Value, VerifyError, Vm,
 };
 use std::collections::BTreeSet;
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Read};
 use std::process::ExitCode;
+use std::time::Instant;
 
 const VERSION: &str = "elysium 0.1.0";
 
@@ -45,6 +50,15 @@ enum CliError {
 }
 
 fn main() -> ExitCode {
+    let mut raw: Vec<OsString> = env::args_os().skip(1).collect();
+    let json = envelope::take_json_flag(&mut raw);
+    if envelope::take_describe_flag(&raw) {
+        println!("{}", MANIFEST.to_json().write());
+        return ExitCode::SUCCESS;
+    }
+    if json {
+        return run_json(&raw);
+    }
     match run_cli() {
         Ok(()) => ExitCode::SUCCESS,
         Err(CliError::Failed(msg)) => {
@@ -444,4 +458,350 @@ fn fmt_op(op: &Op) -> String {
         Op::Assert(a, k) => format!("assert r{a}, c#{k}"),
         Op::Trap(code) => format!("trap {code}"),
     }
+}
+
+// ---- --describe and --json (docs/ai-computer/ACI.md). The text path above is unchanged. ----
+
+const VERIFY_ARGS: &[Arg] = &[Arg {
+    name: "FILE",
+    kind: Kind::Path,
+    required: true,
+    default: None,
+    choices: &[],
+}];
+
+const DIS_ARGS: &[Arg] = &[
+    Arg {
+        name: "FILE",
+        kind: Kind::Path,
+        required: true,
+        default: None,
+        choices: &[],
+    },
+    Arg {
+        name: "--limit",
+        kind: Kind::Int,
+        required: false,
+        default: Some("100"),
+        choices: &[],
+    },
+    Arg {
+        name: "--offset",
+        kind: Kind::Int,
+        required: false,
+        default: Some("0"),
+        choices: &[],
+    },
+];
+
+const RUN_ARGS: &[Arg] = &[
+    Arg {
+        name: "FILE",
+        kind: Kind::Path,
+        required: true,
+        default: None,
+        choices: &[],
+    },
+    Arg {
+        name: "--fuel",
+        kind: Kind::Int,
+        required: false,
+        default: None,
+        choices: &[],
+    },
+];
+
+const COMMANDS: &[Command] = &[
+    Command {
+        name: "verify",
+        summary: "Verify an MBC1 bytecode module FILE",
+        effect: Effect::Read,
+        args: VERIFY_ARGS,
+        returns: "consts, imports, funcs, entry, diagnostics: [], count: 0 (an invalid module is code invalid)",
+        example: "elysium --json verify prog.mbc",
+    },
+    Command {
+        name: "dis",
+        summary: "Disassemble FILE; --limit and --offset page the functions",
+        effect: Effect::Read,
+        args: DIS_ARGS,
+        returns: "entry, consts: [{index, kind, text}], imports: [{index, name}], items: functions [{index, name, params, regs, code: [{pc, text}]}], total, more, next_offset",
+        example: "elysium --json dis prog.mbc --limit 10",
+    },
+    Command {
+        name: "run",
+        summary: "Run the entry function of FILE with an optional --fuel budget",
+        effect: Effect::Exec,
+        args: RUN_ARGS,
+        returns: "result (capped, with result_truncated, result_bytes, result_lossy when they apply), exit (0), stop (exit), steps, duration_ms; a trap is code invalid",
+        example: "elysium --json run prog.mbc --fuel 10000",
+    },
+];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "elysium",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "Bytecode VM (Elysium) for MBC1 modules",
+    commands: COMMANDS,
+};
+
+/// A failed `--json` run: the envelope code and message, the hint, and the process exit code.
+struct Fail {
+    code: Code,
+    message: String,
+    hint: Option<String>,
+    exit: u8,
+}
+
+impl Fail {
+    fn usage(message: String) -> Fail {
+        Fail {
+            code: Code::Usage,
+            message,
+            hint: Some(String::from("run: elysium --describe")),
+            exit: 2,
+        }
+    }
+
+    fn op(code: Code, message: String) -> Fail {
+        Fail {
+            code,
+            message,
+            hint: None,
+            exit: 1,
+        }
+    }
+}
+
+fn run_json(raw: &[OsString]) -> ExitCode {
+    let args: Vec<String> = raw
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    let first = args.first().map(String::as_str);
+    let cmd = ["verify", "dis", "run"]
+        .into_iter()
+        .find(|c| first == Some(*c))
+        .unwrap_or("");
+    match json_command(&args) {
+        Ok((data, exit)) => {
+            print!("{}", envelope::ok("elysium", cmd, data));
+            ExitCode::from(exit)
+        }
+        Err(fail) => {
+            eprintln!("elysium: {}", fail.message);
+            print!(
+                "{}",
+                envelope::err(
+                    "elysium",
+                    cmd,
+                    fail.code,
+                    &fail.message,
+                    fail.hint.as_deref()
+                )
+            );
+            ExitCode::from(fail.exit)
+        }
+    }
+}
+
+fn json_command(args: &[String]) -> Result<(Json, u8), Fail> {
+    let (args, limit, offset) = take_page(args)?;
+    match parse_args(&args) {
+        Err(CliError::Usage(msg)) => Err(Fail::usage(msg)),
+        Err(CliError::Failed(msg)) => Err(Fail::op(Code::Invalid, msg)),
+        Ok(Cmd::Help) => Ok((Json::obj([("usage", Json::Str(HELP.into()))]), 0)),
+        Ok(Cmd::Version) => Ok((Json::obj([("version", Json::Str(VERSION.into()))]), 0)),
+        Ok(Cmd::Verify { path }) => verify_json(&path),
+        Ok(Cmd::Dis { path }) => dis_json(&path, limit, offset),
+        Ok(Cmd::Run { path, fuel }) => run_json_cmd(&path, fuel),
+    }
+}
+
+/// Pull `--limit` and `--offset` out of `dis` arguments. They are JSON-only paging flags.
+fn take_page(args: &[String]) -> Result<(Vec<String>, usize, usize), Fail> {
+    let is_dis = args.first().map(String::as_str) == Some("dis");
+    let mut rest = Vec::with_capacity(args.len());
+    let (mut limit, mut offset) = (DEFAULT_LIMIT, 0usize);
+    let mut i = 0;
+    while i < args.len() {
+        let arg = args[i].as_str();
+        let flag = arg.split_once('=').map_or(arg, |(f, _)| f);
+        if is_dis && (flag == "--limit" || flag == "--offset") {
+            let val = match arg.split_once('=') {
+                Some((_, v)) => v.to_string(),
+                None => {
+                    i += 1;
+                    args.get(i)
+                        .cloned()
+                        .ok_or_else(|| Fail::usage(format!("missing value for '{flag}'")))?
+                }
+            };
+            let n = val
+                .parse::<usize>()
+                .map_err(|_| Fail::usage(format!("invalid '{flag}' value '{val}'")))?;
+            if flag == "--limit" {
+                if n == 0 || n > MAX_LIMIT {
+                    return Err(Fail::usage(format!("--limit must be 1 to {MAX_LIMIT}")));
+                }
+                limit = n;
+            } else {
+                offset = n;
+            }
+        } else {
+            rest.push(args[i].clone());
+        }
+        i += 1;
+    }
+    Ok((rest, limit, offset))
+}
+
+/// Read and decode a module for `--json`: an unreadable file is io, a bad module is invalid.
+fn decode_json(path: &str) -> Result<Module, Fail> {
+    let bytes = read_input(path).map_err(|e| match e {
+        CliError::Usage(m) => Fail::usage(m),
+        CliError::Failed(m) => Fail::op(Code::Io, m),
+    })?;
+    decode(&bytes).map_err(|e| Fail::op(Code::Invalid, fmt_decode_error(e)))
+}
+
+fn int(n: usize) -> Json {
+    Json::Int(i64::try_from(n).unwrap_or(i64::MAX))
+}
+
+fn verify_json(path: &str) -> Result<(Json, u8), Fail> {
+    let module = decode_json(path)?;
+    verify(&module).map_err(|e| Fail {
+        code: Code::Invalid,
+        message: fmt_verify_error(&e),
+        hint: Some(format!("run: elysium --json dis {path}")),
+        exit: 1,
+    })?;
+    let data = Json::obj([
+        ("consts", int(module.consts.len())),
+        ("imports", int(module.imports.len())),
+        ("funcs", int(module.funcs.len())),
+        ("entry", int(module.entry as usize)),
+        ("diagnostics", Json::Arr(vec![])),
+        ("count", Json::Int(0)),
+    ]);
+    Ok((data, 0))
+}
+
+fn dis_json(path: &str, limit: usize, offset: usize) -> Result<(Json, u8), Fail> {
+    let module = decode_json(path)?;
+    let consts = module
+        .consts
+        .iter()
+        .enumerate()
+        .map(|(i, c)| match c {
+            Const::Str(s) => Json::obj([
+                ("index", int(i)),
+                ("kind", Json::Str("str".into())),
+                ("text", Json::Str(s.clone())),
+            ]),
+            Const::Bytes(b) => Json::obj([
+                ("index", int(i)),
+                ("kind", Json::Str("bytes".into())),
+                ("text", Json::Str(hex_bytes(b))),
+            ]),
+        })
+        .collect();
+    let imports = module
+        .imports
+        .iter()
+        .enumerate()
+        .map(|(i, name)| Json::obj([("index", int(i)), ("name", Json::Str(name.clone()))]))
+        .collect();
+    let total = module.funcs.len();
+    let items: Vec<Json> = module
+        .funcs
+        .iter()
+        .enumerate()
+        .skip(offset)
+        .take(limit)
+        .map(|(fi, func)| {
+            let code = func
+                .code
+                .iter()
+                .enumerate()
+                .map(|(pc, op)| Json::obj([("pc", int(pc)), ("text", Json::Str(fmt_op(op)))]))
+                .collect();
+            Json::obj([
+                ("index", int(fi)),
+                ("name", Json::Str(func.name.clone())),
+                ("params", int(usize::from(func.params))),
+                ("regs", int(usize::from(func.regs))),
+                ("code", Json::Arr(code)),
+            ])
+        })
+        .collect();
+    let mut pairs = vec![
+        ("entry".to_string(), int(module.entry as usize)),
+        ("consts".to_string(), Json::Arr(consts)),
+        ("imports".to_string(), Json::Arr(imports)),
+    ];
+    if let Json::Obj(page) = envelope::page(items, total, offset, limit) {
+        pairs.extend(page);
+    }
+    Ok((Json::Obj(pairs), 0))
+}
+
+fn run_json_cmd(path: &str, fuel: Option<u64>) -> Result<(Json, u8), Fail> {
+    let module = decode_json(path)?;
+    let mut vm = Vm::new(module, &[]).map_err(|e| Fail::op(Code::Invalid, fmt_load_error(&e)))?;
+    let mut limits = Limits::default();
+    if let Some(n) = fuel {
+        limits.fuel = n;
+    }
+    let started = Instant::now();
+    match vm.run(&mut NoHost, limits) {
+        Ok(val) => {
+            let mut seen = BTreeSet::new();
+            let rendered = fmt_value(val, vm.heap(), &mut seen, 0);
+            let duration_ms = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+            let mut pairs = vec![("exit".to_string(), Json::Int(0))];
+            pairs.extend(stream("result", rendered.as_bytes()));
+            pairs.push(("stop".to_string(), Json::Str("exit".into())));
+            pairs.push((
+                "steps".to_string(),
+                Json::Int(i64::try_from(vm.fuel_used()).unwrap_or(i64::MAX)),
+            ));
+            pairs.push(("duration_ms".to_string(), Json::Int(duration_ms)));
+            Ok((Json::Obj(pairs), 0))
+        }
+        Err(trap) => {
+            // The text path also treats a trap as an error (exit 1), so this is an error envelope.
+            let msg = fmt_trap(&trap);
+            let message = match vm.trap_site() {
+                Some((func, at)) => format!("trap at fn#{func}+{at}: {msg}"),
+                None => format!("trap: {msg}"),
+            };
+            let hint = if matches!(trap, Trap::OutOfFuel) {
+                format!("run: elysium --json run {path} --fuel <larger N>")
+            } else {
+                format!("run: elysium --json dis {path}")
+            };
+            Err(Fail {
+                code: Code::Invalid,
+                message,
+                hint: Some(hint),
+                exit: 1,
+            })
+        }
+    }
+}
+
+/// A captured text value: `name` for the text, `name_<field>` for `truncated`, `bytes`, `lossy`.
+fn stream(name: &str, bytes: &[u8]) -> Vec<(String, Json)> {
+    envelope::capped(bytes)
+        .into_iter()
+        .map(|(key, value)| {
+            if key == "text" {
+                (name.to_string(), value)
+            } else {
+                (format!("{name}_{key}"), value)
+            }
+        })
+        .collect()
 }

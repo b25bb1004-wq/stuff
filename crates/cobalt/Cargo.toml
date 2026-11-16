@@ -8,16 +8,20 @@ publish = false
 [[bin]]
 name = "logos"
 path = "src/main.rs"
+required-features = ["std"]
 
 [[bin]]
 name = "cobalt"
 path = "src/bin/cobalt.rs"
+required-features = ["std"]
 
 [features]
-default = ["silicon"]
+default = ["silicon", "std"]
 silicon = ["dep:silicon"]
+std = ["dep:aci"]
 
 [dependencies]
+aci = { path = "../aci", optional = true }
 chisel = { path = "../chisel" }
 elysium = { path = "../elysium" }
 logos = { path = "../logos" }

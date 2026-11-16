@@ -5,8 +5,18 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[features]
+default = ["std"]
+std = ["dep:aci"]
+
+[[bin]]
+name = "silicon"
+path = "src/bin/silicon.rs"
+required-features = ["std"]
+
 [dependencies]
 silicon = { path = "../silicon" }
+aci = { path = "../aci", optional = true }
 
 [dev-dependencies]
 assay = { path = "../assay" }

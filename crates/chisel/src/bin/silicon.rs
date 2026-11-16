@@ -1,11 +1,19 @@
 //! Command-line RISC-V machine runner using `chisel::elf` and `silicon`.
+//!
+//! Text mode prints what it always printed. `--describe` prints the manifest and `--json` prints one ACI
+//! envelope (docs/ai-computer/ACI.md). Both modes share `simulate`.
 #![forbid(unsafe_code)]
 
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Read, Write};
 use std::process::ExitCode;
+use std::time::Instant;
 
+use aci::envelope::{self, Code};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind, Manifest};
 use silicon::machine::{Config, Exit, Machine};
 use silicon::Bus;
 
@@ -41,6 +49,46 @@ Options:
   --trace        Print up to 1000 'pc inst' lines during execution
   -h, --help     Print help";
 
+const RUN_ARGS: &[Arg] = &[
+    Arg {
+        name: "ELF",
+        kind: Kind::Path,
+        required: true,
+        default: None,
+        choices: &[],
+    },
+    Arg {
+        name: "--steps",
+        kind: Kind::Int,
+        required: false,
+        default: Some("1000000"),
+        choices: &[],
+    },
+    Arg {
+        name: "--ram",
+        kind: Kind::Int,
+        required: false,
+        default: Some("16"),
+        choices: &[],
+    },
+];
+
+const COMMANDS: &[Command] = &[Command {
+    name: "run",
+    summary: "Load an RV64 ELF and run it on Silicon (--trace is text-only)",
+    effect: Effect::Exec,
+    args: RUN_ARGS,
+    returns: "exit (number, or null at the step limit), stop (exit or step_limit), stdout (capped, with stdout_truncated, stdout_bytes, stdout_lossy when they apply), steps, duration_ms",
+    example: "silicon --json run program.elf --steps 50000",
+}];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "silicon",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "RISC-V CPU emulator (Silicon) for Monolith ELF programs",
+    commands: COMMANDS,
+};
+
 struct RunArgs {
     elf_path: String,
     steps: u64,
@@ -52,6 +100,34 @@ enum Action {
     Help(&'static str),
     Version,
     Run(RunArgs),
+}
+
+/// A failed run: the code and message for the envelope, the hint, and the process exit code.
+struct Fail {
+    code: Code,
+    message: String,
+    hint: Option<String>,
+    exit: u8,
+}
+
+impl Fail {
+    fn usage(message: String) -> Fail {
+        Fail {
+            code: Code::Usage,
+            message,
+            hint: Some(String::from("run: silicon --describe")),
+            exit: 2,
+        }
+    }
+
+    fn op(code: Code, message: String) -> Fail {
+        Fail {
+            code,
+            message,
+            hint: None,
+            exit: 1,
+        }
+    }
 }
 
 fn err_msg(msg: &str) -> ExitCode {
@@ -193,15 +269,19 @@ fn format_inst(board: &mut impl Bus, pc: u64) -> String {
     }
 }
 
-fn run_elf(args: RunArgs) -> ExitCode {
-    let bytes = match read_elf_bytes(&args.elf_path) {
-        Ok(b) => b,
-        Err(msg) => return err_msg(&msg),
-    };
-    let img = match chisel::elf::read(&bytes) {
-        Ok(img) => img,
-        Err(e) => return err_msg(&format!("invalid ELF: {e}")),
-    };
+/// What a finished run produced: the stop reason, the instruction count and the UART bytes.
+struct Outcome {
+    exit: Exit,
+    instret: u64,
+    uart: Vec<u8>,
+}
+
+/// Load the ELF and run it. `trace` is the writer for the per-step lines, or None when not tracing.
+/// Both the text and the `--json` paths call this.
+fn simulate(args: &RunArgs, trace: Option<&mut dyn Write>) -> Result<Outcome, Fail> {
+    let bytes = read_elf_bytes(&args.elf_path).map_err(|m| Fail::op(Code::Io, m))?;
+    let img = chisel::elf::read(&bytes)
+        .map_err(|e| Fail::op(Code::Invalid, format!("invalid ELF: {e}")))?;
 
     let cfg = Config {
         ram_size: args.ram_bytes,
@@ -210,40 +290,56 @@ fn run_elf(args: RunArgs) -> ExitCode {
     let mut machine = Machine::new(cfg);
 
     if let Err(fault) = chisel::elf::load(&img, &mut machine) {
-        return err_msg(&format!("failed to load ELF: {fault:?}"));
+        return Err(Fail::op(
+            Code::Invalid,
+            format!("failed to load ELF: {fault:?}"),
+        ));
     }
 
-    let stdout = io::stdout();
-    let mut out = io::BufWriter::new(stdout.lock());
-
-    let exit = if args.trace {
-        let trace_steps = args.steps.min(TRACE_LIMIT);
-        let mut outcome = Exit::OutOfSteps;
-        for _ in 0..trace_steps {
-            let pc = machine.cpu.pc;
-            let inst = format_inst(&mut machine.board, pc);
-            if let Err(e) = writeln!(out, "0x{pc:016x} {inst}") {
-                return err_msg(&format!("stdout: {e}"));
+    let exit = match trace {
+        Some(w) => {
+            let trace_steps = args.steps.min(TRACE_LIMIT);
+            let mut outcome = Exit::OutOfSteps;
+            for _ in 0..trace_steps {
+                let pc = machine.cpu.pc;
+                let inst = format_inst(&mut machine.board, pc);
+                writeln!(w, "0x{pc:016x} {inst}")
+                    .map_err(|e| Fail::op(Code::Io, format!("stdout: {e}")))?;
+                outcome = machine.run(1);
+                if outcome != Exit::OutOfSteps {
+                    break;
+                }
             }
-            outcome = machine.run(1);
-            if outcome != Exit::OutOfSteps {
-                break;
+            if outcome == Exit::OutOfSteps && args.steps > trace_steps {
+                outcome = machine.run(args.steps - trace_steps);
             }
+            outcome
         }
-        if outcome == Exit::OutOfSteps && args.steps > trace_steps {
-            outcome = machine.run(args.steps - trace_steps);
-        }
-        outcome
-    } else {
-        machine.run(args.steps)
+        None => machine.run(args.steps),
     };
 
-    let uart = machine.board.take_uart_output();
-    if !uart.is_empty() {
-        if let Err(e) = out.write_all(&uart) {
+    Ok(Outcome {
+        exit,
+        instret: machine.cpu.instret,
+        uart: machine.board.take_uart_output(),
+    })
+}
+
+fn run_elf(args: RunArgs) -> ExitCode {
+    let stdout = io::stdout();
+    let mut out = io::BufWriter::new(stdout.lock());
+    let trace: Option<&mut dyn Write> = if args.trace { Some(&mut out) } else { None };
+    let outcome = match simulate(&args, trace) {
+        Ok(o) => o,
+        Err(fail) => return err_msg(&fail.message),
+    };
+    let exit = outcome.exit;
+
+    if !outcome.uart.is_empty() {
+        if let Err(e) = out.write_all(&outcome.uart) {
             return err_msg(&format!("stdout: {e}"));
         }
-        if !uart.ends_with(b"\n") {
+        if !outcome.uart.ends_with(b"\n") {
             if let Err(e) = out.write_all(b"\n") {
                 return err_msg(&format!("stdout: {e}"));
             }
@@ -253,7 +349,7 @@ fn run_elf(args: RunArgs) -> ExitCode {
     if let Err(e) = writeln!(out, "exit: {exit:?}") {
         return err_msg(&format!("stdout: {e}"));
     }
-    if let Err(e) = writeln!(out, "instret: {}", machine.cpu.instret) {
+    if let Err(e) = writeln!(out, "instret: {}", outcome.instret) {
         return err_msg(&format!("stdout: {e}"));
     }
     if let Err(e) = out.flush() {
@@ -266,7 +362,102 @@ fn run_elf(args: RunArgs) -> ExitCode {
     }
 }
 
+/// `silicon --json ...`: one envelope on stdout; stderr keeps the `silicon: message` line.
+fn run_json(args: &[OsString]) -> ExitCode {
+    let args: Vec<String> = args
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    let cmd = if args.first().map(String::as_str) == Some("run") {
+        "run"
+    } else {
+        ""
+    };
+    match json_command(&args) {
+        Ok((data, exit)) => {
+            print!("{}", envelope::ok("silicon", cmd, data));
+            ExitCode::from(exit)
+        }
+        Err(fail) => {
+            eprintln!("silicon: {}", fail.message);
+            print!(
+                "{}",
+                envelope::err(
+                    "silicon",
+                    cmd,
+                    fail.code,
+                    &fail.message,
+                    fail.hint.as_deref()
+                )
+            );
+            ExitCode::from(fail.exit)
+        }
+    }
+}
+
+fn json_command(args: &[String]) -> Result<(Json, u8), Fail> {
+    match parse_args(args).map_err(Fail::usage)? {
+        Action::Help(text) => Ok((Json::obj([("usage", Json::Str(text.into()))]), 0)),
+        Action::Version => Ok((Json::obj([("version", Json::Str(VERSION.into()))]), 0)),
+        Action::Run(run) => {
+            if run.trace {
+                return Err(Fail {
+                    code: Code::Usage,
+                    message: String::from("--trace is not available under --json"),
+                    hint: Some(String::from("run: silicon --describe")),
+                    exit: 2,
+                });
+            }
+            let started = Instant::now();
+            let outcome = simulate(&run, None)?;
+            let duration_ms = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+            let (exit, stop, tool_exit) = match outcome.exit {
+                Exit::Pass => (Json::Int(0), "exit", 0),
+                Exit::Fail(code) => {
+                    eprintln!("silicon: guest exited with Fail({code})");
+                    (Json::Int(i64::from(code)), "exit", 1)
+                }
+                Exit::OutOfSteps => (Json::Null, "step_limit", 0),
+            };
+            let mut pairs = vec![
+                ("exit".to_string(), exit),
+                ("stop".to_string(), Json::Str(stop.into())),
+            ];
+            pairs.extend(stream("stdout", &outcome.uart));
+            pairs.push((
+                "steps".to_string(),
+                Json::Int(i64::try_from(outcome.instret).unwrap_or(i64::MAX)),
+            ));
+            pairs.push(("duration_ms".to_string(), Json::Int(duration_ms)));
+            Ok((Json::Obj(pairs), tool_exit))
+        }
+    }
+}
+
+/// A captured stream: `name` for the text, `name_<field>` for `truncated`, `bytes`, `lossy`.
+fn stream(name: &str, bytes: &[u8]) -> Vec<(String, Json)> {
+    envelope::capped(bytes)
+        .into_iter()
+        .map(|(key, value)| {
+            if key == "text" {
+                (name.to_string(), value)
+            } else {
+                (format!("{name}_{key}"), value)
+            }
+        })
+        .collect()
+}
+
 fn main() -> ExitCode {
+    let mut raw: Vec<OsString> = env::args_os().skip(1).collect();
+    let json = envelope::take_json_flag(&mut raw);
+    if envelope::take_describe_flag(&raw) {
+        println!("{}", MANIFEST.to_json().write());
+        return ExitCode::SUCCESS;
+    }
+    if json {
+        return run_json(&raw);
+    }
     let args: Vec<String> = env::args().skip(1).collect();
     match parse_args(&args) {
         Ok(Action::Help(text)) => {

@@ -7,6 +7,12 @@ use std::fs;
 use std::io::{self, Read, Write};
 use std::process;
 
+use std::ffi::OsString;
+use std::path::Path;
+
+use aci::envelope::{self, Code};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind, Manifest};
 use cobalt::opt;
 use logos::ast::{BinOp, UnOp};
 use logos::ir::{Body, Builtin, Inst, Lit, Program, Ty, TypeKind};
@@ -40,6 +46,15 @@ EXAMPLES:
     cobalt build hello.logos -o hello.mbc";
 
 fn main() {
+    let mut raw: Vec<OsString> = env::args_os().skip(1).collect();
+    let json = envelope::take_json_flag(&mut raw);
+    if envelope::take_describe_flag(&raw) {
+        println!("{}", MANIFEST.to_json().write());
+        return;
+    }
+    if json {
+        process::exit(run_json(&raw));
+    }
     let args: Vec<String> = env::args().skip(1).collect();
     let Some(cmd) = args.first().map(String::as_str) else {
         usage_error("missing subcommand (try --help)");
@@ -575,4 +590,352 @@ fn format_inst(out: &mut String, inst: &Inst) {
             let _ = write!(out, "Assert r{r}, {msg:?}");
         }
     }
+}
+
+// ---- --describe and --json (docs/ai-computer/ACI.md). The text path above is unchanged. ----
+
+const FILE_ARG: Arg = Arg {
+    name: "FILE",
+    kind: Kind::Path,
+    required: true,
+    default: None,
+    choices: &[],
+};
+
+const BUILD_ARGS: &[Arg] = &[
+    FILE_ARG,
+    Arg {
+        name: "-o",
+        kind: Kind::Path,
+        required: true,
+        default: None,
+        choices: &[],
+    },
+];
+
+const COMMANDS: &[Command] = &[
+    Command {
+        name: "check",
+        summary: "Type-check FILE; prints nothing on success",
+        effect: Effect::Read,
+        args: &[FILE_ARG],
+        returns: "count (0), diagnostics ([]); a compile error is code invalid with line and column in the message",
+        example: "cobalt --json check prog.logos",
+    },
+    Command {
+        name: "fmt",
+        summary: "Print FILE in canonical form (refuses files with comments)",
+        effect: Effect::Read,
+        args: &[FILE_ARG],
+        returns: "text (capped, with truncated, bytes when they apply)",
+        example: "cobalt --json fmt prog.logos",
+    },
+    Command {
+        name: "ir",
+        summary: "Print the typed Logos IR of FILE",
+        effect: Effect::Read,
+        args: &[FILE_ARG],
+        returns: "text (capped, with truncated, bytes when they apply)",
+        example: "cobalt --json ir prog.logos",
+    },
+    Command {
+        name: "opt",
+        summary: "Optimise the Logos IR of FILE and print it with the optimiser stats",
+        effect: Effect::Read,
+        args: &[FILE_ARG],
+        returns: "text (capped, the optimised IR), stats: {folded, copies, removed}",
+        example: "cobalt --json opt prog.logos",
+    },
+    Command {
+        name: "build",
+        summary: "Compile FILE to a verified Elysium module written to -o OUT (a file; stdout is refused under --json)",
+        effect: Effect::Write,
+        args: BUILD_ARGS,
+        returns: "path (the module file), bytes",
+        example: "cobalt --json build prog.logos -o prog.mbc",
+    },
+];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "cobalt",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "Logos compiler: check, format, IR, optimiser and Elysium bytecode",
+    commands: COMMANDS,
+};
+
+/// A failed `--json` run: envelope code and message, the hint, and the process exit code.
+struct Fail {
+    code: Code,
+    message: String,
+    hint: Option<String>,
+    exit: i32,
+}
+
+impl Fail {
+    fn usage(message: String) -> Fail {
+        Fail {
+            code: Code::Usage,
+            message,
+            hint: Some(String::from("run: cobalt --describe")),
+            exit: 2,
+        }
+    }
+
+    fn op(code: Code, message: String) -> Fail {
+        Fail {
+            code,
+            message,
+            hint: None,
+            exit: 1,
+        }
+    }
+}
+
+fn run_json(raw: &[OsString]) -> i32 {
+    let args: Vec<String> = raw
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    let first = args.first().map(String::as_str);
+    let cmd = COMMANDS
+        .iter()
+        .map(|c| c.name)
+        .find(|c| first == Some(*c))
+        .unwrap_or("");
+    match json_command(&args) {
+        Ok((data, exit)) => {
+            print!("{}", envelope::ok("cobalt", cmd, data));
+            exit
+        }
+        Err(fail) => {
+            eprintln!("cobalt: {}", fail.message);
+            print!(
+                "{}",
+                envelope::err(
+                    "cobalt",
+                    cmd,
+                    fail.code,
+                    &fail.message,
+                    fail.hint.as_deref()
+                )
+            );
+            fail.exit
+        }
+    }
+}
+
+fn json_command(args: &[String]) -> Result<(Json, i32), Fail> {
+    let Some(cmd) = args.first().map(String::as_str) else {
+        return Err(Fail::usage(String::from("missing subcommand (try --help)")));
+    };
+    let rest = &args[1..];
+    match cmd {
+        "--help" | "-h" => Ok((Json::obj([("usage", Json::Str(HELP.into()))]), 0)),
+        "--version" | "-V" => Ok((Json::obj([("version", Json::Str(VERSION.into()))]), 0)),
+        "check" => {
+            // Findings are data here (as in `athena check`): ok:true, exit code as the text path.
+            let path = single_file(rest, "check")?;
+            let src = read_json(path)?;
+            let diag = match logos::parser::parse(&src) {
+                Err(d) => Some(d),
+                Ok(ast) => logos::check::check(&ast).err(),
+            };
+            let Some(diag) = diag else {
+                let data = Json::obj([
+                    ("count", Json::Int(0)),
+                    ("diagnostics", Json::Arr(vec![])),
+                    ("clean", Json::Bool(true)),
+                ]);
+                return Ok((data, 0));
+            };
+            let (line, col) = logos::line_col(&src, diag.span.start);
+            let label = source_label(path);
+            eprintln!("cobalt: {label}:{line}:{col}: {}", diag.message);
+            let item = Json::obj([
+                ("path", Json::Str(label.into())),
+                ("line", Json::Int(i64::from(line))),
+                ("col", Json::Int(i64::from(col))),
+                ("severity", Json::Str("error".into())),
+                ("message", Json::Str(diag.message.clone())),
+            ]);
+            let data = Json::obj([
+                ("count", Json::Int(1)),
+                ("diagnostics", Json::Arr(vec![item])),
+                ("clean", Json::Bool(false)),
+            ]);
+            Ok((data, 1))
+        }
+        "fmt" => fmt_json(single_file(rest, "fmt")?),
+        "ir" => {
+            let prog = load_json(single_file(rest, "ir")?)?;
+            let mut out = String::new();
+            format_program(&mut out, &prog);
+            Ok((Json::Obj(envelope::capped(out.as_bytes())), 0))
+        }
+        "opt" => {
+            let mut prog = load_json(single_file(rest, "opt")?)?;
+            let stats = opt::optimize(&mut prog);
+            let mut out = String::new();
+            format_program(&mut out, &prog);
+            let mut pairs = envelope::capped(out.as_bytes());
+            let stats = Json::obj([
+                ("folded", int(stats.folded)),
+                ("copies", int(stats.copies)),
+                ("removed", int(stats.removed)),
+            ]);
+            pairs.push((String::from("stats"), stats));
+            Ok((Json::Obj(pairs), 0))
+        }
+        "build" => build_json(rest),
+        other => Err(Fail::usage(format!(
+            "unknown subcommand '{other}' (try --help)"
+        ))),
+    }
+}
+
+fn int(n: usize) -> Json {
+    Json::Int(i64::try_from(n).unwrap_or(i64::MAX))
+}
+
+/// The one FILE argument of a single-file command.
+fn single_file<'a>(args: &'a [String], cmd: &str) -> Result<&'a str, Fail> {
+    let mut file: Option<&str> = None;
+    for arg in args {
+        let a = arg.as_str();
+        if a != "-" && a.starts_with('-') {
+            return Err(Fail::usage(format!("unknown option '{a}'")));
+        }
+        if file.is_some() {
+            return Err(Fail::usage(format!("unexpected argument '{a}'")));
+        }
+        file = Some(a);
+    }
+    file.ok_or_else(|| Fail::usage(format!("usage: cobalt {cmd} FILE.logos")))
+}
+
+/// Reads a source file, or stdin for `-`, for `--json`.
+fn read_json(path: &str) -> Result<String, Fail> {
+    if path == "-" {
+        let mut buf = String::new();
+        io::stdin()
+            .read_to_string(&mut buf)
+            .map_err(|err| Fail::op(Code::Io, format!("stdin: {err}")))?;
+        return Ok(buf);
+    }
+    fs::read_to_string(path).map_err(|err| {
+        let code = if err.kind() == io::ErrorKind::NotFound {
+            Code::NotFound
+        } else {
+            Code::Io
+        };
+        Fail::op(code, format!("{path}: {err}"))
+    })
+}
+
+/// A parse or check error as the envelope message: `label:line:col: message`, code invalid.
+fn compile_fail(src: &str, path: &str, diag: &logos::Diag) -> Fail {
+    let (line, col) = logos::line_col(src, diag.span.start);
+    Fail {
+        code: Code::Invalid,
+        message: format!("{}:{line}:{col}: {}", source_label(path), diag.message),
+        hint: Some(format!("run: cobalt --json check {path}")),
+        exit: 1,
+    }
+}
+
+fn load_json(path: &str) -> Result<Program, Fail> {
+    let src = read_json(path)?;
+    let ast = logos::parser::parse(&src).map_err(|d| compile_fail(&src, path, &d))?;
+    logos::check::check(&ast).map_err(|d| compile_fail(&src, path, &d))
+}
+
+fn fmt_json(path: &str) -> Result<(Json, i32), Fail> {
+    let src = read_json(path)?;
+    let tokens = logos::lexer::lex(&src).map_err(|d| compile_fail(&src, path, &d))?;
+    // The printer drops comments, so formatting such a file would lose text.
+    if has_comment(&src, &tokens) {
+        return Err(Fail::op(
+            Code::Invalid,
+            format!(
+                "{}: refusing to format a file with comments",
+                source_label(path)
+            ),
+        ));
+    }
+    let ast = logos::parser::parse(&src).map_err(|d| compile_fail(&src, path, &d))?;
+    let text = logos::print::print(&ast);
+    Ok((Json::Obj(envelope::capped(text.as_bytes())), 0))
+}
+
+fn build_json(args: &[String]) -> Result<(Json, i32), Fail> {
+    let (in_path, out_path) = build_args_json(args)?;
+    // The module is binary: under --json it must go to a file, never to stdout.
+    if out_path == "-" {
+        return Err(Fail {
+            code: Code::Usage,
+            message: String::from(
+                "binary output to stdout is not available under --json; give -o FILE",
+            ),
+            hint: Some(String::from(
+                "run: cobalt --json build FILE.logos -o OUT.mbc",
+            )),
+            exit: 2,
+        });
+    }
+    let prog = load_json(in_path)?;
+    let compiled = cobalt::compile(&prog);
+    elysium::verify(&compiled.module)
+        .map_err(|err| Fail::op(Code::Invalid, format!("verify failed: {err:?}")))?;
+    let bytes = elysium::encode(&compiled.module);
+    fs::write(out_path, &bytes).map_err(|err| Fail::op(Code::Io, format!("{out_path}: {err}")))?;
+    let data = Json::obj([
+        ("path", Json::path(Path::new(out_path))),
+        ("bytes", int(bytes.len())),
+    ]);
+    Ok((data, 0))
+}
+
+/// The input FILE and the `-o` output of `build`, the same rules as the text path.
+fn build_args_json(args: &[String]) -> Result<(&str, &str), Fail> {
+    let mut input: Option<&str> = None;
+    let mut output: Option<&str> = None;
+    let mut i = 0;
+    while i < args.len() {
+        let a = args[i].as_str();
+        if a == "-o" || a == "--output" {
+            i += 1;
+            let val = args
+                .get(i)
+                .map(String::as_str)
+                .ok_or_else(|| Fail::usage(format!("missing value for {a}")))?;
+            if output.replace(val).is_some() {
+                return Err(Fail::usage(String::from("duplicate -o/--output option")));
+            }
+        } else if let Some(val) = a
+            .strip_prefix("-o=")
+            .or_else(|| a.strip_prefix("--output="))
+        {
+            if val.is_empty() {
+                return Err(Fail::usage(String::from("empty value for output option")));
+            }
+            if output.replace(val).is_some() {
+                return Err(Fail::usage(String::from("duplicate -o/--output option")));
+            }
+        } else if a != "-" && a.starts_with('-') {
+            return Err(Fail::usage(format!("unknown option '{a}'")));
+        } else if input.is_none() {
+            input = Some(a);
+        } else {
+            return Err(Fail::usage(format!("unexpected argument '{a}'")));
+        }
+        i += 1;
+    }
+    let input = input
+        .ok_or_else(|| Fail::usage(String::from("usage: cobalt build FILE.logos -o OUT.mbc")))?;
+    let output = output.ok_or_else(|| {
+        Fail::usage(String::from(
+            "missing -o OUT.mbc (usage: cobalt build FILE.logos -o OUT.mbc)",
+        ))
+    })?;
+    Ok((input, output))
 }

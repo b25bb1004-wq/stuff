@@ -1,16 +1,34 @@
 //! Command-line runner for Logos (`logos run` and `logos test`).
+//!
+//! Text mode prints what it always printed. `--describe` prints the manifest and `--json` prints one ACI
+//! envelope (docs/ai-computer/ACI.md). The `--json` path lives at the end of this file.
 #![forbid(unsafe_code)]
 
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Read, Write};
 use std::process;
+use std::time::Instant;
+
+use aci::envelope::{self, Code};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind, Manifest};
 
 const DEFAULT_FUEL: u64 = 100_000_000;
 const DEFAULT_SEED: u64 = 1;
 const DEFAULT_CASES: u32 = 100;
 
 fn main() {
+    let mut raw: Vec<OsString> = env::args_os().skip(1).collect();
+    let json = envelope::take_json_flag(&mut raw);
+    if envelope::take_describe_flag(&raw) {
+        println!("{}", MANIFEST.to_json().write());
+        return;
+    }
+    if json {
+        process::exit(run_json(&raw));
+    }
     let args: Vec<String> = env::args().skip(1).collect();
     let Some(cmd) = args.first().map(String::as_str) else {
         eprintln!("usage: logos <run|test> FILE [options]");
@@ -213,4 +231,309 @@ fn parse_u64(s: &str) -> Option<u64> {
     } else {
         s.parse::<u64>().ok()
     }
+}
+
+// ---- --describe and --json (docs/ai-computer/ACI.md). The text path above is unchanged. ----
+
+const USAGE: &str = "usage: logos <run|test> FILE [options]
+  logos run FILE [--fuel N]
+  logos test FILE [options]";
+
+const FILE_ARG: Arg = Arg {
+    name: "FILE",
+    kind: Kind::Path,
+    required: true,
+    default: None,
+    choices: &[],
+};
+
+const FUEL_ARG: Arg = Arg {
+    name: "--fuel",
+    kind: Kind::Int,
+    required: false,
+    default: Some("100000000"),
+    choices: &[],
+};
+
+const RUN_ARGS: &[Arg] = &[FILE_ARG, FUEL_ARG];
+const TEST_ARGS: &[Arg] = &[
+    FILE_ARG,
+    FUEL_ARG,
+    Arg {
+        name: "--seed",
+        kind: Kind::Int,
+        required: false,
+        default: Some("1"),
+        choices: &[],
+    },
+    Arg {
+        name: "--cases",
+        kind: Kind::Int,
+        required: false,
+        default: Some("100"),
+        choices: &[],
+    },
+];
+
+const COMMANDS: &[Command] = &[
+    Command {
+        name: "run",
+        summary: "Run the main function of FILE; its io.print output is stdout",
+        effect: Effect::Exec,
+        args: RUN_ARGS,
+        returns: "exit (0), stop (exit), stdout (capped, with stdout_truncated, stdout_bytes, stdout_lossy when they apply), duration_ms; a trap or compile error is code invalid",
+        example: "logos --json run prog.logos",
+    },
+    Command {
+        name: "test",
+        summary: "Run the tests and properties of FILE",
+        effect: Effect::Exec,
+        args: TEST_ARGS,
+        returns: "passed, failed, results: [{name, status (ok or fail), message}]; exit 1 when any test fails",
+        example: "logos --json test prog.logos --cases 50",
+    },
+];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "logos",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "Logos language runner: run and test programs",
+    commands: COMMANDS,
+};
+
+/// A failed `--json` run: envelope code and message, the hint, and the process exit code.
+struct Fail {
+    code: Code,
+    message: String,
+    hint: Option<String>,
+    exit: i32,
+}
+
+impl Fail {
+    fn usage(message: String) -> Fail {
+        Fail {
+            code: Code::Usage,
+            message,
+            hint: Some(String::from("run: logos --describe")),
+            exit: 2,
+        }
+    }
+}
+
+fn run_json(raw: &[OsString]) -> i32 {
+    let args: Vec<String> = raw
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    let first = args.first().map(String::as_str);
+    let cmd = ["run", "test"]
+        .into_iter()
+        .find(|c| first == Some(*c))
+        .unwrap_or("");
+    match json_command(&args) {
+        Ok((data, exit)) => {
+            print!("{}", envelope::ok("logos", cmd, data));
+            exit
+        }
+        Err(fail) => {
+            eprintln!("logos: {}", fail.message);
+            print!(
+                "{}",
+                envelope::err("logos", cmd, fail.code, &fail.message, fail.hint.as_deref())
+            );
+            fail.exit
+        }
+    }
+}
+
+fn json_command(args: &[String]) -> Result<(Json, i32), Fail> {
+    match args.first().map(String::as_str) {
+        Some("run") => json_run(&args[1..]),
+        Some("test") => json_test(&args[1..]),
+        Some("--help" | "-h") => Ok((Json::obj([("usage", Json::Str(USAGE.into()))]), 0)),
+        Some(other) => Err(Fail::usage(format!(
+            "unknown subcommand '{other}' (expected 'run' or 'test')"
+        ))),
+        None => Err(Fail::usage(String::from(
+            "missing subcommand (expected 'run' or 'test')",
+        ))),
+    }
+}
+
+/// Options and the one FILE for `run` and `test`, with the value flags the command takes.
+struct Opts {
+    file: String,
+    fuel: u64,
+    seed: u64,
+    cases: u32,
+}
+
+fn parse_opts(args: &[String], value_flags: &[&str]) -> Result<Opts, Fail> {
+    let mut opts = Opts {
+        file: String::new(),
+        fuel: DEFAULT_FUEL,
+        seed: DEFAULT_SEED,
+        cases: DEFAULT_CASES,
+    };
+    let mut file: Option<&str> = None;
+    let mut i = 0;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = a.split_once('=').map_or((a, None), |(f, v)| (f, Some(v)));
+        if value_flags.contains(&flag) {
+            let val = match inline {
+                Some(v) => v.to_string(),
+                None => {
+                    i += 1;
+                    args.get(i)
+                        .cloned()
+                        .ok_or_else(|| Fail::usage(format!("missing value for {flag}")))?
+                }
+            };
+            let bad = || Fail::usage(format!("invalid value for {flag}: {val}"));
+            match flag {
+                "--fuel" => opts.fuel = parse_u64(&val).ok_or_else(bad)?,
+                "--seed" => opts.seed = parse_u64(&val).ok_or_else(bad)?,
+                _ => opts.cases = val.parse::<u32>().map_err(|_| bad())?,
+            }
+        } else if a.starts_with('-') {
+            return Err(Fail::usage(format!("unknown option '{a}'")));
+        } else if file.is_none() {
+            file = Some(a);
+        } else {
+            return Err(Fail::usage(format!("unexpected argument '{a}'")));
+        }
+        i += 1;
+    }
+    opts.file = file
+        .ok_or_else(|| Fail::usage(String::from("missing FILE")))?
+        .to_string();
+    Ok(opts)
+}
+
+fn json_run(args: &[String]) -> Result<(Json, i32), Fail> {
+    let opts = parse_opts(args, &["--fuel"])?;
+    let (src, compiled) = load_json(&opts.file)?;
+    let mut input = String::new();
+    if compiled.module.imports.iter().any(|s| s == "io.read_line") {
+        let _ = io::stdin().read_to_string(&mut input);
+    }
+    let started = Instant::now();
+    let out = cobalt::run_main(&compiled, &input, opts.fuel);
+    if let Err((trap, span)) = out.result {
+        let (line, col) = logos::line_col(&src, span.start);
+        return Err(Fail {
+            code: Code::Invalid,
+            message: format!("trap: {trap:?} at {line}:{col}"),
+            hint: None,
+            exit: 1,
+        });
+    }
+    let duration_ms = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+    let mut pairs = vec![
+        ("exit".to_string(), Json::Int(0)),
+        ("stop".to_string(), Json::Str("exit".into())),
+    ];
+    pairs.extend(stream("stdout", out.output.as_bytes()));
+    pairs.push(("duration_ms".to_string(), Json::Int(duration_ms)));
+    Ok((Json::Obj(pairs), 0))
+}
+
+fn json_test(args: &[String]) -> Result<(Json, i32), Fail> {
+    let opts = parse_opts(args, &["--fuel", "--seed", "--cases"])?;
+    let (src, compiled) = load_json(&opts.file)?;
+    let mut results = Vec::new();
+    let (mut passed, mut failed) = (0i64, 0i64);
+
+    for (idx, (name, _)) in compiled.tests.iter().enumerate() {
+        let out = cobalt::run_test(&compiled, idx, opts.fuel);
+        let (status, message) = match out.result {
+            Ok(()) => ("ok", String::new()),
+            Err((trap, span)) => {
+                let (line, col) = logos::line_col(&src, span.start);
+                ("fail", format!("{trap:?} at {line}:{col}"))
+            }
+        };
+        if status == "ok" {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
+        results.push(result_json(name, status, &message));
+    }
+
+    for (idx, prop) in compiled.props.iter().enumerate() {
+        let out = cobalt::run_prop(&compiled, idx, opts.seed, opts.cases, opts.fuel);
+        let (status, message) = match out.result {
+            Ok(()) => ("ok", String::new()),
+            Err((trap, span)) => {
+                let (line, col) = logos::line_col(&src, span.start);
+                let summary = out.output.lines().last().unwrap_or("");
+                ("fail", format!("{trap:?} at {line}:{col} ({summary})"))
+            }
+        };
+        if status == "ok" {
+            passed += 1;
+        } else {
+            failed += 1;
+        }
+        results.push(result_json(&prop.name, status, &message));
+    }
+
+    let exit = i32::from(failed > 0);
+    let data = Json::obj([
+        ("passed", Json::Int(passed)),
+        ("failed", Json::Int(failed)),
+        ("results", Json::Arr(results)),
+    ]);
+    Ok((data, exit))
+}
+
+fn result_json(name: &str, status: &str, message: &str) -> Json {
+    Json::obj([
+        ("name", Json::Str(name.into())),
+        ("status", Json::Str(status.into())),
+        ("message", Json::Str(message.into())),
+    ])
+}
+
+/// Read and compile a file for `--json`. Read, parse and check errors give the same messages and exit
+/// codes as the text path (read failure 2 with code io, compile error 2 with code invalid).
+fn load_json(path: &str) -> Result<(String, cobalt::Compiled), Fail> {
+    let src = fs::read_to_string(path).map_err(|err| Fail {
+        code: if err.kind() == std::io::ErrorKind::NotFound {
+            Code::NotFound
+        } else {
+            Code::Io
+        },
+        message: format!("{path}:1:1: failed to read file"),
+        hint: None,
+        exit: 2,
+    })?;
+    let compile_error = |diag: &logos::Diag| Fail {
+        code: Code::Invalid,
+        message: {
+            let (line, col) = logos::line_col(&src, diag.span.start);
+            format!("{path}:{line}:{col}: {}", diag.message)
+        },
+        hint: None,
+        exit: 2,
+    };
+    let ast = logos::parser::parse(&src).map_err(|d| compile_error(&d))?;
+    let ir = logos::check::check(&ast).map_err(|d| compile_error(&d))?;
+    Ok((src, cobalt::compile(&ir)))
+}
+
+/// A captured text value: `name` for the text, `name_<field>` for `truncated`, `bytes`, `lossy`.
+fn stream(name: &str, bytes: &[u8]) -> Vec<(String, Json)> {
+    envelope::capped(bytes)
+        .into_iter()
+        .map(|(key, value)| {
+            if key == "text" {
+                (name.to_string(), value)
+            } else {
+                (format!("{name}_{key}"), value)
+            }
+        })
+        .collect()
 }
