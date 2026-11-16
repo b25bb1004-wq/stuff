@@ -21,40 +21,39 @@
     titan: ["midas", "kairos", "hades", "krypton", "silicon", "iris"],
     xenon: ["sphinx"]
   };
-  // 0 hardware (bottom), 1 kernel, 2 services, 3 apps (top).
-  var LAYER = {
-    silicon: 0,
-    lithium: 1, titan: 1, zeus: 1, midas: 1, kairos: 1,
-    mercury: 2, xenon: 2, iridium: 2, chronos: 2, argo: 2, aurum: 2, pandora: 2, krypton: 2,
-    logos: 2, elysium: 2, cobalt: 2, hades: 2, sphinx: 2,
-    calliope: 3, indium: 3, odyssey: 3, helios: 3, athena: 3, iris: 3
-  };
+  // Rows from the top of the board down: apps, services, kernel, hardware. Each row is centered.
+  var ROWS = [
+    ["odyssey", "helios", "athena", "calliope", "iris", "indium", "cobalt", "logos", "elysium"],
+    ["mercury", "xenon", "iridium", "krypton", "chronos", "argo", "pandora", "sphinx", "aurum"],
+    ["lithium", "kairos", "titan", "midas", "hades"],
+    ["silicon", "zeus"]
+  ];
+  var BIG = { titan: [240, 112] };
 
-  var COLS = 8;
-  var CHIP_W = 120;
-  var CHIP_H = 56;
-  var PITCH_X = 150;
-  var ROW_PITCH = 120;
-  var MARGIN = 40;
+  var BW = 1520;
+  var NW = 120;
+  var NH = 56;
+  var GAP_X = 40;
+  var GAP_Y = 120;
   var TOP = 60;
-  var BOTTOM = 70;
-  var BW = MARGIN * 2 + COLS * PITCH_X;
-  var LANE = 5;
+  var BOTTOM = 60;
+  var PIN = 8;
+  var LANE0 = 28;
+  var LANE_STEP = 6;
+  var LANES = 14;
   var CHAMFER = 8;
   var TRACE_W = 3;
   var PAD_R = 3.5;
-  var STUB = 16;
   var PULSE_MS = 400;
   var PULSE_CAP = 24;
   var HALF_TARGET = 22;
   var CAP_W = 1280;
   var CAP_H = 720;
-  // Vertical bus x in the gaps between columns, and at both outer edges. Jitter spreads shared buses.
-  var BUS = [20, 190, 340, 490, 640, 790, 940, 1090, 1260];
+  var MARGIN_CSS = 24;
   var FALLBACK = { mask: "#0B3D2E", maskDeep: "#072A20", copper: "#C8803C", signal: "#FFC46B", silk: "#EEF0E6", silkDim: "#9DB5A8" };
   var TOKEN = { mask: "--mask", maskDeep: "--mask-deep", copper: "--copper", signal: "--signal", silk: "--silk", silkDim: "--silk-dim" };
-  var FONT_NAME = '600 15px Bahnschrift, "DIN Alternate", "Arial Narrow", sans-serif';
-  var FONT_WHAT = '400 11px Bahnschrift, "DIN Alternate", "Arial Narrow", sans-serif';
+  var FONT_NAME = '600 12px Bahnschrift, "DIN Alternate", "Arial Narrow", sans-serif';
+  var FONT_REF = '400 11px Bahnschrift, "DIN Alternate", "Arial Narrow", sans-serif';
   var FONT_TITLE = '600 14px Bahnschrift, "DIN Alternate", "Arial Narrow", sans-serif';
   var FONT_BODY = '400 13px Bahnschrift, "DIN Alternate", "Arial Narrow", sans-serif';
 
@@ -65,7 +64,7 @@
     var d = dist(from, to) || 1;
     return [from[0] + ((to[0] - from[0]) * k) / d, from[1] + ((to[1] - from[1]) * k) / d];
   }
-  // Orthogonal polyline with 45-degree chamfers at each corner, then cumulative lengths.
+  // Orthogonal polyline with 45-degree chamfers at each corner.
   function chamfer(pts) {
     var out = [pts[0]];
     for (var i = 1; i < pts.length - 1; i++) {
@@ -154,117 +153,191 @@
     return typeof MOTION_TABLE === "object" && MOTION_TABLE.firm ? MOTION_TABLE.firm.ms : PULSE_MS;
   }
 
-  // Chips, rows, pads and traces. Rows are layers from the top (apps) down to hardware; a layer wider than
-  // COLS wraps. Chips sit on a fixed column grid, so a vertical bus in a column gap clears every row.
+  // Fixed rows, centered. Each chip has real pins (one per connection) and 2 to 4 dummy pins.
+  // A pair of chips in adjacent rows routes through the channel between them. Same-row pairs route through
+  // the channel below. Pairs that skip rows drop a vertical bus through a clear column gap, and every trace
+  // stays within one chip width of its own pads.
   function build(systems) {
     var chips = [];
     var byId = {};
     systems.forEach(function (s, i) {
-      var layer = typeof s.layer === "number" ? s.layer : LAYER[s.id];
       var c = {
         id: s.id, name: s.name, what: s.what || "", line: s.line || "", index: i,
-        layer: typeof layer === "number" ? layer : 2,
-        depIds: [], pads: [], x: 0, y: 0, row: 0, col: 0, flash: -1
+        w: NW, h: NH, x: 0, y: 0, row: 0, ref: "", pins: [], real: [], depIds: [], segs: [], flash: -1
       };
+      if (BIG[s.id]) {
+        c.w = BIG[s.id][0];
+        c.h = BIG[s.id][1];
+      }
       chips.push(c);
       byId[s.id] = c;
     });
     chips.forEach(function (c) {
-      var raw = Array.isArray(systems[c.index].deps) ? systems[c.index].deps : DEPS[c.id] || [];
-      raw.forEach(function (id) {
+      (DEPS[c.id] || []).forEach(function (id) {
         if (byId[id] && id !== c.id && c.depIds.indexOf(id) < 0) c.depIds.push(id);
       });
     });
 
-    var rowsByLayer = [[], [], [], []];
-    for (var L = 0; L < 4; L++) {
-      var keyed = chips.filter(function (c) { return c.layer === L; }).map(function (c) {
-        var below = c.depIds.map(function (id) { return byId[id]; }).filter(function (d) { return d.layer < L; });
-        var key = below.length
-          ? below.reduce(function (sum, d) { return sum + d.col; }, 0) / below.length
-          : 1000 + c.index;
-        return { c: c, key: key };
-      });
-      keyed.sort(function (p, q) { return p.key - q.key || p.c.index - q.c.index; });
-      for (var s0 = 0; s0 < keyed.length; s0 += COLS) {
-        var chunk = keyed.slice(s0, s0 + COLS).map(function (k) { return k.c; });
-        var start = Math.floor((COLS - chunk.length) / 2);
-        chunk.forEach(function (c, i) { c.col = start + i; });
-        rowsByLayer[L].push(chunk);
-      }
-    }
-    var rows = [].concat(rowsByLayer[3], rowsByLayer[2], rowsByLayer[1], rowsByLayer[0]);
-    rows.forEach(function (chunk, r) {
-      chunk.forEach(function (c) {
+    var rowLists = ROWS.map(function (ids) {
+      return ids.filter(function (id) { return byId[id]; }).map(function (id) { return byId[id]; });
+    });
+    var listed = {};
+    rowLists.forEach(function (l) { l.forEach(function (c) { listed[c.id] = true; }); });
+    chips.forEach(function (c) { if (!listed[c.id]) rowLists[1].push(c); });
+
+    var rowTop = [];
+    var rowH = [];
+    var y = TOP;
+    rowLists.forEach(function (list, r) {
+      rowH[r] = list.reduce(function (m, c) { return Math.max(m, c.h); }, NH);
+      rowTop[r] = y;
+      y += rowH[r] + GAP_Y;
+    });
+    var BH = rowTop[rowLists.length - 1] + rowH[rowLists.length - 1] + BOTTOM;
+    rowLists.forEach(function (list, r) {
+      var total = list.reduce(function (s, c) { return s + c.w; }, 0) + GAP_X * (list.length - 1);
+      var x = (BW - total) / 2;
+      list.forEach(function (c) {
         c.row = r;
-        c.x = MARGIN + PITCH_X / 2 + c.col * PITCH_X - CHIP_W / 2;
-        c.y = TOP + r * ROW_PITCH;
+        c.x = x;
+        c.y = rowTop[r];
+        x += c.w + GAP_X;
       });
     });
-    var bh = TOP + (rows.length - 1) * ROW_PITCH + CHIP_H + BOTTOM;
+    var refN = 0;
+    rowLists.slice().reverse().forEach(function (list) {
+      list.forEach(function (c) { c.ref = "U" + (++refN); });
+    });
 
+    // Edges: up is the upper endpoint (smaller row), lo the lower one.
     var edges = [];
     chips.forEach(function (a) {
       a.depIds.forEach(function (id) {
         var b = byId[id];
-        var e = { index: edges.length, a: a, b: b };
-        if (a.row === b.row) {
-          e.sa = "bot"; e.sb = "bot"; e.ga = a.row + 1; e.gb = e.ga;
-        } else if (b.row > a.row) {
-          e.sa = "bot"; e.sb = "top"; e.ga = a.row + 1; e.gb = b.row;
-        } else {
-          e.sa = "top"; e.sb = "bot"; e.ga = a.row; e.gb = b.row + 1;
+        var e = { index: edges.length, a: a, b: b, up: a, lo: b, segs: [] };
+        if (a.row > b.row) {
+          e.up = b;
+          e.lo = a;
         }
-        e.pa = { chip: a, side: e.sa, other: b, edge: e, x: 0, y: 0 };
-        e.pb = { chip: b, side: e.sb, other: a, edge: e, x: 0, y: 0 };
-        a.pads.push(e.pa);
-        b.pads.push(e.pb);
+        e.span = e.lo.row - e.up.row;
+        e.pu = { edge: e, chip: e.up, side: "bot", other: e.lo, real: true, x: 0, y: 0 };
+        e.pl = { edge: e, chip: e.lo, side: e.span === 0 ? "bot" : "top", other: e.up, real: true, x: 0, y: 0 };
+        e.up.real.push(e.pu);
+        e.lo.real.push(e.pl);
         edges.push(e);
       });
     });
+
+    // Pins: real pins sorted by the other end's x, dummies at the outer ends, all spread across the edge.
     chips.forEach(function (c) {
+      var d = 2 + (c.index % 3);
+      var nTop = Math.floor(d / 2);
+      var nBot = d - nTop;
       ["top", "bot"].forEach(function (side) {
-        var list = c.pads.filter(function (p) { return p.side === side; });
+        var list = c.real.filter(function (p) { return p.side === side; });
         list.sort(function (p, q) { return p.other.x - q.other.x || p.edge.index - q.edge.index; });
+        var nd = side === "top" ? nTop : nBot;
+        for (var k = 0; k < nd; k++) {
+          var dummy = { edge: null, chip: c, side: side, real: false, x: 0, y: 0 };
+          if (k % 2 === 0) list.push(dummy);
+          else list.unshift(dummy);
+        }
         list.forEach(function (p, i) {
-          p.x = c.x + (CHIP_W * (i + 1)) / (list.length + 1);
-          p.y = side === "top" ? c.y : c.y + CHIP_H;
+          p.x = c.x + (c.w * (i + 1)) / (list.length + 1);
+          p.y = side === "top" ? c.y - PIN : c.y + c.h + PIN;
         });
+        c.pins = c.pins.concat(list);
       });
     });
-    // Chips with no edges get a short stub from the bottom edge so every chip has a pad.
-    chips.forEach(function (c) {
-      if (c.pads.length === 0) {
-        var pad = { chip: c, side: "bot", other: null, edge: null, x: c.x + CHIP_W / 2, y: c.y + CHIP_H };
-        c.pads.push(pad);
-        c.stub = [[pad.x, pad.y], [pad.x, pad.y + STUB]];
+
+    // Vertical bus for row-skipping pairs: a clear column gap (or board margin) in every row between them.
+    var cands = [24, BW - 24];
+    rowLists.forEach(function (list) {
+      for (var i = 0; i < list.length - 1; i++) cands.push((list[i].x + list[i].w + list[i + 1].x) / 2);
+    });
+    function clear(x, r0, r1) {
+      for (var r = r0; r <= r1; r++) {
+        var hit = rowLists[r].some(function (c) { return x > c.x - 6 && x < c.x + c.w + 6; });
+        if (hit) return false;
       }
+      return true;
+    }
+    var used = [];
+    edges.forEach(function (e) {
+      if (e.span < 2) return;
+      var xs = [e.pu.x, e.pl.x];
+      var lo = Math.min(xs[0], xs[1]) - NW;
+      var hi = Math.max(xs[0], xs[1]) + NW;
+      var mid = (xs[0] + xs[1]) / 2;
+      var ok = cands.filter(function (x) {
+        return x >= lo && x <= hi && clear(x, e.up.row + 1, e.lo.row - 1);
+      });
+      var fresh = ok.filter(function (x) {
+        return !used.some(function (u) {
+          return u.x === x && !(u.rl < e.up.row || u.ru > e.lo.row);
+        });
+      });
+      var pool = fresh.length ? fresh : ok;
+      pool.sort(function (p, q) { return Math.abs(p - mid) - Math.abs(q - mid) || p - q; });
+      e.bus = pool.length ? pool[0] : mid;
+      used.push({ x: e.bus, ru: e.up.row, rl: e.lo.row });
     });
 
-    var lanes = {};
-    function lane(g) {
-      var n = lanes[g] || 0;
-      lanes[g] = n + 1;
-      var top = g === 0 ? 0 : TOP + (g - 1) * ROW_PITCH + CHIP_H;
-      return top + 6 + (n % 10) * LANE;
+    // Horizontal segments per channel. Channel g sits between row g-1 and row g.
+    var segs = {};
+    function addSeg(e, g, x1, x2) {
+      var s = { g: g, x1: Math.min(x1, x2), x2: Math.max(x1, x2), owner: e, lane: 0, y: 0 };
+      (segs[g] = segs[g] || []).push(s);
+      e.segs.push(s);
     }
-    var traces = edges.map(function (e) {
-      var pa = e.pa;
-      var pb = e.pb;
-      var pts;
-      if (e.a.row === e.b.row) {
-        var y = lane(e.ga);
-        pts = [[pa.x, pa.y], [pa.x, y], [pb.x, y], [pb.x, pb.y]];
-      } else {
-        var ya = lane(e.ga);
-        var yb = lane(e.gb);
-        var bx = BUS[e.index % BUS.length] + ((Math.floor(e.index / BUS.length) % 3) - 1) * 4;
-        pts = [[pa.x, pa.y], [pa.x, ya], [bx, ya], [bx, yb], [pb.x, yb], [pb.x, pb.y]];
+    edges.forEach(function (e) {
+      if (e.span === 0) addSeg(e, e.up.row + 1, e.pu.x, e.pl.x);
+      else if (e.span === 1) addSeg(e, e.lo.row, e.pu.x, e.pl.x);
+      else {
+        addSeg(e, e.up.row + 1, e.pu.x, e.bus);
+        addSeg(e, e.lo.row, e.bus, e.pl.x);
       }
-      var fwd = makePath(chamfer(pts));
-      return { id: e.index, a: e.a.id, b: e.b.id, fwd: fwd, rev: makePath(fwd.pts.slice().reverse()) };
     });
-    return { chips: chips, byId: byId, traces: traces, bh: bh };
+    Object.keys(segs).forEach(function (key) {
+      var g = Number(key);
+      var list = segs[g].slice().sort(function (p, q) {
+        return p.x1 - q.x1 || p.x2 - q.x2 || p.owner.index - q.owner.index;
+      });
+      var ends = [];
+      list.forEach(function (s) {
+        var l = 0;
+        while (l < ends.length && ends[l] > s.x1 - 4) l++;
+        ends[l] = s.x2;
+        s.lane = l % LANES;
+        var top = rowTop[g - 1] + rowH[g - 1];
+        s.y = top + LANE0 + s.lane * LANE_STEP;
+      });
+    });
+
+    var traces = edges.map(function (e) {
+      var pu = e.pu;
+      var pl = e.pl;
+      var ys = e.segs.map(function (s) { return s.y; });
+      var pts;
+      if (e.span < 2) {
+        pts = [[pu.x, pu.y], [pu.x, ys[0]], [pl.x, ys[0]], [pl.x, pl.y]];
+      } else {
+        pts = [[pu.x, pu.y], [pu.x, ys[0]], [e.bus, ys[0]], [e.bus, ys[1]], [pl.x, ys[1]], [pl.x, pl.y]];
+      }
+      if (e.a !== e.up) pts.reverse();
+      var fwd = makePath(chamfer(pts));
+      var xa = Math.min(pu.x, pl.x) - NW;
+      var xb = Math.max(pu.x, pl.x) + NW;
+      var stray = 0;
+      fwd.pts.forEach(function (p) {
+        stray = Math.max(stray, xa - p[0], p[0] - xb);
+      });
+      return {
+        id: e.index, a: e.a.id, b: e.b.id, fwd: fwd,
+        rev: makePath(fwd.pts.slice().reverse()), stray: Math.max(0, stray)
+      };
+    });
+    return { chips: chips, byId: byId, traces: traces, bh: BH, bw: BW };
   }
 
   function traceBetween(traces, a, b) {
@@ -279,7 +352,6 @@
     if (!canvas || canvas.tagName !== "CANVAS") throw new Error("Board.mount: canvas expected");
     if (typeof Motion === "undefined") throw new Error("Board.mount: load the kit motion.js first");
     if (!systems || !systems.length) throw new Error("Board.mount: no systems");
-    opts = opts || {};
     var g = build(systems);
     var chips = g.chips;
     var byId = g.byId;
@@ -311,17 +383,18 @@
         emit("hover", now);
       }
     }
+    // The whole board, centered in the canvas with even margins.
     function overview() {
       var w = canvas.clientWidth;
       var h = canvas.clientHeight;
-      var s = Math.min(w / BW, h / BH) * 0.96;
+      var s = Math.min((w - 2 * MARGIN_CSS) / BW, (h - 2 * MARGIN_CSS) / BH);
       return { s: s, x: (w - BW * s) / 2, y: (h - BH * s) / 2 };
     }
     function zoomView(c) {
       var w = canvas.clientWidth;
       var h = canvas.clientHeight;
-      var s = Math.max(overview().s, (Math.min(w, h) * 0.7) / CHIP_W);
-      return { s: s, x: w / 2 - (c.x + CHIP_W / 2) * s, y: h / 2 - (c.y + CHIP_H / 2) * s };
+      var s = Math.max(overview().s, (Math.min(w, h) * 0.7) / c.w);
+      return { s: s, x: w / 2 - (c.x + c.w / 2) * s, y: h / 2 - (c.y + c.h / 2) * s };
     }
     function target() {
       return zoomId ? zoomView(byId[zoomId]) : overview();
@@ -334,13 +407,13 @@
       if (!v.s) return null;
       var lx = (px - v.x) / v.s;
       var ly = (py - v.y) / v.s;
-      var hx = Math.max(CHIP_W / 2, HALF_TARGET / v.s);
-      var hy = Math.max(CHIP_H / 2, HALF_TARGET / v.s);
       var best = null;
       var bestD = Infinity;
       chips.forEach(function (c) {
-        var dx = lx - (c.x + CHIP_W / 2);
-        var dy = ly - (c.y + CHIP_H / 2);
+        var hx = Math.max(c.w / 2, HALF_TARGET / v.s);
+        var hy = Math.max(c.h / 2, HALF_TARGET / v.s);
+        var dx = lx - (c.x + c.w / 2);
+        var dy = ly - (c.y + c.h / 2);
         if (Math.abs(dx) <= hx && Math.abs(dy) <= hy && dx * dx + dy * dy < bestD) {
           best = c;
           bestD = dx * dx + dy * dy;
@@ -369,6 +442,30 @@
       return pulses.length > 0 || chips.some(function (c) { return c.flash >= 0; });
     }
 
+    function drawBoard(ctx, t, unit) {
+      roundRect(ctx, 0, 0, BW, BH, 14);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.14)";
+      ctx.fill();
+      ctx.strokeStyle = t.silkDim;
+      ctx.lineWidth = Math.max(1.2, 1.2 * unit);
+      ctx.stroke();
+      [[16, 16], [BW - 16, 16], [16, BH - 16], [BW - 16, BH - 16]].forEach(function (p) {
+        ctx.beginPath();
+        ctx.arc(p[0], p[1], 7, 0, Math.PI * 2);
+        ctx.fillStyle = t.mask;
+        ctx.fill();
+        ctx.strokeStyle = t.copper;
+        ctx.lineWidth = Math.max(1.5, 1.5 * unit);
+        ctx.stroke();
+      });
+      [[48, 30], [BW - 48, 30], [BW / 2, BH - 30]].forEach(function (p) {
+        ctx.beginPath();
+        ctx.arc(p[0], p[1], 4, 0, Math.PI * 2);
+        ctx.fillStyle = t.silkDim;
+        ctx.fill();
+      });
+    }
+
     function paint() {
       var w = canvas.clientWidth;
       var h = canvas.clientHeight;
@@ -387,16 +484,22 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.setTransform(sx * v.s, 0, 0, sy * v.s, sx * v.x, sy * v.y);
       var hi = lastHi;
+      drawBoard(ctx, t, unit);
       var tw = Math.max(TRACE_W, 2 * unit);
       traces.forEach(function (tr) {
         var on = hi && (tr.a === hi || tr.b === hi);
         strokePts(ctx, tr.fwd.pts, on ? t.signal : t.copper, tw);
       });
       chips.forEach(function (c) {
-        if (c.stub) strokePts(ctx, c.stub, t.copper, tw);
+        c.pins.forEach(function (p) {
+          var edgeY = p.side === "top" ? c.y : c.y + c.h;
+          var lit = c.flash >= 0 || (hi && hi === c.id);
+          strokePts(ctx, [[p.x, edgeY], [p.x, p.y]], lit ? t.signal : t.copper, Math.max(2, 1.6 * unit));
+        });
       });
       chips.forEach(function (c) {
-        c.pads.forEach(function (p) {
+        c.pins.forEach(function (p) {
+          if (!p.real) return;
           ctx.beginPath();
           ctx.arc(p.x, p.y, Math.max(PAD_R, 2.5 * unit), 0, Math.PI * 2);
           ctx.fillStyle = c.flash >= 0 ? t.signal : t.copper;
@@ -404,21 +507,7 @@
         });
       });
       chips.forEach(function (c) {
-        var active = c.id === hi;
-        roundRect(ctx, c.x, c.y, CHIP_W, CHIP_H, 3);
-        ctx.fillStyle = t.maskDeep;
-        ctx.fill();
-        ctx.strokeStyle = active || c.flash >= 0 ? t.signal : t.copper;
-        ctx.lineWidth = active ? Math.max(3, 2.5 * unit) : Math.max(1.5, 1.2 * unit);
-        ctx.stroke();
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = FONT_NAME;
-        ctx.fillStyle = t.silk;
-        ctx.fillText(c.name, c.x + CHIP_W / 2, c.y + 22);
-        ctx.font = FONT_WHAT;
-        ctx.fillStyle = t.silkDim;
-        ctx.fillText(c.what, c.x + CHIP_W / 2, c.y + 40);
+        drawChip(ctx, c, t, unit, c.id === hi);
       });
       pulses.forEach(function (p) {
         var path = p.forward ? p.trace.fwd : p.trace.rev;
@@ -433,6 +522,30 @@
       });
       if (hi && byId[hi]) drawLabel(ctx, byId[hi], t, unit);
     }
+    // An IC: body, die, pin-1 dot, name, and a reference designator under the chip.
+    function drawChip(ctx, c, t, unit, active) {
+      roundRect(ctx, c.x, c.y, c.w, c.h, 3);
+      ctx.fillStyle = t.maskDeep;
+      ctx.fill();
+      ctx.strokeStyle = active || c.flash >= 0 ? t.signal : t.copper;
+      ctx.lineWidth = active ? Math.max(3, 2.5 * unit) : Math.max(1.5, 1.2 * unit);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+      ctx.fillRect(c.x + 8, c.y + 18, c.w - 16, c.h - 26);
+      ctx.beginPath();
+      ctx.arc(c.x + 6, c.y + 8, Math.max(2.2, 2 * unit), 0, Math.PI * 2);
+      ctx.fillStyle = t.silk;
+      ctx.fill();
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.font = FONT_NAME;
+      ctx.fillStyle = t.silk;
+      ctx.fillText(c.name, c.x + 14, c.y + 3);
+      ctx.textAlign = "center";
+      ctx.font = FONT_REF;
+      ctx.fillStyle = t.silkDim;
+      ctx.fillText(c.ref, c.x + c.w / 2, c.y + c.h + PIN + 4);
+    }
     function drawLabel(ctx, c, t, unit) {
       ctx.font = FONT_BODY;
       var lines = wrap(ctx, c.line, 260).slice(0, 3);
@@ -442,9 +555,9 @@
       lines.forEach(function (l) { wid = Math.max(wid, ctx.measureText(l).width); });
       var bw = wid + 20;
       var bh2 = 22 + lines.length * 17 + 8;
-      var x = Math.min(Math.max(c.x + CHIP_W / 2 - bw / 2, 4), BW - 4 - bw);
+      var x = Math.min(Math.max(c.x + c.w / 2 - bw / 2, 4), BW - 4 - bw);
       var y = c.y - 10 - bh2;
-      if (y < 4) y = c.y + CHIP_H + 10;
+      if (y < 4) y = c.y + c.h + 26;
       roundRect(ctx, x, y, bw, bh2, 4);
       ctx.fillStyle = t.maskDeep;
       ctx.fill();
@@ -639,7 +752,7 @@
         var c = byId[id];
         if (!c) return null;
         var v = view();
-        return { x: c.x * v.s + v.x, y: c.y * v.s + v.y, w: CHIP_W * v.s, h: CHIP_H * v.s };
+        return { x: c.x * v.s + v.x, y: c.y * v.s + v.y, w: c.w * v.s, h: c.h * v.s };
       },
       on: function (ev, fn) {
         if (handlers[ev] && typeof fn === "function") handlers[ev].push(fn);
@@ -649,7 +762,7 @@
         return !!traceOf(a, b);
       },
       layout: function () {
-        return chips.map(function (c) { return { id: c.id, x: c.x, y: c.y, w: CHIP_W, h: CHIP_H }; });
+        return chips.map(function (c) { return { id: c.id, x: c.x, y: c.y, w: c.w, h: c.h }; });
       },
       stats: function () {
         return {
@@ -657,7 +770,8 @@
           traces: traces.length,
           live: pulses.length,
           blinking: chips.filter(function (c) { return c.flash >= 0; }).length,
-          zoomed: zoomId
+          zoomed: zoomId,
+          traceStray: traces.reduce(function (m, t) { return Math.max(m, t.stray); }, 0)
         };
       },
       destroy: function () {
@@ -678,5 +792,5 @@
     return api;
   }
 
-  global.Board = { mount: mount, DEPS: DEPS, LAYER: LAYER };
+  global.Board = { mount: mount, DEPS: DEPS, ROWS: ROWS };
 })(window);

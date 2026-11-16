@@ -90,6 +90,11 @@
       return r && r.x >= 0 && r.y >= 0 && r.x + r.w <= cw && r.y + r.h <= ch;
     }));
 
+    check("no trace point more than one chip-width outside its pads", board.stats().traceStray === 0);
+
+    var tr = board.chipRect("titan"), lr = board.chipRect("lithium");
+    check("titan chip area at least 3x a normal chip", tr && lr && tr.w * tr.h >= 3 * lr.w * lr.h);
+
     var before = board.stats();
     document.documentElement.dataset.motion = "reduce";
     var p0 = PAIRS[0];
