@@ -90,7 +90,7 @@ const COMMANDS: &[Command] = &[
     },
     Command {
         name: "edit",
-        summary: "Apply edit SCRIPT to FILE; save writes FILE back",
+        summary: "Apply an edit SCRIPT to FILE, one script line per command (blank and # lines are skipped):\ngoto LINE COL (1-based)\ninsert TEXT (rest of the line; \\n \\t \\r \\\\ expand, other backslashes stay)\nnewline (line break at the cursor, in the file's line ending)\ndelete N (N characters forward; a line break counts as one)\nundo\nredo\ncursor add LINE COL (1-based)\nsave (writes FILE; without save nothing is written and saved is false)",
         effect: Effect::Write,
         args: EDIT_ARGS,
         returns: "path, changed, saved, lines_before, lines_after, text (capped)",
@@ -129,8 +129,15 @@ Subcommands:
 
   edit SCRIPT FILE
       Apply edit SCRIPT lines to FILE and print the resulting buffer.
-      Script commands: goto LINE COL, insert TEXT, delete N, undo, redo,
-      cursor add LINE COL, save.
+      One script line per command (blank and '#' lines are skipped):
+        goto LINE COL       move the cursor (1-based)
+        insert TEXT         type the rest of the line; \\n \\t \\r \\\\ expand, other backslashes stay
+        newline             line break at the cursor, in the file's line ending
+        delete N            delete N characters forward (a line break counts as one)
+        undo
+        redo
+        cursor add LINE COL add a cursor (1-based)
+        save                write FILE; without save nothing is written and saved is false
       Example: calliope edit script.txt notes.txt"
 }
 
@@ -377,6 +384,8 @@ fn run_edit(args: &[String]) -> Result<EditOutcome, CliError> {
             editor.type_text(&text);
         } else if trimmed == "insert" {
             editor.type_text("");
+        } else if trimmed == "newline" {
+            editor.type_text(&file::style_inserted("\n", newline));
         } else if let Some(rest) = trimmed.strip_prefix("delete ") {
             let n = rest.trim().parse::<usize>().map_err(|_| {
                 CliError::Coded(

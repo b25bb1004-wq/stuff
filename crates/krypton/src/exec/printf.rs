@@ -6,8 +6,8 @@ use std::prelude::rust_2021::*;
 use super::redir::{FdTable, IoStreams};
 
 /// Largest width or precision honored, so a huge request cannot exhaust memory.
-// shortcut: width and precision capped at 4096, upgrade if a real report needs more
-const MAX_FIELD: u64 = 4096;
+/// Larger requests are an error (exit 1), never silent truncation.
+const MAX_FIELD: u64 = 1 << 20;
 
 fn unescape_bytes(s: &str, stop_on_c: bool) -> (Vec<u8>, bool) {
     let bytes = s.as_bytes();
@@ -136,8 +136,16 @@ struct Spec {
     prec: Option<usize>,
 }
 
-fn clamp_field(n: u64) -> usize {
-    usize::try_from(n.min(MAX_FIELD)).unwrap_or(0)
+fn check_field(n: u64, fds: &mut FdTable, io: &mut IoStreams<'_>, status: &mut i32) -> usize {
+    if n > MAX_FIELD {
+        fds.write_err(
+            io,
+            "krypton: printf: width or precision exceeds the 1048576 (1 MiB) limit\n",
+        );
+        *status = 1;
+        return 0;
+    }
+    usize::try_from(n).unwrap_or(0)
 }
 
 /// Pad `body` (with an optional sign or `0x` prefix) to the spec's width.
@@ -389,14 +397,14 @@ pub(crate) fn builtin_printf(args: &[String], fds: &mut FdTable, io: &mut IoStre
                 if w < 0 {
                     sp.left = true;
                 }
-                sp.width = clamp_field(w.unsigned_abs());
+                sp.width = check_field(w.unsigned_abs(), fds, io, &mut status);
             } else {
                 let mut w = 0u64;
                 while let Some(&wb @ b'0'..=b'9') = fmt_bytes.get(i) {
                     w = w.saturating_mul(10).saturating_add(u64::from(wb - b'0'));
                     i += 1;
                 }
-                sp.width = clamp_field(w);
+                sp.width = check_field(w, fds, io, &mut status);
             }
 
             if fmt_bytes.get(i) == Some(&b'.') {
@@ -404,14 +412,16 @@ pub(crate) fn builtin_printf(args: &[String], fds: &mut FdTable, io: &mut IoStre
                 if fmt_bytes.get(i) == Some(&b'*') {
                     i += 1;
                     let p = int_arg(next_arg(rest, &mut arg_idx), fds, io, &mut status);
-                    sp.prec = u64::try_from(p).ok().map(clamp_field);
+                    sp.prec = u64::try_from(p)
+                        .ok()
+                        .map(|p| check_field(p, fds, io, &mut status));
                 } else {
                     let mut p = 0u64;
                     while let Some(&pb @ b'0'..=b'9') = fmt_bytes.get(i) {
                         p = p.saturating_mul(10).saturating_add(u64::from(pb - b'0'));
                         i += 1;
                     }
-                    sp.prec = Some(clamp_field(p));
+                    sp.prec = Some(check_field(p, fds, io, &mut status));
                 }
             }
 

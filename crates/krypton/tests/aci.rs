@@ -57,7 +57,7 @@ fn describe_is_a_valid_manifest() {
         .iter()
         .map(|c| c.get("name").unwrap().as_str().unwrap())
         .collect();
-    assert_eq!(names, ["-c", "file", "interactive"]);
+    assert_eq!(names, ["-c", "script", "interactive"]);
     // Each way of running is also in --help.
     let help = String::from_utf8_lossy(&krypton(&["--help"]).stdout).into_owned();
     assert!(help.contains("-c SCRIPT"), "{help}");
@@ -85,7 +85,7 @@ fn json_file_success_is_an_envelope() {
     std::fs::write(&script, "echo \"$1-$2\"\necho oops >&2\n").unwrap();
     let output = krypton(&["--json", script.to_str().unwrap(), "a", "b"]);
     let value = envelope(&output);
-    assert_eq!(value.get("cmd").unwrap().as_str(), Some("file"));
+    assert_eq!(value.get("cmd").unwrap().as_str(), Some("script"));
     let d = data(&value);
     assert_eq!(d.get("stdout").unwrap().as_str(), Some("a-b\n"));
     assert_eq!(d.get("stderr").unwrap().as_str(), Some("oops\n"));

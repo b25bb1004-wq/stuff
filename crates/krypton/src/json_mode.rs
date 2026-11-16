@@ -54,7 +54,7 @@ const FILE_ARGS: &[Arg] = &[
     },
 ];
 
-const RUN_RETURNS: &str = "exit, stdout and stderr (capped), duration_ms";
+const RUN_RETURNS: &str = "exit, stdout, stderr (capped), duration_ms; long output adds stdout_truncated and stdout_bytes, non-UTF-8 output adds stdout_lossy (same names for stderr)";
 
 const COMMANDS: &[Command] = &[
     Command {
@@ -66,8 +66,8 @@ const COMMANDS: &[Command] = &[
         example: "krypton --json -c 'echo hello'",
     },
     Command {
-        name: "file",
-        summary: "Run the script file FILE with positional arguments",
+        name: "script",
+        summary: "run a script file: krypton --json PATH [ARGS] (no subcommand word)",
         effect: Effect::Exec,
         args: FILE_ARGS,
         returns: RUN_RETURNS,
@@ -169,7 +169,7 @@ fn dispatch(args: &[String]) -> (&'static str, Result<Captured, Refused>) {
         },
         Some("--") => match args.get(1) {
             None => ("interactive", Err(interactive())),
-            Some(file) => ("file", run_file(file, args.get(2..).unwrap_or(&[]))),
+            Some(file) => ("script", run_file(file, args.get(2..).unwrap_or(&[]))),
         },
         Some(opt) if opt.starts_with('-') => (
             "",
@@ -180,7 +180,7 @@ fn dispatch(args: &[String]) -> (&'static str, Result<Captured, Refused>) {
                 2,
             )),
         ),
-        Some(file) => ("file", run_file(file, args.get(1..).unwrap_or(&[]))),
+        Some(file) => ("script", run_file(file, args.get(1..).unwrap_or(&[]))),
     }
 }
 

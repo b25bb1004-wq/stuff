@@ -158,14 +158,15 @@ const COMMANDS: &[Command] = &[
     },
     Command {
         name: "restore",
-        summary: "Unstage PATH... (restore --staged); the work tree is not touched",
+        summary: "Restore PATH... in the work tree from the index (--source REV: from a commit); --staged unstages PATH... instead",
         effect: Effect::Write,
         args: &[
-            arg("--staged", ArgKind::Flag, true),
+            arg("--staged", ArgKind::Flag, false),
+            arg("--source", ArgKind::Text, false),
             arg("PATH", ArgKind::Path, true),
         ],
-        returns: "paths",
-        example: "chronos --json restore --staged a.txt",
+        returns: "paths: the restored (or, with --staged, unstaged) paths",
+        example: "chronos --json restore a.txt",
     },
     Command {
         name: "reset",
@@ -578,6 +579,13 @@ Subcommands:
       Unstage: reset the index entries for PATH to HEAD's (removed if HEAD lacks them).
       The work tree is not touched.
       Example: chronos restore --staged src/main.rs
+
+  restore PATH...
+      Work tree: write each PATH's staged content (the index) back to the file, creating
+      folders. A PATH the index lacks is taken from HEAD. Nothing is printed on success.
+      --source REV takes the content from that revision instead (branch, tag, id, HEAD~1).
+      Example: chronos restore src/main.rs
+      Example: chronos restore --source HEAD~1 src/main.rs
 
   reset
       Unstage everything: the whole index goes back to HEAD. The work tree is not touched.
@@ -1399,17 +1407,99 @@ fn dirty_paths(root: &Path, repo: &Repo<DirStore>) -> Result<BTreeSet<String>, C
 }
 
 fn cmd_restore(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
-    let (flags, paths) = split_flags(args, &["--staged"])?;
-    if flags.is_empty() {
-        return Err(CliError::Usage(
-            "restore only supports --staged: restore --staged PATH...".to_string(),
-        ));
+    let mut staged = false;
+    let mut source = None;
+    let mut paths = Vec::new();
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        match arg.as_str() {
+            "--staged" => staged = true,
+            "--source" => {
+                let rev = rest
+                    .next()
+                    .ok_or_else(|| CliError::Usage("--source expects a REV".to_string()))?;
+                source = Some(rev.as_str());
+            }
+            a if a.starts_with('-') && a != "-" => {
+                return Err(CliError::Usage(format!("unknown option '{a}'")));
+            }
+            a => paths.push(a),
+        }
+    }
+    if staged {
+        if source.is_some() {
+            return Err(CliError::Usage(
+                "restore --staged does not take --source".to_string(),
+            ));
+        }
+        if paths.is_empty() {
+            return Err(CliError::Usage(
+                "restore --staged expects at least one PATH".to_string(),
+            ));
+        }
+        return restore_staged(&paths, base_dir);
     }
     if paths.is_empty() {
         return Err(CliError::Usage(
-            "restore --staged expects at least one PATH".to_string(),
+            "restore expects at least one PATH".to_string(),
         ));
     }
+    restore_worktree(&paths, source, base_dir)
+}
+
+/// Work-tree restore: write each path's content (index, else HEAD; or `--source REV`) to disk.
+/// Every path is resolved before any file is written, so one unknown path changes nothing.
+fn restore_worktree(
+    paths: &[&str],
+    source: Option<&str>,
+    base_dir: Option<&Path>,
+) -> Result<(), CliError> {
+    let cwd = cwd_or_current(base_dir)?;
+    let (root, repo) = open_repo(Some(&cwd))?;
+    let (primary, fallback) = match source {
+        Some(rev) => {
+            let id = resolve_rev(&repo, rev)
+                .ok_or_else(|| fail(Code::NotFound, format!("unknown revision '{rev}'"), None))?;
+            let files = repo
+                .files(&id)
+                .map_err(|e| CliError::Op(format!("cannot read '{rev}': {e}")))?;
+            (files, chronos::Files::new())
+        }
+        None => {
+            let head = match repo.head() {
+                Some(h) => repo
+                    .files(&h)
+                    .map_err(|e| CliError::Op(format!("cannot read HEAD: {e}")))?,
+                None => chronos::Files::new(),
+            };
+            (repo.staged(), head)
+        }
+    };
+    let mut picked = chronos::Files::new();
+    let mut done = Vec::new();
+    for &arg in paths {
+        let rel = repo_rel(&root, &cwd, arg)?;
+        let entry = primary
+            .get(&rel)
+            .or_else(|| fallback.get(&rel))
+            .ok_or_else(|| {
+                fail(
+                    Code::NotFound,
+                    format!("pathspec '{arg}' did not match any file"),
+                    None,
+                )
+            })?;
+        picked.insert(rel.clone(), entry.clone());
+        done.push(rel);
+    }
+    write_worktree(&root, &picked)?;
+    if json_mode() {
+        reply(object(vec![("paths", str_list(&done))]));
+    }
+    Ok(())
+}
+
+fn restore_staged(paths: &[&str], base_dir: Option<&Path>) -> Result<(), CliError> {
     let cwd = cwd_or_current(base_dir)?;
     let (root, mut repo) = open_repo(Some(&cwd))?;
     let mut done = Vec::new();
