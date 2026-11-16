@@ -62,6 +62,27 @@ pub fn encode(text: &str, eol: Eol) -> String {
     }
 }
 
+/// The newline that lines added to `text` should use: CRLF when CRLF is the majority of its line
+/// ends (a tie counts as CRLF), LF otherwise. Text without CRLF is LF.
+pub fn newline_for(text: &str) -> &'static str {
+    let lf = text.matches('\n').count();
+    let crlf = text.matches("\r\n").count();
+    if crlf > 0 && crlf * 2 >= lf {
+        "\r\n"
+    } else {
+        "\n"
+    }
+}
+
+/// Give the newlines of inserted `text` the style `newline`. LF text is returned unchanged.
+pub fn style_inserted(text: &str, newline: &str) -> String {
+    if newline == "\r\n" {
+        text.replace("\r\n", "\n").replace('\n', "\r\n")
+    } else {
+        text.to_string()
+    }
+}
+
 /// Write `bytes` to `path` through a temporary file in the same directory and a rename, so a
 /// failed save never leaves a half-written file.
 pub fn save_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
@@ -86,4 +107,27 @@ fn write_then_rename(tmp: &Path, path: &Path, bytes: &[u8]) -> io::Result<()> {
     f.sync_all()?;
     drop(f);
     fs::rename(tmp, path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn newline_follows_the_majority_and_ties_go_to_crlf() {
+        assert_eq!(newline_for("a\r\nb\r\n"), "\r\n");
+        assert_eq!(newline_for("a\nb\n"), "\n");
+        assert_eq!(newline_for("no ends"), "\n");
+        assert_eq!(newline_for("a\r\nb\nc\n"), "\n"); // 1 CRLF, 2 bare LF
+        assert_eq!(newline_for("a\r\nb\n"), "\r\n"); // tie
+        assert_eq!(newline_for("a\r\nb\r\nc\n"), "\r\n");
+    }
+
+    #[test]
+    fn inserted_newlines_take_the_style_and_lf_text_is_unchanged() {
+        assert_eq!(style_inserted("x\ny", "\r\n"), "x\r\ny");
+        assert_eq!(style_inserted("x\r\ny", "\r\n"), "x\r\ny");
+        assert_eq!(style_inserted("x\r\ny", "\n"), "x\r\ny");
+        assert_eq!(style_inserted("x\ny", "\n"), "x\ny");
+    }
 }

@@ -21,7 +21,7 @@ SUBCOMMANDS:
     check FILE.logos           Parse and type-check Logos source
     fmt FILE.logos [--write]   Format Logos source (refuses files with comments)
     test FILE.logos            Run unit tests and property tests
-    serve [FOLDER] [--port N] [--web DIR]
+    serve [FOLDER] [--port N] [--web DIR]   (web DIR defaults: <bin>/../share/athena-web, then target/athena-web)
                                Open FOLDER in the Athena IDE on 127.0.0.1 (default port 8480)
 
 OPTIONS:
@@ -168,11 +168,21 @@ fn run(cmd: Command) -> ExitCode {
 /// Serve until the process is stopped (Ctrl-C, or kill by PID). The server runs on its own threads.
 #[cfg(not(target_arch = "wasm32"))]
 fn run_serve(opts: &athena::serve::ServeArgs) -> ExitCode {
-    let served = match athena::serve::start(
-        std::path::Path::new(&opts.folder),
-        std::path::Path::new(&opts.web),
-        opts.port,
-    ) {
+    // Checked first, so a bad folder is reported even when no web app is installed.
+    if !std::path::Path::new(&opts.folder).is_dir() {
+        eprintln!("athena: not a folder: {}", opts.folder);
+        return ExitCode::from(1);
+    }
+    let exe = std::env::current_exe().ok();
+    let candidates = athena::serve::web_candidates(opts.web.as_deref(), exe.as_deref());
+    let web = match athena::serve::find_web(&candidates) {
+        Ok(dir) => dir,
+        Err(msg) => {
+            eprintln!("athena: {msg}");
+            return ExitCode::from(1);
+        }
+    };
+    let served = match athena::serve::start(std::path::Path::new(&opts.folder), &web, opts.port) {
         Ok(s) => s,
         Err(msg) => {
             eprintln!("athena: {msg}");

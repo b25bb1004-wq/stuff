@@ -269,6 +269,18 @@ fn mixed_line_endings_are_kept_byte_for_byte() {
     assert_eq!(file::encode(&text, eol).into_bytes(), raw);
 }
 
+#[test]
+fn mixed_file_new_lines_follow_its_majority_style() {
+    // Two CRLF ends against one bare LF: a typed newline is CRLF, and the old lines stay as they are.
+    let mut crlf_major = Session::from_bytes(None, b"a\r\nb\nc\r\n", 40, 10).unwrap();
+    press(&mut crlf_major, Key::Enter);
+    assert_eq!(crlf_major.text(), "\r\na\r\nb\nc\r\n");
+    // One CRLF end against two bare LFs: a typed newline stays LF.
+    let mut lf_major = Session::from_bytes(None, b"a\nb\r\nc\n", 40, 10).unwrap();
+    press(&mut lf_major, Key::Enter);
+    assert_eq!(lf_major.text(), "\na\nb\r\nc\n");
+}
+
 /// Build about 10 MB of text in 80-column lines.
 fn big_text() -> String {
     let mut text = String::with_capacity(10_500_000);

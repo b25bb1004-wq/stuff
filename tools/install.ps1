@@ -3,8 +3,9 @@
 Installs Monolith's command-line tools into %USERPROFILE%\.monolith\bin (Windows 11, Windows PowerShell 5.1).
 
 .DESCRIPTION
-Default: builds the tools with cargo --release, copies them to %USERPROFILE%\.monolith\bin, writes
-VERSION and MANIFEST there, and prints the folder to add to PATH. PATH is NOT changed by default.
+Default: builds the tools with cargo --release, copies them to %USERPROFILE%\.monolith\bin, builds the
+Athena web app into %USERPROFILE%\.monolith\share\athena-web (for `athena serve`), writes VERSION and
+MANIFEST there, and prints the folder to add to PATH. PATH is NOT changed by default.
 Re-running upgrades in place. A tool that is running (file locked) is reported at the end.
 
 -AddToPath  adds the bin folder to the USER Path (never the machine Path). Refuses if it is already there.
@@ -76,6 +77,8 @@ if ($Uninstall) {
             try { Remove-Item -LiteralPath $BinDir -Recurse -Force }
             catch { $problems += "could not remove ${BinDir}: $($_.Exception.Message) (a tool still running?)" }
         }
+        Remove-Item -LiteralPath (Join-Path $MonoDir 'share\athena-web') -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $MonoDir 'share') -Force -ErrorAction SilentlyContinue   # only if empty
         foreach ($f in 'VERSION', 'MANIFEST') {
             Remove-Item -LiteralPath (Join-Path $MonoDir $f) -Force -ErrorAction SilentlyContinue
         }
@@ -117,6 +120,10 @@ if ($PSCmdlet.ShouldProcess("$count tools", 'cargo build --release')) {
     if ($LASTEXITCODE -ne 0) { throw "cargo build failed (exit $LASTEXITCODE)" }
     & cargo build --release --manifest-path (Join-Path $Root 'Cargo.toml') -p chisel --bin silicon
     if ($LASTEXITCODE -ne 0) { throw "cargo build of silicon failed (exit $LASTEXITCODE)" }
+    # the web app that `athena serve` finds at ..\share\athena-web; the pack writes ROOT\target\athena-web
+    Write-Output 'building the Athena web app (wasm and riscv targets needed)...'
+    & cargo run -q --release --manifest-path (Join-Path $Root 'Cargo.toml') -p athena --example pack | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "web pack failed (exit $LASTEXITCODE); nothing was copied (check: rustup target add wasm32-unknown-unknown riscv64gc-unknown-none-elf)" }
 }
 
 $busy = @()
@@ -135,6 +142,12 @@ if ($PSCmdlet.ShouldProcess($BinDir, "copy $count tools")) {
             $busy += "$bin ($($_.Exception.Message))"
         }
     }
+
+    # replace the web app as a whole, so a file removed from the pack does not linger
+    $webDst = Join-Path $MonoDir 'share\athena-web'
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $webDst) | Out-Null
+    Remove-Item -LiteralPath $webDst -Recurse -Force -ErrorAction SilentlyContinue
+    Copy-Item -LiteralPath (Join-Path $Root 'target\athena-web') -Destination $webDst -Recurse -Force
 
     $sha = 'unknown'
     try { $sha = (& git -C $Root rev-parse --short HEAD 2>$null).Trim() } catch { }

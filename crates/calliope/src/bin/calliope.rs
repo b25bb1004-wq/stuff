@@ -12,7 +12,7 @@ use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::process;
 
-use calliope::{ansi_changed, Buffer, Cursor, Editor, Regex, Screen, Session};
+use calliope::{ansi_changed, file, Buffer, Cursor, Editor, Regex, Screen, Session};
 
 const VERSION_STR: &str = "calliope 0.1.0";
 
@@ -41,6 +41,18 @@ enum CliError {
     Usage(String),
     Op(String),
     SilentFail,
+    /// stdout was closed by the reader (`calliope grep ... | head -1`): stop quietly with exit 0.
+    Closed,
+}
+
+/// A failed stdout write: a closed pipe ends the run quietly, anything else is an error.
+fn stdout_err(e: io::Error) -> CliError {
+    // Windows reports a closed pipe as os error 232 (ERROR_NO_DATA).
+    if e.kind() == io::ErrorKind::BrokenPipe || e.raw_os_error() == Some(232) {
+        CliError::Closed
+    } else {
+        CliError::Op(format!("failed to write stdout: {e}"))
+    }
 }
 
 fn read_input(path: &str) -> Result<String, CliError> {
@@ -77,8 +89,7 @@ fn cmd_grep(args: &[String]) -> Result<(), CliError> {
                 if let Some(Some((start, _end))) = groups.first().copied() {
                     let line_no = idx + 1;
                     let col = line[..start].chars().count() + 1;
-                    writeln!(out, "{file}:{line_no}:{col}: {line}")
-                        .map_err(|e| CliError::Op(format!("failed to write stdout: {e}")))?;
+                    writeln!(out, "{file}:{line_no}:{col}: {line}").map_err(stdout_err)?;
                     matched_any = true;
                 }
             }
@@ -91,14 +102,21 @@ fn cmd_grep(args: &[String]) -> Result<(), CliError> {
     }
 }
 
-fn line_col_to_offset(buf: &Buffer, line_1: usize, col_1: usize) -> Result<usize, CliError> {
+fn line_col_to_offset(
+    buf: &Buffer,
+    line_no: usize,
+    line_1: usize,
+    col_1: usize,
+) -> Result<usize, CliError> {
     if line_1 == 0 || col_1 == 0 {
-        return Err(CliError::Op("line and column must be >= 1".to_string()));
+        return Err(CliError::Op(format!(
+            "script line {line_no}: line and column must be >= 1"
+        )));
     }
     let line_idx = line_1 - 1;
-    let start = buf
-        .line_start(line_idx)
-        .ok_or_else(|| CliError::Op(format!("line {line_1} out of range")))?;
+    let start = buf.line_start(line_idx).ok_or_else(|| {
+        CliError::Op(format!("script line {line_no}: line {line_1} out of range"))
+    })?;
     let next_start = buf.line_start(line_idx + 1).unwrap_or(buf.len());
     let mut end = next_start;
     if next_start > start && buf.slice(next_start - 1, next_start) == "\n" {
@@ -185,6 +203,8 @@ fn cmd_edit(args: &[String]) -> Result<(), CliError> {
     }
     let script = read_input(script_path)?;
     let initial = read_input(file_path)?;
+    // Inserted newlines take the file's own style: CRLF for a CRLF file, LF otherwise.
+    let newline = file::newline_for(&initial);
     let mut editor = Editor::new(&initial);
 
     for (idx, raw_line) in script.lines().enumerate() {
@@ -196,14 +216,14 @@ fn cmd_edit(args: &[String]) -> Result<(), CliError> {
         }
         if let Some(rest) = trimmed.strip_prefix("goto ") {
             let (l, c) = parse_two_usize(rest, line_no, "goto")?;
-            let off = line_col_to_offset(&editor.buffer, l, c)?;
+            let off = line_col_to_offset(&editor.buffer, line_no, l, c)?;
             editor.set_cursors(vec![Cursor {
                 anchor: off,
                 head: off,
             }]);
         } else if let Some(rest) = trimmed.strip_prefix("cursor add ") {
             let (l, c) = parse_two_usize(rest, line_no, "cursor add")?;
-            let off = line_col_to_offset(&editor.buffer, l, c)?;
+            let off = line_col_to_offset(&editor.buffer, line_no, l, c)?;
             let mut cs = editor.cursors().to_vec();
             cs.push(Cursor {
                 anchor: off,
@@ -211,7 +231,7 @@ fn cmd_edit(args: &[String]) -> Result<(), CliError> {
             });
             editor.set_cursors(cs);
         } else if let Some(rest) = line.strip_prefix("insert ") {
-            let text = unescape_insert(rest);
+            let text = file::style_inserted(&unescape_insert(rest), newline);
             editor.type_text(&text);
         } else if trimmed == "insert" {
             editor.type_text("");
@@ -241,10 +261,15 @@ fn cmd_edit(args: &[String]) -> Result<(), CliError> {
             editor.redo();
         } else if trimmed == "save" {
             if file_path == "-" {
-                return Err(CliError::Op("cannot save when FILE is '-'".to_string()));
+                return Err(CliError::Op(format!(
+                    "script line {line_no}: cannot save when FILE is '-'"
+                )));
             }
-            fs::write(file_path, editor.buffer.text())
-                .map_err(|e| CliError::Op(format!("failed to save '{file_path}': {e}")))?;
+            fs::write(file_path, editor.buffer.text()).map_err(|e| {
+                CliError::Op(format!(
+                    "script line {line_no}: failed to save '{file_path}': {e}"
+                ))
+            })?;
         } else {
             return Err(CliError::Op(format!(
                 "script line {line_no}: unknown command '{trimmed}'"
@@ -254,7 +279,7 @@ fn cmd_edit(args: &[String]) -> Result<(), CliError> {
 
     let mut out = io::stdout().lock();
     out.write_all(editor.buffer.text().as_bytes())
-        .map_err(|e| CliError::Op(format!("failed to write stdout: {e}")))?;
+        .map_err(stdout_err)?;
     Ok(())
 }
 
@@ -291,10 +316,18 @@ fn run() -> Result<(), CliError> {
                 // A FILE name opens the editor, but only from a terminal: a script that asks
                 // for an unknown subcommand keeps getting the usage error.
                 other if !other.starts_with('-') && tty::is_terminal() => run_editor(&args),
+                other if !other.starts_with('-') && looks_like_file(other) => Err(CliError::Usage(
+                    "the editor needs a terminal (stdin is not a terminal)".to_string(),
+                )),
                 other => Err(CliError::Usage(format!("unknown subcommand '{other}'"))),
             }
         }
     }
+}
+
+/// True for an existing path, or a word with a path separator or a dot, such as `notes.txt`.
+fn looks_like_file(word: &str) -> bool {
+    std::path::Path::new(word).exists() || word.contains(['/', '\\', '.'])
 }
 
 /// Open the terminal editor on the first of `files` (a new buffer when it does not exist yet).
@@ -357,6 +390,7 @@ fn main() {
             CliError::SilentFail => {
                 process::exit(1);
             }
+            CliError::Closed => process::exit(0),
         }
     }
 }

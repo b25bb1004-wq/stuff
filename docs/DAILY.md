@@ -29,6 +29,8 @@ Packaging: one script installs every tool on Windows and Linux (see "Packaging" 
 Every Monolith command-line tool (27 binaries) is built in release mode and copied to `~/.monolith/bin`
 (Windows: `%USERPROFILE%\.monolith\bin`). `VERSION` there holds the git short sha, and `MANIFEST` lists each
 tool with its one-line `--help` summary. The tool list lives in `tools/install.sh` and `tools/install.ps1`.
+The scripts also build the Athena web app into `~/.monolith/share/athena-web`, where `athena serve` finds it
+(needs the Rust targets `wasm32-unknown-unknown` and `riscv64gc-unknown-none-elf`; a failed build copies nothing).
 
 Install (run from the strata folder; needs Rust/cargo):
 - Windows 11: `powershell -ExecutionPolicy Bypass -File tools\install.ps1`
@@ -42,7 +44,7 @@ Update: pull, then run the same install command again. Tools are replaced in pla
 is reported as NOT UPDATED; close it and run the command again.
 
 Uninstall: `bash tools/install.sh --uninstall` or `powershell -ExecutionPolicy Bypass -File tools\install.ps1 -Uninstall`.
-This removes `~/.monolith/bin`, `VERSION`, `MANIFEST` and the PATH entry the script added. Nothing else is touched.
+This removes `~/.monolith/bin`, `share/athena-web`, `VERSION`, `MANIFEST` and the PATH entry the script added. Nothing else is touched.
 
 Krypton as the Windows Terminal profile: the scripts do not edit Windows Terminal. In its settings (JSON),
 add this to `profiles` > `list`, replacing `<you>` with your Windows user folder name:

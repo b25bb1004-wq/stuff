@@ -30,8 +30,8 @@ pub struct ServeArgs {
     pub folder: String,
     /// Port on 127.0.0.1.
     pub port: u16,
-    /// Folder holding the packed web app.
-    pub web: String,
+    /// Folder holding the packed web app, when `--web` was given.
+    pub web: Option<String>,
 }
 
 /// Parse the arguments after `serve`. `Ok(None)` means help was asked for.
@@ -39,7 +39,7 @@ pub fn parse_serve_args(args: &[String]) -> Result<Option<ServeArgs>, String> {
     let mut out = ServeArgs {
         folder: String::from("."),
         port: DEFAULT_PORT,
-        web: String::from(DEFAULT_WEB),
+        web: None,
     };
     let mut folder: Option<String> = None;
     let mut it = args.iter();
@@ -50,7 +50,7 @@ pub fn parse_serve_args(args: &[String]) -> Result<Option<ServeArgs>, String> {
                 let value = it.next().ok_or("--port needs a number")?;
                 out.port = value.parse().map_err(|_| format!("bad port '{value}'"))?;
             }
-            "--web" => out.web = it.next().ok_or("--web needs a folder")?.clone(),
+            "--web" => out.web = Some(it.next().ok_or("--web needs a folder")?.clone()),
             other if other.starts_with('-') => return Err(format!("unknown option '{other}'")),
             other => {
                 if folder.is_some() {
@@ -83,18 +83,38 @@ struct State {
 
 type Op = fn(&State, &Request) -> Result<Response, Denied>;
 
+/// Where the packed web app may be, in the order `athena serve` looks: `--web`, then the install
+/// layout beside the binary, then `target/athena-web` under the working directory.
+pub fn web_candidates(explicit: Option<&str>, exe: Option<&Path>) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = explicit.map(PathBuf::from).into_iter().collect();
+    if let Some(bin_dir) = exe.and_then(Path::parent) {
+        out.push(bin_dir.join("..").join("share").join("athena-web"));
+    }
+    out.push(PathBuf::from(DEFAULT_WEB));
+    out
+}
+
+/// The first candidate that holds an `index.html`, or an error that names every place tried.
+pub fn find_web(candidates: &[PathBuf]) -> Result<PathBuf, String> {
+    if let Some(found) = candidates.iter().find(|c| c.join("index.html").is_file()) {
+        return Ok(found.clone());
+    }
+    let looked: Vec<String> = candidates.iter().map(|c| c.display().to_string()).collect();
+    Err(format!(
+        "no web app; looked in: {} (install with tools/install.sh, or build it with: cargo run -q --release -p athena --example pack)",
+        looked.join(", ")
+    ))
+}
+
 /// Serve `folder` through the API and `web` as static files on `127.0.0.1:port`. Port 0 picks a
 /// free port, which tests use.
 pub fn start(folder: &Path, web: &Path, port: u16) -> Result<Served, String> {
-    let root = fs::canonicalize(folder).map_err(|e| format!("{}: {e}", folder.display()))?;
+    let root = fs::canonicalize(folder).map_err(|_| not_a_folder(folder))?;
     if !root.is_dir() {
-        return Err(format!("{} is not a folder", folder.display()));
+        return Err(not_a_folder(folder));
     }
     if !web.join("index.html").is_file() {
-        return Err(format!(
-            "no web app in {} (build it with: cargo run -q --release -p athena --example pack)",
-            web.display()
-        ));
+        return Err(format!("no web app in {}", web.display()));
     }
     let token = new_token();
     let state = Arc::new(State {
@@ -123,6 +143,10 @@ pub fn start(folder: &Path, web: &Path, port: u16) -> Result<Served, String> {
     let server = Server::start(cfg, router).map_err(|e| format!("cannot listen on {addr}: {e}"))?;
     let url = format!("http://127.0.0.1:{}/?t={token}", server.local_addr().port());
     Ok(Served { server, url, token })
+}
+
+fn not_a_folder(folder: &Path) -> String {
+    format!("not a folder: {}", folder.display())
 }
 
 /// A 256-bit token from SipHash keys that the OS seeds at random. Shortcut: not a CSPRNG, so it
@@ -371,12 +395,42 @@ mod tests {
             .collect();
         let b = parse_serve_args(&args).unwrap().unwrap();
         assert_eq!(
-            (b.folder.as_str(), b.port, b.web.as_str()),
-            ("notes", 9000, "w")
+            (b.folder.as_str(), b.port, b.web.as_deref()),
+            ("notes", 9000, Some("w"))
         );
         assert!(parse_serve_args(&["--port".to_string(), "70000".to_string()]).is_err());
         assert!(parse_serve_args(&["--host".to_string(), "0.0.0.0".to_string()]).is_err());
         assert!(parse_serve_args(&["a".to_string(), "b".to_string()]).is_err());
         assert!(parse_serve_args(&["--help".to_string()]).unwrap().is_none());
+    }
+
+    #[test]
+    fn web_dir_is_searched_in_order_and_errors_list_every_place() {
+        let base = std::env::temp_dir().join(format!("athena_web_order_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let explicit = base.join("explicit");
+        let bin = base.join("bin").join("athena.exe");
+        let install = base.join("share").join("athena-web");
+        for dir in [&explicit, &install] {
+            fs::create_dir_all(dir).unwrap();
+            fs::write(dir.join("index.html"), "x").unwrap();
+        }
+        let list = web_candidates(explicit.to_str(), Some(&bin));
+        assert_eq!(list[0], explicit);
+        assert_eq!(
+            list[1],
+            base.join("bin").join("..").join("share").join("athena-web")
+        );
+        assert_eq!(list.len(), 3);
+        assert_eq!(find_web(&list).unwrap(), explicit);
+        // Without --web the install layout wins over the working folder.
+        let no_flag = web_candidates(None, Some(&bin));
+        assert_eq!(find_web(&no_flag).unwrap(), no_flag[0]);
+        let err = find_web(&[base.join("missing-a"), base.join("missing-b")]).unwrap_err();
+        assert!(
+            err.contains("missing-a") && err.contains("missing-b"),
+            "{err}"
+        );
+        let _ = fs::remove_dir_all(&base);
     }
 }

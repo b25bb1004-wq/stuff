@@ -31,6 +31,8 @@ pub enum Prompt {
 pub struct Session {
     path: Option<PathBuf>,
     eol: Eol,
+    // Newline that typed or pasted lines take in a mixed file (see `file::newline_for`).
+    newline: &'static str,
     lang: Lang,
     editor: Editor,
     // Undo-tree node the text was last saved at (or opened at); dirty means "not there".
@@ -79,10 +81,12 @@ impl Session {
         height: usize,
     ) -> Result<Session, DecodeError> {
         let (text, eol) = file::decode(bytes)?;
+        let newline = std::str::from_utf8(bytes).map_or("\n", file::newline_for);
         let lang = Lang::from_path(path.as_deref());
         let mut s = Session {
             path,
             eol,
+            newline,
             lang,
             editor: Editor::new(&text),
             saved: 0,
@@ -318,8 +322,15 @@ impl Session {
     }
 
     fn insert(&mut self, s: &str) {
+        // A CRLF-only file is held with bare \n and saved as \r\n, so only a mixed file, which
+        // keeps its bytes, needs its new lines styled here.
+        let text = if self.eol == Eol::Mixed {
+            file::style_inserted(s, self.newline)
+        } else {
+            s.to_string()
+        };
         self.mutate(|e| {
-            e.type_text(s);
+            e.type_text(&text);
             true
         });
     }

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Monolith tool installer for Linux and Git Bash on Windows.
 # Usage: tools/install.sh [--add-to-path | --uninstall | --help]
-#   no flag        build the tools (cargo build --release), copy them to ~/.monolith/bin,
-#                  write ~/.monolith/VERSION and MANIFEST, print the PATH line. PATH is not changed.
+#   no flag        build the tools (cargo build --release), copy them to ~/.monolith/bin, build the
+#                  Athena web app into ~/.monolith/share/athena-web (for `athena serve`), write
+#                  ~/.monolith/VERSION and MANIFEST, print the PATH line. PATH is not changed.
 #   --add-to-path  also append ONE guarded line to ~/.profile (skipped if already there).
-#   --uninstall    remove ~/.monolith/bin, VERSION, MANIFEST and the ~/.profile line this script added.
+#   --uninstall    remove ~/.monolith/bin, share/athena-web, VERSION, MANIFEST and the ~/.profile line.
 # Re-running upgrades in place. A tool that cannot be replaced (in use) is reported at the end.
 set -euo pipefail
 
@@ -54,6 +55,8 @@ uninstall() {
     rm -rf -- "$BIN_DIR" || { echo "could not remove $BIN_DIR (a tool is still running?)" >&2; exit 1; }
     echo "removed $BIN_DIR"
   fi
+  rm -rf -- "$MONO/share/athena-web"
+  rmdir "$MONO/share" 2>/dev/null || true
   rm -f -- "$MONO/VERSION" "$MONO/MANIFEST"
   rmdir "$MONO" 2>/dev/null || true
   echo "Monolith tools uninstalled."
@@ -74,6 +77,13 @@ install() {
   cargo build --release --manifest-path "$ROOT/Cargo.toml" "${bins[@]}"
   cargo build --release --manifest-path "$ROOT/Cargo.toml" -p chisel --bin silicon
 
+  # the web app that `athena serve` finds at ../share/athena-web; the pack writes ROOT/target/athena-web
+  echo "building the Athena web app (wasm and riscv targets needed)..."
+  if ! cargo run -q --release --manifest-path "$ROOT/Cargo.toml" -p athena --example pack >/dev/null; then
+    echo "install.sh: web pack failed; nothing was copied (check: rustup target add wasm32-unknown-unknown riscv64gc-unknown-none-elf)" >&2
+    exit 1
+  fi
+
   mkdir -p "$BIN_DIR"
   busy=()
   for t in $TOOLS; do
@@ -88,6 +98,11 @@ install() {
       busy+=("$bin ($err)")
     fi
   done
+
+  # replace the web app as a whole, so a file removed from the pack does not linger
+  mkdir -p "$MONO/share"
+  rm -rf -- "$MONO/share/athena-web"
+  cp -R -- "$ROOT/target/athena-web" "$MONO/share/athena-web"
 
   SHA="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
   printf '%s\n' "$SHA" > "$MONO/VERSION"

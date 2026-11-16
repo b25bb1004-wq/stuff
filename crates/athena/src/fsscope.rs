@@ -50,12 +50,12 @@ pub struct Entry {
 }
 
 fn io_denied(err: std::io::Error, rel: &str) -> Denied {
-    let status = match err.kind() {
-        ErrorKind::NotFound => 404,
-        ErrorKind::AlreadyExists => 409,
-        _ => 500,
-    };
-    Denied::new(status, format!("{rel}: {err}"))
+    match err.kind() {
+        // Plain words for a missing name; the OS text is only for the other cases.
+        ErrorKind::NotFound => Denied::new(404, format!("not found: {rel}")),
+        ErrorKind::AlreadyExists => Denied::new(409, format!("{rel}: {err}")),
+        _ => Denied::new(500, format!("{rel}: {err}")),
+    }
 }
 
 fn outside() -> Denied {
@@ -208,6 +208,10 @@ pub fn read_text(root: &Path, rel: &str) -> Result<String, Denied> {
 
 /// Write a file atomically: the bytes go to a temporary file beside it, then replace the target.
 pub fn write_file(root: &Path, rel: &str, bytes: &[u8]) -> Result<(), Denied> {
+    // A trailing separator names a folder, so it can never be a file.
+    if rel.is_empty() || rel.ends_with(['/', '\\']) {
+        return Err(Denied::new(400, "not a file path"));
+    }
     if bytes.len() > MAX_FILE_BYTES {
         return Err(Denied::new(413, "body is larger than 16 MiB"));
     }
@@ -218,6 +222,8 @@ pub fn write_file(root: &Path, rel: &str, bytes: &[u8]) -> Result<(), Denied> {
     let (Some(parent), Some(name)) = (path.parent(), path.file_name()) else {
         return Err(Denied::new(400, format!("{rel} has no file name")));
     };
+    // Missing parent folders are created, like mkdir -p.
+    fs::create_dir_all(parent).map_err(|e| io_denied(e, rel))?;
     let temp = parent.join(format!(
         ".{}.athena-tmp-{}-{}",
         name.to_string_lossy(),
@@ -245,6 +251,10 @@ fn write_then_rename(temp: &Path, path: &Path, bytes: &[u8]) -> std::io::Result<
 /// Create an empty file or a folder. Fails with 409 if the name is taken.
 pub fn create(root: &Path, rel: &str, is_dir: bool) -> Result<(), Denied> {
     let path = resolve_entry(root, rel)?;
+    if let Some(parent) = path.parent() {
+        // Missing parent folders are created, like mkdir -p; the leaf still fails if taken.
+        fs::create_dir_all(parent).map_err(|e| io_denied(e, rel))?;
+    }
     let made = if is_dir {
         fs::create_dir(&path)
     } else {
@@ -460,5 +470,29 @@ mod tests {
         let big = vec![b'a'; MAX_FILE_BYTES + 1];
         assert_eq!(write_file(&dir.0, "big.txt", &big).unwrap_err().status, 413);
         assert!(!dir.0.join("big.txt").exists());
+    }
+
+    #[test]
+    fn write_and_create_make_missing_parents_and_refuse_folder_paths() {
+        let dir = TempDir::new("parents");
+        write_file(&dir.0, "deep/er/file.txt", b"hi").unwrap();
+        assert_eq!(read_text(&dir.0, "deep/er/file.txt").unwrap(), "hi");
+        create(&dir.0, "made/x/y", true).unwrap();
+        assert!(dir.0.join("made/x/y").is_dir());
+        assert_eq!(create(&dir.0, "made/x/y", true).unwrap_err().status, 409);
+        assert_eq!(
+            write_file(&dir.0, "dir/", b"x").unwrap_err(),
+            Denied::new(400, "not a file path")
+        );
+        assert_eq!(
+            write_file(&dir.0, "dir\\", b"x").unwrap_err().message,
+            "not a file path"
+        );
+        assert!(!dir.0.join("dir").exists());
+        let missing = read_text(&dir.0, "nope/none.txt").unwrap_err();
+        assert_eq!(
+            (missing.status, missing.message.as_str()),
+            (404, "not found: nope/none.txt")
+        );
     }
 }

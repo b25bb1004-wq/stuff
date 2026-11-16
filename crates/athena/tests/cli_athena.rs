@@ -195,3 +195,25 @@ prop "bad prop" (x: int) {
     assert!(bad_stdout.contains("FAIL bad prop"), "stdout: {bad_stdout}");
     assert!(stderr_str(&bad_out).contains("athena:"));
 }
+
+#[test]
+fn serve_names_a_missing_folder_and_a_missing_web_app() {
+    let dir = TempDir::new("serve_missing");
+    let out = Command::new(env!("CARGO_BIN_EXE_athena"))
+        .args(["serve", "nosuchfolder"])
+        .current_dir(&dir.path)
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(stderr_str(&out), "athena: not a folder: nosuchfolder\n");
+    // A real folder with no web app anywhere lists each place that was tried.
+    let out = Command::new(env!("CARGO_BIN_EXE_athena"))
+        .args(["serve", ".", "--web", "no-such-web"])
+        .current_dir(&dir.path)
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1));
+    let err = stderr_str(&out);
+    assert!(err.contains("no web app; looked in: no-such-web"), "{err}");
+    assert!(err.contains("target"), "{err}");
+}
