@@ -320,7 +320,17 @@ pub(crate) fn run_external(
 
     let inherit = shell.inherit_stdio;
     let mut cmd = match built {
-        Ok(c) => c,
+        Ok(c) => {
+            // argv[0] as typed, so the child's messages say `cat: ...` (Windows has no such std hook).
+            #[cfg(unix)]
+            let mut c = c;
+            #[cfg(unix)]
+            {
+                use std::os::unix::process::CommandExt;
+                c.arg0(program);
+            }
+            c
+        }
         Err(msg) => {
             fds.write_err(io, &format!("krypton: {program}: {msg}\n"));
             return 126;

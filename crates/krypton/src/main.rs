@@ -1,13 +1,18 @@
 //! `krypton` POSIX shell binary.
 #![deny(unsafe_code)]
 
-use std::io::{self, BufRead, Read, Write};
+use std::io::{self, BufRead, IsTerminal, Read, Write};
 use std::process::ExitCode;
 
 use krypton::exec::Shell;
 
 mod interactive;
 mod term;
+
+/// Script text with CRLF line endings read as LF: a CR right before LF is part of the line ending.
+fn lf_only(src: &str) -> String {
+    src.replace("\r\n", "\n")
+}
 
 fn print_help() {
     let msg = "\
@@ -55,15 +60,19 @@ fn set_positional(shell: &mut Shell, pos: &[String]) {
 
 fn run_interactive(shell: &mut Shell) -> i32 {
     let stdin = io::stdin();
+    // Prompts only for a terminal: piped input gets just the command output.
+    let prompts = stdin.is_terminal();
     let mut reader = io::BufReader::new(stdin.lock());
     let mut stdout = io::stdout();
     let mut stderr = io::stderr();
     let mut buf = String::new();
 
     loop {
-        let prompt = if buf.is_empty() { "$ " } else { "> " };
-        let _ = stdout.write_all(prompt.as_bytes());
-        let _ = stdout.flush();
+        if prompts {
+            let prompt = if buf.is_empty() { "$ " } else { "> " };
+            let _ = stdout.write_all(prompt.as_bytes());
+            let _ = stdout.flush();
+        }
 
         let mut line = String::new();
         match reader.read_line(&mut line) {
@@ -111,6 +120,12 @@ fn run_file(
 ) -> i32 {
     match std::fs::read_to_string(file) {
         Ok(src) => {
+            let src = lf_only(&src);
+            if let Err(e) = krypton::parse(&src, krypton::Escapes::host()) {
+                let _ = writeln!(stderr, "{file}: line {}: {}", e.line, e.msg);
+                return 2;
+            }
+            shell.set_arg0(file);
             set_positional(shell, pos);
             let st = shell.run(&src, stdin, stdout, stderr);
             shell.exited().unwrap_or(st)
@@ -145,10 +160,11 @@ fn main() -> ExitCode {
                 let _ = writeln!(stderr, "krypton: -c: option requires an argument");
                 return ExitCode::from(2);
             };
-            if rest.get(2).is_some() {
+            if let Some(arg0) = rest.get(2) {
+                shell.set_arg0(arg0);
                 set_positional(&mut shell, rest.get(3..).unwrap_or(&[]));
             }
-            let st = shell.run(script, &mut stdin, &mut stdout, &mut stderr);
+            let st = shell.run(&lf_only(script), &mut stdin, &mut stdout, &mut stderr);
             shell.exited().unwrap_or(st)
         }
         Some("-") => {
@@ -157,7 +173,7 @@ fn main() -> ExitCode {
                 Ok(_) => {
                     set_positional(&mut shell, rest.get(1..).unwrap_or(&[]));
                     let mut empty_in = io::empty();
-                    let st = shell.run(&src, &mut empty_in, &mut stdout, &mut stderr);
+                    let st = shell.run(&lf_only(&src), &mut empty_in, &mut stdout, &mut stderr);
                     shell.exited().unwrap_or(st)
                 }
                 Err(e) => {
@@ -191,6 +207,8 @@ fn main() -> ExitCode {
         ),
         None => interactive::run(&mut shell).unwrap_or_else(|| run_interactive(&mut shell)),
     };
+    // The EXIT trap runs once, when the shell as a whole finishes (not after each line).
+    let code = shell.run_exit_trap(code, &mut io::empty(), &mut stdout, &mut stderr);
 
     ExitCode::from((code & 0xff) as u8)
 }

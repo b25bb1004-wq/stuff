@@ -7,7 +7,7 @@ use std::vec;
 
 use crate::types::is_valid_name;
 
-use super::external::which;
+use super::external::{run_external, which};
 use super::printf::builtin_printf;
 use super::redir::{FdTable, IoStreams};
 use super::test_cmd::builtin_test;
@@ -40,6 +40,8 @@ pub(crate) fn is_builtin(name: &str) -> bool {
             | "jobs"
             | "type"
             | "local"
+            | "command"
+            | "trap"
     )
 }
 
@@ -75,6 +77,8 @@ pub(crate) fn run_builtin(
         "jobs" => super::pipeline::builtin_jobs(shell, fds, io),
         "type" => builtin_type(args, shell, fds, io),
         "local" => builtin_local(args, shell, fds, io),
+        "command" => builtin_command(args, shell, fds, io),
+        "trap" => builtin_trap(args, shell, fds, io),
         _ => 127,
     }
 }
@@ -320,15 +324,35 @@ fn builtin_unset(
     status
 }
 
+/// The long option names `set -o` accepts, with their current state.
+fn set_opt_states(shell: &Shell) -> [(&'static str, bool); 5] {
+    [
+        ("errexit", shell.opts.errexit),
+        ("nounset", shell.opts.nounset),
+        ("xtrace", shell.opts.xtrace),
+        ("noclobber", shell.opts.noclobber),
+        ("pipefail", shell.opts.pipefail),
+    ]
+}
+
 fn apply_set_opt(shell: &mut Shell, opt: &str, val: bool) -> bool {
     match opt {
         "errexit" => shell.opts.errexit = val,
         "nounset" => shell.opts.nounset = val,
         "xtrace" => shell.opts.xtrace = val,
         "noclobber" => shell.opts.noclobber = val,
+        "pipefail" => shell.opts.pipefail = val,
         _ => return false,
     }
     true
+}
+
+/// An unknown `set` option is a fatal usage error: the script stops with status 2.
+fn set_fatal(shell: &mut Shell, fds: &mut FdTable, io: &mut IoStreams<'_>, msg: &str) -> i32 {
+    fds.write_err(io, msg);
+    shell.exited = Some(2);
+    shell.flow = ControlFlow::Exit(2);
+    2
 }
 
 fn builtin_set(
@@ -367,22 +391,23 @@ fn builtin_set(
                     'x' => shell.opts.xtrace = enable,
                     'C' => shell.opts.noclobber = enable,
                     'o' => {
-                        idx += 1;
-                        let Some(opt_name) = args.get(idx) else {
-                            fds.write_err(io, "krypton: set: -o: option name required\n");
-                            return 2;
+                        // `set -o` / `set +o` without a name lists the options.
+                        let Some(opt_name) = args.get(idx + 1) else {
+                            for (name, on) in set_opt_states(shell) {
+                                let state = if on { "on" } else { "off" };
+                                fds.write_out(io, &format!("{name:<15}{state}\n"));
+                            }
+                            return 0;
                         };
+                        idx += 1;
                         if !apply_set_opt(shell, opt_name, enable) {
-                            fds.write_err(
-                                io,
-                                &format!("krypton: set: {opt_name}: invalid option\n"),
-                            );
-                            return 2;
+                            let msg = format!("krypton: set: {opt_name}: invalid option\n");
+                            return set_fatal(shell, fds, io, &msg);
                         }
                     }
                     other => {
-                        fds.write_err(io, &format!("krypton: set: -{other}: invalid option\n"));
-                        return 2;
+                        let msg = format!("krypton: set: -{other}: invalid option\n");
+                        return set_fatal(shell, fds, io, &msg);
                     }
                 }
                 ci += 1;
@@ -779,6 +804,92 @@ fn builtin_local(
         }
         if let Some(v) = val {
             shell.vars.insert(name.to_string(), v);
+        }
+    }
+    status
+}
+
+/// `command -v NAME...` prints how each name resolves (exit 1 if one does not); `command NAME
+/// args` runs NAME as a builtin or program, skipping shell functions.
+fn builtin_command(
+    args: &[String],
+    shell: &mut Shell,
+    fds: &mut FdTable,
+    io: &mut IoStreams<'_>,
+) -> i32 {
+    if args.first().map(String::as_str) == Some("-v") {
+        let mut status = 0;
+        for name in &args[1..] {
+            let found = if is_builtin(name) || shell.functions.contains_key(name) {
+                Some(name.clone())
+            } else {
+                which(name, shell)
+            };
+            match found {
+                Some(p) => fds.write_out(io, &format!("{p}\n")),
+                None => status = 1,
+            }
+        }
+        return status;
+    }
+    let Some((name, rest)) = args.split_first() else {
+        return 0;
+    };
+    if is_builtin(name) {
+        run_builtin(name, rest, shell, fds, io)
+    } else {
+        run_external(name, rest, &[], shell, fds, io)
+    }
+}
+
+/// Map a signal operand to its stored name. Only EXIT runs; INT and TERM are stored only.
+fn trap_signal_name(sig: &str) -> Option<&'static str> {
+    let upper = sig.to_ascii_uppercase();
+    match upper.strip_prefix("SIG").unwrap_or(&upper) {
+        "0" | "EXIT" => Some("EXIT"),
+        "INT" => Some("INT"),
+        "TERM" => Some("TERM"),
+        _ => None,
+    }
+}
+
+/// `trap ACTION SIGNAL...` sets a trap, `trap - SIGNAL...` clears it, and bare `trap` lists them.
+fn builtin_trap(
+    args: &[String],
+    shell: &mut Shell,
+    fds: &mut FdTable,
+    io: &mut IoStreams<'_>,
+) -> i32 {
+    if args.is_empty() || args == ["-p"] {
+        let lines: Vec<String> = shell
+            .traps
+            .iter()
+            .map(|(sig, act)| format!("trap -- '{}' {sig}\n", act.replace('\'', "'\''")))
+            .collect();
+        for line in lines {
+            fds.write_out(io, &line);
+        }
+        return 0;
+    }
+    if args.len() < 2 {
+        fds.write_err(io, "krypton: trap: usage: trap [-] ACTION SIGNAL...\n");
+        return 2;
+    }
+    let action = &args[0];
+    let mut status = 0;
+    for sig in &args[1..] {
+        let Some(name) = trap_signal_name(sig) else {
+            fds.write_err(
+                io,
+                &format!("krypton: trap: {sig}: invalid signal specification\n"),
+            );
+            status = 1;
+            continue;
+        };
+        if action == "-" {
+            shell.traps.remove(name);
+        } else {
+            shell.traps.insert(name.to_string(), action.clone());
         }
     }
     status

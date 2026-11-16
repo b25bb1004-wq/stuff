@@ -161,7 +161,9 @@ pub(crate) fn parse_script_until(
                     }
                     return Err(scanner.cursor.err("unexpected end of input", true));
                 } else {
-                    return Err(scanner.cursor.err("unexpected token", false));
+                    let tok = scanner.cursor.peek().unwrap_or(' ');
+                    let msg = alloc::format!("syntax error near unexpected token '{tok}'");
+                    return Err(scanner.cursor.err(&msg, false));
                 }
             }
         }

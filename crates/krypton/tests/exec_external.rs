@@ -129,13 +129,10 @@ fn binary_c_file_help_and_interactive_pipe() {
     let inter = child.wait_with_output().unwrap();
     assert_eq!(inter.status.code(), Some(5));
     let inter_out = String::from_utf8_lossy(&inter.stdout);
+    // R15 (sim fix krypton-1): piped stdin gets no prompt text, only command output.
     assert!(
-        inter_out.contains("$ "),
-        "missing `$ ` prompt: {inter_out:?}"
-    );
-    assert!(
-        inter_out.contains("> "),
-        "missing `> ` prompt: {inter_out:?}"
+        !inter_out.contains("$ ") && !inter_out.contains("> "),
+        "prompt written to a pipe: {inter_out:?}"
     );
     assert!(
         inter_out.contains("multi\n"),

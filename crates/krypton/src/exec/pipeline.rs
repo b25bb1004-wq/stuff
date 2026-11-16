@@ -102,7 +102,7 @@ fn run_stages(
     pipe: &Pipeline,
     fds: &mut FdTable,
     io: &mut IoStreams<'_>,
-) -> io::Result<i32> {
+) -> io::Result<Vec<i32>> {
     let n = pipe.cmds.len();
     let inherit = shell.inherit_stdio;
     let mut pipes = Vec::with_capacity(n - 1);
@@ -158,17 +158,13 @@ fn run_stages(
     stage0.suppress_errexit = stage0.suppress_errexit || pipe.bang;
     let mut stage0_fds = fds.clone();
     stage0_fds.insert(1, FdTarget::File(Arc::clone(&pipes[0].1)));
-    let _ = stage0.exec_command(&pipe.cmds[0], &mut stage0_fds, io);
+    let mut statuses = vec![stage0.exec_command(&pipe.cmds[0], &mut stage0_fds, io)];
     drop(stage0_fds);
     // The coordinator keeps no pipe ends, so EOF and broken pipes reach the stages.
     drop(pipes);
 
-    let mut last_st = 0;
-    for (idx, h) in handles.into_iter().enumerate() {
-        let st = h.join().unwrap_or(1);
-        if idx + 2 == n {
-            last_st = st;
-        }
+    for h in handles {
+        statuses.push(h.join().unwrap_or(1));
     }
     if let Ok(out_data) = last_out.lock() {
         if !out_data.is_empty() {
@@ -182,7 +178,21 @@ fn run_stages(
             }
         }
     }
-    Ok(last_st)
+    Ok(statuses)
+}
+
+/// Pipeline status from every stage's status: the last one, or with `pipefail` the last non-zero.
+fn pipeline_status(statuses: &[i32], pipefail: bool) -> i32 {
+    if pipefail {
+        statuses
+            .iter()
+            .rev()
+            .find(|&&s| s != 0)
+            .copied()
+            .unwrap_or(0)
+    } else {
+        statuses.last().copied().unwrap_or(0)
+    }
 }
 
 /// Execute a pipeline (`[!] cmd1 | cmd2 ...`), updating `shell.last_status`.
@@ -204,7 +214,7 @@ pub(crate) fn exec_pipeline(
         st
     } else {
         match run_stages(shell, pipe, fds, io) {
-            Ok(st) => st,
+            Ok(statuses) => pipeline_status(&statuses, shell.opts.pipefail),
             Err(e) => {
                 fds.write_err(io, &format!("krypton: pipe: {e}\n"));
                 1

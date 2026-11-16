@@ -39,6 +39,7 @@ pub(crate) struct ShellOpts {
     pub(crate) nounset: bool,
     pub(crate) xtrace: bool,
     pub(crate) noclobber: bool,
+    pub(crate) pipefail: bool,
 }
 
 impl ShellOpts {
@@ -86,6 +87,8 @@ pub struct Shell {
     pub(crate) inherit_stdio: bool,
     /// Backslash rule used when parsing scripts run by this shell.
     pub(crate) escapes: crate::types::Escapes,
+    /// Trap actions by signal name (`EXIT`, `INT`, `TERM`); only `EXIT` runs.
+    pub(crate) traps: BTreeMap<String, String>,
 }
 
 impl Default for Shell {
@@ -138,7 +141,32 @@ impl Shell {
             cmd_stderr: None,
             inherit_stdio: false,
             escapes: crate::types::Escapes::Posix,
+            traps: BTreeMap::new(),
         }
+    }
+
+    /// Set `$0` (the script's name as given, or the `-c` ARG0).
+    pub fn set_arg0(&mut self, name: &str) {
+        self.arg0 = name.to_string();
+    }
+
+    /// Run the `EXIT` trap, if set, as the shell finishes with `status`. An `exit` inside the trap
+    /// replaces the status; otherwise `status` is returned.
+    pub fn run_exit_trap(
+        &mut self,
+        status: i32,
+        stdin: &mut dyn Read,
+        stdout: &mut dyn Write,
+        stderr: &mut dyn Write,
+    ) -> i32 {
+        let Some(action) = self.traps.remove("EXIT") else {
+            return status;
+        };
+        self.exited = None;
+        self.flow = ControlFlow::None;
+        self.last_status = status;
+        self.run(&action, stdin, stdout, stderr);
+        self.exited.unwrap_or(status)
     }
 
     /// Let child programs use the process's real console or terminal streams (interactive use).
@@ -242,6 +270,8 @@ impl Shell {
             cmd_stderr: self.cmd_stderr.clone(),
             inherit_stdio: self.inherit_stdio,
             escapes: self.escapes,
+            // Subshells do not inherit traps (POSIX: traps reset in a subshell).
+            traps: BTreeMap::new(),
         }
     }
 
@@ -598,13 +628,27 @@ impl Shell {
             }
         }
 
+        // Bare `exec`: its redirections change this shell's own descriptors for later commands.
+        if args.len() == 1 && args[0] == "exec" {
+            return match fds.apply_redirs(&simple.redirs, self) {
+                Ok(()) => 0,
+                Err(e) => {
+                    fds.write_err(io, &format!("krypton: {e}\n"));
+                    1
+                }
+            };
+        }
+        // `exec cmd args`: run cmd, then the shell exits with its status.
+        let exec_cmd = args.len() > 1 && args[0] == "exec";
+        let words: &[String] = if exec_cmd { &args[1..] } else { &args };
+
         let mut cmd_fds = fds.clone();
         if let Err(e) = cmd_fds.apply_redirs(&simple.redirs, self) {
             fds.write_err(io, &format!("krypton: {e}\n"));
             return 1;
         }
 
-        let Some((cmd_name, cmd_args)) = args.split_first() else {
+        let Some((cmd_name, cmd_args)) = words.split_first() else {
             for (k, v) in expanded_assigns {
                 if self.opts.xtrace {
                     cmd_fds.write_err(io, &format!("+ {k}={v}\n"));
@@ -628,48 +672,55 @@ impl Shell {
             cmd_fds.write_err(io, &trace);
         }
 
-        if let Some(func_body) = self.functions.get(cmd_name).cloned() {
-            let saved = self.push_temp_assigns(&expanded_assigns);
-            let old_pos = std::mem::replace(&mut self.positional, cmd_args.to_vec());
-            self.local_scopes.push(BTreeMap::new());
-            self.func_depth += 1;
+        let st = 'run: {
+            if let Some(func_body) = self.functions.get(cmd_name).cloned() {
+                let saved = self.push_temp_assigns(&expanded_assigns);
+                let old_pos = std::mem::replace(&mut self.positional, cmd_args.to_vec());
+                self.local_scopes.push(BTreeMap::new());
+                self.func_depth += 1;
 
-            let mut st = self.exec_command(&func_body, &mut cmd_fds, io);
+                let mut st = self.exec_command(&func_body, &mut cmd_fds, io);
 
-            self.func_depth -= 1;
-            if let Some(scope) = self.local_scopes.pop() {
-                for (k, old_val) in scope {
-                    if let Some(v) = old_val {
-                        self.vars.insert(k, v);
-                    } else {
-                        self.vars.remove(&k);
+                self.func_depth -= 1;
+                if let Some(scope) = self.local_scopes.pop() {
+                    for (k, old_val) in scope {
+                        if let Some(v) = old_val {
+                            self.vars.insert(k, v);
+                        } else {
+                            self.vars.remove(&k);
+                        }
                     }
                 }
+                self.positional = old_pos;
+                if let ControlFlow::Return(code) = self.flow {
+                    self.flow = ControlFlow::None;
+                    st = code;
+                }
+                self.pop_temp_assigns(saved);
+                break 'run st;
             }
-            self.positional = old_pos;
-            if let ControlFlow::Return(code) = self.flow {
-                self.flow = ControlFlow::None;
-                st = code;
+
+            if is_builtin(cmd_name) {
+                let saved = self.push_temp_assigns(&expanded_assigns);
+                let st = run_builtin(cmd_name, cmd_args, self, &mut cmd_fds, io);
+                self.pop_temp_assigns(saved);
+                break 'run st;
             }
-            self.pop_temp_assigns(saved);
-            return st;
-        }
 
-        if is_builtin(cmd_name) {
-            let saved = self.push_temp_assigns(&expanded_assigns);
-            let st = run_builtin(cmd_name, cmd_args, self, &mut cmd_fds, io);
-            self.pop_temp_assigns(saved);
-            return st;
+            run_external(
+                cmd_name,
+                cmd_args,
+                &expanded_assigns,
+                self,
+                &mut cmd_fds,
+                io,
+            )
+        };
+        if exec_cmd {
+            self.exited = Some(st);
+            self.flow = ControlFlow::Exit(st);
         }
-
-        run_external(
-            cmd_name,
-            cmd_args,
-            &expanded_assigns,
-            self,
-            &mut cmd_fds,
-            io,
-        )
+        st
     }
 
     fn push_temp_assigns(
