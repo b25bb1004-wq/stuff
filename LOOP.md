@@ -476,3 +476,7 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | Fable planner subagent | fable | - | FAILED (5-hour limit) | leader (now Fable) did the job inline
 - 2026-11-16 | AI computer: analysis, prior art, 3 question rounds, ACI v1, master plan, phase 1 plan | leader | - | DONE | docs/ai-computer/; budget told to operator: 60 to 90 worker tasks, 10 to 14M tokens, phase 1 about 2.5 to 3M; cap 3
 - 2026-11-16 | WAVE 1: chronos-2 finish, iridium-2 finish, A1 crates/aci | haiku x3 | 3 x 150k to 220k | running | briefs/sim/fix-chronos-2.md, briefs/sim/fix-iridium-2.md, briefs/ai/A1-aci.md
+- 2026-11-16 | FIX iridium-2 (finish) | haiku | 131k | PASS | REAL, decimals, AVG; leader read every changed test line (helper arms only) and ran decimals, AVG, reopen by hand; gaps: CLI print format has no test, Value lost Eq, % integer only
+- 2026-11-16 | A1 crates/aci | haiku | 168k | PASS | leader: gate, 400 malformed inputs + 3 MiB random bytes rejected cleanly, depth, surrogates, big numbers
+- 2026-11-16 | ACI task 2 (aci-check.sh, APPS.md, ACI-COMMON brief) | leader | - | DONE | TODO: add aci:aci to TOOLS in tools/install.sh and install.ps1
+- 2026-11-16 | WAVE 2: ACI T4 krypton, T5 iridium (chronos-2 still running) | haiku x2 | 2 x 200k | running | briefs/ai/ACI-COMMON.md + prompt
