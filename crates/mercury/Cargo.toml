@@ -7,7 +7,7 @@ publish = false
 
 [features]
 default = ["std"]
-std = ["dep:kairos"]
+std = ["dep:kairos", "dep:aci"]
 
 [[bin]]
 name = "mercury"
@@ -16,6 +16,7 @@ required-features = ["std"]
 
 [dependencies]
 kairos = { path = "../kairos", optional = true }
+aci = { path = "../aci", optional = true }
 
 [dev-dependencies]
 assay = { path = "../assay" }

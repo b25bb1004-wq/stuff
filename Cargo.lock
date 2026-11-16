@@ -13,6 +13,7 @@ dependencies = [
 name = "argo"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "mercury",
  "sphinx",
@@ -41,6 +42,7 @@ dependencies = [
 name = "aurum"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "cobalt",
  "elysium",
@@ -75,6 +77,7 @@ dependencies = [
 name = "chisel"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "silicon",
 ]
@@ -93,6 +96,7 @@ dependencies = [
 name = "cobalt"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "chisel",
  "elysium",
@@ -117,6 +121,7 @@ dependencies = [
 name = "elysium"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
 ]
 
@@ -191,6 +196,7 @@ dependencies = [
 name = "lithium"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "chisel",
  "silicon",
@@ -207,6 +213,7 @@ dependencies = [
 name = "mercury"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "kairos",
 ]
@@ -223,6 +230,7 @@ dependencies = [
 name = "neon"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "chisel",
  "cobalt",
@@ -327,6 +335,7 @@ dependencies = [
 name = "xenon"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "entropy",
  "sphinx",
@@ -336,6 +345,8 @@ dependencies = [
 name = "zeus"
 version = "0.1.0"
 dependencies = [
+ "aci",
+ "assay",
  "chisel",
  "lithium",
  "silicon",
