@@ -469,3 +469,10 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | FIX athena-calliope | haiku | 203k | PASS aa7fb38 | fresh sandbox install serves IDE 200; CRLF kept; worker skipped its report file
 - 2026-11-16 | FIX chronos-1 | haiku | 237k | PASS (this push) | deletion, .gitignore, untracked, add -A, restore/reset, rm/mv, switch, commit no -m
 - 2026-11-16 | FIX iridium-2, misc-1 (mercury/hades/help), krypton-2, chronos-2 | haiku x4 | running |
+- 2026-11-16 | FIX krypton-2 | haiku | 196k | PASS | leader fixed two test mistakes in sim_fixes2.rs (alias expectation, shared temp dir)
+- 2026-11-16 | FIX misc-1 (mercury, hades, midas, kairos, argo) | haiku | 176k | PASS | worker claimed a report it never wrote; leader reran five gates and hades mkfs by hand
+- 2026-11-16 | FIX iridium-2 | haiku | - | STOPPED (classifier outage) | partial REAL/AVG work uncommitted in crates/iridium; gate not run
+- 2026-11-16 | FIX chronos-2 | haiku | 212k | PARTIAL | merge.rs partly rewritten, uncommitted, may not compile
+- 2026-11-16 | Fable planner subagent | fable | - | FAILED (5-hour limit) | leader (now Fable) did the job inline
+- 2026-11-16 | AI computer: analysis, prior art, 3 question rounds, ACI v1, master plan, phase 1 plan | leader | - | DONE | docs/ai-computer/; budget told to operator: 60 to 90 worker tasks, 10 to 14M tokens, phase 1 about 2.5 to 3M; cap 3
+- 2026-11-16 | WAVE 1: chronos-2 finish, iridium-2 finish, A1 crates/aci | haiku x3 | 3 x 150k to 220k | running | briefs/sim/fix-chronos-2.md, briefs/sim/fix-iridium-2.md, briefs/ai/A1-aci.md
