@@ -492,3 +492,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - Phase 1 progress 2026-11-16: 13 of 28 binaries converted (aci, krypton, iridium, iridium-cli, chronos, calliope, athena, hades, midas, kairos, sphinx); worker tokens about 1.62M
 - LESSON: any crate a no-std crate depends on must take aci as an optional dep behind std; put this in every remaining brief
 - 2026-11-16 | WAVE 5: ACI T7 mercury/xenon/argo, T9 silicon/elysium/cobalt/logos, T10 aurum/pandora/lithium/zeusctl/titan | haiku x3 | 3 x 240k | running | titan gate required for T9 and T10 (no-std rule)
+- 2026-11-16 | ACI T7 mercury, xenon, argo | haiku | 259k | PASS | leader ran a live serve/get cycle; note xenon keygen prints its secret key in text mode and JSON mode (by design for a keygen, flag for phase 4 key handling)
