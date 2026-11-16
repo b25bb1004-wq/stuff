@@ -37,7 +37,7 @@ $Tools = @(
     'cobalt:cobalt', 'cobalt:logos', 'xenon:xenon', 'mercury:mercury', 'iridium:iridium', 'iridium:iridium-cli',
     'chronos:chronos', 'argo:argo', 'aurum:aurum', 'krypton:krypton', 'calliope:calliope', 'indium:indium',
     'iris:iris', 'odyssey:odyssey', 'helios:helios', 'pandora:pandora', 'lithium:lithium', 'zeus:zeusctl',
-    'bench:bench', 'athena:athena', 'neon:titan', 'aci:aci'
+    'bench:bench', 'athena:athena', 'neon:titan', 'aci:aci', 'monolith:monolith'
 )
 $ToolNames = @($Tools | ForEach-Object { $_.Split(':')[1] })
 
