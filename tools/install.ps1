@@ -4,12 +4,13 @@ Installs Monolith's command-line tools into %USERPROFILE%\.monolith\bin (Windows
 
 .DESCRIPTION
 Default: builds the tools with cargo --release, copies them to %USERPROFILE%\.monolith\bin, builds the
-Athena web app into %USERPROFILE%\.monolith\share\athena-web (for `athena serve`), writes VERSION and
+Athena web app into %USERPROFILE%\.monolith\share\athena-web (for `athena serve`), builds the Titan kernel
+into %USERPROFILE%\.monolith\share\titan (for `titan boot`; a failure only warns), writes VERSION and
 MANIFEST there, and prints the folder to add to PATH. PATH is NOT changed by default.
 Re-running upgrades in place. A tool that is running (file locked) is reported at the end.
 
 -AddToPath  adds the bin folder to the USER Path (never the machine Path). Refuses if it is already there.
--Uninstall  removes the bin folder, VERSION, MANIFEST and the User Path entry for it.
+-Uninstall  removes the bin folder, share\athena-web, share\titan, VERSION, MANIFEST and the User Path entry for it.
 -WhatIf     dry run: prints what would be built, copied and changed, and changes nothing.
 
 .EXAMPLE
@@ -78,6 +79,7 @@ if ($Uninstall) {
             catch { $problems += "could not remove ${BinDir}: $($_.Exception.Message) (a tool still running?)" }
         }
         Remove-Item -LiteralPath (Join-Path $MonoDir 'share\athena-web') -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $MonoDir 'share\titan') -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath (Join-Path $MonoDir 'share') -Force -ErrorAction SilentlyContinue   # only if empty
         foreach ($f in 'VERSION', 'MANIFEST') {
             Remove-Item -LiteralPath (Join-Path $MonoDir $f) -Force -ErrorAction SilentlyContinue
@@ -124,6 +126,13 @@ if ($PSCmdlet.ShouldProcess("$count tools", 'cargo build --release')) {
     Write-Output 'building the Athena web app (wasm and riscv targets needed)...'
     & cargo run -q --release --manifest-path (Join-Path $Root 'Cargo.toml') -p athena --example pack | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "web pack failed (exit $LASTEXITCODE); nothing was copied (check: rustup target add wasm32-unknown-unknown riscv64gc-unknown-none-elf)" }
+    # the kernel that `titan boot` finds at ..\share\titan\kernel; if it cannot be built, only boot is affected
+    Write-Output 'building the Titan kernel (riscv64 target needed)...'
+    Push-Location $Root
+    & cargo build --target-dir target/titan-kernel -p titan --bin kernel --release --target riscv64gc-unknown-none-elf --manifest-path (Join-Path $Root 'Cargo.toml')
+    $kernelBuilt = ($LASTEXITCODE -eq 0)
+    Pop-Location
+    if (-not $kernelBuilt) { Write-Warning 'Titan kernel not installed; titan boot needs --kernel (check: rustup target add riscv64gc-unknown-none-elf)' }
 }
 
 $busy = @()
@@ -148,6 +157,13 @@ if ($PSCmdlet.ShouldProcess($BinDir, "copy $count tools")) {
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $webDst) | Out-Null
     Remove-Item -LiteralPath $webDst -Recurse -Force -ErrorAction SilentlyContinue
     Copy-Item -LiteralPath (Join-Path $Root 'target\athena-web') -Destination $webDst -Recurse -Force
+
+    if ($kernelBuilt) {
+        $kernelDst = Join-Path $MonoDir 'share\titan'
+        Remove-Item -LiteralPath $kernelDst -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path $kernelDst | Out-Null
+        Copy-Item -LiteralPath (Join-Path $Root 'target\titan-kernel\riscv64gc-unknown-none-elf\release\kernel') -Destination (Join-Path $kernelDst 'kernel') -Force
+    }
 
     $sha = 'unknown'
     try { $sha = (& git -C $Root rev-parse --short HEAD 2>$null).Trim() } catch { }

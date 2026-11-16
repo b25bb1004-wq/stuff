@@ -2,10 +2,11 @@
 # Monolith tool installer for Linux and Git Bash on Windows.
 # Usage: tools/install.sh [--add-to-path | --uninstall | --help]
 #   no flag        build the tools (cargo build --release), copy them to ~/.monolith/bin, build the
-#                  Athena web app into ~/.monolith/share/athena-web (for `athena serve`), write
-#                  ~/.monolith/VERSION and MANIFEST, print the PATH line. PATH is not changed.
+#                  Athena web app into ~/.monolith/share/athena-web (for `athena serve`), build the
+#                  Titan kernel into ~/.monolith/share/titan (for `titan boot`; a failure only warns),
+#                  write ~/.monolith/VERSION and MANIFEST, print the PATH line. PATH is not changed.
 #   --add-to-path  also append ONE guarded line to ~/.profile (skipped if already there).
-#   --uninstall    remove ~/.monolith/bin, share/athena-web, VERSION, MANIFEST and the ~/.profile line.
+#   --uninstall    remove ~/.monolith/bin, share/athena-web, share/titan, VERSION, MANIFEST and the ~/.profile line.
 # Re-running upgrades in place. A tool that cannot be replaced (in use) is reported at the end.
 set -euo pipefail
 
@@ -56,6 +57,7 @@ uninstall() {
     echo "removed $BIN_DIR"
   fi
   rm -rf -- "$MONO/share/athena-web"
+  rm -rf -- "$MONO/share/titan"
   rmdir "$MONO/share" 2>/dev/null || true
   rm -f -- "$MONO/VERSION" "$MONO/MANIFEST"
   rmdir "$MONO" 2>/dev/null || true
@@ -103,6 +105,16 @@ install() {
   mkdir -p "$MONO/share"
   rm -rf -- "$MONO/share/athena-web"
   cp -R -- "$ROOT/target/athena-web" "$MONO/share/athena-web"
+
+  # the kernel that `titan boot` finds at ../share/titan/kernel; if it cannot be built, only boot is affected
+  echo "building the Titan kernel (riscv64 target needed)..."
+  if ( cd "$ROOT" && cargo build --target-dir target/titan-kernel -p titan --bin kernel --release --target riscv64gc-unknown-none-elf --manifest-path "$ROOT/Cargo.toml" ) \
+    && rm -rf -- "$MONO/share/titan" && mkdir -p "$MONO/share/titan" \
+    && cp -f -- "$ROOT/target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel" "$MONO/share/titan/kernel"; then
+    :
+  else
+    echo "install.sh: warning: Titan kernel not installed; titan boot needs --kernel (check: rustup target add riscv64gc-unknown-none-elf)" >&2
+  fi
 
   SHA="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
   printf '%s\n' "$SHA" > "$MONO/VERSION"

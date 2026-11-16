@@ -281,7 +281,7 @@ const COMMANDS: &[Command] = &[
         summary: "Run the main function of FILE; its io.print output is stdout",
         effect: Effect::Exec,
         args: RUN_ARGS,
-        returns: "exit (0), stop (exit), stdout (capped, with stdout_truncated, stdout_bytes, stdout_lossy when they apply), duration_ms; a trap or compile error is code invalid",
+        returns: "exit (0), stop (exit), stdout (capped, with stdout_truncated, stdout_bytes, stdout_lossy when they apply), result (main's return value as text, null when main returns nothing), duration_ms; a trap or compile error is code invalid",
         example: "logos --json run prog.logos",
     },
     Command {
@@ -419,7 +419,7 @@ fn json_run(args: &[String]) -> Result<(Json, i32), Fail> {
         let _ = io::stdin().read_to_string(&mut input);
     }
     let started = Instant::now();
-    let out = cobalt::run_main(&compiled, &input, opts.fuel);
+    let (out, value) = cobalt::run_main_value(&compiled, &input, opts.fuel);
     if let Err((trap, span)) = out.result {
         let (line, col) = logos::line_col(&src, span.start);
         return Err(Fail {
@@ -435,6 +435,8 @@ fn json_run(args: &[String]) -> Result<(Json, i32), Fail> {
         ("stop".to_string(), Json::Str("exit".into())),
     ];
     pairs.extend(stream("stdout", out.output.as_bytes()));
+    // the value main returned, rendered as elysium --json run renders it; null when main returns nothing
+    pairs.push(("result".to_string(), value.map_or(Json::Null, Json::Str)));
     pairs.push(("duration_ms".to_string(), Json::Int(duration_ms)));
     Ok((Json::Obj(pairs), 0))
 }

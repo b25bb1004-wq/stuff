@@ -156,7 +156,8 @@ const COMMANDS: &[Command] = &[
 const MANIFEST: Manifest = Manifest {
     tool: "hades",
     version: env!("CARGO_PKG_VERSION"),
-    summary: "Monolith filesystem image tool",
+    summary:
+        "Monolith filesystem image tool; image paths start with /; mkfs needs at least 68 blocks",
     commands: COMMANDS,
 };
 
@@ -358,7 +359,7 @@ fn json_command(args: &[OsString]) -> Result<(Json, u8), Fail> {
             Ok((data, 0))
         }
         Action::Ls { img, path } => {
-            let entries = do_ls(&img, &path)?;
+            let entries = do_ls(&img, &path).map_err(|f| git_bash_hint(f, &path))?;
             let limit = opts.limit.unwrap_or(DEFAULT_LIMIT);
             let offset = opts.offset.unwrap_or(0);
             let total = entries.len();
@@ -375,7 +376,8 @@ fn json_command(args: &[OsString]) -> Result<(Json, u8), Fail> {
             do_cat(&img, &path, &mut |chunk| {
                 bytes.extend_from_slice(chunk);
                 Ok(())
-            })?;
+            })
+            .map_err(|f| git_bash_hint(f, &path))?;
             match opts.out {
                 Some(out) => {
                     fs::write(&out, &bytes).map_err(|e| {
@@ -392,16 +394,16 @@ fn json_command(args: &[OsString]) -> Result<(Json, u8), Fail> {
             }
         }
         Action::Put { img, src, path } => {
-            let count = do_put(&img, &src, &path)?;
+            let count = do_put(&img, &src, &path).map_err(|f| git_bash_hint(f, &path))?;
             let data = Json::obj([("path", Json::Str(path)), ("bytes", int(count))]);
             Ok((data, 0))
         }
         Action::Rm { img, path } => {
-            do_rm(&img, &path)?;
+            do_rm(&img, &path).map_err(|f| git_bash_hint(f, &path))?;
             Ok((Json::obj([("path", Json::Str(path))]), 0))
         }
         Action::Mkdir { img, path } => {
-            do_mkdir(&img, &path)?;
+            do_mkdir(&img, &path).map_err(|f| git_bash_hint(f, &path))?;
             Ok((Json::obj([("path", Json::Str(path))]), 0))
         }
         Action::Fsck { img } => {
@@ -642,6 +644,17 @@ fn fs_code(err: Error) -> Code {
         | Error::BadPath
         | Error::TooLarge => Code::Invalid,
     }
+}
+
+/// Git Bash rewrites an image path like `/docs` into `C:/Program Files/Git/docs`; hint that on the JSON error.
+fn git_bash_hint(mut fail: Fail, path: &str) -> Fail {
+    let windows = path.as_bytes().get(1) == Some(&b':') || path.contains("Program Files/Git");
+    if windows && matches!(fail.code, Code::Invalid) && fail.message.ends_with("invalid path") {
+        fail.hint = Some(String::from(
+            "Git Bash rewrote the image path; set MSYS_NO_PATHCONV=1 or write it as //docs",
+        ));
+    }
+    fail
 }
 
 fn fs_err(context: &str, err: Error) -> Fail {

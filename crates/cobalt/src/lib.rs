@@ -24,7 +24,7 @@ pub use debug::{
     compile_with_source, first_pc_of_line, line_of, locals_at, step, Debug, FuncDebug, LocalVar,
     Step, STEP_BUDGET,
 };
-pub use run::{run_main, run_prop, run_test};
+pub use run::{run_main, run_main_value, run_prop, run_test};
 
 /// A Logos program compiled to a Elysium bytecode module with source spans and test metadata.
 #[derive(Debug, Clone, PartialEq)]

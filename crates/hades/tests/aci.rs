@@ -289,3 +289,37 @@ fn text_mode_is_unchanged() {
     assert_eq!(limited.status.code(), Some(2));
     assert!(limited.stdout.is_empty());
 }
+
+#[test]
+fn json_git_bash_rewritten_path_gets_a_hint() {
+    let t = Temp::new("gitbash");
+    let img = t.join("disk.img");
+    assert_eq!(
+        run(&["mkfs", s(&img), "--blocks", "256"]).status.code(),
+        Some(0)
+    );
+    let out = run(&["--json", "ls", s(&img), "C:/Program Files/Git/docs"]);
+    assert_eq!(fail(&out, 1, "ls"), "invalid");
+    let value = envelope(&out);
+    let hint = value
+        .get("error")
+        .unwrap()
+        .get("hint")
+        .and_then(Json::as_str);
+    assert!(
+        hint.is_some_and(|h| h.contains("MSYS_NO_PATHCONV=1")),
+        "{hint:?}"
+    );
+    // A bad path that does not look like a Windows path gets no Git Bash hint.
+    let plain = run(&["--json", "ls", s(&img), "docs"]);
+    let plain_value = envelope(&plain);
+    let plain_hint = plain_value
+        .get("error")
+        .unwrap()
+        .get("hint")
+        .and_then(Json::as_str);
+    assert!(
+        plain_hint.is_none() || !plain_hint.unwrap().contains("Git Bash"),
+        "{plain_hint:?}"
+    );
+}

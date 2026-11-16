@@ -18,6 +18,10 @@ use aci::manifest::{Arg, Command, Effect, Kind as ArgKind, Manifest};
 use neon::session::{default_disk, Pump, Titan};
 
 const DEFAULT_KERNEL: &str = "target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel";
+/// Relative to the folder of the running exe: where `tools/install.sh` and `install.ps1` put the kernel.
+const INSTALLED_KERNEL: &str = "../share/titan/kernel";
+const KERNEL_DEFAULT_TEXT: &str =
+    "target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel, else <exe folder>/../share/titan/kernel";
 const BUILD_CMD: &str =
     "cargo build --target-dir target/titan-kernel -p titan --bin kernel --release --target riscv64gc-unknown-none-elf";
 const CHUNK_STEPS: u64 = 500_000;
@@ -28,7 +32,7 @@ const BOOT_ARGS: &[Arg] = &[
         name: "--kernel",
         kind: ArgKind::Path,
         required: false,
-        default: Some("target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel"),
+        default: Some(KERNEL_DEFAULT_TEXT),
         choices: &[],
     },
     Arg {
@@ -74,7 +78,8 @@ Subcommands:
 
 Options:
   --kernel PATH   Kernel ELF path
-                  (default: target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel)
+                  (default: target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel,
+                  else <exe folder>/../share/titan/kernel)
   --script FILE   Read shell commands from FILE (or - for stdin) then exit
   --disk IMG      Load Hades disk image IMG (or create if missing) and save on exit
   -h, --help      Print this help text and exit
@@ -88,7 +93,8 @@ enum Action {
     Help,
     Version,
     Boot {
-        kernel: PathBuf,
+        /// None when `--kernel` was not given: the default is looked up at boot time.
+        kernel: Option<PathBuf>,
         script: Option<String>,
         disk: Option<PathBuf>,
     },
@@ -210,7 +216,7 @@ fn json_run(args: Vec<OsString>) -> Result<(Json, u8), CliError> {
             let mut console = Vec::new();
             let started = Instant::now();
             let exit = boot_and_run(
-                &kernel,
+                kernel.as_deref(),
                 script_text.as_deref(),
                 disk.as_deref(),
                 &mut console,
@@ -255,7 +261,7 @@ fn run(args: impl Iterator<Item = OsString>) -> Result<(), CliError> {
             kernel,
             script,
             disk,
-        } => run_boot(&kernel, script.as_deref(), disk.as_deref()),
+        } => run_boot(kernel.as_deref(), script.as_deref(), disk.as_deref()),
     }
 }
 
@@ -279,7 +285,7 @@ fn parse_args(args: impl Iterator<Item = OsString>) -> Result<Action, CliError> 
 }
 
 fn parse_boot_args(mut iter: impl Iterator<Item = OsString>) -> Result<Action, CliError> {
-    let mut kernel = PathBuf::from(DEFAULT_KERNEL);
+    let mut kernel: Option<PathBuf> = None;
     let mut script: Option<String> = None;
     let mut disk: Option<PathBuf> = None;
 
@@ -291,7 +297,7 @@ fn parse_boot_args(mut iter: impl Iterator<Item = OsString>) -> Result<Action, C
                 let val = iter
                     .next()
                     .ok_or_else(|| CliError::usage("missing path after --kernel"))?;
-                kernel = PathBuf::from(val);
+                kernel = Some(PathBuf::from(val));
             }
             "--script" => {
                 let val = iter
@@ -336,7 +342,7 @@ fn print_version() -> Result<(), String> {
 }
 
 fn run_boot(
-    kernel_path: &Path,
+    kernel_path: Option<&Path>,
     script_path: Option<&str>,
     disk_path: Option<&Path>,
 ) -> Result<(), CliError> {
@@ -367,23 +373,56 @@ fn read_script(script_path: Option<&str>) -> Result<Option<String>, CliError> {
     }
 }
 
+/// The installed kernel: `../share/titan/kernel` beside the running exe's folder.
+fn installed_kernel() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    Some(exe.parent()?.join(INSTALLED_KERNEL))
+}
+
+/// The kernel bytes: the given `--kernel` path, else the repo build, else the installed copy.
+fn read_kernel(kernel_path: Option<&Path>) -> Result<Vec<u8>, CliError> {
+    if let Some(path) = kernel_path {
+        return fs::read(path).map_err(|e| {
+            CliError::io(
+                format!(
+                    "cannot read kernel '{}': {e} (build with: {BUILD_CMD})",
+                    path.display()
+                ),
+                &e,
+            )
+        });
+    }
+    let repo = PathBuf::from(DEFAULT_KERNEL);
+    let installed = installed_kernel();
+    let path = if repo.exists() {
+        repo.clone()
+    } else {
+        match &installed {
+            Some(p) if p.exists() => p.clone(),
+            _ => repo.clone(),
+        }
+    };
+    fs::read(&path).map_err(|e| {
+        let looked = match &installed {
+            Some(p) => format!("'{}' or '{}'", repo.display(), p.display()),
+            None => format!("'{}'", repo.display()),
+        };
+        CliError::io(
+            format!("cannot read kernel (looked in {looked}): {e} (build with: {BUILD_CMD})"),
+            &e,
+        )
+    })
+}
+
 /// Boot the kernel, run the session with its console going to `out`, and save the disk if asked.
 /// Returns the guest's exit code when it exited, None when the session ended at the prompt.
 fn boot_and_run(
-    kernel_path: &Path,
+    kernel_path: Option<&Path>,
     script_text: Option<&str>,
     disk_path: Option<&Path>,
     out: &mut impl Write,
 ) -> Result<Option<i32>, CliError> {
-    let elf_bytes = fs::read(kernel_path).map_err(|e| {
-        CliError::io(
-            format!(
-                "cannot read kernel '{}': {e} (build with: {BUILD_CMD})",
-                kernel_path.display()
-            ),
-            &e,
-        )
-    })?;
+    let elf_bytes = read_kernel(kernel_path)?;
 
     let mut titan = match disk_path {
         Some(path) => {

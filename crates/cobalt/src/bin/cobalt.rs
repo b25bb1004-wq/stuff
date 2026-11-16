@@ -616,10 +616,10 @@ const BUILD_ARGS: &[Arg] = &[
 const COMMANDS: &[Command] = &[
     Command {
         name: "check",
-        summary: "Type-check FILE; prints nothing on success",
+        summary: "Type-check FILE; prints nothing on success; under --json a finding is data (ok true, exit 1 when not clean)",
         effect: Effect::Read,
         args: &[FILE_ARG],
-        returns: "count (0), diagnostics ([]); a compile error is code invalid with line and column in the message",
+        returns: "diagnostics: [{path, line, col, severity, message}], count, clean; ok is true, and exit is 1 when clean is false",
         example: "cobalt --json check prog.logos",
     },
     Command {

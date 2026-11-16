@@ -2,8 +2,9 @@
 use crate::meta::{decode_meta, FuncSig};
 use crate::Compiled;
 use alloc::boxed::Box;
+use alloc::collections::BTreeSet;
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 use elysium::{Heap, Host, Limits, Obj, Value, Vm};
@@ -117,21 +118,83 @@ impl Host for MicaHost<'_> {
 
 /// Runs `main` of `c` on Elysium with `input` for `io.read_line` and a `fuel` budget.
 pub fn run_main(c: &Compiled, input: &str, fuel: u64) -> Outcome {
+    run_main_value(c, input, fuel).0
+}
+
+/// `run_main`, also rendering the value `main` returns as `elysium --json run` renders it (None for unit).
+pub fn run_main_value(c: &Compiled, input: &str, fuel: u64) -> (Outcome, Option<String>) {
     let Some(fid) = c.main else {
-        return Outcome {
-            output: String::new(),
-            result: Ok(()),
-        };
+        return (
+            Outcome {
+                output: String::new(),
+                result: Ok(()),
+            },
+            None,
+        );
     };
     let Some(mut vm) = make_vm(c) else {
-        return err_outcome(Trap::IndexOutOfRange);
+        return (err_outcome(Trap::IndexOutOfRange), None);
     };
     let mut host = MicaHost::new(input);
-    let result = exec_func(c, &mut vm, fid, &[], &mut host, fuel).map(|_| ());
-    Outcome {
-        output: host.output,
-        result,
+    let (result, value) = match exec_func(c, &mut vm, fid, &[], &mut host, fuel) {
+        Ok(Value::Unit) => (Ok(()), None),
+        Ok(val) => {
+            let mut seen = BTreeSet::new();
+            (Ok(()), Some(fmt_value(val, vm.heap(), &mut seen, 0)))
+        }
+        Err(e) => (Err(e), None),
+    };
+    (
+        Outcome {
+            output: host.output,
+            result,
+        },
+        value,
+    )
+}
+
+/// Renders a value like `fmt_value` in elysium's `src/bin/elysium.rs`; keep the two in step.
+fn fmt_value(val: Value, heap: &Heap, seen: &mut BTreeSet<u32>, depth: usize) -> String {
+    match val {
+        Value::Unit => String::from("()"),
+        Value::Int(i) => i.to_string(),
+        Value::Byte(b) => format!("{b}u8"),
+        Value::Bool(b) => b.to_string(),
+        Value::Fn(f) => format!("fn#{f}"),
+        Value::Ref(h) => {
+            if depth >= 32 {
+                return format!("ref#{}(...)", h.0);
+            }
+            if !seen.insert(h.0) {
+                return format!("ref#{}(<cycle>)", h.0);
+            }
+            let rendered = match heap.get(h) {
+                Ok(Obj::Str(s)) => format!("{s:?}"),
+                Ok(Obj::Bytes(b)) => {
+                    let hex: String = b.iter().map(|x| format!("{x:02x}")).collect();
+                    format!("bytes[{}]({hex})", b.len())
+                }
+                Ok(Obj::Array(items)) => format!("[{}]", join_values(items, heap, seen, depth)),
+                Ok(Obj::Record(fields)) => {
+                    format!("{{{}}}", join_values(fields, heap, seen, depth))
+                }
+                Ok(Obj::Variant { tag, fields }) => {
+                    format!("variant#{tag}({})", join_values(fields, heap, seen, depth))
+                }
+                Err(_) => format!("ref#{}(<dangling>)", h.0),
+            };
+            seen.remove(&h.0);
+            rendered
+        }
     }
+}
+
+fn join_values(items: &[Value], heap: &Heap, seen: &mut BTreeSet<u32>, depth: usize) -> String {
+    let parts: Vec<String> = items
+        .iter()
+        .map(|v| fmt_value(*v, heap, seen, depth + 1))
+        .collect();
+    parts.join(", ")
 }
 
 /// Runs unit test `index` of `c` on Elysium with a `fuel` budget.

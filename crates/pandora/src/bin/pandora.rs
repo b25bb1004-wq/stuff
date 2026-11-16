@@ -552,7 +552,7 @@ const COMMANDS: &[AciCommand] = &[
 const MANIFEST: Manifest = Manifest {
     tool: "pandora",
     version: env!("CARGO_PKG_VERSION"),
-    summary: "Linux container runtime CLI (pull, run, ps, kill, rm)",
+    summary: "Linux only: on other systems every command answers code unsupported. Linux container runtime CLI (pull, run, ps, kill, rm)",
     commands: COMMANDS,
 };
 

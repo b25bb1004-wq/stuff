@@ -197,3 +197,48 @@ fn text_mode_is_unchanged() {
     assert!(text.contains("titan-ok"), "{text}");
     assert!(!text.starts_with('{'), "text mode printed JSON: {text}");
 }
+
+#[test]
+fn boot_works_outside_the_repo_with_an_absolute_kernel() {
+    let t = Temp::new("outside");
+    let kernel =
+        workspace_root().join("target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel");
+    let file = script(&t, "hi.txt", "echo hi from outside\n");
+    let out = Command::new(BIN)
+        .current_dir(&t.0)
+        .args([
+            "--json",
+            "boot",
+            "--kernel",
+            s(&kernel),
+            "--script",
+            s(&file),
+        ])
+        .output()
+        .unwrap();
+    let d = data(&out);
+    let stdout = d.get("stdout").and_then(Json::as_str).unwrap();
+    assert!(stdout.contains("hi from outside"), "{stdout}");
+}
+
+#[test]
+fn boot_without_a_kernel_names_both_places_it_looked() {
+    let t = Temp::new("nokernel");
+    let file = script(&t, "hi.txt", "echo hi\n");
+    let out = Command::new(BIN)
+        .current_dir(&t.0)
+        .args(["--json", "boot", "--script", s(&file)])
+        .output()
+        .unwrap();
+    assert_eq!(fail(&out, 1, "boot"), "not_found");
+    let value = envelope(&out);
+    let message = value
+        .get("error")
+        .unwrap()
+        .get("message")
+        .and_then(Json::as_str)
+        .unwrap();
+    assert!(message.contains("target/titan-kernel"), "{message}");
+    assert!(message.contains("share"), "{message}");
+    assert!(message.contains("cargo build"), "{message}");
+}

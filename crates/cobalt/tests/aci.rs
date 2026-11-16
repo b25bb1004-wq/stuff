@@ -255,7 +255,17 @@ fn logos_run_json_returns_stdout_and_exit() {
     assert_eq!(d.get("exit").and_then(Json::as_i64), Some(0));
     assert_eq!(d.get("stop").and_then(Json::as_str), Some("exit"));
     assert_eq!(d.get("stdout").and_then(Json::as_str), Some(""));
+    assert_eq!(d.get("result"), Some(&Json::Null));
     assert!(d.get("duration_ms").and_then(Json::as_i64).is_some());
+}
+
+#[test]
+fn logos_run_json_result_is_main_return_value() {
+    let t = Temp::new("runval");
+    let prog = t.file("val.logos", GOOD);
+    let d = data(&run(LOGOS, &["--json", "run", s(&prog)]), 0);
+    assert_eq!(d.get("result").and_then(Json::as_str), Some("3"));
+    assert_eq!(d.get("stdout").and_then(Json::as_str), Some(""));
 }
 
 #[test]
