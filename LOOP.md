@@ -17,10 +17,8 @@
 - [x] Wave 1 merged 5626e31: computers + journal, model client, memory + exam format (57 tests)
 - [x] G1 llama-server on 127.0.0.1:8080, 50 GPU layers, ctx 12288: 7.7 tok/s (30 layers 4.0, 40 5.3, 60 4.4)
 - [x] Wave 2 merged d5b844a + train suite: agent loop (18 tests), train 24, held-out 12, memory 4 pairs; all replay clean
-- [>] Wave 3: C1 exam runner (eval.rs) running
-- [ ] R0 baseline exam (level 0)
-- [ ] R1 interface teaching exam (level 1)
-- [ ] R2a memory learning on train, R2b frozen memory on held-out + memory chains
+- [x] Wave 3 merged 50e837a: exam runner (13 tests); selftest 44 of 44 with real tools; smoke 2 of 2 with the model
+- [>] Exam chain running in the background: r0 (level 0), r1 (level 1), r2a (level 2 learning on train), r2b (frozen, held-out + memory), r2c (frozen, train again). Folder C:/Users/ADMIN/strata-runs/2026-11-17, rerun chain.sh to resume
 - [ ] R3 failure-driven fixes, rerun, final report
 - [ ] Vault note + morning report
 
@@ -502,4 +500,5 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-17 | B2a train suite | haiku | lost | FAIL | API error after 13 min of silence, worktree gone, nothing saved
 - 2026-11-17 | B2a retry | haiku | 165k | PASS | 24 tasks, replay by leader 24/24; no reserved tool used
 - 2026-11-17 | fence fixes | leader | 0 | PASS | found by workers: krypton could start host programs (PATH now holds only the tool folder); /c/ drive paths refused; a bare / (image root, SQL division) allowed; //host paths refused. Fence is still lexical: a shell tool can still walk out with cd and variables
-- 2026-11-17 | C1 exam runner dispatched | haiku | - | running |
+- 2026-11-17 | C1 exam runner | haiku | 182k | PASS | gate rerun by leader (89 tests); selftest through eval 44 of 44; smoke with the model 2 of 2 (t01 4 steps 46 s, t02 13 steps 91 s). Installer lists edited by leader, installers not run
+- 2026-11-17 | exam chain started | leader | 0 | running | single seed, temperature 0.6, max 16 steps, thinking off. Haiku spend this job about 1.49M (wave 1 452k, wave 2 552k plus one lost run, wave 3 182k): the 1.6M budget is nearly used, no more workers without the operator
