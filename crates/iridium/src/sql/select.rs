@@ -2,7 +2,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::sql::ast::{ExprKind, JoinKind, SelectItem, SelectStmt};
+use crate::sql::ast::{ColType, ExprKind, JoinKind, SelectItem, SelectStmt};
 use crate::sql::catalog::Catalog;
 use crate::sql::codec::encode_key;
 use crate::sql::expr::{
@@ -87,6 +87,45 @@ pub(crate) fn exec_select<S: Storage>(
         rows,
         changes: 0,
     })
+}
+
+/// Declared type of each result column of a SELECT, `""` when the expression has no declared type.
+pub(crate) fn column_types(
+    cat: &Catalog,
+    stmt: &SelectStmt,
+    raw_sql: &str,
+) -> Result<Vec<&'static str>, Error> {
+    let prep = prepare_select(cat, stmt, raw_sql)?;
+    let mut out = Vec::with_capacity(prep.proj.len());
+    for p in &prep.proj {
+        let ty = match &p.kind {
+            ProjKind::TableCol { table_idx, col_idx } => {
+                type_name(prep.ctx.tables[*table_idx].def.columns[*col_idx].ty)
+            }
+            ProjKind::Expr(e) => match &e.kind {
+                ExprKind::Column { table, name, pos } => {
+                    match prep.ctx.resolve_col(table.as_deref(), name, *pos)? {
+                        (t, ColTarget::Column(c)) => {
+                            type_name(prep.ctx.tables[t].def.columns[c].ty)
+                        }
+                        (_, ColTarget::Rowid) => "INTEGER",
+                    }
+                }
+                _ => "",
+            },
+        };
+        out.push(ty);
+    }
+    Ok(out)
+}
+
+fn type_name(ty: ColType) -> &'static str {
+    match ty {
+        ColType::Integer => "INTEGER",
+        ColType::Real => "REAL",
+        ColType::Text => "TEXT",
+        ColType::Blob => "BLOB",
+    }
 }
 
 fn prepare_select<'a>(

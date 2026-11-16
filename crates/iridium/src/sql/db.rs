@@ -6,9 +6,39 @@ use crate::sql::catalog::{
 };
 use crate::sql::dml::{exec_delete, exec_insert, exec_update};
 use crate::sql::parser::parse_statement;
+use crate::sql::select::column_types;
 use crate::sql::select::{exec_explain, exec_select};
 use crate::sql::Rows;
 use crate::{Error, Pager, Storage, Tree};
+
+/// What a statement is, and for a SELECT the declared type of each result column (`""` when unknown).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Described {
+    /// The kind word: `select`, `explain`, `insert`, `update`, `delete`, `create`, `drop`, `begin`, `commit` or `rollback`.
+    pub kind: &'static str,
+    /// One declared type per result column (`INTEGER`, `REAL`, `TEXT`, `BLOB`); empty for most statements.
+    pub types: Vec<&'static str>,
+}
+
+fn kind_of(stmt: &Stmt) -> &'static str {
+    match stmt {
+        Stmt::CreateTable(_) | Stmt::CreateIndex(_) => "create",
+        Stmt::DropTable { .. } | Stmt::DropIndex { .. } => "drop",
+        Stmt::Insert(_) => "insert",
+        Stmt::Update(_) => "update",
+        Stmt::Delete(_) => "delete",
+        Stmt::Begin => "begin",
+        Stmt::Commit => "commit",
+        Stmt::Rollback => "rollback",
+        Stmt::Select(_) => "select",
+        Stmt::Explain(_) => "explain",
+    }
+}
+
+/// The kind word of one statement, without running it.
+pub fn statement_kind(sql: &str) -> Result<&'static str, Error> {
+    Ok(kind_of(&parse_statement(sql)?))
+}
 
 /// Transactional SQL database backed by a Iridium pager and B+trees.
 #[derive(Debug)]
@@ -75,6 +105,20 @@ impl<S: Storage> Db<S> {
             Stmt::Select(ref sel) => exec_select(&mut self.pager, &self.catalog, sel, sql),
             other => self.exec_mutating(other, sql),
         }
+    }
+
+    /// Describe a statement before it runs: its kind and, for a SELECT, its result column types.
+    pub fn describe(&self, sql: &str) -> Result<Described, Error> {
+        let stmt = parse_statement(sql)?;
+        let types = match &stmt {
+            Stmt::Select(sel) => column_types(&self.catalog, sel, sql)?,
+            Stmt::Explain(_) => vec![""],
+            _ => Vec::new(),
+        };
+        Ok(Described {
+            kind: kind_of(&stmt),
+            types,
+        })
     }
 
     /// Return whether an explicit SQL transaction (`BEGIN`) is currently active.

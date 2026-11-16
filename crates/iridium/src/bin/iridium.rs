@@ -1,18 +1,101 @@
 //! Command-line tool for local and networked Iridium SQL databases.
 #![forbid(unsafe_code)]
 
-use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::io::{self, BufRead, BufWriter, Write};
 use std::net::ToSocketAddrs;
-use std::path::{Path, PathBuf};
 use std::process;
 
+use aci::envelope::Code;
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind, Manifest};
 use iridium::net::Client;
+use iridium::report::{self, split_line_statements, Failure};
 use iridium::sql::{Db, Rows, Value};
-use iridium::{lock_database, FileStorage};
+use iridium::FileStorage;
 
 const VERSION: &str = "iridium 0.1.0";
+
+const SQL_ARGS: &[Arg] = &[
+    Arg {
+        name: "DB",
+        kind: Kind::Path,
+        required: true,
+        default: None,
+        choices: &[],
+    },
+    Arg {
+        name: "QUERY",
+        kind: Kind::Text,
+        required: false,
+        default: None,
+        choices: &[],
+    },
+    Arg {
+        name: "--limit",
+        kind: Kind::Int,
+        required: false,
+        default: Some("100"),
+        choices: &[],
+    },
+    Arg {
+        name: "--offset",
+        kind: Kind::Int,
+        required: false,
+        default: Some("0"),
+        choices: &[],
+    },
+];
+
+const CONNECT_ARGS: &[Arg] = &[
+    Arg {
+        name: "ADDR",
+        kind: Kind::Text,
+        required: true,
+        default: None,
+        choices: &[],
+    },
+    Arg {
+        name: "--limit",
+        kind: Kind::Int,
+        required: false,
+        default: Some("100"),
+        choices: &[],
+    },
+    Arg {
+        name: "--offset",
+        kind: Kind::Int,
+        required: false,
+        default: Some("0"),
+        choices: &[],
+    },
+];
+
+const COMMANDS: &[Command] = &[
+    Command {
+        name: "sql",
+        summary: "Open or create DB and run QUERY (or statements from stdin if omitted or '-')",
+        effect: Effect::Write,
+        args: SQL_ARGS,
+        returns: "statements: one entry per statement in order; a SELECT is {kind, columns: [{name, type}], rows, total, more, next_offset (when more)}, anything else {kind, count}",
+        example: "iridium --json sql app.idb \"SELECT 1 + 2 AS sum\"",
+    },
+    Command {
+        name: "connect",
+        summary: "Run statements from stdin on the iridium server at host:port",
+        effect: Effect::Net,
+        args: CONNECT_ARGS,
+        returns: "statements: as for sql; column types are \"\" over the network",
+        example: "iridium --json connect 127.0.0.1:7432",
+    },
+];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "iridium",
+    version: "0.1.0",
+    summary: "SQL database engine CLI",
+    commands: COMMANDS,
+};
 
 const HELP_TEXT: &str = "\
 iridium - SQL database engine CLI
@@ -62,103 +145,6 @@ fn format_value(val: &Value) -> String {
     }
 }
 
-fn wal_path(db_path: &Path) -> PathBuf {
-    let mut os: OsString = db_path.as_os_str().to_os_string();
-    os.push("-wal");
-    PathBuf::from(os)
-}
-
-fn split_line_statements(line: &str) -> Vec<&str> {
-    let bytes = line.as_bytes();
-    let mut stmts = Vec::new();
-    let mut start = 0usize;
-    let mut i = 0usize;
-    let mut in_single = false;
-    let mut in_double = false;
-    let mut in_block_comment = false;
-    let mut has_code = false;
-
-    while i < bytes.len() {
-        let b = bytes[i];
-        if in_block_comment {
-            if b == b'*' && bytes.get(i + 1) == Some(&b'/') {
-                in_block_comment = false;
-                i += 2;
-            } else {
-                i += 1;
-            }
-            continue;
-        }
-        if in_single {
-            if b == b'\'' {
-                if bytes.get(i + 1) == Some(&b'\'') {
-                    i += 2;
-                } else {
-                    in_single = false;
-                    i += 1;
-                }
-            } else {
-                i += 1;
-            }
-            continue;
-        }
-        if in_double {
-            if b == b'"' {
-                if bytes.get(i + 1) == Some(&b'"') {
-                    i += 2;
-                } else {
-                    in_double = false;
-                    i += 1;
-                }
-            } else {
-                i += 1;
-            }
-            continue;
-        }
-        if b == b'-' && bytes.get(i + 1) == Some(&b'-') {
-            // A line comment ends at the newline, so later lines of a QUERY argument still run.
-            while i < bytes.len() && bytes[i] != b'\n' {
-                i += 1;
-            }
-            continue;
-        }
-        if b == b'/' && bytes.get(i + 1) == Some(&b'*') {
-            in_block_comment = true;
-            i += 2;
-            continue;
-        }
-        if !b.is_ascii_whitespace() && b != b';' {
-            has_code = true;
-        }
-        if b == b'\'' {
-            in_single = true;
-            i += 1;
-            continue;
-        }
-        if b == b'"' {
-            in_double = true;
-            i += 1;
-            continue;
-        }
-        if b == b';' {
-            // A chunk of only comments is not a statement; it is dropped, not sent to the parser.
-            if has_code {
-                stmts.push(line[start..i].trim());
-            }
-            has_code = false;
-            i += 1;
-            start = i;
-            continue;
-        }
-        i += 1;
-    }
-
-    if has_code {
-        stmts.push(line[start..].trim());
-    }
-    stmts
-}
-
 fn write_tsv(out: &mut impl Write, rows: &Rows) -> Result<(), CliError> {
     if rows.columns.is_empty() {
         return Ok(());
@@ -204,16 +190,8 @@ fn run_sql(args: &[String]) -> Result<(), CliError> {
     }
     let query_arg = args.get(1).map(String::as_str);
 
-    let db_path = Path::new(db_arg);
-    // Held until this function returns, so no other process can touch the files meanwhile.
-    let _lock = lock_database(db_path).map_err(|e| CliError::Op(e.to_string()))?;
-    let main_store = FileStorage::open(db_path)
-        .map_err(|e| CliError::Op(format!("cannot open '{db_arg}': {e}")))?;
-    let log_path = wal_path(db_path);
-    let log_store = FileStorage::open(&log_path)
-        .map_err(|e| CliError::Op(format!("cannot open '{}': {e}", log_path.display())))?;
-    let mut db = Db::open(main_store, log_store)
-        .map_err(|e| CliError::Op(format!("cannot open '{db_arg}': {e}")))?;
+    // The lock is held until this function returns, so no other process can touch the files meanwhile.
+    let (_lock, mut db) = report::open_db(db_arg).map_err(|(_, msg)| CliError::Op(msg))?;
 
     let stdout = io::stdout();
     let mut out = BufWriter::new(stdout.lock());
@@ -315,7 +293,95 @@ fn run() -> Result<(), CliError> {
     }
 }
 
+fn statements(entries: Vec<Json>) -> Json {
+    Json::obj([("statements", Json::Arr(entries))])
+}
+
+fn sql_json(args: &[String]) -> Result<Json, Failure> {
+    let (pos, paging) = report::split_paging(args)?;
+    if pos.is_empty() || pos.len() > 2 {
+        return Err(Failure::new(
+            Code::Usage,
+            "usage: iridium --json sql DB [QUERY] [--limit N] [--offset N]",
+        )
+        .hint("run: iridium --describe"));
+    }
+    let db_arg = &pos[0];
+    if db_arg == "-" {
+        return Err(Failure::new(Code::Invalid, "database path cannot be '-'"));
+    }
+    let stmts = match pos.get(1).map(String::as_str) {
+        Some(query) if query != "-" => split_line_statements(query)
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        _ => report::read_statements(io::stdin().lock())?,
+    };
+    let (_lock, mut db) = report::open_db(db_arg).map_err(|(code, msg)| Failure::new(code, msg))?;
+    let run = report::run_local(&mut db, &stmts, &paging);
+    // Closed even after a failure, as text mode does, so the log is checkpointed.
+    let closed = db
+        .close()
+        .map_err(|e| Failure::new(report::engine_code(&e), format!("close failed: {e}")));
+    let entries = run?;
+    closed?;
+    Ok(statements(entries))
+}
+
+fn connect_json(args: &[String]) -> Result<Json, Failure> {
+    let (pos, paging) = report::split_paging(args)?;
+    if pos.len() != 1 {
+        return Err(Failure::new(
+            Code::Usage,
+            "usage: iridium --json connect ADDR [--limit N] [--offset N]",
+        )
+        .hint("run: iridium --describe"));
+    }
+    let stmts = report::read_statements(io::stdin().lock())?;
+    Ok(statements(report::run_remote(&pos[0], &stmts, &paging)?))
+}
+
+/// Run one `--json` invocation (the arguments after `--json`) and return the exit code.
+fn run_json(args: &[String]) -> i32 {
+    let (cmd, result) = match args.first().map(String::as_str) {
+        None => (
+            "",
+            Err(Failure::new(Code::Usage, "missing subcommand (try --help)")
+                .hint("run: iridium --describe")),
+        ),
+        Some("sql") => ("sql", sql_json(&args[1..])),
+        Some("connect") => ("connect", connect_json(&args[1..])),
+        Some("-V" | "--version") => (
+            "version",
+            Ok(Json::obj([("version", Json::Str("0.1.0".into()))])),
+        ),
+        Some("-h" | "--help") => (
+            "help",
+            Ok(Json::obj([("help", Json::Str(HELP_TEXT.into()))])),
+        ),
+        Some(other) => (
+            "",
+            Err(Failure::new(
+                Code::Usage,
+                format!("unknown subcommand '{other}' (try --help)"),
+            )
+            .hint("run: iridium --describe")),
+        ),
+    };
+    report::finish("iridium", cmd, result)
+}
+
 fn main() {
+    let raw: Vec<String> = std::env::args().skip(1).collect();
+    if raw.len() == 1 && raw[0] == "--describe" {
+        println!("{}", MANIFEST.to_json().write());
+        return;
+    }
+    if raw.first().map(String::as_str) == Some("--json") {
+        let code = run_json(&raw[1..]);
+        let _ = io::stdout().flush();
+        process::exit(code);
+    }
     if let Err(err) = run() {
         match err {
             CliError::Usage(msg) => {

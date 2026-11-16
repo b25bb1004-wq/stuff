@@ -7,6 +7,7 @@ mod format;
 mod lock;
 pub mod net;
 mod pager;
+pub mod report;
 pub mod sql;
 mod storage;
 mod tree;

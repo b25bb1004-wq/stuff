@@ -18,7 +18,7 @@ mod select_group;
 mod validate;
 
 pub use codec::{decode_record, encode_key, encode_record};
-pub use db::Db;
+pub use db::{statement_kind, Db, Described};
 
 /// SQL runtime value matching SQLite STRICT storage classes.
 #[derive(Debug, Clone, PartialEq)]

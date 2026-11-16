@@ -2,12 +2,54 @@
 #![forbid(unsafe_code)]
 
 use std::fmt::Write as _;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Write};
 use std::net::ToSocketAddrs;
 use std::process;
 
+use aci::envelope::Code;
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind, Manifest};
 use iridium::net::Client;
+use iridium::report::{self, Failure, Paging};
 use iridium::sql::Value;
+
+const ADDR_ARGS: &[Arg] = &[Arg {
+    name: "HOST:PORT",
+    kind: Kind::Text,
+    required: true,
+    default: None,
+    choices: &[],
+}];
+
+const COMMANDS: &[Command] = &[Command {
+    name: "connect",
+    summary: "Run statements from stdin on the iridium server at HOST:PORT",
+    effect: Effect::Net,
+    args: ADDR_ARGS,
+    returns: "statements: one entry per statement in order; a SELECT is {kind, columns: [{name, type}], rows, total, more, next_offset (when more)}, anything else {kind, count}",
+    example: "iridium-cli --json 127.0.0.1:7432",
+}];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "iridium-cli",
+    version: "0.1.0",
+    summary: "Command-line SQL client for an iridium server",
+    commands: COMMANDS,
+};
+
+/// `iridium-cli --json HOST:PORT`: the same statements shape as `iridium --json connect`.
+fn run_json(args: &[String]) -> i32 {
+    let result = match args {
+        [target] => report::read_statements(io::stdin().lock())
+            .and_then(|stmts| report::run_remote(target, &stmts, &Paging::default()))
+            .map(|entries| Json::obj([("statements", Json::Arr(entries))])),
+        _ => Err(
+            Failure::new(Code::Usage, "usage: iridium-cli --json <host:port>")
+                .hint("run: iridium-cli --describe"),
+        ),
+    };
+    report::finish("iridium-cli", "connect", result)
+}
 
 fn format_value(val: &Value) -> String {
     match val {
@@ -81,6 +123,16 @@ fn run() -> Result<(), String> {
 }
 
 fn main() {
+    let raw: Vec<String> = std::env::args().skip(1).collect();
+    if raw.len() == 1 && raw[0] == "--describe" {
+        println!("{}", MANIFEST.to_json().write());
+        return;
+    }
+    if raw.first().map(String::as_str) == Some("--json") {
+        let code = run_json(&raw[1..]);
+        let _ = io::stdout().flush();
+        process::exit(code);
+    }
     if let Err(msg) = run() {
         eprintln!("{msg}");
         process::exit(1);
