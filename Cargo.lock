@@ -26,6 +26,7 @@ version = "0.1.0"
 name = "athena"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "calliope",
  "cobalt",
@@ -65,6 +66,7 @@ dependencies = [
 name = "calliope"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "logos",
 ]
@@ -81,6 +83,7 @@ dependencies = [
 name = "chronos"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "mercury",
  "sphinx",
@@ -125,6 +128,7 @@ version = "0.1.0"
 name = "hades"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
 ]
 
@@ -171,6 +175,7 @@ dependencies = [
 name = "kairos"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
 ]
 
@@ -210,6 +215,7 @@ dependencies = [
 name = "midas"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
 ]
 
@@ -299,6 +305,7 @@ dependencies = [
 name = "sphinx"
 version = "0.1.0"
 dependencies = [
+ "aci",
  "assay",
  "entropy",
 ]

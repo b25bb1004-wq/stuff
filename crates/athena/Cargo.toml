@@ -13,6 +13,7 @@ name = "athena"
 path = "src/bin/athena.rs"
 
 [dependencies]
+aci = { path = "../aci" }
 calliope = { path = "../calliope" }
 cobalt = { path = "../cobalt" }
 elysium = { path = "../elysium" }

@@ -5,7 +5,16 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[features]
+default = ["std"]
+std = ["dep:aci"]
+
+[[bin]]
+name = "hades"
+required-features = ["std"]
+
 [dependencies]
+aci = { path = "../aci", optional = true }
 
 [dev-dependencies]
 assay = { path = "../assay" }

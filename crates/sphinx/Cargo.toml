@@ -5,8 +5,17 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[features]
+default = ["std"]
+std = ["dep:aci"]
+
+[[bin]]
+name = "sphinx"
+required-features = ["std"]
+
 [dependencies]
 entropy = { path = "../entropy" }
+aci = { path = "../aci", optional = true }
 
 [dev-dependencies]
 assay = { path = "../assay" }

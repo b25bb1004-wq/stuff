@@ -70,6 +70,8 @@ pub fn parse_serve_args(args: &[String]) -> Result<Option<ServeArgs>, String> {
 pub struct Served {
     /// The running HTTP server. Stop it with `Server::stop`.
     pub server: Server,
+    /// The address the server listens on, such as `127.0.0.1:8480`.
+    pub listen: String,
     /// The address to open, with the token in `?t=`.
     pub url: String,
     /// The per-run token that every `/api/fs` request must carry.
@@ -141,8 +143,14 @@ pub fn start(folder: &Path, web: &Path, port: u16) -> Result<Served, String> {
         ..Config::default()
     };
     let server = Server::start(cfg, router).map_err(|e| format!("cannot listen on {addr}: {e}"))?;
+    let listen = server.local_addr().to_string();
     let url = format!("http://127.0.0.1:{}/?t={token}", server.local_addr().port());
-    Ok(Served { server, url, token })
+    Ok(Served {
+        server,
+        listen,
+        url,
+        token,
+    })
 }
 
 fn not_a_folder(folder: &Path) -> String {

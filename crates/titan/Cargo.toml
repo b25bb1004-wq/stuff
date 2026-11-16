@@ -6,9 +6,9 @@ license = "MIT"
 publish = false
 
 [dependencies]
-midas = { path = "../midas" }
+midas = { path = "../midas", default-features = false }
 kairos = { path = "../kairos", default-features = false }
-hades = { path = "../hades" }
+hades = { path = "../hades", default-features = false }
 krypton = { path = "../krypton", default-features = false }
 
 [build-dependencies]
