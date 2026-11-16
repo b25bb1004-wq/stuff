@@ -338,20 +338,67 @@ fn cmd_commit(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
         }
         i += 1;
     }
-    let msg = message.ok_or_else(|| CliError::Usage("commit requires -m MSG".to_string()))?;
-    if msg.is_empty() {
+    if message == Some("") {
         return Err(CliError::Op("commit message cannot be empty".to_string()));
     }
     let (root, mut repo) = open_repo(base_dir)?;
     if repo.status().is_empty() {
         return Err(CliError::Op("nothing to commit".to_string()));
     }
+    // Without -m the message comes from $EDITOR, as in git (checked after "nothing to commit").
+    let edited;
+    let msg = match message {
+        Some(m) => m,
+        None => {
+            edited = edit_message(&root)?;
+            edited.as_str()
+        }
+    };
     let sig = default_identity(&root);
     let id = repo
         .commit(msg, &sig)
         .map_err(|e| CliError::Op(format!("commit failed: {e}")))?;
     println!("{}", to_hex(&id));
     Ok(())
+}
+
+/// Ask `$EDITOR` (or `calliope`) for a commit message in `.chronos/COMMIT_EDITMSG`. Lines that
+/// start with `#` are dropped, as git does; an empty result aborts the commit.
+fn edit_message(root: &Path) -> Result<String, CliError> {
+    let path = root.join(".chronos").join("COMMIT_EDITMSG");
+    let template = "\n# Write the commit message above. Lines starting with # are ignored.\n# An empty message aborts the commit.\n";
+    fs::write(&path, template)
+        .map_err(|e| CliError::Op(format!("cannot write {}: {e}", path.display())))?;
+    let editor = env::var("EDITOR")
+        .ok()
+        .filter(|e| !e.trim().is_empty())
+        .unwrap_or_else(|| "calliope".to_string());
+    let mut parts = editor.split_whitespace();
+    let program = parts.next().unwrap_or("calliope");
+    let status = process::Command::new(program)
+        .args(parts)
+        .arg(&path)
+        .status()
+        .map_err(|e| CliError::Op(format!("cannot start editor '{editor}': {e}")))?;
+    if !status.success() {
+        return Err(CliError::Op(format!(
+            "editor '{editor}' exited with {status}; commit aborted"
+        )));
+    }
+    let text = fs::read_to_string(&path)
+        .map_err(|e| CliError::Op(format!("cannot read {}: {e}", path.display())))?;
+    let msg = text
+        .lines()
+        .filter(|line| !line.starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let msg = msg.trim().to_string();
+    if msg.is_empty() {
+        return Err(CliError::Op(
+            "empty commit message: commit aborted".to_string(),
+        ));
+    }
+    Ok(msg)
 }
 
 fn cmd_log(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {

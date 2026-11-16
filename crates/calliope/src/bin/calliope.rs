@@ -1,18 +1,25 @@
-//! CLI tool for calliope: linear-time regex grep and scripted multi-cursor editing.
-#![forbid(unsafe_code)]
+//! calliope: the terminal editor (`calliope [FILE]`) and a CLI for linear-time regex grep and
+//! scripted multi-cursor editing (`calliope grep`, `calliope edit`).
+#![deny(unsafe_code)]
+
+#[path = "calliope/tty.rs"]
+#[allow(unsafe_code)]
+mod tty;
 
 use std::env;
 use std::fs;
 use std::io::{self, Read, Write};
+use std::path::PathBuf;
 use std::process;
 
-use calliope::{Buffer, Cursor, Editor, Regex};
+use calliope::{ansi_changed, Buffer, Cursor, Editor, Regex, Screen, Session};
 
 const VERSION_STR: &str = "calliope 0.1.0";
 
 fn usage() -> &'static str {
     "\
 Usage:
+  calliope FILE                (open the editor; needs a terminal)
   calliope <subcommand> [args]
   calliope --help
   calliope --version
@@ -254,9 +261,14 @@ fn cmd_edit(args: &[String]) -> Result<(), CliError> {
 fn run() -> Result<(), CliError> {
     let args: Vec<String> = env::args().skip(1).collect();
     let Some(first) = args.first() else {
-        return Err(CliError::Usage(
-            "missing subcommand (try --help)".to_string(),
-        ));
+        // No arguments: the editor on a new buffer when run from a terminal.
+        return if tty::is_terminal() {
+            run_editor(&[])
+        } else {
+            Err(CliError::Usage(
+                "missing subcommand (try --help)".to_string(),
+            ))
+        };
     };
     match first.as_str() {
         "--help" | "-h" | "help" => {
@@ -276,10 +288,58 @@ fn run() -> Result<(), CliError> {
             match sub {
                 "grep" => cmd_grep(rest),
                 "edit" => cmd_edit(rest),
+                // A FILE name opens the editor, but only from a terminal: a script that asks
+                // for an unknown subcommand keeps getting the usage error.
+                other if !other.starts_with('-') && tty::is_terminal() => run_editor(&args),
                 other => Err(CliError::Usage(format!("unknown subcommand '{other}'"))),
             }
         }
     }
+}
+
+/// Open the terminal editor on the first of `files` (a new buffer when it does not exist yet).
+fn run_editor(files: &[String]) -> Result<(), CliError> {
+    let path = files.first().map(PathBuf::from);
+    if files.len() > 1 {
+        eprintln!(
+            "calliope: this version edits one file; ignoring {}",
+            files[1..].join(" ")
+        );
+    }
+    let bytes = match &path {
+        Some(p) if p.exists() => fs::read(p)
+            .map_err(|e| CliError::Op(format!("failed to read '{}': {e}", p.display())))?,
+        _ => Vec::new(),
+    };
+    let (width, height) = tty::size();
+    let mut session = Session::from_bytes(path, &bytes, width, height)
+        .map_err(|e| CliError::Op(e.to_string()))?;
+    let _terminal =
+        tty::enter().map_err(|e| CliError::Op(format!("cannot start the terminal editor: {e}")))?;
+    let mut previous: Option<Screen> = None;
+    loop {
+        let frame = session.render();
+        tty::write(&ansi_changed(previous.as_ref(), &frame))
+            .map_err(|e| CliError::Op(format!("failed to write to the terminal: {e}")))?;
+        previous = Some(frame);
+        if session.quit_requested() {
+            break;
+        }
+        let size = tty::size();
+        if size != session.size() {
+            session.resize(size.0, size.1);
+            previous = None;
+        }
+        match tty::read_events() {
+            None => break,
+            Some(events) => {
+                for ev in events {
+                    session.handle(ev);
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn main() {

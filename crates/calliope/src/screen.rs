@@ -48,7 +48,37 @@ fn sgr(st: Style) -> &'static str {
         Style::Error => "\x1b[31m",
         Style::Status => "\x1b[7m",
         Style::Match => "\x1b[43;30m",
+        Style::Selection => "\x1b[48;5;238m",
     }
+}
+
+/// Redraw only the rows that differ from `prev` (every row when there is no comparable previous
+/// frame), then place the cursor. Rows are exactly `width` cells, so no clearing is needed.
+pub fn ansi_changed(prev: Option<&Screen>, next: &Screen) -> String {
+    let prev = prev.filter(|p| p.rows.len() == next.rows.len());
+    let mut out = String::from("\x1b[?25l");
+    for (r, (row, styles)) in next.rows.iter().zip(next.styles.iter()).enumerate() {
+        if prev.is_some_and(|p| p.rows[r] == *row && p.styles[r] == *styles) {
+            continue;
+        }
+        let _ = write!(out, "\x1b[{};1H", r + 1);
+        let mut cur_style: Option<Style> = None;
+        for (ch, &st) in row.chars().zip(styles.iter()) {
+            if cur_style != Some(st) {
+                out.push_str(sgr(st));
+                cur_style = Some(st);
+            }
+            out.push(ch);
+        }
+        out.push_str("\x1b[0m");
+    }
+    let _ = write!(
+        out,
+        "\x1b[{};{}H\x1b[?25h",
+        next.cursor.0 + 1,
+        next.cursor.1 + 1
+    );
+    out
 }
 
 /// Compute visual column of char index `char_col` in `line` (expanding `\t` to multiples of 4).

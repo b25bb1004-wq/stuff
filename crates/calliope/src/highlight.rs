@@ -23,6 +23,8 @@ pub enum Style {
     Status,
     /// Search match highlight.
     Match,
+    /// Selected text in the editor.
+    Selection,
 }
 
 /// Compute one `Style` per byte of `text` based on the buffer `name`.
