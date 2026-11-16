@@ -10,34 +10,19 @@
 - At most one Gemini worker (through `bash tools/lane.sh <lane> <id>`) plus one Claude Haiku worker, on different crates. Lanes and rules: docs/PLAN.md section 2.
 
 ## Claude board (the leader's own work; `- [>]` doing, `- [ ]` next, `- [!]` blocked, `- [x]` done)
-- [x] T33 judge + bench fixes, commit 049e3f8
-- [x] T21 corpus (LLVM, validated), brief, leader check
-- [x] T82 CI workflow, green on ubuntu-latest
-- [x] T47 argo registry PASS (leader check: clippy fixes only)
-- [x] T21 chisel PASS (leader check fixed: hex li, x0)
-- [x] T22 chisel ELF PASS (first try)
-- [x] D1 docs/MEDUSA.md (Python reference, vectors, stats; check validated on a model)
-- [x] T14 sphinx Medusa PASS (first try)
-- [x] D2 docs/XENON.md, D3 docs/IRIDIUM.md (v1); T34, T39 retagged hydrogen-high (spec exact, saves Argon)
-- [x] T39 iridium pager: brief + leader check (own sector-loss disk, crash at every op), dispatched (hydrogen-high)
-- [x] T34 xenon PASS on retry 1 (ACK/PTO fix); chronos racing-pushers check fixed (reachability, not first-parent)
-- [x] T55 calliope app: brief + app_leader.rs (edit/motion tables, screens, scroll, files, Logos highlight, fuzz undo-all), dispatched (hydrogen)
-- [x] T48 aurum: exact brief (encodings, RFC 6962 Merkle, state root, append order) written; dispatched to one Haiku subagent (operator 2026-11-15); seam_leader.rs ready (lint vs stub, RFC 6962 model self-check OK)
-- [x] T13 silicon PASS: 110/110 official riscv-tests (leader updated 2 obsolete T12 PMP asserts)
-- [x] docs/TITAN.md v1 written by the leader (operator: Fable rewrite dropped); T25 dispatched to argon-high
-- [x] chronos concurrent push flake fixed (Barrier), in b27f121
-- [x] T31 silicon H extension: brief + hyp_leader.rs (own two-stage model, coverage 22% ok / 46% pf / 31% gpf), dispatched (argon-high)
-- [x] T40 iridium B+tree: brief + tree_leader.rs (own page parser), dispatched (hydrogen-high)
-- [x] T29a, T79c-g, T81a-d committed and pushed
-- [>] T50b aurum net: leader fix (redial stalled links) done, workspace gate running, then commit
-- [>] Judge Haiku soaks: T79m sphinx, T79n iridium (SQL depth fix), T79o odyssey (3 fixes), T79p calliope, T79q helios, T79r midas
-- [>] Judge hydrogen soaks T79h-l (fresh-seed long runs done), commit
-- [ ] Judge T30 cobalt optimiser (Haiku running); write opt_leader.rs
-- [x] T81e-h READMEs: output pasted, committed
-- [ ] Judge T63 iris compositor (hydrogen-high running); write facet_leader.rs
-- [ ] Judge T25 titan (Argon running); write mantle_leader.rs; ask operator for Argon %
-- [ ] Backlog: indium spring stall at low stiffness; helios tone() huge alloc and unbounded script log
-- [ ] Vault note + skills for this round
+- [x] Phase 1 (AI interface) closed 2026-11-16: 28 binaries, agents 55/60
+- [x] Plan: docs/ai-computer/plans/2026-11-16-harness-and-teaching.md (harness + teach Qwen3.8-27B, no weight training)
+- [x] H0 crates/monolith skeleton (types, CLI, pinned stubs), gate PASS
+- [>] Model download: Qwen3.8-27B-UD-IQ4_XS.gguf 14.35 GB into WSL ~/models (resumable, SHA-256 checked)
+- [>] Wave 1 (3 Haiku): A1 computer+journal, A2 llm client, A3 memory+suite
+- [ ] Wave 2: B1 actions+agent loop, B2 exam suites (24 train, 12 held-out, 4 memory chains)
+- [ ] Wave 3: C1 eval + report; installers list monolith
+- [ ] G1 start llama-server, measure tokens per second
+- [ ] R0 baseline exam (level 0)
+- [ ] R1 interface teaching exam (level 1)
+- [ ] R2a memory learning on train, R2b frozen memory on held-out + memory chains
+- [ ] R3 failure-driven fixes, rerun, final report
+- [ ] Vault note + morning report
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
@@ -506,3 +491,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | fix-aci-2 (chronos restore, calliope newline, krypton printf + manifest) | haiku | 175k | PASS | gates chronos/calliope/krypton rerun by leader; restore of deleted file byte-exact, missing path exit 1, newline edit right, printf 20000 bytes
 - 2026-11-16 | fix-aci-1 (titan kernel install, logos result, cobalt manifest, hades hint, pandora summary) | haiku | 193k | PASS | 5 gates rerun by leader; fresh sandbox install ships share/titan/kernel, ACI PASS 27/27
 - PHASE 1 CLOSED 2026-11-16: all 5 failed agent tasks (A1 t5 t13 t16 t28, A2 t29) re-run by leader on a fresh install and pass. Phase 1 worker tokens about 3.36M. Next: phase 2 plan (harness + computer, many computers at once, model-agnostic)
+- 2026-11-16 | HARNESS JOB START (operator: download a Qwen 27B, teach it to use Monolith, memory, tasks; plan then orchestrate) | leader | 0 | - | budget 1.6M Haiku tokens, cap 3, worktrees; GPU one job at a time; H0 skeleton by leader gate PASS

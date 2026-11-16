@@ -1,0 +1,13 @@
+[package]
+name = "monolith"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "A harness that gives a local AI model its own computer made of the Monolith tools"
+
+[dependencies]
+aci = { path = "../aci" }
+
+[lints]
+workspace = true

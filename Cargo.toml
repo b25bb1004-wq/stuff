@@ -35,6 +35,7 @@ members = [
     "crates/site",
     "crates/neon",
     "crates/titan",
+    "crates/monolith",
 ]
 
 [workspace.lints.rust]
