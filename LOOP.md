@@ -486,3 +486,5 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | ACI T5 iridium + iridium-cli | haiku | 197k | PASS | leader ran types, paging, errors, stdin, refused connection; gaps: no hint on parse/missing-table errors, no column types over the network
 - 2026-11-16 | ACI T8 hades, midas, kairos, sphinx | haiku | 240k budget | running | T3 chronos and T6 calliope+athena also running (cap 3 reached)
 - Tokens so far this phase-1 run (workers only): about 1.05M of the 2.5 to 3M phase estimate. Left to convert after this wave: T7, T9, T10, T11 (17 tools), then T12 simulated agents
+- 2026-11-16 | ACI T6 calliope + athena | haiku | 197k | PASS calliope; athena HELD | athena gate red because T8 made aci a hard dependency of hades, which titan builds without std; T8 worker told to put aci behind a std feature
+- 2026-11-16 | ACI T3 chronos | haiku | 117k | PASS | leader ran outside-repo, init, commit, status, diff, commit without -m, log, branch, -C; gaps: import/export/cat-file only smoke-tested, Op errors default to code invalid
