@@ -2,7 +2,6 @@
 
 mod builtins;
 mod external;
-mod pipe;
 mod pipeline;
 mod printf;
 mod redir;
@@ -83,6 +82,8 @@ pub struct Shell {
     pub(crate) flow: ControlFlow,
     pub(crate) suppress_errexit: bool,
     pub(crate) cmd_stderr: Option<Arc<Mutex<Vec<u8>>>>,
+    /// When set, external programs inherit the process's real stdin, stdout and stderr.
+    pub(crate) inherit_stdio: bool,
 }
 
 impl Default for Shell {
@@ -133,7 +134,23 @@ impl Shell {
             flow: ControlFlow::None,
             suppress_errexit: false,
             cmd_stderr: None,
+            inherit_stdio: false,
         }
+    }
+
+    /// Let child programs use the process's real console or terminal streams (interactive use).
+    pub fn set_inherit_stdio(&mut self, on: bool) {
+        self.inherit_stdio = on;
+    }
+
+    /// The shell's current working directory.
+    pub fn cwd(&self) -> &std::path::Path {
+        &self.cwd
+    }
+
+    /// Value of a shell variable (imported environment variables included), if set.
+    pub fn var(&self, name: &str) -> Option<&str> {
+        self.vars.get(name).map(String::as_str)
     }
 
     /// Set the shell's current working directory.
@@ -215,6 +232,7 @@ impl Shell {
             flow: ControlFlow::None,
             suppress_errexit: self.suppress_errexit,
             cmd_stderr: self.cmd_stderr.clone(),
+            inherit_stdio: self.inherit_stdio,
         }
     }
 

@@ -12,7 +12,6 @@ use crate::ast::{Part, Redir, RedirOp};
 use crate::expand::expand_one;
 use crate::types::{Env, ExpandError};
 
-use super::pipe::{MemReader, MemWriter};
 use super::{ControlFlow, Shell};
 
 /// Borrowed standard streams passed into [`Shell::run`].
@@ -30,8 +29,6 @@ pub(crate) enum FdTarget {
     ParentStderr,
     File(Arc<File>),
     MemRead(Arc<Mutex<Cursor<Vec<u8>>>>),
-    PipeRead(Arc<Mutex<MemReader>>),
-    PipeWrite(Arc<Mutex<MemWriter>>),
     BufWrite(Arc<Mutex<Vec<u8>>>),
     Closed,
 }
@@ -219,10 +216,7 @@ impl FdTable {
         };
         match target {
             FdTarget::ParentStdin => io.stdin.read(buf),
-            FdTarget::ParentStdout
-            | FdTarget::ParentStderr
-            | FdTarget::PipeWrite(_)
-            | FdTarget::BufWrite(_) => {
+            FdTarget::ParentStdout | FdTarget::ParentStderr | FdTarget::BufWrite(_) => {
                 Err(io::Error::other("file descriptor not open for reading"))
             }
             FdTarget::File(file) => {
@@ -231,10 +225,6 @@ impl FdTable {
             }
             FdTarget::MemRead(cur) => {
                 let mut guard = cur.lock().map_err(|_| io::Error::other("mutex poisoned"))?;
-                guard.read(buf)
-            }
-            FdTarget::PipeRead(pr) => {
-                let mut guard = pr.lock().map_err(|_| io::Error::other("mutex poisoned"))?;
                 guard.read(buf)
             }
             FdTarget::Closed => Ok(0),
@@ -260,16 +250,12 @@ impl FdTable {
                 io.stderr.write_all(data)?;
                 io.stderr.flush()
             }
-            FdTarget::ParentStdin | FdTarget::MemRead(_) | FdTarget::PipeRead(_) => {
+            FdTarget::ParentStdin | FdTarget::MemRead(_) => {
                 Err(io::Error::other("file descriptor not open for writing"))
             }
             FdTarget::File(file) => {
                 let mut f: &File = file;
                 f.write_all(data)
-            }
-            FdTarget::PipeWrite(pw) => {
-                let mut guard = pw.lock().map_err(|_| io::Error::other("mutex poisoned"))?;
-                guard.write_all(data)
             }
             FdTarget::BufWrite(buf) => {
                 let mut guard = buf.lock().map_err(|_| io::Error::other("mutex poisoned"))?;

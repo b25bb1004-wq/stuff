@@ -33,17 +33,25 @@ fn is_executable_file(path: &Path) -> bool {
     }
 }
 
-fn pathext_candidates(name: &str, pathext: Option<&str>) -> Vec<String> {
-    let mut out = vec![name.to_string()];
-    if cfg!(windows) {
-        let exts = pathext.unwrap_or(".COM;.EXE;.BAT;.CMD");
-        for ext in exts.split(';') {
-            if !ext.is_empty() {
-                out.push(format!("{name}{ext}"));
-            }
-        }
+/// File names to try for `name`. Windows never runs a bare extensionless file: it appends each
+/// `PATHEXT` extension unless the name already ends in one.
+fn pathext_candidates(name: &str, pathext: Option<&str>, windows: bool) -> Vec<String> {
+    if !windows {
+        return vec![name.to_string()];
     }
-    out
+    let exts: Vec<&str> = pathext
+        .unwrap_or(".COM;.EXE;.BAT;.CMD")
+        .split(';')
+        .filter(|e| !e.is_empty())
+        .collect();
+    let lower = name.to_ascii_lowercase();
+    let has_ext = exts
+        .iter()
+        .any(|e| lower.len() > e.len() && lower.ends_with(&e.to_ascii_lowercase()));
+    if has_ext {
+        return vec![name.to_string()];
+    }
+    exts.iter().map(|e| format!("{name}{e}")).collect()
 }
 
 /// Resolve an external command name using `PATH` (and `PATHEXT` on Windows).
@@ -74,7 +82,7 @@ pub(crate) fn find_in_path(
 
     let path_str = path_var.unwrap_or("");
     let sep = if cfg!(windows) { ';' } else { ':' };
-    let candidates = pathext_candidates(name, pathext);
+    let candidates = pathext_candidates(name, pathext, cfg!(windows));
     let mut saw_non_exec = false;
 
     for dir in path_str.split(sep) {
@@ -108,15 +116,93 @@ pub(crate) fn find_in_path(
     }
 }
 
-fn stdio_for_fd(target: Option<&FdTarget>) -> Stdio {
+fn stdio_for_fd(target: Option<&FdTarget>, inherit: bool) -> Stdio {
     match target {
         Some(FdTarget::File(f)) => f
             .try_clone()
             .map(Stdio::from)
             .unwrap_or_else(|_| Stdio::null()),
         Some(FdTarget::Closed) | None => Stdio::null(),
+        Some(FdTarget::ParentStdin | FdTarget::ParentStdout | FdTarget::ParentStderr)
+            if inherit =>
+        {
+            Stdio::inherit()
+        }
         _ => Stdio::piped(),
     }
+}
+
+/// Quote one argument for a Windows command line so CommandLineToArgvW reads it back unchanged.
+#[cfg(any(windows, test))]
+pub(crate) fn win_quote_arg(arg: &str) -> String {
+    if !arg.is_empty() && !arg.contains([' ', '\t', '"']) {
+        return arg.to_string();
+    }
+    let mut out = String::from("\"");
+    let mut backslashes = 0usize;
+    for c in arg.chars() {
+        match c {
+            '\\' => backslashes += 1,
+            '"' => {
+                out.extend(std::iter::repeat_n('\\', backslashes * 2 + 1));
+                out.push('"');
+                backslashes = 0;
+            }
+            _ => {
+                out.extend(std::iter::repeat_n('\\', backslashes));
+                out.push(c);
+                backslashes = 0;
+            }
+        }
+    }
+    out.extend(std::iter::repeat_n('\\', backslashes * 2));
+    out.push('"');
+    out
+}
+
+fn is_batch_file(path: &Path) -> bool {
+    cfg!(windows)
+        && path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("cmd") || e.eq_ignore_ascii_case("bat"))
+}
+
+/// Build the command for `exe`. A `.cmd`/`.bat` file runs through `cmd /d /s /c` on Windows.
+fn command_for(exe: &Path, args: &[String]) -> Result<Command, String> {
+    if is_batch_file(exe) {
+        return batch_command(exe, args);
+    }
+    let mut cmd = Command::new(exe);
+    cmd.args(args);
+    Ok(cmd)
+}
+
+#[cfg(windows)]
+fn batch_command(exe: &Path, args: &[String]) -> Result<Command, String> {
+    use std::os::windows::process::CommandExt;
+    // cmd.exe cannot quote % or " safely, and ! expands only with delayed expansion: refuse them.
+    if let Some(bad) = args
+        .iter()
+        .find(|a| a.contains(['%', '"', '!', '\r', '\n', '\0']))
+    {
+        return Err(format!("argument not safe for a batch file: {bad:?}"));
+    }
+    let mut line = win_quote_arg(&exe.to_string_lossy());
+    for arg in args {
+        line.push(' ');
+        line.push_str(&win_quote_arg(arg));
+    }
+    let comspec = std::env::var_os("ComSpec").unwrap_or_else(|| "cmd.exe".into());
+    let mut cmd = Command::new(comspec);
+    // /s keeps the quoting of the whole line, so only the outer pair of quotes is stripped.
+    cmd.raw_arg(format!("/d /s /c \"{line}\""));
+    Ok(cmd)
+}
+
+#[cfg(not(windows))]
+fn batch_command(_exe: &Path, _args: &[String]) -> Result<Command, String> {
+    Err("batch files only run on Windows".into())
 }
 
 fn copy_stream(reader: &mut dyn Read, writer: &mut dyn Write) {
@@ -141,12 +227,6 @@ fn spawn_out_thread(
     target: Option<FdTarget>,
 ) -> Option<thread::JoinHandle<Vec<u8>>> {
     match target {
-        Some(FdTarget::PipeWrite(pw)) => Some(thread::spawn(move || {
-            if let Ok(mut guard) = pw.lock() {
-                copy_stream(&mut reader, &mut *guard);
-            }
-            Vec::new()
-        })),
         Some(FdTarget::BufWrite(bw)) => Some(thread::spawn(move || {
             let mut local = Vec::new();
             copy_stream(&mut reader, &mut local);
@@ -193,8 +273,14 @@ pub(crate) fn run_external(
     let fd1 = fds.get(1).cloned();
     let fd2 = fds.get(2).cloned();
 
-    let mut cmd = Command::new(&exe_path);
-    cmd.args(args);
+    let inherit = shell.inherit_stdio;
+    let mut cmd = match command_for(&exe_path, args) {
+        Ok(c) => c,
+        Err(msg) => {
+            fds.write_err(io, &format!("krypton: {program}: {msg}\n"));
+            return 126;
+        }
+    };
     cmd.current_dir(&shell.cwd);
     cmd.env_clear();
     for name in &shell.exported {
@@ -206,9 +292,9 @@ pub(crate) fn run_external(
         cmd.env(k, v);
     }
 
-    cmd.stdin(stdio_for_fd(fd0.as_ref()));
-    cmd.stdout(stdio_for_fd(fd1.as_ref()));
-    cmd.stderr(stdio_for_fd(fd2.as_ref()));
+    cmd.stdin(stdio_for_fd(fd0.as_ref(), inherit));
+    cmd.stdout(stdio_for_fd(fd1.as_ref(), inherit));
+    cmd.stderr(stdio_for_fd(fd2.as_ref(), inherit));
 
     let mut child = match cmd.spawn() {
         Ok(c) => c,
@@ -235,11 +321,6 @@ pub(crate) fn run_external(
         match fd0 {
             Some(FdTarget::MemRead(cur)) => Some(thread::spawn(move || {
                 if let Ok(mut guard) = cur.lock() {
-                    copy_stream(&mut *guard, &mut cstdin);
-                }
-            })),
-            Some(FdTarget::PipeRead(pr)) => Some(thread::spawn(move || {
-                if let Ok(mut guard) = pr.lock() {
                     copy_stream(&mut *guard, &mut cstdin);
                 }
             })),
@@ -309,4 +390,143 @@ pub(crate) fn which(name: &str, shell: &Shell) -> Option<String> {
     find_in_path(name, path_var, pathext, &shell.cwd)
         .ok()
         .map(|p| p.to_string_lossy().into_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{find_in_path, pathext_candidates, win_quote_arg};
+    use std::format;
+    use std::path::Path;
+    use std::prelude::rust_2021::*;
+    use std::string::String;
+    use std::vec;
+    use std::vec::Vec;
+
+    /// Split a command line by the documented CommandLineToArgvW rules (MS C runtime).
+    fn argv_split(line: &str) -> Vec<String> {
+        let chars: Vec<char> = line.chars().collect();
+        let mut out = Vec::new();
+        let mut i = 0;
+        loop {
+            while i < chars.len() && (chars[i] == ' ' || chars[i] == '\t') {
+                i += 1;
+            }
+            if i >= chars.len() {
+                return out;
+            }
+            let mut cur = String::new();
+            let mut in_quotes = false;
+            while i < chars.len() {
+                let c = chars[i];
+                if c == '\\' {
+                    let mut n = 0;
+                    while i < chars.len() && chars[i] == '\\' {
+                        n += 1;
+                        i += 1;
+                    }
+                    if i < chars.len() && chars[i] == '"' {
+                        cur.extend(std::iter::repeat_n('\\', n / 2));
+                        if n % 2 == 1 {
+                            cur.push('"');
+                        } else {
+                            in_quotes = !in_quotes;
+                        }
+                        i += 1;
+                    } else {
+                        cur.extend(std::iter::repeat_n('\\', n));
+                    }
+                } else if c == '"' {
+                    in_quotes = !in_quotes;
+                    i += 1;
+                } else if (c == ' ' || c == '\t') && !in_quotes {
+                    break;
+                } else {
+                    cur.push(c);
+                    i += 1;
+                }
+            }
+            out.push(cur);
+        }
+    }
+
+    #[test]
+    fn quoting_matches_documented_examples() {
+        assert_eq!(win_quote_arg("plain"), "plain");
+        assert_eq!(win_quote_arg(""), "\"\"");
+        assert_eq!(win_quote_arg("a b"), "\"a b\"");
+        assert_eq!(win_quote_arg("a\"b"), "\"a\\\"b\"");
+        assert_eq!(win_quote_arg("a b\\"), "\"a b\\\\\"");
+        assert_eq!(win_quote_arg("C:\\dir\\"), "C:\\dir\\");
+    }
+
+    #[test]
+    fn quoted_arguments_round_trip_through_argv_rules() {
+        let cases = [
+            "",
+            "plain",
+            "two words",
+            "a\"b",
+            "trailing\\",
+            "dir with space\\",
+            "back\\\\\"slash",
+            "q\"",
+            "\"",
+            "\\\"",
+            "tab\tin",
+            "x\\\\",
+            "a b\\\\\\\"c d",
+            "\\",
+            " lead",
+            "end ",
+            "C:\\Program Files\\App\\",
+            "%PATH% & | < > ^",
+        ];
+        for case in cases {
+            let line = win_quote_arg(case);
+            assert_eq!(
+                argv_split(&line),
+                vec![case.to_string()],
+                "{case:?} as {line}"
+            );
+        }
+        let args = ["one", "two words", "q\"x", "end\\"];
+        let line: Vec<String> = args.iter().map(|a| win_quote_arg(a)).collect();
+        let back = argv_split(&line.join(" "));
+        assert_eq!(back, args.iter().map(|a| a.to_string()).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn windows_candidates_use_pathext_and_never_a_bare_name() {
+        let exts = Some(".EXE;.CMD");
+        assert_eq!(
+            pathext_candidates("foo", exts, true),
+            ["foo.EXE", "foo.CMD"]
+        );
+        assert_eq!(pathext_candidates("foo.cmd", exts, true), ["foo.cmd"]);
+        assert_eq!(pathext_candidates("FOO.exe", exts, true), ["FOO.exe"]);
+        assert_eq!(pathext_candidates("foo", None, true).len(), 4);
+        assert_eq!(pathext_candidates("foo", exts, false), ["foo"]);
+    }
+
+    #[test]
+    fn path_lookup_finds_real_files_in_a_temp_dir() {
+        let dir = std::env::temp_dir().join(format!("krypton-path-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        let tool = if cfg!(windows) { "tool.cmd" } else { "tool" };
+        let plain = if cfg!(windows) { "bare" } else { "notexec" };
+        let _ = std::fs::write(dir.join(tool), "@echo off\r\n");
+        let _ = std::fs::write(dir.join(plain), "data");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ =
+                std::fs::set_permissions(dir.join(tool), std::fs::Permissions::from_mode(0o755));
+        }
+        let path = dir.to_string_lossy().into_owned();
+        let found = find_in_path("tool", Some(&path), Some(".CMD"), Path::new("."));
+        let missing = find_in_path(plain, Some(&path), Some(".CMD"), Path::new("."));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(found.is_ok(), "tool should resolve: {found:?}");
+        assert_eq!(missing.err(), Some(if cfg!(windows) { 127 } else { 126 }));
+    }
 }

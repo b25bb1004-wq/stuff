@@ -1,14 +1,14 @@
 //! Pipeline concurrency and background job management.
 
 use std::format;
-use std::io;
+use std::fs::File;
+use std::io::{self};
 use std::prelude::rust_2021::*;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use crate::ast::{AndOr, Pipeline};
 
-use super::pipe::mem_pipe;
 use super::redir::{FdTable, FdTarget, IoStreams};
 use super::{ControlFlow, Shell};
 
@@ -81,6 +81,110 @@ fn sanitize_fds_for_thread(base: &FdTable, err_buf: &Arc<Mutex<Vec<u8>>>) -> FdT
     out
 }
 
+/// OS pipe end as a `File`, so a shell file descriptor can hold it.
+#[cfg(unix)]
+fn pipe_end(fd: impl Into<std::os::fd::OwnedFd>) -> File {
+    File::from(fd.into())
+}
+
+/// OS pipe end as a `File`, so a shell file descriptor can hold it.
+#[cfg(windows)]
+fn pipe_end(fd: impl Into<std::os::windows::io::OwnedHandle>) -> File {
+    File::from(fd.into())
+}
+
+/// Run a multi-command pipeline: stages 1.. run on threads, stage 0 runs on this thread with the
+/// caller's streams. Stages are joined by real OS pipes. Interactive shells let every stage
+/// inherit the process streams; otherwise the last stage's output is buffered and written back
+/// to the caller once all stages finish.
+fn run_stages(
+    shell: &mut Shell,
+    pipe: &Pipeline,
+    fds: &mut FdTable,
+    io: &mut IoStreams<'_>,
+) -> io::Result<i32> {
+    let n = pipe.cmds.len();
+    let inherit = shell.inherit_stdio;
+    let mut pipes = Vec::with_capacity(n - 1);
+    for _ in 1..n {
+        let (r, w) = io::pipe()?;
+        pipes.push((Arc::new(pipe_end(r)), Arc::new(pipe_end(w))));
+    }
+    let last_out = Arc::new(Mutex::new(Vec::new()));
+    let mut err_bufs = Vec::with_capacity(n);
+    let mut handles = Vec::with_capacity(n);
+
+    for idx in 1..n {
+        let mut stage_fds = fds.clone();
+        stage_fds.insert(0, FdTarget::File(Arc::clone(&pipes[idx - 1].0)));
+        if idx + 1 < n {
+            stage_fds.insert(1, FdTarget::File(Arc::clone(&pipes[idx].1)));
+        } else if !inherit && matches!(fds.get(1), Some(FdTarget::ParentStdout) | None) {
+            stage_fds.insert(1, FdTarget::BufWrite(Arc::clone(&last_out)));
+        }
+        let err_buf = Arc::new(Mutex::new(Vec::new()));
+        if !inherit {
+            stage_fds = sanitize_fds_for_thread(&stage_fds, &err_buf);
+        }
+        err_bufs.push(err_buf);
+
+        let mut sub = shell.clone_subshell();
+        sub.suppress_errexit = sub.suppress_errexit || pipe.bang;
+        let cmd = pipe.cmds[idx].clone();
+        handles.push(thread::spawn(move || {
+            if inherit {
+                let (mut si, mut so, mut se) = (io::stdin(), io::stdout(), io::stderr());
+                let mut stage_io = IoStreams {
+                    stdin: &mut si,
+                    stdout: &mut so,
+                    stderr: &mut se,
+                };
+                sub.exec_command(&cmd, &mut stage_fds, &mut stage_io)
+            } else {
+                let (mut empty_in, mut sink_out, mut sink_err) =
+                    (io::empty(), io::sink(), io::sink());
+                let mut stage_io = IoStreams {
+                    stdin: &mut empty_in,
+                    stdout: &mut sink_out,
+                    stderr: &mut sink_err,
+                };
+                sub.exec_command(&cmd, &mut stage_fds, &mut stage_io)
+            }
+        }));
+    }
+
+    // Stage 0 writes into the first pipe on this thread; its end is dropped when it finishes.
+    let mut stage0 = shell.clone_subshell();
+    stage0.suppress_errexit = stage0.suppress_errexit || pipe.bang;
+    let mut stage0_fds = fds.clone();
+    stage0_fds.insert(1, FdTarget::File(Arc::clone(&pipes[0].1)));
+    let _ = stage0.exec_command(&pipe.cmds[0], &mut stage0_fds, io);
+    drop(stage0_fds);
+    // The coordinator keeps no pipe ends, so EOF and broken pipes reach the stages.
+    drop(pipes);
+
+    let mut last_st = 0;
+    for (idx, h) in handles.into_iter().enumerate() {
+        let st = h.join().unwrap_or(1);
+        if idx + 2 == n {
+            last_st = st;
+        }
+    }
+    if let Ok(out_data) = last_out.lock() {
+        if !out_data.is_empty() {
+            let _ = fds.write_fd(1, io, &out_data);
+        }
+    }
+    for eb in err_bufs {
+        if let Ok(err_data) = eb.lock() {
+            if !err_data.is_empty() {
+                let _ = fds.write_fd(2, io, &err_data);
+            }
+        }
+    }
+    Ok(last_st)
+}
+
 /// Execute a pipeline (`[!] cmd1 | cmd2 ...`), updating `shell.last_status`.
 pub(crate) fn exec_pipeline(
     shell: &mut Shell,
@@ -99,86 +203,13 @@ pub(crate) fn exec_pipeline(
         shell.suppress_errexit = prev_suppress;
         st
     } else {
-        let mut readers = Vec::with_capacity(n - 1);
-        let mut writers = Vec::with_capacity(n - 1);
-        for _ in 0..(n - 1) {
-            let (r, w) = mem_pipe(65536);
-            readers.push(Arc::new(Mutex::new(r)));
-            writers.push(Arc::new(Mutex::new(w)));
-        }
-
-        let last_out_buf = Arc::new(Mutex::new(Vec::new()));
-        let mut err_bufs = Vec::with_capacity(n - 1);
-        let mut handles = Vec::with_capacity(n - 1);
-
-        for idx in 1..n {
-            let cmd = pipe.cmds[idx].clone();
-            let mut sub = shell.clone_subshell();
-            if pipe.bang {
-                sub.suppress_errexit = true;
-            }
-            let err_buf = Arc::new(Mutex::new(Vec::new()));
-            let mut stage_fds = sanitize_fds_for_thread(fds, &err_buf);
-            stage_fds.insert(0, FdTarget::PipeRead(Arc::clone(&readers[idx - 1])));
-            if idx + 1 < n {
-                stage_fds.insert(1, FdTarget::PipeWrite(Arc::clone(&writers[idx])));
-            } else if matches!(stage_fds.get(1), Some(FdTarget::ParentStdout) | None) {
-                stage_fds.insert(1, FdTarget::BufWrite(Arc::clone(&last_out_buf)));
-            } else if matches!(stage_fds.get(1), Some(FdTarget::ParentStderr)) {
-                stage_fds.insert(1, FdTarget::BufWrite(Arc::clone(&err_buf)));
-            }
-            err_bufs.push(err_buf);
-
-            let h = thread::spawn(move || {
-                let mut empty_in = io::empty();
-                let mut sink_out = io::sink();
-                let mut sink_err = io::sink();
-                let mut stage_io = IoStreams {
-                    stdin: &mut empty_in,
-                    stdout: &mut sink_out,
-                    stderr: &mut sink_err,
-                };
-                sub.exec_command(&cmd, &mut stage_fds, &mut stage_io)
-            });
-            handles.push(h);
-        }
-
-        // Drop unused pipe ends in the coordinator so EOF / BrokenPipe propagate.
-        drop(readers);
-        let first_writer = writers.remove(0);
-        drop(writers);
-
-        let mut stage0 = shell.clone_subshell();
-        if pipe.bang {
-            stage0.suppress_errexit = true;
-        }
-        let mut stage0_fds = fds.clone();
-        stage0_fds.insert(1, FdTarget::PipeWrite(first_writer));
-        let _ = stage0.exec_command(&pipe.cmds[0], &mut stage0_fds, io);
-        drop(stage0_fds);
-
-        let mut last_st = 0;
-        for (i, h) in handles.into_iter().enumerate() {
-            let st = h.join().unwrap_or(1);
-            if i + 2 == n {
-                last_st = st;
+        match run_stages(shell, pipe, fds, io) {
+            Ok(st) => st,
+            Err(e) => {
+                fds.write_err(io, &format!("krypton: pipe: {e}\n"));
+                1
             }
         }
-
-        if let Ok(out_data) = last_out_buf.lock() {
-            if !out_data.is_empty() {
-                let _ = fds.write_fd(1, io, &out_data);
-            }
-        }
-        for eb in err_bufs {
-            if let Ok(err_data) = eb.lock() {
-                if !err_data.is_empty() {
-                    let _ = fds.write_fd(2, io, &err_data);
-                }
-            }
-        }
-
-        last_st
     };
 
     let final_status = if pipe.bang {

@@ -1,10 +1,13 @@
 //! `krypton` POSIX shell binary.
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
-use std::io::{self, BufRead, IsTerminal, Read, Write};
+use std::io::{self, BufRead, Read, Write};
 use std::process::ExitCode;
 
 use krypton::exec::Shell;
+
+mod interactive;
+mod term;
 
 fn print_help() {
     let msg = "\
@@ -171,10 +174,7 @@ fn main() -> ExitCode {
                 &mut stdout,
                 &mut stderr,
             ),
-            None => {
-                let _ = stdin.is_terminal();
-                run_interactive(&mut shell)
-            }
+            None => interactive::run(&mut shell).unwrap_or_else(|| run_interactive(&mut shell)),
         },
         Some(opt) if opt.starts_with('-') => {
             let _ = writeln!(stderr, "krypton: unknown option: {opt}");
@@ -188,10 +188,7 @@ fn main() -> ExitCode {
             &mut stdout,
             &mut stderr,
         ),
-        None => {
-            let _ = stdin.is_terminal();
-            run_interactive(&mut shell)
-        }
+        None => interactive::run(&mut shell).unwrap_or_else(|| run_interactive(&mut shell)),
     };
 
     ExitCode::from((code & 0xff) as u8)
