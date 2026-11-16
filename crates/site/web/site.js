@@ -3,6 +3,12 @@
 
   const STEPS_PER_FRAME = 2000000n;
   const LOGOS_FUEL = 1000000n;
+  /* Titan's boot session: typed in order once the shell prompt is up, mirrored in the die log. */
+  const TITAN_SCRIPT = ["ls /", "cat /hello.txt", "echo hello from the board"];
+  const DIE_LINES = 8;
+  /* The pane never draws smaller than a phone-sized console; on desktop it is the die rect exactly. */
+  const PANE_MIN_W = 280;
+  const PANE_MIN_H = 260;
 
   const LOGOS_EXAMPLES = {
     hello:
@@ -21,6 +27,8 @@
   const canvas = document.getElementById("board");
   const chipLabel = document.getElementById("chip-label");
   const pane = document.getElementById("demo-pane");
+  const dieLog = document.getElementById("die-log");
+  const dieText = document.getElementById("die-text");
   const openTerminal = document.getElementById("open-terminal");
   const holder = document.getElementById("term-holder");
   const wasmStatus = document.getElementById("wasm-status");
@@ -38,6 +46,10 @@
   let titanBox = null;
   let titanTerm = null;
   let titanBoot = null;
+  let titanBooted = false;
+  let scriptQueue = [];
+  let dieLines = [];
+  let dieTail = "";
   let feedStop = null;
 
   function reduced() {
@@ -252,13 +264,9 @@
   /* Titan's terminal lives in a hidden holder from page load, so the machine keeps running and
   the board's events keep flowing; the pane moves it in while Titan is open. */
   function renderTitanDemo() {
-    const box = createEl("div", "demo-box");
-    const bar = createEl("div", "demo-bar");
-    const label = createEl("span", "demo-label", "Titan UART console");
-    const status = createEl("span", "demo-status", "waiting for viewport");
-    bar.appendChild(label);
-    bar.appendChild(status);
+    const box = createEl("div", "demo-box titan-box");
 
+    /* Term.mount owns the one status line (.term-status); the pump only reports busy, waiting or done. */
     const termRoot = createEl("div", "titan-term");
     titanTerm = Term.mount(termRoot, {
       send(line) {
@@ -273,28 +281,26 @@
         const rc = wasmExports.titan_pump(STEPS_PER_FRAME);
         const outLen = wasmExports.titan_output();
         const text = outLen > 0 ? readNeonLast(wasmExports, outLen) : "";
+        noteOutput(text);
         if (rc === 1) {
-          status.className = "demo-status";
-          status.textContent = "running";
+          return { status: "busy", text };
+        }
+        if (rc === 0 && scriptQueue.length > 0) {
+          const cmd = scriptQueue.shift();
+          titanTerm.append(`${cmd}\n`, "user-cmd");
+          noteOutput(`${cmd}\n`);
+          withGuestBytes(wasmExports, encoder.encode(cmd), (ptr, len) =>
+            wasmExports.titan_send(ptr, len)
+          );
           return { status: "busy", text };
         }
         if (rc === 0) {
-          status.className = "demo-status is-ok";
-          status.textContent = "waiting for input";
           return { status: "waiting", text };
-        }
-        if (rc >= 2) {
-          status.className = "demo-status";
-          status.textContent = `exited (${rc - 2})`;
-        } else {
-          status.className = "demo-status is-bad";
-          status.textContent = "not booted";
         }
         return { status: "done", text };
       }
     });
 
-    box.appendChild(bar);
     box.appendChild(termRoot);
 
     let booting = false;
@@ -303,8 +309,6 @@
         return;
       }
       booting = true;
-      status.className = "demo-status";
-      status.textContent = "loading kernel…";
       try {
         const wasm = await ensureWasm();
         const elfResp = await fetch("titan.elf");
@@ -317,21 +321,52 @@
           const errLen = wasm.neon_last_len();
           throw new Error(readNeonLast(wasm, errLen) || "titan_boot failed");
         }
-        status.textContent = "booting…";
-        titanTerm.start();
+        titanBooted = true;
+        runTitanScript();
         if (window.Feed && !feedStop) {
           feedStop = window.Feed.start(wasmApi, emitBoard);
         }
       } catch (err) {
         booting = false;
-        status.className = "demo-status is-bad";
-        status.textContent = "failed";
         titanTerm.append(`
 [titan error] ${err && err.message ? err.message : String(err)}
 `);
       }
     };
     return box;
+  }
+
+  /* Keeps the last DIE_LINES lines of Titan's output (a partial line counts as the last one). */
+  function noteOutput(text) {
+    if (!text) {
+      return;
+    }
+    const parts = (dieTail + text).split("\n");
+    dieTail = parts.pop();
+    dieLines = dieLines.concat(parts).slice(-DIE_LINES);
+    dieText.textContent = dieLines.concat(dieTail ? [dieTail] : []).slice(-DIE_LINES).join("\n");
+  }
+
+  /* The boot session, typed through the same path as a user's line; run again by the pane's Run again. */
+  function runTitanScript() {
+    scriptQueue = scriptQueue.concat(TITAN_SCRIPT);
+    if (titanTerm) {
+      titanTerm.start();
+    }
+  }
+
+  /* The die log sits over Titan's chip on the board, and only while no chip is open. */
+  function placeDie() {
+    const r = board && !selectedId ? rectOf("titan") : null;
+    if (!r) {
+      dieLog.hidden = true;
+      return;
+    }
+    dieLog.style.left = `${r.x}px`;
+    dieLog.style.top = `${r.y}px`;
+    dieLog.style.width = `${r.w}px`;
+    dieLog.style.height = `${r.h}px`;
+    dieLog.hidden = false;
   }
 
   function renderLogosDemo() {
@@ -468,7 +503,11 @@
   function runnerFor(el) {
     if (el === titanBox) {
       return () => {
-        titanBoot();
+        if (titanBooted) {
+          runTitanScript();
+        } else {
+          titanBoot();
+        }
         titanTerm.focus();
       };
     }
@@ -498,10 +537,20 @@
       return;
     }
     pane.classList.remove("is-static");
-    pane.style.left = `${r.x}px`;
-    pane.style.top = `${r.y}px`;
-    pane.style.width = `${r.w}px`;
-    pane.style.height = `${r.h}px`;
+    const wrap = canvas.parentNode;
+    const w = Math.max(r.w, PANE_MIN_W);
+    const h = Math.max(r.h, PANE_MIN_H);
+    const x = Math.min(Math.max(r.x, 0), Math.max(0, wrap.clientWidth - w));
+    const y = Math.min(Math.max(r.y, 0), Math.max(0, wrap.clientHeight - h));
+    pane.style.left = `${x}px`;
+    pane.style.top = `${y}px`;
+    pane.style.width = `${w}px`;
+    pane.style.height = `${h}px`;
+  }
+
+  function placeOverlays() {
+    placePane();
+    placeDie();
   }
 
   function showLabel(id) {
@@ -522,6 +571,7 @@
       holder.appendChild(titanBox);
     }
     pane.replaceChildren();
+    pane.classList.remove("is-titan");
     pane.hidden = true;
   }
 
@@ -541,10 +591,18 @@
     back.addEventListener("click", goBack);
     actions.append(again, app, back);
 
+    /* One header row (name and actions) stays at the top; the body below is the only scroll area. */
     const head = createEl("div", "pane-head");
-    head.append(title, createEl("p", "pane-what", sys.line));
-    pane.replaceChildren(head, actions, ...demos.map((d) => d.el));
+    head.append(title, actions);
+    const isTitan = sys.demo === "titan";
+    pane.classList.toggle("is-titan", isTitan);
+    const body = [head];
+    if (!isTitan) {
+      body.push(createEl("p", "pane-what", sys.line));
+    }
+    pane.replaceChildren(...body, ...demos.map((d) => d.el));
     pane.hidden = false;
+    placeDie();
     placePane();
     if (window.Motion) {
       Motion.enter(pane, { curve: "firm", dist: 1 });
@@ -600,6 +658,7 @@
     } catch (err) {
       /* The board stays where it is; the list below still works. */
     }
+    placeDie();
     board.focus(id);
   }
 
@@ -635,6 +694,7 @@
       }
     }
     hero.classList.toggle("no-board", board === null);
+    placeDie();
   }
 
   /* Colours are read at mount, so a theme change remounts the board and keeps the open chip. */
@@ -644,7 +704,7 @@
     if (board && id) {
       Promise.resolve()
         .then(() => board.zoomTo(id))
-        .then(placePane, () => {});
+        .then(placeOverlays, () => {});
     }
   }
 
@@ -678,7 +738,11 @@
       }
     });
 
-    window.addEventListener("resize", placePane);
+    window.addEventListener("resize", placeOverlays);
+    /* Chip rects are read before the first layout pass on some loads; the wrap's size settling re-places them. */
+    if (window.ResizeObserver) {
+      new ResizeObserver(placeOverlays).observe(canvas.parentNode);
+    }
 
     const scheme = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
     if (scheme && scheme.addEventListener) {

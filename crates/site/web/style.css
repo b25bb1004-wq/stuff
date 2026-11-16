@@ -58,6 +58,11 @@
   color-scheme: dark;
 }
 
+/* The author display rules below would otherwise win over the hidden attribute (a 26 px pane at 0,0). */
+[hidden] {
+  display: none !important;
+}
+
 *,
 *::before,
 *::after {
@@ -103,51 +108,32 @@ body {
   left: 12px;
 }
 
-/* The hero is the board: 100 percent of the screen height, the canvas fills it. */
+/* The hero is the board: a header band in the page flow, then the canvas filling the rest of 100 percent of the screen. */
 .hero {
-  position: relative;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   height: 100svh;
-  min-height: 520px;
+  min-height: 560px;
   overflow: hidden;
   background: var(--mask);
 }
 
-.board-wrap {
-  position: absolute;
-  inset: 0;
-}
-
-#board {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* Headline, action and status sit over the board's top-left and top-right corners. */
 .board-head {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  flex: 0 0 auto;
+  position: relative;
   z-index: 2;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
+  gap: 12px 16px;
   padding: 16px;
-  pointer-events: none;
-}
-
-.board-head > * {
-  pointer-events: auto;
+  background: var(--mask);
 }
 
 .board-title {
-  max-width: 28ch;
+  max-width: 34ch;
 }
 
 .board-title h1 {
@@ -180,6 +166,48 @@ body {
   color: var(--silk-dim);
 }
 
+.board-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 320px;
+  overflow: hidden;
+}
+
+#board {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Titan's live console over its die: the last eight output lines, read-only, newest at the bottom. */
+.die-log {
+  position: absolute;
+  z-index: 1;
+  margin: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  background: var(--mask-deep);
+  color: var(--silk);
+  border: 1px solid var(--copper);
+  border-radius: 3px;
+}
+
+.die-log pre {
+  margin: 0;
+  font-family: var(--f-code);
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: pre;
+  overflow: hidden;
+}
+
 .chip-label {
   position: absolute;
   z-index: 2;
@@ -198,7 +226,7 @@ body {
   font-weight: 700;
 }
 
-/* One demo pane, placed over the open chip. */
+/* One demo pane, placed over the open chip (its box is the chip's zoomed rect). */
 .demo-pane {
   position: absolute;
   z-index: 3;
@@ -213,6 +241,11 @@ body {
   border-radius: 3px;
 }
 
+/* Titan: header row, then one console that fills the rest; nothing else scrolls. */
+.demo-pane.is-titan {
+  overflow: hidden;
+}
+
 .demo-pane.is-static {
   position: static;
   width: auto;
@@ -222,28 +255,23 @@ body {
 }
 
 .pane-head {
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 4px 12px;
+  gap: 8px 12px;
 }
 
 .pane-title {
   margin: 0;
   font-family: var(--f-display);
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1.2;
 }
 
 .pane-title:focus {
   outline: none;
-}
-
-.pane-what {
-  margin: 0;
-  font-size: 14px;
-  color: var(--silk-dim);
 }
 
 .pane-actions {
@@ -252,22 +280,62 @@ body {
   gap: 8px;
 }
 
-/* A board that is missing (or throws) leaves the list view: the hero shrinks to the headline. */
+.demo-pane.is-titan > .demo-box {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.titan-term {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.titan-term .term-out {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.term-status {
+  flex: 0 0 auto;
+  font-family: var(--f-code);
+  font-size: 13px;
+  color: var(--silk-dim);
+}
+
+/* No board (or no JS): the hero shrinks to the headline and the list; the pane sits in the page flow. */
 .hero.no-board {
   height: auto;
   min-height: 0;
+  display: block;
   overflow: visible;
 }
 
 .hero.no-board .board-wrap,
 .no-js .board-wrap {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.hero.no-board #board,
+.hero.no-board #die-log,
+.no-js #board,
+.no-js #die-log {
   display: none;
 }
 
-.hero.no-board .board-head,
-.no-js .board-head {
-  position: static;
-  padding: 24px 16px 0;
+.no-js .hero {
+  height: auto;
+  min-height: 0;
+  display: block;
 }
 
 .no-js #open-terminal,
@@ -449,6 +517,7 @@ button:disabled {
 }
 
 .term-form {
+  flex: 0 0 auto;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;

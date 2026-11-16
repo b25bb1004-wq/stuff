@@ -12,10 +12,6 @@
 
   <main id="top">
     <section class="hero" id="hero" aria-label="The board">
-      <div class="board-wrap" id="board-wrap">
-        <canvas id="board"></canvas>
-      </div>
-
       <header class="board-head">
         <div class="board-title">
           <h1>Monolith</h1>
@@ -28,8 +24,12 @@
         </div>
       </header>
 
-      <p class="chip-label" id="chip-label" hidden></p>
-      <div class="demo-pane" id="demo-pane" hidden></div>
+      <div class="board-wrap" id="board-wrap">
+        <canvas id="board"></canvas>
+        <div class="die-log" id="die-log" hidden aria-hidden="true"><pre id="die-text"></pre></div>
+        <p class="chip-label" id="chip-label" hidden></p>
+        <div class="demo-pane" id="demo-pane" hidden></div>
+      </div>
     </section>
 
     <nav class="system-list" id="systems" aria-labelledby="systems-title">
