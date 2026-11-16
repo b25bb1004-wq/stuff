@@ -253,7 +253,11 @@ fn as_table_col(
 
 fn expr_uses_only_outer(expr: &Expr, ctx: &EvalCtx<'_>, table_idx: usize) -> Result<bool, Error> {
     match &expr.kind {
-        ExprKind::Null | ExprKind::IntLit(_) | ExprKind::Text(_) | ExprKind::Blob(_) => Ok(true),
+        ExprKind::Null
+        | ExprKind::IntLit(_)
+        | ExprKind::RealLit(_)
+        | ExprKind::Text(_)
+        | ExprKind::Blob(_) => Ok(true),
         ExprKind::Column { table, name, pos } => {
             let (idx, _) = ctx.resolve_col(table.as_deref(), name, *pos)?;
             Ok(idx < table_idx)

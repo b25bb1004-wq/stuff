@@ -405,6 +405,16 @@ fn parse_primary(p: &mut Parser) -> Result<Expr, Error> {
                 },
             })
         }
+        TokenKind::Real(digits) => {
+            p.advance();
+            Ok(Expr {
+                kind: ExprKind::RealLit(digits),
+                span: Span {
+                    start: tok.pos,
+                    end: tok.end,
+                },
+            })
+        }
         TokenKind::Text(s) => {
             p.advance();
             Ok(Expr {

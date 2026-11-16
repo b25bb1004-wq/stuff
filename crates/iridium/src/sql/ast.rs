@@ -25,6 +25,7 @@ pub(crate) enum Stmt {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ColType {
     Integer,
+    Real,
     Text,
     Blob,
 }
@@ -139,6 +140,7 @@ pub(crate) struct Expr {
 pub(crate) enum ExprKind {
     Null,
     IntLit(String),
+    RealLit(String),
     Text(String),
     Blob(Vec<u8>),
     Column {

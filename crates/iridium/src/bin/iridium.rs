@@ -41,6 +41,14 @@ fn format_value(val: &Value) -> String {
     match val {
         Value::Null => "NULL".to_owned(),
         Value::Int(n) => n.to_string(),
+        Value::Real(f) => {
+            let s = format!("{f}");
+            if f.is_finite() && !s.contains(['.', 'e', 'E']) {
+                format!("{s}.0")
+            } else {
+                s
+            }
+        }
         Value::Text(s) => s.clone(),
         Value::Blob(bytes) => {
             let mut out = String::with_capacity(3 + bytes.len() * 2);

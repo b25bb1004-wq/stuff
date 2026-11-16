@@ -317,6 +317,9 @@ fn parse_limit_int(v: &Value) -> Result<Option<i64>, Error> {
     match v {
         Value::Null => Ok(None),
         Value::Int(n) => Ok(Some(*n)),
+        // Only a REAL with an exact integer value is accepted, as in SQLite.
+        Value::Real(f) if f.fract() == 0.0 && f.abs() < 9.2e18 => Ok(Some(*f as i64)),
+        Value::Real(_) => Err(Error::Type),
         Value::Text(s) => s.trim().parse::<i64>().map(Some).map_err(|_| Error::Type),
         Value::Blob(_) => Err(Error::Type),
     }

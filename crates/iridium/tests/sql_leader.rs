@@ -19,6 +19,7 @@ fn enc(v: &Value) -> String {
     match v {
         Value::Null => "N".into(),
         Value::Int(i) => format!("I{i}"),
+        Value::Real(f) => format!("R{}", f.to_bits()),
         Value::Text(t) => format!("T{}", assay::to_hex(t.as_bytes())),
         Value::Blob(b) => format!("B{}", assay::to_hex(b)),
     }
@@ -135,16 +136,24 @@ fn rand_value(r: &mut Rng) -> Value {
     }
 }
 
-/// SQLite order: NULL < INTEGER < TEXT < BLOB; text and blobs bytewise.
+/// SQLite order: NULL < numbers (INTEGER and REAL compared numerically) < TEXT < BLOB; text and blobs bytewise.
 fn sql_cmp(a: &Value, b: &Value) -> Ordering {
     let rank = |v: &Value| match v {
         Value::Null => 0,
-        Value::Int(_) => 1,
+        Value::Int(_) | Value::Real(_) => 1,
         Value::Text(_) => 2,
         Value::Blob(_) => 3,
     };
+    let num = |v: &Value| match v {
+        Value::Int(n) => *n as f64,
+        Value::Real(f) => *f,
+        _ => 0.0,
+    };
     match (a, b) {
         (Value::Int(x), Value::Int(y)) => x.cmp(y),
+        (Value::Int(_) | Value::Real(_), Value::Int(_) | Value::Real(_)) => {
+            num(a).partial_cmp(&num(b)).unwrap_or(Ordering::Equal)
+        }
         (Value::Text(x), Value::Text(y)) => x.as_bytes().cmp(y.as_bytes()),
         (Value::Blob(x), Value::Blob(y)) => x.cmp(y),
         _ => rank(a).cmp(&rank(b)),

@@ -55,7 +55,7 @@ pub(crate) fn exec_insert<S: Storage>(
         for (&col_idx, expr) in col_map.iter().zip(row_exprs.iter()) {
             row[col_idx] = eval_row(expr, &empty_ctx, None)?;
         }
-        validate_row_types_and_not_null(&table, &row, false)?;
+        validate_row_types_and_not_null(&table, &mut row, false)?;
 
         let rowid = if let Some(ipk) = table.ipk_col {
             match row[ipk] {
@@ -190,7 +190,7 @@ pub(crate) fn exec_update<S: Storage>(
             let slot = new_row.get_mut(col_idx).ok_or(Error::Corrupt)?;
             *slot = eval_row(expr, &ctx, Some(&row_data))?;
         }
-        validate_row_types_and_not_null(&table, &new_row, true)?;
+        validate_row_types_and_not_null(&table, &mut new_row, true)?;
 
         let new_rowid = if let Some(ipk) = table.ipk_col {
             match new_row[ipk] {
@@ -350,13 +350,14 @@ fn resolve_insert_columns(
     Ok(out)
 }
 
+/// Check NULL and storage-class rules; an INTEGER stored in a REAL column becomes REAL.
 fn validate_row_types_and_not_null(
     table: &TableDef,
-    row: &[Value],
+    row: &mut [Value],
     is_update: bool,
 ) -> Result<(), Error> {
-    for (col, val) in table.columns.iter().zip(row.iter()) {
-        match (val, col.ty) {
+    for (col, val) in table.columns.iter().zip(row.iter_mut()) {
+        match (&*val, col.ty) {
             (Value::Null, _) => {
                 if col.not_null || (is_update && col.is_ipk) {
                     return Err(Error::Constraint(format!(
@@ -365,7 +366,9 @@ fn validate_row_types_and_not_null(
                     )));
                 }
             }
-            (Value::Int(_), ColType::Integer)
+            (Value::Int(n), ColType::Real) => *val = Value::Real(*n as f64),
+            (Value::Real(_), ColType::Real)
+            | (Value::Int(_), ColType::Integer)
             | (Value::Text(_), ColType::Text)
             | (Value::Blob(_), ColType::Blob) => {}
             _ => return Err(Error::Type),

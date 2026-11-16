@@ -27,6 +27,7 @@ fn cell(value: &Value) -> String {
     match value {
         Value::Null => "NULL".to_string(),
         Value::Int(n) => n.to_string(),
+        Value::Real(f) => f.to_string(),
         Value::Text(s) => s.clone(),
         Value::Blob(b) => format!("blob({} bytes)", b.len()),
     }

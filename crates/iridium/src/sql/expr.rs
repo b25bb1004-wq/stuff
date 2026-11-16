@@ -7,8 +7,8 @@ use crate::sql::catalog::TableDef;
 use crate::sql::codec::cmp_values;
 pub(crate) use crate::sql::functions::to_bool;
 use crate::sql::functions::{
-    cmp_sql, eval_call, like_match, three_val_and, three_val_not, three_val_or, to_int_coerce,
-    value_to_text,
+    cmp_sql, eval_call, like_match, real_value, three_val_and, three_val_not, three_val_or,
+    to_int_coerce, to_real_coerce, value_to_text,
 };
 use crate::sql::lexer::parse_err;
 pub(crate) use crate::sql::validate::{contains_agg, is_agg_name, validate_expr};
@@ -111,6 +111,10 @@ pub(crate) fn eval_group(
         ExprKind::IntLit(digits) => {
             let n = digits.parse::<i64>().map_err(|_| Error::Overflow)?;
             Ok(Value::Int(n))
+        }
+        ExprKind::RealLit(text) => {
+            let f = text.parse::<f64>().map_err(|_| Error::Type)?;
+            Ok(Value::Real(f))
         }
         ExprKind::Text(s) => Ok(Value::Text(s.clone())),
         ExprKind::Blob(b) => Ok(Value::Blob(b.clone())),
@@ -230,6 +234,9 @@ fn eval_unary(
             if matches!(v, Value::Null) {
                 return Ok(Value::Null);
             }
+            if let Value::Real(f) = v {
+                return Ok(Value::Real(-f));
+            }
             let n = to_int_coerce(&v)?;
             n.checked_neg().map(Value::Int).ok_or(Error::Overflow)
         }
@@ -280,6 +287,24 @@ fn eval_binary(
             let r = eval_group(right, ctx, group)?;
             if matches!(l, Value::Null) || matches!(r, Value::Null) {
                 return Ok(Value::Null);
+            }
+            // `%` stays integer-only (SQLite rule); the other operators go REAL when either side is REAL.
+            let either_real = matches!(l, Value::Real(_)) || matches!(r, Value::Real(_));
+            if either_real && op != BinaryOp::Mod {
+                let a = to_real_coerce(&l)?;
+                let b = to_real_coerce(&r)?;
+                return Ok(match op {
+                    BinaryOp::Add => real_value(a + b),
+                    BinaryOp::Sub => real_value(a - b),
+                    BinaryOp::Mul => real_value(a * b),
+                    _ => {
+                        if b == 0.0 {
+                            Value::Null
+                        } else {
+                            real_value(a / b)
+                        }
+                    }
+                });
             }
             let a = to_int_coerce(&l)?;
             let b = to_int_coerce(&r)?;

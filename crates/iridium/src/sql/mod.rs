@@ -21,12 +21,14 @@ pub use codec::{decode_record, encode_key, encode_record};
 pub use db::Db;
 
 /// SQL runtime value matching SQLite STRICT storage classes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     /// SQL NULL value.
     Null,
     /// 64-bit signed integer.
     Int(i64),
+    /// 64-bit IEEE float, never NaN.
+    Real(f64),
     /// UTF-8 text string.
     Text(String),
     /// Raw byte sequence.
@@ -34,7 +36,7 @@ pub enum Value {
 }
 
 /// Result of executing a single SQL statement.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Rows {
     /// Result column names (empty for non-query statements).
     pub columns: Vec<String>,

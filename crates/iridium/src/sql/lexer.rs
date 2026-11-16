@@ -13,6 +13,7 @@ pub(crate) struct Token {
 pub(crate) enum TokenKind {
     Ident(String),
     Int(String),
+    Real(String),
     Text(String),
     Blob(Vec<u8>),
     LParen,
@@ -106,9 +107,14 @@ pub(crate) fn tokenize(sql: &str) -> Result<Vec<Token>, Error> {
             continue;
         }
         if b.is_ascii_digit() {
-            let (num, next) = lex_int(sql, start)?;
+            let (num, is_real, next) = lex_number(sql, start)?;
+            let kind = if is_real {
+                TokenKind::Real(num)
+            } else {
+                TokenKind::Int(num)
+            };
             tokens.push(Token {
-                kind: TokenKind::Int(num),
+                kind,
                 pos: start,
                 end: next,
             });
@@ -223,21 +229,42 @@ fn hex_nibble(b: u8) -> u8 {
     }
 }
 
-fn lex_int(sql: &str, start: usize) -> Result<(String, usize), Error> {
+/// Lex a decimal integer or float literal (`12`, `1.5`, `2.`, `1e3`, `1.5E-2`).
+/// Returns the text, whether it is a float, and the end offset.
+fn lex_number(sql: &str, start: usize) -> Result<(String, bool, usize), Error> {
     let bytes = sql.as_bytes();
     let mut i = start;
     while i < bytes.len() && bytes[i].is_ascii_digit() {
         i += 1;
     }
+    let mut is_real = false;
     if bytes.get(i) == Some(&b'.') {
-        return Err(parse_err(i, "floating point literals are not supported"));
+        is_real = true;
+        i += 1;
+        while i < bytes.len() && bytes[i].is_ascii_digit() {
+            i += 1;
+        }
+    }
+    if matches!(bytes.get(i), Some(b'e') | Some(b'E')) {
+        is_real = true;
+        i += 1;
+        if matches!(bytes.get(i), Some(b'+') | Some(b'-')) {
+            i += 1;
+        }
+        let exp_start = i;
+        while i < bytes.len() && bytes[i].is_ascii_digit() {
+            i += 1;
+        }
+        if i == exp_start {
+            return Err(parse_err(exp_start, "malformed exponent in number literal"));
+        }
     }
     if let Some(&ch) = bytes.get(i) {
         if ch.is_ascii_alphabetic() || ch == b'_' {
-            return Err(parse_err(i, "invalid character in integer literal"));
+            return Err(parse_err(i, "invalid character in number literal"));
         }
     }
-    Ok((sql[start..i].to_owned(), i))
+    Ok((sql[start..i].to_owned(), is_real, i))
 }
 
 fn lex_punct(bytes: &[u8], start: usize) -> Result<(TokenKind, usize), Error> {

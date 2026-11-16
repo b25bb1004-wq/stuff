@@ -210,6 +210,11 @@ fn parse_column_def(p: &mut Parser) -> Result<ColumnDefAst, Error> {
         (ColType::Integer, true)
     } else if ty_name.eq_ignore_ascii_case("INT") {
         (ColType::Integer, false)
+    } else if ["REAL", "FLOAT", "DOUBLE", "NUMERIC"]
+        .iter()
+        .any(|k| ty_name.eq_ignore_ascii_case(k))
+    {
+        (ColType::Real, false)
     } else if ty_name.eq_ignore_ascii_case("TEXT") {
         (ColType::Text, false)
     } else if ty_name.eq_ignore_ascii_case("BLOB") {

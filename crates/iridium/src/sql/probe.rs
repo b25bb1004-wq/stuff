@@ -3,6 +3,7 @@
 use std::cmp::Ordering;
 use std::ops::Bound;
 
+use crate::sql::ast::ColType;
 use crate::sql::catalog::TableDef;
 use crate::sql::codec::{
     cmp_values, decode_record, decode_rowid_key, encode_key, encode_single_key,
@@ -33,8 +34,13 @@ pub(crate) fn probe_table<S: Storage>(
         TableAccessPlan::Scan => scan_all(pager, &table_tree),
         TableAccessPlan::Rowid { expr } => {
             let val = eval_row(expr, &outer_ctx, Some(&outer_rd))?;
-            let Value::Int(rowid) = val else {
-                return Ok(Vec::new());
+            let rowid = match val {
+                Value::Int(r) => r,
+                Value::Real(f) => match exact_int(f) {
+                    Some(r) => r,
+                    None => return Ok(Vec::new()),
+                },
+                _ => return Ok(Vec::new()),
             };
             let key = encode_key(&[Value::Int(rowid)]);
             match table_tree.get(pager, None, &key)? {
@@ -48,19 +54,27 @@ pub(crate) fn probe_table<S: Storage>(
             range,
         } => {
             let mut eq_vals = Vec::with_capacity(eq_terms.len());
-            for &(_, expr) in eq_terms {
+            for &(col, expr) in eq_terms {
                 let v = eval_row(expr, &outer_ctx, Some(&outer_rd))?;
                 if matches!(v, Value::Null) {
                     return Ok(Vec::new());
                 }
-                eq_vals.push(v);
+                match fit_probe(table, col, v) {
+                    Some(v) => eq_vals.push(v),
+                    None => return scan_all(pager, &table_tree),
+                }
             }
             let prefix_eq = encode_key(&eq_vals);
             if prefix_eq.len() > MAX_KEY_BYTES - 9 {
                 return Ok(Vec::new());
             }
 
-            let rowids = scan_index(pager, index.root, &prefix_eq, *range, &outer_ctx, &outer_rd)?;
+            let Some(rowids) = scan_index(
+                pager, index.root, &prefix_eq, *range, table, &outer_ctx, &outer_rd,
+            )?
+            else {
+                return scan_all(pager, &table_tree);
+            };
             let mut out = Vec::with_capacity(rowids.len());
             for rowid in rowids {
                 let rk = encode_key(&[Value::Int(rowid)]);
@@ -98,14 +112,39 @@ fn scan_all<S: Storage>(
     Ok(rows)
 }
 
+/// Index keys sort by storage class, so a probe value must be in its column's class.
+/// Returns `None` when it cannot be (the caller then scans the whole table).
+fn fit_probe(table: &TableDef, col: usize, v: Value) -> Option<Value> {
+    let ty = table.columns.get(col)?.ty;
+    match (ty, &v) {
+        (ColType::Real, Value::Int(n)) => {
+            let f = *n as f64;
+            (f as i128 == i128::from(*n)).then_some(Value::Real(f))
+        }
+        (ColType::Integer, Value::Real(_)) => None,
+        _ => Some(v),
+    }
+}
+
+fn exact_int(f: f64) -> Option<i64> {
+    if f.fract() == 0.0 && (-9_223_372_036_854_775_808.0..9_223_372_036_854_775_808.0).contains(&f)
+    {
+        Some(f as i64)
+    } else {
+        None
+    }
+}
+
+/// Rowids from one index range; `None` means the probe cannot be used and the table must be scanned.
 fn scan_index<S: Storage>(
     pager: &mut Pager<S>,
     idx_root: u64,
     prefix_eq: &[u8],
     range: Option<(usize, RangeTerm<'_>)>,
+    table: &TableDef,
     outer_ctx: &EvalCtx<'_>,
     outer_rd: &RowData<'_>,
-) -> Result<Vec<i64>, Error> {
+) -> Result<Option<Vec<i64>>, Error> {
     let idx_tree = Tree::open(idx_root);
     let mut rowids = Vec::new();
     let mut scan_err = None;
@@ -119,11 +158,14 @@ fn scan_index<S: Storage>(
                 push_rowid(k, &mut rowids, &mut scan_err)
             })?;
         }
-        Some((_, RangeTerm::Cmp(op, expr))) => {
+        Some((col, RangeTerm::Cmp(op, expr))) => {
             let val = eval_row(expr, outer_ctx, Some(outer_rd))?;
             if matches!(val, Value::Null) {
-                return Ok(Vec::new());
+                return Ok(Some(Vec::new()));
             }
+            let Some(val) = fit_probe(table, col, val) else {
+                return Ok(None);
+            };
             let mut p_val = prefix_eq.to_vec();
             encode_single_key(&val, &mut p_val);
             scan_cmp_range(
@@ -136,15 +178,20 @@ fn scan_index<S: Storage>(
                 &mut scan_err,
             )?;
         }
-        Some((_, RangeTerm::Between(lo_expr, hi_expr))) => {
+        Some((col, RangeTerm::Between(lo_expr, hi_expr))) => {
             let lo_val = eval_row(lo_expr, outer_ctx, Some(outer_rd))?;
             let hi_val = eval_row(hi_expr, outer_ctx, Some(outer_rd))?;
             if matches!(lo_val, Value::Null)
                 || matches!(hi_val, Value::Null)
                 || cmp_values(&lo_val, &hi_val) == Ordering::Greater
             {
-                return Ok(Vec::new());
+                return Ok(Some(Vec::new()));
             }
+            let (Some(lo_val), Some(hi_val)) =
+                (fit_probe(table, col, lo_val), fit_probe(table, col, hi_val))
+            else {
+                return Ok(None);
+            };
             let mut p_lo = prefix_eq.to_vec();
             encode_single_key(&lo_val, &mut p_lo);
             let mut p_hi = prefix_eq.to_vec();
@@ -164,7 +211,7 @@ fn scan_index<S: Storage>(
     if let Some(e) = scan_err {
         return Err(e);
     }
-    Ok(rowids)
+    Ok(Some(rowids))
 }
 
 fn scan_cmp_range<S: Storage>(

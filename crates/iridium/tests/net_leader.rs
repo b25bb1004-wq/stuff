@@ -42,6 +42,10 @@ fn enc(r: &Rows) -> Vec<u8> {
                     b.push(1);
                     b.extend(i.to_be_bytes());
                 }
+                Value::Real(f) => {
+                    b.push(4);
+                    b.extend(f.to_bits().to_be_bytes());
+                }
                 Value::Text(t) => {
                     b.push(2);
                     b.extend((t.len() as u32).to_be_bytes());

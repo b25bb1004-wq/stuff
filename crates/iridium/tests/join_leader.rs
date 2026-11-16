@@ -15,6 +15,7 @@ fn enc(v: &Value) -> String {
     match v {
         Value::Null => "N".into(),
         Value::Int(i) => format!("I{i}"),
+        Value::Real(f) => format!("R{}", f.to_bits()),
         Value::Text(t) => format!("T{}", assay::to_hex(t.as_bytes())),
         Value::Blob(b) => format!("B{}", assay::to_hex(b)),
     }

@@ -7,6 +7,8 @@ use crate::Error;
 
 const KEY_TAG_NULL: u8 = 0x05;
 const KEY_TAG_INT: u8 = 0x10;
+// Between INT and TEXT, so key order keeps numbers before text and blobs.
+const KEY_TAG_REAL: u8 = 0x18;
 const KEY_TAG_TEXT: u8 = 0x20;
 const KEY_TAG_BLOB: u8 = 0x30;
 
@@ -14,6 +16,48 @@ const REC_TAG_NULL: u8 = 0;
 const REC_TAG_INT: u8 = 1;
 const REC_TAG_TEXT: u8 = 2;
 const REC_TAG_BLOB: u8 = 3;
+const REC_TAG_REAL: u8 = 4;
+
+/// Map an f64 to u64 so that unsigned order matches numeric order (-0.0 is stored as 0.0).
+fn real_key_bits(f: f64) -> u64 {
+    let f = if f == 0.0 { 0.0 } else { f };
+    let b = f.to_bits();
+    if b >> 63 == 1 {
+        !b
+    } else {
+        b | (1u64 << 63)
+    }
+}
+
+fn real_from_key_bits(k: u64) -> f64 {
+    let b = if k >> 63 == 1 { k & !(1u64 << 63) } else { !k };
+    f64::from_bits(b)
+}
+
+/// Compare an integer with a float exactly (no rounding of the integer).
+pub(crate) fn cmp_int_real(i: i64, f: f64) -> Ordering {
+    // Every i64 is below 2^63; every f64 at or below -2^63 - 1 is below i64::MIN.
+    if f >= 9_223_372_036_854_775_808.0 {
+        return Ordering::Less;
+    }
+    if f < -9_223_372_036_854_775_808.0 {
+        return Ordering::Greater;
+    }
+    let t = f.trunc();
+    match i.cmp(&(t as i64)) {
+        Ordering::Equal => {
+            let frac = f - t;
+            if frac > 0.0 {
+                Ordering::Less
+            } else if frac < 0.0 {
+                Ordering::Greater
+            } else {
+                Ordering::Equal
+            }
+        }
+        other => other,
+    }
+}
 
 /// Encode a tuple of values into a byte string whose `memcmp` order matches SQL order.
 pub fn encode_key(values: &[Value]) -> Vec<u8> {
@@ -31,6 +75,10 @@ pub(crate) fn encode_single_key(v: &Value, out: &mut Vec<u8>) {
             out.push(KEY_TAG_INT);
             let biased = (*n as u64) ^ (1u64 << 63);
             out.extend_from_slice(&biased.to_be_bytes());
+        }
+        Value::Real(f) => {
+            out.push(KEY_TAG_REAL);
+            out.extend_from_slice(&real_key_bits(*f).to_be_bytes());
         }
         Value::Text(s) => {
             out.push(KEY_TAG_TEXT);
@@ -73,6 +121,18 @@ pub(crate) fn decode_key(bytes: &[u8]) -> Result<Vec<Value>, Error> {
                 pos += 8;
                 let biased = u64::from_be_bytes(slice);
                 out.push(Value::Int((biased ^ (1u64 << 63)) as i64));
+            }
+            KEY_TAG_REAL => {
+                let slice: [u8; 8] = bytes
+                    .get(pos..pos + 8)
+                    .and_then(|s| s.try_into().ok())
+                    .ok_or(Error::Corrupt)?;
+                pos += 8;
+                let f = real_from_key_bits(u64::from_be_bytes(slice));
+                if f.is_nan() {
+                    return Err(Error::Corrupt);
+                }
+                out.push(Value::Real(f));
             }
             KEY_TAG_TEXT => {
                 let raw = decode_escaped_bytes(bytes, &mut pos)?;
@@ -140,6 +200,10 @@ pub fn encode_record(values: &[Value]) -> Vec<u8> {
                 let zz = (n.wrapping_shl(1) ^ (n >> 63)) as u64;
                 encode_varint(zz, &mut out);
             }
+            Value::Real(f) => {
+                out.push(REC_TAG_REAL);
+                out.extend_from_slice(&f.to_bits().to_be_bytes());
+            }
             Value::Text(s) => {
                 out.push(REC_TAG_TEXT);
                 encode_varint(s.len() as u64, &mut out);
@@ -174,6 +238,18 @@ pub fn decode_record(bytes: &[u8]) -> Result<Vec<Value>, Error> {
                 pos += used;
                 let n = ((zz >> 1) as i64) ^ -((zz & 1) as i64);
                 out.push(Value::Int(n));
+            }
+            REC_TAG_REAL => {
+                let slice: [u8; 8] = bytes
+                    .get(pos..pos + 8)
+                    .and_then(|s| s.try_into().ok())
+                    .ok_or(Error::Corrupt)?;
+                pos += 8;
+                let f = f64::from_bits(u64::from_be_bytes(slice));
+                if f.is_nan() {
+                    return Err(Error::Corrupt);
+                }
+                out.push(Value::Real(f));
             }
             REC_TAG_TEXT => {
                 let (len, used) = decode_varint(&bytes[pos..])?;
@@ -215,8 +291,11 @@ pub(crate) fn cmp_values(a: &Value, b: &Value) -> Ordering {
         (Value::Null, _) => Ordering::Less,
         (_, Value::Null) => Ordering::Greater,
         (Value::Int(x), Value::Int(y)) => x.cmp(y),
-        (Value::Int(_), _) => Ordering::Less,
-        (_, Value::Int(_)) => Ordering::Greater,
+        (Value::Real(x), Value::Real(y)) => x.partial_cmp(y).unwrap_or(Ordering::Equal),
+        (Value::Int(x), Value::Real(y)) => cmp_int_real(*x, *y),
+        (Value::Real(x), Value::Int(y)) => cmp_int_real(*y, *x).reverse(),
+        (Value::Int(_) | Value::Real(_), _) => Ordering::Less,
+        (_, Value::Int(_) | Value::Real(_)) => Ordering::Greater,
         (Value::Text(x), Value::Text(y)) => x.as_bytes().cmp(y.as_bytes()),
         (Value::Text(_), Value::Blob(_)) => Ordering::Less,
         (Value::Blob(_), Value::Text(_)) => Ordering::Greater,

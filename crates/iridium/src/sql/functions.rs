@@ -39,6 +39,7 @@ pub(crate) fn eval_call(
         let ty = match vals[0] {
             Value::Null => "null",
             Value::Int(_) => "integer",
+            Value::Real(_) => "real",
             Value::Text(_) => "text",
             Value::Blob(_) => "blob",
         };
@@ -47,6 +48,7 @@ pub(crate) fn eval_call(
     if name.eq_ignore_ascii_case("abs") {
         return match &vals[0] {
             Value::Null => Ok(Value::Null),
+            Value::Real(f) => Ok(Value::Real(f.abs())),
             v => to_int_coerce(v)?
                 .checked_abs()
                 .map(Value::Int)
@@ -59,6 +61,7 @@ pub(crate) fn eval_call(
             Value::Text(s) => Value::Int(s.chars().count() as i64),
             Value::Blob(b) => Value::Int(b.len() as i64),
             Value::Int(n) => Value::Int(n.to_string().len() as i64),
+            Value::Real(f) => Value::Int(real_to_text(*f).len() as i64),
         });
     }
     if name.eq_ignore_ascii_case("lower") {
@@ -162,18 +165,61 @@ fn eval_agg(
     };
     let expr = &list[0];
     if name.eq_ignore_ascii_case("sum") {
-        let mut total: Option<i64> = None;
+        // Integer sum stays exact; any REAL input switches the result to REAL.
+        let mut int_sum: Option<i64> = Some(0);
+        let mut real_sum = 0.0f64;
+        let mut any = false;
+        let mut any_real = false;
         for row in group {
-            let v = eval_row(expr, ctx, Some(row))?;
-            if !matches!(v, Value::Null) {
-                let n = to_int_coerce(&v)?;
-                total = Some(match total {
-                    None => n,
-                    Some(acc) => acc.checked_add(n).ok_or(Error::Overflow)?,
-                });
+            match eval_row(expr, ctx, Some(row))? {
+                Value::Null => {}
+                Value::Real(f) => {
+                    any = true;
+                    any_real = true;
+                    real_sum += f;
+                }
+                v => {
+                    any = true;
+                    let n = to_int_coerce(&v)?;
+                    real_sum += n as f64;
+                    int_sum = int_sum.and_then(|acc| acc.checked_add(n));
+                }
             }
         }
-        return Ok(total.map_or(Value::Null, Value::Int));
+        if !any {
+            return Ok(Value::Null);
+        }
+        if any_real {
+            return Ok(real_value(real_sum));
+        }
+        return int_sum.map(Value::Int).ok_or(Error::Overflow);
+    }
+    if name.eq_ignore_ascii_case("avg") {
+        let mut int_sum: i128 = 0;
+        let mut real_sum = 0.0f64;
+        let mut count = 0u64;
+        let mut any_real = false;
+        for row in group {
+            match eval_row(expr, ctx, Some(row))? {
+                Value::Null => {}
+                Value::Real(f) => {
+                    any_real = true;
+                    real_sum += f;
+                    count += 1;
+                }
+                v => {
+                    let n = to_int_coerce(&v)?;
+                    int_sum += i128::from(n);
+                    real_sum += n as f64;
+                    count += 1;
+                }
+            }
+        }
+        if count == 0 {
+            return Ok(Value::Null);
+        }
+        let total = if any_real { real_sum } else { int_sum as f64 };
+        return Ok(real_value(total / count as f64));
     }
     let want_min = name.eq_ignore_ascii_case("min");
     let mut best: Option<Value> = None;
@@ -197,10 +243,38 @@ fn eval_agg(
     Ok(best.unwrap_or(Value::Null))
 }
 
+/// Wrap a float result; NaN (e.g. inf - inf) becomes NULL, as in SQLite.
+pub(crate) fn real_value(f: f64) -> Value {
+    if f.is_nan() {
+        Value::Null
+    } else {
+        Value::Real(f)
+    }
+}
+
+/// Render a REAL with its shortest round-trip form, keeping ".0" on whole numbers.
+pub(crate) fn real_to_text(f: f64) -> String {
+    let s = format!("{f}");
+    if f.is_finite() && !s.contains(['.', 'e', 'E']) {
+        format!("{s}.0")
+    } else {
+        s
+    }
+}
+
+/// Numeric value of an operand: INTEGER and REAL as-is, other text via integer coercion.
+pub(crate) fn to_real_coerce(v: &Value) -> Result<f64, Error> {
+    match v {
+        Value::Real(f) => Ok(*f),
+        other => Ok(to_int_coerce(other)? as f64),
+    }
+}
+
 pub(crate) fn to_bool(v: &Value) -> Option<bool> {
     match v {
         Value::Null => None,
         Value::Int(n) => Some(*n != 0),
+        Value::Real(f) => Some(*f != 0.0),
         Value::Text(s) => Some(parse_leading_i64(s).unwrap_or(1) != 0),
         Value::Blob(b) => {
             let s = std::str::from_utf8(b).unwrap_or("");
@@ -252,6 +326,15 @@ pub(crate) fn cmp_sql(l: &Value, r: &Value, op: BinaryOp) -> Value {
 pub(crate) fn to_int_coerce(v: &Value) -> Result<i64, Error> {
     match v {
         Value::Int(n) => Ok(*n),
+        Value::Real(f) => {
+            if f.is_nan() {
+                Ok(0)
+            } else if *f >= 9_223_372_036_854_775_808.0 || *f < -9_223_372_036_854_775_808.0 {
+                Err(Error::Overflow)
+            } else {
+                Ok(f.trunc() as i64)
+            }
+        }
         Value::Text(s) => parse_leading_i64(s),
         Value::Blob(b) => match std::str::from_utf8(b) {
             Ok(s) => parse_leading_i64(s),
@@ -282,6 +365,7 @@ pub(crate) fn value_to_text(v: &Value) -> String {
     match v {
         Value::Null => String::new(),
         Value::Int(n) => n.to_string(),
+        Value::Real(f) => real_to_text(*f),
         Value::Text(s) => s.clone(),
         Value::Blob(b) => String::from_utf8_lossy(b).into_owned(),
     }

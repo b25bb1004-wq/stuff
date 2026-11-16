@@ -29,6 +29,10 @@ pub fn encode_rows(r: &Rows) -> Vec<u8> {
                     out.push(1);
                     out.extend_from_slice(&n.to_be_bytes());
                 }
+                Value::Real(f) => {
+                    out.push(4);
+                    out.extend_from_slice(&f.to_bits().to_be_bytes());
+                }
                 Value::Text(s) => {
                     out.push(2);
                     let len = u32::try_from(s.len()).unwrap_or(u32::MAX);
@@ -92,6 +96,10 @@ fn decode_value(cur: &mut Cursor<'_>) -> Option<Value> {
     match cur.read_u8()? {
         0 => Some(Value::Null),
         1 => Some(Value::Int(cur.read_i64()?)),
+        4 => {
+            let f = f64::from_bits(cur.read_i64()? as u64);
+            (!f.is_nan()).then_some(Value::Real(f))
+        }
         2 => {
             let len = cur.read_u32()? as usize;
             let bytes = cur.read_bytes(len)?;
