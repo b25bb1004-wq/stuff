@@ -14,7 +14,7 @@
 - [x] Plan: docs/ai-computer/plans/2026-11-16-harness-and-teaching.md (harness + teach Qwen3.8-27B, no weight training)
 - [x] H0 crates/monolith skeleton (types, CLI, pinned stubs), gate PASS
 - [>] Model download: Qwen3.8-27B-UD-IQ4_XS.gguf 14.35 GB into WSL ~/models (resumable, SHA-256 checked)
-- [>] Wave 1 (3 Haiku): A1 computer+journal, A2 llm client, A3 memory+suite
+- [!] Wave 1 PAUSED at usage limit 2026-11-16: A1 reported (not judged, not merged); A2, A3 were still running. Work sits in .claude/worktrees/agent-*
 - [ ] Wave 2: B1 actions+agent loop, B2 exam suites (24 train, 12 held-out, 4 memory chains)
 - [ ] Wave 3: C1 eval + report; installers list monolith
 - [ ] G1 start llama-server, measure tokens per second
@@ -492,3 +492,5 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | fix-aci-1 (titan kernel install, logos result, cobalt manifest, hades hint, pandora summary) | haiku | 193k | PASS | 5 gates rerun by leader; fresh sandbox install ships share/titan/kernel, ACI PASS 27/27
 - PHASE 1 CLOSED 2026-11-16: all 5 failed agent tasks (A1 t5 t13 t16 t28, A2 t29) re-run by leader on a fresh install and pass. Phase 1 worker tokens about 3.36M. Next: phase 2 plan (harness + computer, many computers at once, model-agnostic)
 - 2026-11-16 | HARNESS JOB START (operator: download a Qwen 27B, teach it to use Monolith, memory, tasks; plan then orchestrate) | leader | 0 | - | budget 1.6M Haiku tokens, cap 3, worktrees; GPU one job at a time; H0 skeleton by leader gate PASS
+- 2026-11-16 | A1 computer.rs + journal.rs | haiku | 143k | NOT JUDGED | worker says gate PASS, 11 tests on Windows, 2 unix-only tests never run; files in .claude/worktrees/agent-abc925253ef1f26aa (computer.rs, journal.rs, tests/computer.rs). Its own gaps: no process-group kill on timeout, denied runs not journaled, log --limit uncapped
+- 2026-11-16 | STOP: usage limit reached | leader | - | - | A2 (llm.rs) in worktree agent-ac389acfd43e07c99, A3 (memory.rs, suite.rs) in agent-a98cd316c8827209d, both unjudged. RESUME: for each worktree copy its crates/monolith files into main, run bash tools/check.sh monolith, read the tests, commit on PASS; then wave 2 (B1, B2). Model download was at 123/856 chunks 16:37 WSL time (dl.sh pid 180993, resumable); server scripts /home/dev/monolith-ai/serve.sh and stop.sh ready, server never started
