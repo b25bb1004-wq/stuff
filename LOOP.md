@@ -13,9 +13,10 @@
 - [x] Phase 1 (AI interface) closed 2026-11-16: 28 binaries, agents 55/60
 - [x] Plan: docs/ai-computer/plans/2026-11-16-harness-and-teaching.md (harness + teach Qwen3.8-27B, no weight training)
 - [x] H0 crates/monolith skeleton (types, CLI, pinned stubs), gate PASS
-- [>] Model download: Qwen3.8-27B-UD-IQ4_XS.gguf 14.35 GB into WSL ~/models (resumable, SHA-256 checked)
-- [!] Wave 1 PAUSED at usage limit 2026-11-16: A1 reported (not judged, not merged); A2, A3 were still running. Work sits in .claude/worktrees/agent-*
-- [ ] Wave 2: B1 actions+agent loop, B2 exam suites (24 train, 12 held-out, 4 memory chains)
+- [x] Model download: Qwen3.8-27B-UD-IQ4_XS.gguf 14.35 GB, SHA-256 ok
+- [x] Wave 1 merged 5626e31: computers + journal, model client, memory + exam format (57 tests)
+- [x] G1 llama-server on 127.0.0.1:8080, 50 GPU layers, ctx 12288: 7.7 tok/s (30 layers 4.0, 40 5.3, 60 4.4)
+- [>] Wave 2 (3 Haiku): B1 actions + agent loop, B2a train suite (24), B2b held-out (12) + memory (4 pairs)
 - [ ] Wave 3: C1 eval + report; installers list monolith
 - [ ] G1 start llama-server, measure tokens per second
 - [ ] R0 baseline exam (level 0)
@@ -494,3 +495,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | HARNESS JOB START (operator: download a Qwen 27B, teach it to use Monolith, memory, tasks; plan then orchestrate) | leader | 0 | - | budget 1.6M Haiku tokens, cap 3, worktrees; GPU one job at a time; H0 skeleton by leader gate PASS
 - 2026-11-16 | A1 computer.rs + journal.rs | haiku | 143k | NOT JUDGED | worker says gate PASS, 11 tests on Windows, 2 unix-only tests never run; files in .claude/worktrees/agent-abc925253ef1f26aa (computer.rs, journal.rs, tests/computer.rs). Its own gaps: no process-group kill on timeout, denied runs not journaled, log --limit uncapped
 - 2026-11-16 | STOP: usage limit reached | leader | - | - | A2 (llm.rs) in worktree agent-ac389acfd43e07c99, A3 (memory.rs, suite.rs) in agent-a98cd316c8827209d, both unjudged. RESUME: for each worktree copy its crates/monolith files into main, run bash tools/check.sh monolith, read the tests, commit on PASS; then wave 2 (B1, B2). Model download was at 123/856 chunks 16:37 WSL time (dl.sh pid 180993, resumable); server scripts /home/dev/monolith-ai/serve.sh and stop.sh ready, server never started
+- 2026-11-17 | A1 computer+journal, A2 llm, A3 memory+suite | haiku x3 | 143k+143k+166k | PASS | gate rerun by leader on the merged tree (57 tests); hand check with real tools: new, exec, fence refusals (.. path, non-tool, non-loopback URL), memory add/search, log. Unix-only tests (symlink, output cap) not run locally. Commit 5626e31
+- 2026-11-17 | G1 model server | leader | 0 | PASS | /home/dev/monolith-ai/serve.sh 50 12288 (pid in server.pid, stop.sh stops by pid); schema-constrained JSON action works; 7.7 tok/s gen, about 350 tok/s prompt; 11.4 of 12.2 GB VRAM
+- 2026-11-17 | wave 2 dispatched: B1, B2a, B2b | haiku x3 | - | running | leader added Computer.tools field and tools/suite_replay.py (12fd822)
