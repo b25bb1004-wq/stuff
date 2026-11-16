@@ -10,7 +10,7 @@ use std::process;
 
 use iridium::net::Client;
 use iridium::sql::{Db, Rows, Value};
-use iridium::FileStorage;
+use iridium::{lock_database, FileStorage};
 
 const VERSION: &str = "iridium 0.1.0";
 
@@ -68,6 +68,7 @@ fn split_line_statements(line: &str) -> Vec<&str> {
     let mut in_single = false;
     let mut in_double = false;
     let mut in_block_comment = false;
+    let mut has_code = false;
 
     while i < bytes.len() {
         let b = bytes[i];
@@ -107,12 +108,19 @@ fn split_line_statements(line: &str) -> Vec<&str> {
             continue;
         }
         if b == b'-' && bytes.get(i + 1) == Some(&b'-') {
-            break;
+            // A line comment ends at the newline, so later lines of a QUERY argument still run.
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
         }
         if b == b'/' && bytes.get(i + 1) == Some(&b'*') {
             in_block_comment = true;
             i += 2;
             continue;
+        }
+        if !b.is_ascii_whitespace() && b != b';' {
+            has_code = true;
         }
         if b == b'\'' {
             in_single = true;
@@ -125,10 +133,11 @@ fn split_line_statements(line: &str) -> Vec<&str> {
             continue;
         }
         if b == b';' {
-            let chunk = line[start..i].trim();
-            if !chunk.is_empty() {
-                stmts.push(chunk);
+            // A chunk of only comments is not a statement; it is dropped, not sent to the parser.
+            if has_code {
+                stmts.push(line[start..i].trim());
             }
+            has_code = false;
             i += 1;
             start = i;
             continue;
@@ -136,11 +145,8 @@ fn split_line_statements(line: &str) -> Vec<&str> {
         i += 1;
     }
 
-    if start < line.len() {
-        let tail = line[start..].trim();
-        if !tail.is_empty() && !tail.starts_with("--") {
-            stmts.push(tail);
-        }
+    if has_code {
+        stmts.push(line[start..].trim());
     }
     stmts
 }
@@ -155,6 +161,23 @@ fn write_tsv(out: &mut impl Write, rows: &Rows) -> Result<(), CliError> {
         let formatted: Vec<String> = row.iter().map(format_value).collect();
         writeln!(out, "{}", formatted.join("\t"))
             .map_err(|e| CliError::Op(format!("stdout write failed: {e}")))?;
+    }
+    Ok(())
+}
+
+/// Run every `;`-separated statement in `text`, printing each result; stops at the first error.
+fn run_text(db: &mut Db<FileStorage>, out: &mut impl Write, text: &str) -> Result<(), CliError> {
+    for stmt in split_line_statements(text) {
+        let rows = db.execute(stmt).map_err(|e| CliError::Op(e.to_string()))?;
+        write_tsv(out, &rows)?;
+    }
+    Ok(())
+}
+
+fn run_stdin(db: &mut Db<FileStorage>, out: &mut impl Write) -> Result<(), CliError> {
+    for line_res in io::stdin().lock().lines() {
+        let line = line_res.map_err(|e| CliError::Op(format!("stdin read failed: {e}")))?;
+        run_text(db, out, &line)?;
     }
     Ok(())
 }
@@ -174,6 +197,8 @@ fn run_sql(args: &[String]) -> Result<(), CliError> {
     let query_arg = args.get(1).map(String::as_str);
 
     let db_path = Path::new(db_arg);
+    // Held until this function returns, so no other process can touch the files meanwhile.
+    let _lock = lock_database(db_path).map_err(|e| CliError::Op(e.to_string()))?;
     let main_store = FileStorage::open(db_path)
         .map_err(|e| CliError::Op(format!("cannot open '{db_arg}': {e}")))?;
     let log_path = wal_path(db_path);
@@ -186,42 +211,19 @@ fn run_sql(args: &[String]) -> Result<(), CliError> {
     let mut out = BufWriter::new(stdout.lock());
 
     let exec_res = match query_arg {
-        Some(q) if q != "-" => match db.execute(q) {
-            Ok(rows) => write_tsv(&mut out, &rows),
-            Err(e) => Err(CliError::Op(e.to_string())),
-        },
-        _ => {
-            let stdin = io::stdin();
-            let mut res = Ok(());
-            for line_res in stdin.lock().lines() {
-                let line = match line_res {
-                    Ok(l) => l,
-                    Err(e) => {
-                        res = Err(CliError::Op(format!("stdin read failed: {e}")));
-                        break;
-                    }
-                };
-                for stmt in split_line_statements(&line) {
-                    match db.execute(stmt) {
-                        Ok(rows) => {
-                            if let Err(e) = write_tsv(&mut out, &rows) {
-                                res = Err(e);
-                                break;
-                            }
-                        }
-                        Err(e) => {
-                            res = Err(CliError::Op(e.to_string()));
-                            break;
-                        }
-                    }
-                }
-                if res.is_err() {
-                    break;
-                }
-            }
-            res
-        }
+        Some(q) if q != "-" => run_text(&mut db, &mut out, q),
+        _ => run_stdin(&mut db, &mut out),
     };
+    // close() would silently roll back a BEGIN left open; report it so exit 0 means all committed.
+    let exec_res = exec_res.and_then(|()| {
+        if db.in_transaction() {
+            Err(CliError::Op(
+                "transaction not committed, rolled back (end it with COMMIT)".to_owned(),
+            ))
+        } else {
+            Ok(())
+        }
+    });
 
     let flush_res = out
         .flush()

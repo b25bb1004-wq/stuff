@@ -210,3 +210,148 @@ fn connect_bad_input() {
     assert_eq!(closed.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&closed.stderr).contains("iridium:"));
 }
+
+fn spawn_cli_with_stdin(args: &[&str], stdin_data: &str) -> std::process::Child {
+    let mut child = Command::new(bin())
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(stdin_data.as_bytes())
+        .unwrap();
+    child
+}
+
+#[test]
+fn sql_query_argument_runs_every_statement() {
+    let dir = TempDir::new("sql_arg_multi");
+    let db = dir.file("test.idb");
+    let db_str = db.to_str().unwrap();
+
+    let out = run_cli(
+        &["sql", db_str, "CREATE TABLE q (id INT PRIMARY KEY)"],
+        None,
+    );
+    assert_eq!(out.status.code(), Some(0));
+
+    let out = run_cli(
+        &[
+            "sql",
+            db_str,
+            "INSERT INTO q VALUES (1); INSERT INTO q VALUES (2); -- note\nSELECT id FROM q ORDER BY id",
+        ],
+        None,
+    );
+    assert_eq!(out.status.code(), Some(0));
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "id\n1\n2\n");
+}
+
+#[test]
+fn sql_parse_error_names_the_token_found() {
+    let dir = TempDir::new("sql_parse_token");
+    let db = dir.file("test.idb");
+    let db_str = db.to_str().unwrap();
+
+    let out = run_cli(&["sql", db_str, "SELEC * FORM users"], None);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&out.stderr).contains(
+        "iridium: parse error at byte 0: expected a statement (SELECT, INSERT, ...), found 'SELEC'"
+    ));
+}
+
+#[test]
+fn sql_open_transaction_is_reported_not_silently_lost() {
+    let dir = TempDir::new("sql_open_tx");
+    let db = dir.file("test.idb");
+    let db_str = db.to_str().unwrap();
+
+    let out = run_cli(
+        &["sql", db_str, "CREATE TABLE o (id INT PRIMARY KEY)"],
+        None,
+    );
+    assert_eq!(out.status.code(), Some(0));
+
+    let out = run_cli(&["sql", db_str, "BEGIN; INSERT INTO o VALUES (1)"], None);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("transaction not committed"));
+
+    let out = run_cli(&["sql", db_str, "SELECT count(*) AS n FROM o"], None);
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "n\n0\n");
+}
+
+#[test]
+fn cli_refuses_database_locked_by_another_process() {
+    let dir = TempDir::new("sql_locked");
+    let db = dir.file("test.idb");
+    let db_str = db.to_str().unwrap();
+
+    let held = iridium::lock_database(&db).unwrap();
+    let start = std::time::Instant::now();
+    let out = run_cli(&["sql", db_str, "SELECT 1"], None);
+    let waited = start.elapsed();
+    drop(held);
+
+    assert_eq!(out.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&out.stderr)
+        .contains("iridium: database is locked by another process"));
+    assert!(waited >= std::time::Duration::from_secs(5));
+    assert!(!db.exists());
+    assert!(!dir.file("test.idb-wal").exists());
+}
+
+#[test]
+fn concurrent_writers_lose_no_committed_rows() {
+    let dir = TempDir::new("sql_concurrent");
+    let db = dir.file("test.idb");
+    let db_str = db.to_str().unwrap();
+
+    let out = run_cli(
+        &[
+            "sql",
+            db_str,
+            "CREATE TABLE t (id INT PRIMARY KEY, who TEXT)",
+        ],
+        None,
+    );
+    assert_eq!(out.status.code(), Some(0));
+
+    let script = |who: u32| {
+        let mut s = String::from("BEGIN;\n");
+        for i in 0..500 {
+            s.push_str(&format!(
+                "INSERT INTO t VALUES ({}, 'w{who}');\n",
+                who * 1000 + i
+            ));
+        }
+        s.push_str("COMMIT;\n");
+        s
+    };
+    let children: Vec<_> = (1..=2)
+        .map(|who| spawn_cli_with_stdin(&["sql", db_str, "-"], &script(who)))
+        .collect();
+
+    let mut committed = 0usize;
+    for child in children {
+        let out = child.wait_with_output().unwrap();
+        match out.status.code() {
+            Some(0) => committed += 500,
+            Some(1) => assert!(String::from_utf8_lossy(&out.stderr)
+                .contains("database is locked by another process")),
+            other => panic!("unexpected exit {other:?}"),
+        }
+    }
+    assert!(committed >= 500);
+
+    let out = run_cli(&["sql", db_str, "SELECT count(*) AS n FROM t"], None);
+    assert_eq!(out.status.code(), Some(0));
+    assert_eq!(
+        String::from_utf8_lossy(&out.stdout),
+        format!("n\n{committed}\n")
+    );
+}

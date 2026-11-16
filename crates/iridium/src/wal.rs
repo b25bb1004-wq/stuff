@@ -23,6 +23,9 @@ pub fn frame_offset(frame_idx: u64) -> Option<u64> {
         .checked_add(WAL_HEADER_SIZE as u64)
 }
 
+/// Replay the WAL after a crash. File-backed callers (CLI, server) hold `lock_database` before
+/// this runs, so no other live process can be mid-write to the log: a torn tail is a real
+/// crash remnant, never another writer's in-progress frame that would be wrongly recovered.
 pub fn recover_or_init<S: Storage>(main: &mut S, log: &mut S) -> Result<RecoveredState, Error> {
     let main_len = main.len()?;
     let mut kept_frames = 0u64;

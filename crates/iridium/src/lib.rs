@@ -4,6 +4,7 @@
 mod crash;
 mod crc;
 mod format;
+mod lock;
 pub mod net;
 mod pager;
 pub mod sql;
@@ -14,6 +15,7 @@ mod wal;
 use std::fmt;
 
 pub use crash::CrashStorage;
+pub use lock::{lock_database, DbLock};
 pub use pager::{Pager, Snapshot};
 pub use storage::{FileStorage, MemStorage, Storage};
 pub use tree::Tree;
@@ -60,6 +62,8 @@ pub enum Error {
     Busy,
     /// Caller violated API preconditions (missing tx, invalid page, released snapshot).
     Misuse,
+    /// Another process holds the database lock.
+    Locked,
 }
 
 impl fmt::Display for Error {
@@ -77,6 +81,7 @@ impl fmt::Display for Error {
             Error::Constraint(msg) => write!(f, "constraint failed: {msg}"),
             Error::Busy => f.write_str("write transaction already active"),
             Error::Misuse => f.write_str("invalid pager operation"),
+            Error::Locked => f.write_str("database is locked by another process"),
         }
     }
 }

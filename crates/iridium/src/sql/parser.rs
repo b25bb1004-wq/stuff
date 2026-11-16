@@ -50,7 +50,12 @@ pub(crate) fn parse_statement(sql: &str) -> Result<Stmt, Error> {
         let _ = p.eat_kw("TRANSACTION");
         Stmt::Rollback
     } else {
-        return Err(parse_err(p.cur().pos, "expected SQL statement"));
+        let t = p.cur();
+        let found = sql.get(t.pos..t.end).unwrap_or("");
+        return Err(parse_err(
+            t.pos,
+            format!("expected a statement (SELECT, INSERT, ...), found '{found}'"),
+        ));
     };
 
     let _ = p.eat(TokenKind::Semi);

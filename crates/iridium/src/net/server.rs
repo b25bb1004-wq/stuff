@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use crate::net::codec::{encode_rows, read_frame_stoppable, write_frame};
 use crate::sql::{Db, Rows};
-use crate::FileStorage;
+use crate::{lock_database, DbLock, FileStorage};
 
 const BUSY_WAIT: Duration = Duration::from_secs(2);
 
@@ -41,11 +41,14 @@ pub struct Server {
     shared: Arc<Shared>,
     accept_thread: Option<JoinHandle<()>>,
     listener_keepalive: Option<TcpListener>,
+    // Held for the server's lifetime so no CLI or second server can write the same files.
+    _lock: DbLock,
 }
 
 impl Server {
     /// Open `main` and `log` files, bind `addr`, and start accepting connections.
     pub fn start(addr: SocketAddr, main: PathBuf, log: PathBuf) -> io::Result<Server> {
+        let lock = lock_database(&main).map_err(varve_err_to_io)?;
         let main_store = FileStorage::open(&main).map_err(varve_err_to_io)?;
         let log_store = FileStorage::open(&log).map_err(varve_err_to_io)?;
         let db = Db::open(main_store, log_store).map_err(varve_err_to_io)?;
@@ -75,6 +78,7 @@ impl Server {
             shared,
             accept_thread: Some(accept_thread),
             listener_keepalive: Some(listener_keepalive),
+            _lock: lock,
         })
     }
 
