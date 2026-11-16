@@ -16,9 +16,8 @@
 - [x] Model download: Qwen3.8-27B-UD-IQ4_XS.gguf 14.35 GB, SHA-256 ok
 - [x] Wave 1 merged 5626e31: computers + journal, model client, memory + exam format (57 tests)
 - [x] G1 llama-server on 127.0.0.1:8080, 50 GPU layers, ctx 12288: 7.7 tok/s (30 layers 4.0, 40 5.3, 60 4.4)
-- [>] Wave 2 (3 Haiku): B1 actions + agent loop, B2a train suite (24), B2b held-out (12) + memory (4 pairs)
-- [ ] Wave 3: C1 eval + report; installers list monolith
-- [ ] G1 start llama-server, measure tokens per second
+- [x] Wave 2 merged d5b844a + train suite: agent loop (18 tests), train 24, held-out 12, memory 4 pairs; all replay clean
+- [>] Wave 3: C1 exam runner (eval.rs) running
 - [ ] R0 baseline exam (level 0)
 - [ ] R1 interface teaching exam (level 1)
 - [ ] R2a memory learning on train, R2b frozen memory on held-out + memory chains
@@ -498,3 +497,9 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-17 | A1 computer+journal, A2 llm, A3 memory+suite | haiku x3 | 143k+143k+166k | PASS | gate rerun by leader on the merged tree (57 tests); hand check with real tools: new, exec, fence refusals (.. path, non-tool, non-loopback URL), memory add/search, log. Unix-only tests (symlink, output cap) not run locally. Commit 5626e31
 - 2026-11-17 | G1 model server | leader | 0 | PASS | /home/dev/monolith-ai/serve.sh 50 12288 (pid in server.pid, stop.sh stops by pid); schema-constrained JSON action works; 7.7 tok/s gen, about 350 tok/s prompt; 11.4 of 12.2 GB VRAM
 - 2026-11-17 | wave 2 dispatched: B1, B2a, B2b | haiku x3 | - | running | leader added Computer.tools field and tools/suite_replay.py (12fd822)
+- 2026-11-17 | B1 actions + agent loop | haiku | 215k | PASS | gate rerun by leader (76 tests); real model ran 3 hand tasks to done (chronos commit 6 steps 37 s; iridium at level 0 and level 2, remember stored a fact). Leader added: results hide the host path of the root
+- 2026-11-17 | B2b held-out + memory suites | haiku | 172k | PASS | stopped twice (first without writing, then its worktree was removed); finished in the main checkout. Replay by leader 12/12 and 8/8. Difficulty mix easier than asked (8 easy of 12); memory checks use small values in two chains
+- 2026-11-17 | B2a train suite | haiku | lost | FAIL | API error after 13 min of silence, worktree gone, nothing saved
+- 2026-11-17 | B2a retry | haiku | 165k | PASS | 24 tasks, replay by leader 24/24; no reserved tool used
+- 2026-11-17 | fence fixes | leader | 0 | PASS | found by workers: krypton could start host programs (PATH now holds only the tool folder); /c/ drive paths refused; a bare / (image root, SQL division) allowed; //host paths refused. Fence is still lexical: a shell tool can still walk out with cd and variables
+- 2026-11-17 | C1 exam runner dispatched | haiku | - | running |

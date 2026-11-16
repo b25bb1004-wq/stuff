@@ -368,5 +368,17 @@ fn drive_style_unix_paths_are_refused() {
         .map(String::from)
         .collect();
     assert!(c.check_args(&ok).is_ok());
+    for argv in [
+        vec!["hades", "ls", "disk.img", "/"],
+        vec!["iridium", "sql", "a.idb", "SELECT 10 / 2"],
+    ] {
+        let argv: Vec<String> = argv.into_iter().map(String::from).collect();
+        assert!(c.check_args(&argv).is_ok(), "{argv:?}");
+    }
+    let unc: Vec<String> = ["calliope", "//server/share/x"]
+        .into_iter()
+        .map(String::from)
+        .collect();
+    assert!(c.check_args(&unc).is_err());
     fs::remove_dir_all(&home).unwrap();
 }

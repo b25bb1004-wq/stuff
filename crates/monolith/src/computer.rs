@@ -208,7 +208,7 @@ fn outside_reason(word: &str) -> Option<String> {
     if b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1] == b':' {
         return Some("starts with a drive letter, a path on the host".into());
     }
-    if word.starts_with("\\\\") || word.starts_with('~') {
+    if word.starts_with("\\\\") || word.starts_with("//") || word.starts_with('~') {
         return Some("names a path on the host".into());
     }
     if let Some(rest) = word.strip_prefix('/') {
@@ -217,7 +217,8 @@ fn outside_reason(word: &str) -> Option<String> {
         if first.len() == 1 && first.as_bytes()[0].is_ascii_alphabetic() {
             return Some("looks like a drive path on the host".into());
         }
-        if Path::new("/").join(first).exists() {
+        // A bare `/` is the root of a disk image or a division sign in SQL, not a host path.
+        if !first.is_empty() && Path::new("/").join(first).exists() {
             return Some("names a folder of the host, not the computer".into());
         }
     }
