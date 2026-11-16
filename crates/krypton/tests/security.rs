@@ -43,7 +43,7 @@ impl Env for TestEnv {
 }
 
 fn first_word(src: &str) -> ast::Word {
-    let script = parse(src).unwrap();
+    let script = parse(src, krypton::Escapes::Posix).unwrap();
     match &script.items[0].first.cmds[0] {
         ast::Command::Simple(s) => s.words[0].clone(),
         _ => panic!("expected simple command"),
@@ -181,22 +181,22 @@ fn arith_deep_nesting_parens_unary_assign() {
 #[test]
 fn parser_deep_nesting_subshells_groups_substs_quotes() {
     let subs = format!("{}true{}", "(".repeat(500), ")".repeat(500));
-    assert!(parse(&subs).is_err());
+    assert!(parse(&subs, krypton::Escapes::Posix).is_err());
 
     let groups = format!("{}true{}", "{ ".repeat(500), "; }".repeat(500));
-    assert!(parse(&groups).is_err());
+    assert!(parse(&groups, krypton::Escapes::Posix).is_err());
 
     let ifs = format!("{}true{}", "if true; then ".repeat(500), "; fi".repeat(500));
-    assert!(parse(&ifs).is_err());
+    assert!(parse(&ifs, krypton::Escapes::Posix).is_err());
 
     let cmd_subst = format!("echo {}1{}", "$(".repeat(500), ")".repeat(500));
-    assert!(parse(&cmd_subst).is_err());
+    assert!(parse(&cmd_subst, krypton::Escapes::Posix).is_err());
 
     let braces = format!("echo {}1{}", "${x:-".repeat(500), "}".repeat(500));
-    assert!(parse(&braces).is_err());
+    assert!(parse(&braces, krypton::Escapes::Posix).is_err());
 
     let quoted_braces = format!("echo {}\"a\"{}", "${x:-\"".repeat(500), "\"}".repeat(500));
-    assert!(parse(&quoted_braces).is_err());
+    assert!(parse(&quoted_braces, krypton::Escapes::Posix).is_err());
 }
 
 #[test]
@@ -248,7 +248,8 @@ fn parser_unterminated_constructs_rejected() {
         "cat <<\\",
     ];
     for input in cases {
-        let err = parse(input).expect_err(&format!("expected error for {input:?}"));
+        let err = parse(input, krypton::Escapes::Posix)
+            .expect_err(&format!("expected error for {input:?}"));
         assert!(err.incomplete || !err.msg.is_empty());
     }
 }
@@ -259,7 +260,7 @@ fn parser_and_arith_hostile_numbers_and_fds() {
     assert!(arith("08", &mut env).is_err());
     assert!(arith("0x", &mut env).is_err());
     assert!(arith("123abc", &mut env).is_err());
-    assert!(parse("99999999999999999999999999<file").is_err());
+    assert!(parse("99999999999999999999999999<file", krypton::Escapes::Posix).is_err());
     assert!(!glob_match("[[:alpha:]]", "\u{00e9}"));
     assert!(glob_match("[a-z]", "m"));
     assert!(!glob_match("[z-a]", "m"));

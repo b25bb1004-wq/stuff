@@ -66,7 +66,7 @@ pub(crate) fn run(shell: &mut Shell) -> Option<i32> {
         };
         pending.push_str(&line);
         pending.push('\n');
-        match krypton::parse(&pending) {
+        match krypton::parse(&pending, krypton::Escapes::host()) {
             Err(e) if e.incomplete => continue,
             Err(e) => {
                 eprintln!("krypton: {}:{}: {}", e.line, e.col, e.msg);

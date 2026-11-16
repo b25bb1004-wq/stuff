@@ -45,7 +45,7 @@ fn fuzz_parse_never_panics_2000() {
     forall(1000, 0x5EED_0001, |r| {
         let bytes = r.bytes(160);
         let s = String::from_utf8_lossy(&bytes);
-        let _ = parse(&s);
+        let _ = parse(&s, krypton::Escapes::Posix);
         let _ = arith(&s, &mut DummyEnv);
         let _ = glob_match(&s, "sample_name");
     });
@@ -70,7 +70,7 @@ fn fuzz_parse_never_panics_2000() {
             }
         }
         let s = String::from_utf8_lossy(&buf);
-        let _ = parse(&s);
+        let _ = parse(&s, krypton::Escapes::Posix);
     });
 }
 
@@ -515,7 +515,7 @@ fn roundtrip_printed_ast_500() {
         let orig = gen_script(r, 0, 3);
         let mut text = String::new();
         print_script(&orig, &mut text);
-        let reparsed = parse(&text).unwrap_or_else(|e| {
+        let reparsed = parse(&text, krypton::Escapes::Posix).unwrap_or_else(|e| {
             panic!("failed to reparse:\n{text}\nerr: {e:?}");
         });
         assert_eq!(reparsed, orig, "AST mismatch for printed script:\n{text}");

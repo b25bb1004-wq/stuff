@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 
 use crate::ast::{Param, ParamOp, Part, Script, Word};
 use crate::lexer::Scanner;
-use crate::types::ParseError;
+use crate::types::{Escapes, ParseError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TildeMode {
@@ -165,7 +165,7 @@ fn parse_backquote(scanner: &mut Scanner<'_>, in_double: bool) -> Result<Script,
             }
         }
     }
-    crate::parser::parse_nested(scanner.depth + 1, &inner)
+    crate::parser::parse_nested(scanner.depth + 1, &inner, scanner.esc)
 }
 
 fn skip_arith_quoted(
@@ -468,6 +468,13 @@ fn parse_word_inner(
             }
             Some('\\') => {
                 scanner.cursor.next_char();
+                // Windows: a backslash is a path separator, so it escapes only before these.
+                if scanner.esc == Escapes::Windows
+                    && !matches!(scanner.cursor.peek_raw(), Some('"' | '$' | '`' | '\\'))
+                {
+                    push_lit_char(&mut parts, '\\');
+                    continue;
+                }
                 match scanner.cursor.next_raw() {
                     None => {
                         if stop == StopMode::EndOfInput {
@@ -516,11 +523,16 @@ pub(crate) fn parse_word(
     parse_word_inner(scanner, tilde_mode, StopMode::Word)
 }
 
+// Arithmetic text has no paths, so it always uses the POSIX escape rule.
 pub(crate) fn parse_arith_template(src: &str, depth: usize) -> Result<Word, ParseError> {
-    parse_unquoted_template(src, depth)
+    parse_unquoted_template(src, depth, Escapes::Posix)
 }
 
-pub(crate) fn parse_unquoted_template(src: &str, depth: usize) -> Result<Word, ParseError> {
+pub(crate) fn parse_unquoted_template(
+    src: &str,
+    depth: usize,
+    esc: Escapes,
+) -> Result<Word, ParseError> {
     if depth > 128 {
         return Err(ParseError {
             line: 1,
@@ -529,7 +541,7 @@ pub(crate) fn parse_unquoted_template(src: &str, depth: usize) -> Result<Word, P
             incomplete: false,
         });
     }
-    let mut scanner = Scanner::new(src);
+    let mut scanner = Scanner::new(src, esc);
     scanner.depth = depth;
     let mut w = parse_word_inner(&mut scanner, TildeMode::None, StopMode::EndOfInput)?;
     if !scanner.pending_heredocs.is_empty() {

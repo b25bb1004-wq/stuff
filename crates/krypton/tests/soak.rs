@@ -285,7 +285,7 @@ fn collect_cmd_words(cmd: &Command, out: &mut Vec<Word>) {
 fn build_valid_words() -> Vec<Word> {
     let mut words = Vec::new();
     for src in SHELL_CORPUS {
-        if let Ok(script) = parse(src) {
+        if let Ok(script) = parse(src, krypton::Escapes::Posix) {
             collect_words(&script, &mut words);
         }
     }
@@ -311,7 +311,7 @@ fn soak_parse(seed: u64, budget: Duration) -> u64 {
             mutate_text(&mut rng, SHELL_CORPUS)
         };
         let t0 = Instant::now();
-        let _ = parse(&input);
+        let _ = parse(&input, krypton::Escapes::Posix);
         check_case_time(t0, "parse", seed, cases);
         cases += 1;
     }
@@ -341,7 +341,7 @@ fn soak_arith(seed: u64, budget: Duration) -> u64 {
 fn random_word(rng: &mut Rng, valid_words: &[Word]) -> Word {
     if rng.chance(1, 2) && !valid_words.is_empty() {
         let candidate = mutate_text(rng, SHELL_CORPUS);
-        if let Ok(sc) = parse(&candidate) {
+        if let Ok(sc) = parse(&candidate, krypton::Escapes::Posix) {
             let mut extracted = Vec::new();
             collect_words(&sc, &mut extracted);
             if !extracted.is_empty() {

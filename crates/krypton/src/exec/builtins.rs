@@ -639,7 +639,7 @@ fn builtin_eval(
     if src.trim().is_empty() {
         return 0;
     }
-    match crate::parse(&src) {
+    match crate::parse(&src, shell.escapes) {
         Ok(script) => shell.exec_script(&script, fds, io),
         Err(e) => {
             fds.write_err(
@@ -697,7 +697,7 @@ fn builtin_dot(
         fds.write_err(io, &format!("krypton: .: {file}: cannot read file\n"));
         return 1;
     };
-    let script = match crate::parse(&src) {
+    let script = match crate::parse(&src, shell.escapes) {
         Ok(s) => s,
         Err(e) => {
             fds.write_err(
@@ -723,6 +723,14 @@ fn builtin_type(
     fds: &mut FdTable,
     io: &mut IoStreams<'_>,
 ) -> i32 {
+    // On Windows a path or a non-command operand is a file for cmd's `type`: hand the call over.
+    let file_operand = |n: &String| {
+        n.contains(['\\', '/'])
+            || (!shell.functions.contains_key(n) && !is_builtin(n) && which(n, shell).is_none())
+    };
+    if cfg!(windows) && args.iter().any(file_operand) {
+        return super::external::run_external("type", args, &[], shell, fds, io);
+    }
     let mut status = 0;
     for name in args {
         if shell.functions.contains_key(name) {

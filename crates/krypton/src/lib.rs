@@ -25,4 +25,4 @@ pub use crate::arith::arith;
 pub use crate::expand::{expand, expand_one};
 pub use crate::glob::glob_match;
 pub use crate::parser::parse;
-pub use crate::types::{Env, ExpandError, ParseError};
+pub use crate::types::{Env, Escapes, ExpandError, ParseError};

@@ -105,3 +105,93 @@ fn batch_files_run_through_cmd_with_safe_quoting() {
     let (out, _) = run(r#"./show.cmd 'bad%arg'; echo rc=$?"#, &dir);
     assert!(out.starts_with("rc=126") || out.contains("rc=126"), "{out}");
 }
+
+/// The words of a one-command script as text: literal and escaped characters joined, no expansion.
+fn words_text(src: &str, esc: krypton::Escapes) -> Vec<String> {
+    use krypton::ast::{Command, Part};
+    fn text(parts: &[Part], out: &mut String) {
+        for part in parts {
+            match part {
+                Part::Lit(s) | Part::Single(s) => out.push_str(s),
+                Part::Escaped(c) => out.push(*c),
+                Part::Double(inner) => text(inner, out),
+                other => panic!("unexpected part {other:?}"),
+            }
+        }
+    }
+    let script = krypton::parse(src, esc).expect("parse");
+    let Command::Simple(cmd) = &script.items[0].first.cmds[0] else {
+        panic!("{src:?} is not a simple command");
+    };
+    cmd.words
+        .iter()
+        .map(|w| {
+            let mut s = String::new();
+            text(w, &mut s);
+            s
+        })
+        .collect()
+}
+
+#[test]
+fn windows_mode_backslash_is_a_path_separator() {
+    use krypton::Escapes::Windows;
+    assert_eq!(words_text(r"echo C:\a\b", Windows), ["echo", r"C:\a\b"]);
+    assert_eq!(
+        words_text(r#"echo "C:\Program Files\x""#, Windows),
+        ["echo", r"C:\Program Files\x"]
+    );
+    assert_eq!(words_text(r"echo \$HOME", Windows), ["echo", "$HOME"]);
+    assert_eq!(words_text(r"echo C:\foo\", Windows), ["echo", r"C:\foo\"]);
+    assert!(krypton::parse(r"echo \", Windows).is_ok());
+}
+
+#[test]
+fn posix_mode_backslash_still_escapes() {
+    use krypton::Escapes::Posix;
+    assert_eq!(words_text(r"echo C:\a\b", Posix), ["echo", "C:ab"]);
+    assert_eq!(words_text(r"echo \$HOME", Posix), ["echo", "$HOME"]);
+    assert!(krypton::parse(r"echo \", Posix).is_err());
+}
+
+#[cfg(windows)]
+#[test]
+fn cmd_builtins_type_and_dir_run_through_cmd() {
+    let dir = temp_dir("cmdb");
+    let file = dir.join("k.txt");
+    fs::write(&file, "hello-cmd\r\n").expect("write");
+    let (out, _) = run(&format!(r#"type "{}"; echo rc=$?"#, file.display()), &dir);
+    assert!(out.contains("hello-cmd"), "{out}");
+    let (out, _) = run(
+        &format!(r#"dir "{}" > /dev/null; echo rc=$?"#, file.display()),
+        &dir,
+    );
+    assert!(out.ends_with("rc=0\n"), "{out}");
+    // `ver` is cmd-only (no PATH program), so this runs through the cmd fallback.
+    let (out, _) = run("ver; echo rc=$?", &dir);
+    assert!(
+        out.contains("Microsoft Windows") && out.ends_with("rc=0\n"),
+        "{out}"
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn git_bash_drive_path_maps_for_redirection_target() {
+    let dir = temp_dir("gitpath");
+    let native = dir.join("g.txt");
+    let s = native.to_string_lossy().into_owned();
+    let git = format!(
+        "/{}{}",
+        s[..1].to_ascii_lowercase(),
+        s[2..].replace('\\', "/")
+    );
+    let (_, code) = run(&format!("echo hi > {git}"), &dir);
+    assert_eq!(code, 0);
+    assert_eq!(
+        fs::read_to_string(&native)
+            .expect("g.txt")
+            .replace("\r\n", "\n"),
+        "hi\n"
+    );
+}

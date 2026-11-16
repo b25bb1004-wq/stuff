@@ -11,7 +11,7 @@ use crate::compound::{
 };
 use crate::heredoc::{parse_heredoc_delim, read_pending_heredocs};
 use crate::lexer::{is_word_single_lit, Op, PendingHereDoc, Scanner};
-use crate::types::{is_valid_name, ParseError};
+use crate::types::{is_valid_name, Escapes, ParseError};
 use crate::word::{parse_word, TildeMode};
 
 const MAX_DEPTH: usize = 128;
@@ -425,7 +425,7 @@ pub(crate) fn parse_cmd_subst(scanner: &mut Scanner<'_>) -> Result<Script, Parse
     res
 }
 
-pub(crate) fn parse_nested(depth: usize, src: &str) -> Result<Script, ParseError> {
+pub(crate) fn parse_nested(depth: usize, src: &str, esc: Escapes) -> Result<Script, ParseError> {
     if depth > MAX_DEPTH {
         return Err(ParseError {
             line: 1,
@@ -434,7 +434,7 @@ pub(crate) fn parse_nested(depth: usize, src: &str) -> Result<Script, ParseError
             incomplete: false,
         });
     }
-    let mut scanner = Scanner::new(src);
+    let mut scanner = Scanner::new(src, esc);
     scanner.depth = depth;
     let mut script = parse_script_until(&mut scanner, Stop::Eof)?;
     if let Some(hd) = scanner.pending_heredocs.first() {
@@ -450,6 +450,6 @@ pub(crate) fn parse_nested(depth: usize, src: &str) -> Result<Script, ParseError
 }
 
 /// Parse a POSIX shell script into an `ast::Script`.
-pub fn parse(src: &str) -> Result<Script, ParseError> {
-    parse_nested(0, src)
+pub fn parse(src: &str, esc: Escapes) -> Result<Script, ParseError> {
+    parse_nested(0, src, esc)
 }

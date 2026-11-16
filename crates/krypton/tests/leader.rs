@@ -211,7 +211,8 @@ fn leader_expansion_matches_bash() {
             env.vars.insert("IFS".into(), s.to_string());
         }
         let src = format!("printf '<%s>' {w}");
-        let s = parse(&src).unwrap_or_else(|e| panic!("parse {src:?}: {e:?}"));
+        let s =
+            parse(&src, krypton::Escapes::Posix).unwrap_or_else(|e| panic!("parse {src:?}: {e:?}"));
         let Command::Simple(c) = &s.items[0].first.cmds[0] else {
             panic!("{src:?} is not a simple command")
         };
@@ -255,7 +256,7 @@ fn leader_parser_shapes_errors_and_incomplete() {
         "echo ${a",
         "echo `ls",
     ] {
-        let e = parse(src).expect_err(src);
+        let e = parse(src, krypton::Escapes::Posix).expect_err(src);
         assert!(e.incomplete, "{src:?} should be incomplete: {e:?}");
     }
     for src in [
@@ -269,28 +270,40 @@ fn leader_parser_shapes_errors_and_incomplete() {
         "( )",
         "if then fi",
     ] {
-        let e = parse(src).expect_err(src);
+        let e = parse(src, krypton::Escapes::Posix).expect_err(src);
         assert!(!e.incomplete, "{src:?} is a hard error: {e:?}");
         assert!(e.line >= 1 && e.col >= 1);
     }
-    let s = parse("a && b || c &\n! x | y\n").unwrap();
+    let s = parse("a && b || c &\n! x | y\n", krypton::Escapes::Posix).unwrap();
     assert_eq!(s.items.len(), 2);
     assert!(s.items[0].background && s.items[0].rest.len() == 2);
     assert!(s.items[0].rest[0].0 && !s.items[0].rest[1].0);
     assert!(s.items[1].first.bang && s.items[1].first.cmds.len() == 2);
 
-    let s = parse("cat <<A <<-B; echo z\nline $x\nA\n\t\ttabbed\n\tB\n").unwrap();
+    let s = parse(
+        "cat <<A <<-B; echo z\nline $x\nA\n\t\ttabbed\n\tB\n",
+        krypton::Escapes::Posix,
+    )
+    .unwrap();
     assert_eq!(s.items.len(), 2);
     let Command::Simple(c) = &s.items[0].first.cmds[0] else {
         panic!()
     };
     assert_eq!(c.redirs.len(), 2);
-    let s = parse("case $x in a|b) echo 1;; *) echo 2\nesac").unwrap();
+    let s = parse(
+        "case $x in a|b) echo 1;; *) echo 2\nesac",
+        krypton::Escapes::Posix,
+    )
+    .unwrap();
     let Command::Case { arms, .. } = &s.items[0].first.cmds[0] else {
         panic!()
     };
     assert_eq!((arms.len(), arms[0].0.len()), (2, 2));
-    assert!(parse("echo if then; for i in 1 2; do :; done # c ) (").is_ok());
+    assert!(parse(
+        "echo if then; for i in 1 2; do :; done # c ) (",
+        krypton::Escapes::Posix
+    )
+    .is_ok());
     // Arbitrary bytes never panic.
     let mut r = Rng::new(9);
     for _ in 0..3000 {
@@ -298,6 +311,6 @@ fn leader_parser_shapes_errors_and_incomplete() {
         let b: Vec<u8> = (0..n)
             .map(|_| *r.pick(b"ab $(){}`'\"\\|&;<>\n#*?[]!=~-0"))
             .collect();
-        let _ = parse(&String::from_utf8_lossy(&b));
+        let _ = parse(&String::from_utf8_lossy(&b), krypton::Escapes::Posix);
     }
 }

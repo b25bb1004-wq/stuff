@@ -58,7 +58,7 @@ fn main() {
     let mut env = DemoEnv::new();
 
     let src = "echo \"hello $NAME\" *.rs\nif true; then echo ${MISSING:-fallback}; fi";
-    match parse(src) {
+    match parse(src, krypton::Escapes::Posix) {
         Ok(script) => {
             println!("parse: {} top-level items", script.items.len());
             if let Some(first) = script.items.first() {

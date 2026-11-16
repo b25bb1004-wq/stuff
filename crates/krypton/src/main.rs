@@ -77,7 +77,7 @@ fn run_interactive(shell: &mut Shell) -> i32 {
             }
             Ok(_) => {
                 buf.push_str(&line);
-                match krypton::parse(&buf) {
+                match krypton::parse(&buf, krypton::Escapes::host()) {
                     Ok(_) => {
                         let mut empty_in = io::empty();
                         shell.run(&buf, &mut empty_in, &mut stdout, &mut stderr);
@@ -125,6 +125,7 @@ fn run_file(
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
     let mut shell = Shell::new();
+    shell.set_escapes(krypton::Escapes::host());
     let mut stdin = io::stdin();
     let mut stdout = io::stdout();
     let mut stderr = io::stderr();

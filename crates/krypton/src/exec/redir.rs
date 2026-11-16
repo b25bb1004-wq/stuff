@@ -64,7 +64,8 @@ impl FdTable {
         if cfg!(windows) && target == "/dev/null" {
             return PathBuf::from("NUL");
         }
-        let p = std::path::Path::new(target);
+        let mapped = super::external::git_bash_path(target);
+        let p = std::path::Path::new(&mapped);
         if p.is_absolute() {
             p.to_path_buf()
         } else {

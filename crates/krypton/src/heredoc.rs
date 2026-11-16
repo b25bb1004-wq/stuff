@@ -134,7 +134,7 @@ pub(crate) fn read_pending_heredocs(scanner: &mut Scanner<'_>) -> Result<(), Par
         let word = if hd.quoted {
             vec![Part::Lit(body_str)]
         } else {
-            parse_unquoted_template(&body_str, scanner.depth + 1)?
+            parse_unquoted_template(&body_str, scanner.depth + 1, scanner.esc)?
         };
         if let Some(slot) = scanner.heredocs.get_mut(hd.id) {
             *slot = Some(word);

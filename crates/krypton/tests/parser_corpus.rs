@@ -797,7 +797,8 @@ fn parser_corpus_ok() {
     let all: Vec<(&str, Script)> = cases.into_iter().chain(extra).collect();
     assert!(all.len() >= 60);
     for (idx, (src, expected)) in all.iter().enumerate() {
-        let got = parse(src).unwrap_or_else(|e| panic!("case {idx} failed: {src:?} -> {e:?}"));
+        let got = parse(src, krypton::Escapes::Posix)
+            .unwrap_or_else(|e| panic!("case {idx} failed: {src:?} -> {e:?}"));
         assert_eq!(&got, expected, "case {idx}: {src:?}");
     }
 }
@@ -838,7 +839,8 @@ fn parser_corpus_errors() {
     ];
 
     for (idx, (src, line, col, incomplete)) in cases.iter().enumerate() {
-        let err: ParseError = parse(src).expect_err(&format!("case {idx} should fail: {src:?}"));
+        let err: ParseError = parse(src, krypton::Escapes::Posix)
+            .expect_err(&format!("case {idx} should fail: {src:?}"));
         assert_eq!(err.line, *line, "case {idx} line for {src:?}: {err:?}");
         assert_eq!(err.col, *col, "case {idx} col for {src:?}: {err:?}");
         assert_eq!(

@@ -101,7 +101,7 @@ impl Env for TestEnv {
 }
 
 fn words_of(src: &str) -> Vec<Word> {
-    let s = parse(src).unwrap();
+    let s = parse(src, krypton::Escapes::Posix).unwrap();
     if let Command::Simple(simp) = &s.items[0].first.cmds[0] {
         simp.words.clone()
     } else {
@@ -133,7 +133,7 @@ fn expansion_corpus() {
     );
 
     // 2. Assignment tilde expansion (`expand_one` on assignment RHS: `~/bin:~alice/lib:~none`)
-    let assign_script = parse("P=~/bin:~alice/lib:~none").unwrap();
+    let assign_script = parse("P=~/bin:~alice/lib:~none", krypton::Escapes::Posix).unwrap();
     if let Command::Simple(ref simp) = assign_script.items[0].first.cmds[0] {
         assert_eq!(
             expand_one(&simp.assigns[0].1, &mut env).unwrap(),
@@ -579,7 +579,7 @@ fn expansion_corpus() {
     );
     // Trailing backslash at EOF returns incomplete parse error.
     for src in [r"echo \", r"\", r"cat <<\"] {
-        let err = parse(src).expect_err(src);
+        let err = parse(src, krypton::Escapes::Posix).expect_err(src);
         assert!(err.incomplete, "{src:?} should be incomplete: {err:?}");
     }
 }

@@ -4,7 +4,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::ast::{Part, Word};
-use crate::types::ParseError;
+use crate::types::{Escapes, ParseError};
 
 /// Source cursor tracking 1-based line and column numbers.
 #[derive(Clone)]
@@ -158,15 +158,17 @@ pub(crate) struct Scanner<'a> {
     pub(crate) pending_heredocs: Vec<PendingHereDoc>,
     pub(crate) heredocs: Vec<Option<Word>>,
     pub(crate) depth: usize,
+    pub(crate) esc: Escapes,
 }
 
 impl<'a> Scanner<'a> {
-    pub(crate) fn new(src: &'a str) -> Self {
+    pub(crate) fn new(src: &'a str, esc: Escapes) -> Self {
         Self {
             cursor: Cursor::new(src),
             pending_heredocs: Vec::new(),
             heredocs: Vec::new(),
             depth: 0,
+            esc,
         }
     }
 

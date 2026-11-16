@@ -84,6 +84,8 @@ pub struct Shell {
     pub(crate) cmd_stderr: Option<Arc<Mutex<Vec<u8>>>>,
     /// When set, external programs inherit the process's real stdin, stdout and stderr.
     pub(crate) inherit_stdio: bool,
+    /// Backslash rule used when parsing scripts run by this shell.
+    pub(crate) escapes: crate::types::Escapes,
 }
 
 impl Default for Shell {
@@ -135,12 +137,18 @@ impl Shell {
             suppress_errexit: false,
             cmd_stderr: None,
             inherit_stdio: false,
+            escapes: crate::types::Escapes::Posix,
         }
     }
 
     /// Let child programs use the process's real console or terminal streams (interactive use).
     pub fn set_inherit_stdio(&mut self, on: bool) {
         self.inherit_stdio = on;
+    }
+
+    /// Set the backslash rule for scripts run by this shell (the binary sets the host rule).
+    pub fn set_escapes(&mut self, esc: crate::types::Escapes) {
+        self.escapes = esc;
     }
 
     /// The shell's current working directory.
@@ -178,7 +186,7 @@ impl Shell {
         stdout: &mut dyn Write,
         stderr: &mut dyn Write,
     ) -> i32 {
-        let script = match crate::parse(src) {
+        let script = match crate::parse(src, self.escapes) {
             Ok(s) => s,
             Err(e) => {
                 let _ = writeln!(stderr, "krypton: {}:{}: {}", e.line, e.col, e.msg);
@@ -233,6 +241,7 @@ impl Shell {
             suppress_errexit: self.suppress_errexit,
             cmd_stderr: self.cmd_stderr.clone(),
             inherit_stdio: self.inherit_stdio,
+            escapes: self.escapes,
         }
     }
 

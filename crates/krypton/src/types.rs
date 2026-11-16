@@ -18,6 +18,26 @@ pub struct ParseError {
     pub incomplete: bool,
 }
 
+/// How an unquoted backslash is read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Escapes {
+    /// `\x` escapes `x`, as in every POSIX shell.
+    Posix,
+    /// `\` is a literal path separator, except before `"`, `$`, `` ` `` or `\`.
+    Windows,
+}
+
+impl Escapes {
+    /// The rule for the machine this build runs on.
+    pub fn host() -> Escapes {
+        if cfg!(windows) {
+            Escapes::Windows
+        } else {
+            Escapes::Posix
+        }
+    }
+}
+
 /// Error returned during word or arithmetic expansion.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpandError {

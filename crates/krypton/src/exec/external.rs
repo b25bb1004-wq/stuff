@@ -178,17 +178,44 @@ fn command_for(exe: &Path, args: &[String]) -> Result<Command, String> {
     Ok(cmd)
 }
 
+/// cmd.exe commands that are not programs on PATH.
+const CMD_BUILTINS: &[&str] = &[
+    "type", "dir", "copy", "del", "erase", "move", "ren", "rename", "mkdir", "md", "rmdir", "rd",
+    "cls", "start", "ver", "vol", "mklink", "assoc",
+];
+
+/// True for a cmd.exe builtin name on Windows (never on other systems).
+pub(crate) fn is_cmd_builtin(name: &str) -> bool {
+    cfg!(windows) && CMD_BUILTINS.iter().any(|b| b.eq_ignore_ascii_case(name))
+}
+
+/// Git Bash spelling `/c/rest` on Windows becomes `C:\rest` when the path does not exist as written.
+pub(crate) fn git_bash_path(arg: &str) -> String {
+    let b = arg.as_bytes();
+    if cfg!(windows)
+        && b.len() >= 3
+        && b[0] == b'/'
+        && b[1].is_ascii_alphabetic()
+        && b[2] == b'/'
+        && !Path::new(arg).exists()
+    {
+        let drive = char::from(b[1]).to_ascii_uppercase();
+        return format!("{drive}:\\{}", arg[3..].replace('/', "\\"));
+    }
+    arg.to_string()
+}
+
 #[cfg(windows)]
-fn batch_command(exe: &Path, args: &[String]) -> Result<Command, String> {
+fn cmd_command(head: String, args: &[String]) -> Result<Command, String> {
     use std::os::windows::process::CommandExt;
     // cmd.exe cannot quote % or " safely, and ! expands only with delayed expansion: refuse them.
     if let Some(bad) = args
         .iter()
         .find(|a| a.contains(['%', '"', '!', '\r', '\n', '\0']))
     {
-        return Err(format!("argument not safe for a batch file: {bad:?}"));
+        return Err(format!("argument not safe for cmd: {bad:?}"));
     }
-    let mut line = win_quote_arg(&exe.to_string_lossy());
+    let mut line = head;
     for arg in args {
         line.push(' ');
         line.push_str(&win_quote_arg(arg));
@@ -200,9 +227,25 @@ fn batch_command(exe: &Path, args: &[String]) -> Result<Command, String> {
     Ok(cmd)
 }
 
+#[cfg(windows)]
+fn batch_command(exe: &Path, args: &[String]) -> Result<Command, String> {
+    cmd_command(win_quote_arg(&exe.to_string_lossy()), args)
+}
+
 #[cfg(not(windows))]
 fn batch_command(_exe: &Path, _args: &[String]) -> Result<Command, String> {
     Err("batch files only run on Windows".into())
+}
+
+/// Command for a cmd.exe builtin such as `dir`, run as `cmd /d /s /c "dir ..."`.
+#[cfg(windows)]
+pub(crate) fn cmd_builtin_command(name: &str, args: &[String]) -> Result<Command, String> {
+    cmd_command(name.to_string(), args)
+}
+
+#[cfg(not(windows))]
+pub(crate) fn cmd_builtin_command(_name: &str, _args: &[String]) -> Result<Command, String> {
+    Err("cmd builtins only run on Windows".into())
 }
 
 fn copy_stream(reader: &mut dyn Read, writer: &mut dyn Write) {
@@ -257,8 +300,10 @@ pub(crate) fn run_external(
 ) -> i32 {
     let path_var = shell.vars.get("PATH").map(String::as_str);
     let pathext = shell.vars.get("PATHEXT").map(String::as_str);
-    let exe_path = match find_in_path(program, path_var, pathext, &shell.cwd) {
-        Ok(p) => p,
+    let args: Vec<String> = args.iter().map(|a| git_bash_path(a)).collect();
+    let built = match find_in_path(program, path_var, pathext, &shell.cwd) {
+        Ok(p) => command_for(&p, &args),
+        Err(127) if is_cmd_builtin(program) => cmd_builtin_command(program, &args),
         Err(code) => {
             if code == 127 {
                 fds.write_err(io, &format!("krypton: {program}: command not found\n"));
@@ -274,7 +319,7 @@ pub(crate) fn run_external(
     let fd2 = fds.get(2).cloned();
 
     let inherit = shell.inherit_stdio;
-    let mut cmd = match command_for(&exe_path, args) {
+    let mut cmd = match built {
         Ok(c) => c,
         Err(msg) => {
             fds.write_err(io, &format!("krypton: {program}: {msg}\n"));
