@@ -456,3 +456,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | D1 krypton daily shell | haiku | 127k | PASS 79137be, RETRY D1b | by hand: Windows backslashes eaten, cmd builtins (type, dir) not found, /c/ paths; sent to same worker
 - 2026-11-16 | D1b+D1c krypton Windows fixes | haiku | 128k | PASS | first try skipped old tests on Windows (rejected); dialect parameter fixed it
 - 2026-11-16 | D3 calliope terminal editor | haiku | - | STOPPED (5-hour limit, resets 9am IST) | partial work uncommitted in crates/calliope + chronos bin; resume by SendMessage to the same D3 agent, then judge: calliope + chronos gates, open a file by hand, 10 MB timing
+- 2026-11-16 | D3 calliope editor + chronos $EDITOR | haiku | 247k | PASS | interactive editing not tried by leader (no console here); gaps: Linux termios not built, one file per session, resize redraw, wide chars
