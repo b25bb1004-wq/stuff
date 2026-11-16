@@ -459,3 +459,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | D3 calliope editor + chronos $EDITOR | haiku | 247k | PASS | interactive editing not tried by leader (no console here); gaps: Linux termios not built, one file per session, resize redraw, wide chars
 - 2026-11-16 | D4 installer | haiku | 179k | PASS | 4 tools reject --help (bench, iridium-cli, logos, pandora); duplicate silicon CLI (chisel's older one is installed, T132's crates/silicon bin is redundant)
 - 2026-11-16 | --help fixes bench/iridium-cli/logos/pandora | leader | - | PASS d37ebae | 4 gates pass; D5 athena serve dispatched
+- 2026-11-16 | D5 athena serve | haiku | 147k | PASS | worker's 3 selftest failures were headless timing (32/32 in devtools); calliope Style::Selection arm fixed in athena wasm
