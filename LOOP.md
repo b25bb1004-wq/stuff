@@ -480,3 +480,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | A1 crates/aci | haiku | 168k | PASS | leader: gate, 400 malformed inputs + 3 MiB random bytes rejected cleanly, depth, surrogates, big numbers
 - 2026-11-16 | ACI task 2 (aci-check.sh, APPS.md, ACI-COMMON brief) | leader | - | DONE | TODO: add aci:aci to TOOLS in tools/install.sh and install.ps1
 - 2026-11-16 | WAVE 2: ACI T4 krypton, T5 iridium (chronos-2 still running) | haiku x2 | 2 x 200k | running | briefs/ai/ACI-COMMON.md + prompt
+- 2026-11-16 | FIX chronos-2 (finish) | haiku | 204k | PASS | merge, stash, show, tag, branch -d/-D, export to empty and second git repo; leader ran every command by hand, git fsck clean; gap: stash pop refuses instead of merging when a path is dirty
+- 2026-11-16 | ACI T4 krypton | haiku | 152k | PASS | leader fixed syntax-error exit code (1 to 2) and hints to --describe; gaps: no flag to read truncated output, script from stdin not offered under --json
+- 2026-11-16 | WAVE 3: ACI T3 chronos, T6 calliope+athena (T5 iridium still running) | haiku x2 | 2 x 230k | running | prompts carry the fixed shapes
