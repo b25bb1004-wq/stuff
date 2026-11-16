@@ -500,3 +500,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - PHASE 1 conversions DONE 2026-11-16: all 28 binaries have --describe/--json. Worker tokens about 2.57M. Next: T12 simulated-agent gate in a fresh sandbox install
 - 2026-11-16 | T12 gate part 1: fresh sandbox install, tools/aci-check.sh | leader | - | PASS | ACI PASS 27/27
 - 2026-11-16 | T12 gate part 2: agents A1-dev and A2-data, 30 tasks each, bar 54/60 | haiku x2 | 2 x 150k | running |
+- 2026-11-16 | T12 agent A2-data | haiku | 124k | 29/30 | FAIL t29: installed titan cannot boot (default --kernel is repo-relative; installer does not ship the riscv kernel). Leader reproduced from outside the repo. Fix round: ship kernel to share/titan, titan falls back to exe_dir/../share/titan/kernel. Also: hades paths mangled by Git Bash (hint), pandora Linux-only not in manifest
