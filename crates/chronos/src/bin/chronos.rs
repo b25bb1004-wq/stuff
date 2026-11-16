@@ -9,9 +9,10 @@ use std::process;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use chronos::git;
 use chronos::{
-    decode_commit, decode_tree, from_hex, to_hex, validate_entry_name, Change, DirStore, Mode,
-    Repo, Signature,
+    decode_commit, decode_tree, from_hex, to_hex, unified, validate_entry_name, Change, DirStore,
+    Mode, Repo, Signature,
 };
 
 const VERSION_STR: &str = "chronos 0.1.0";
@@ -29,12 +30,31 @@ Subcommands:
       Example: chronos init myrepo
 
   add PATH...
-      Stage one or more files into the repository index.
+      Stage files, or whole directories (recursively), into the repository index.
       Example: chronos add README.md src/main.rs
 
   commit -m MSG
-      Record a new commit from the staged index.
+      Record a new commit from the staged index. Author is CHRONOS_NAME and
+      CHRONOS_EMAIL, else git's user.name and user.email, else Monolith.
       Example: chronos commit -m \"initial commit\"
+
+  diff
+      Show the unified diff of staged changes against HEAD (same set as status).
+      Example: chronos diff
+
+  switch NAME
+      Same as checkout NAME.
+      Example: chronos switch main
+
+  import GIT_DIR
+      Import all branches and tags of the git repository GIT_DIR into the empty
+      directory (default '.') as a chronos repository, and check out HEAD there.
+      Example: chronos -C ~/work/strata-chronos import C:/Users/ADMIN/strata
+
+  export GIT_DIR
+      Append chronos commits that git does not have yet to the git repository
+      GIT_DIR (via git fast-import). Repeat runs only send new work.
+      Example: chronos export C:/Users/ADMIN/strata
 
   log
       Show commits reachable from HEAD, newest first.
@@ -218,17 +238,80 @@ fn cmd_add(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
             .map_err(|e| CliError::Op(format!("cannot get current directory: {e}")))?,
     };
     let (root, mut repo) = open_repo(Some(&cwd))?;
+    let mut files = Vec::new();
     for arg in args {
-        let (disk_path, rel_path) = rel_repo_path(&root, &cwd, Path::new(arg))?;
+        let target = if Path::new(arg).is_absolute() {
+            PathBuf::from(arg)
+        } else {
+            cwd.join(arg)
+        };
+        collect_files(&target, &mut files)?;
+    }
+    for disk_path in files {
+        let shown = disk_path.display().to_string();
+        let (disk_path, rel_path) = rel_repo_path(&root, &cwd, &disk_path)?;
         let bytes = fs::read(&disk_path)
-            .map_err(|e| CliError::Op(format!("failed to read '{arg}': {e}")))?;
+            .map_err(|e| CliError::Op(format!("failed to read '{shown}': {e}")))?;
         let meta = fs::metadata(&disk_path)
-            .map_err(|e| CliError::Op(format!("failed to stat '{arg}': {e}")))?;
+            .map_err(|e| CliError::Op(format!("failed to stat '{shown}': {e}")))?;
         let exec = is_executable(&meta);
         repo.add(&rel_path, &bytes, exec)
-            .map_err(|e| CliError::Op(format!("failed to stage '{arg}': {e}")))?;
+            .map_err(|e| CliError::Op(format!("failed to stage '{shown}': {e}")))?;
     }
     Ok(())
+}
+
+/// Expand `path` into regular files; directories are walked, skipping `.chronos` and `.git`.
+fn collect_files(path: &Path, out: &mut Vec<PathBuf>) -> Result<(), CliError> {
+    let meta = fs::metadata(path)
+        .map_err(|e| CliError::Op(format!("cannot stat '{}': {e}", path.display())))?;
+    if !meta.is_dir() {
+        out.push(path.to_path_buf());
+        return Ok(());
+    }
+    let entries = fs::read_dir(path)
+        .map_err(|e| CliError::Op(format!("cannot read '{}': {e}", path.display())))?;
+    let mut children: Vec<PathBuf> = entries.filter_map(|e| e.ok().map(|e| e.path())).collect();
+    children.sort();
+    for child in children {
+        let name = child.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name == ".chronos" || name == ".git" {
+            continue;
+        }
+        collect_files(&child, out)?;
+    }
+    Ok(())
+}
+
+/// Author for new commits: CHRONOS_NAME/CHRONOS_EMAIL, then git's user settings, then Monolith.
+fn default_identity(root: &Path) -> Signature {
+    let git_value = |key: &str| -> Option<String> {
+        let out = process::Command::new("git")
+            .arg("-C")
+            .arg(root)
+            .args(["config", "--get", key])
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        let value = String::from_utf8(out.stdout).ok()?.trim().to_string();
+        (!value.is_empty()).then_some(value)
+    };
+    let name = env::var("CHRONOS_NAME")
+        .ok()
+        .or_else(|| git_value("user.name"))
+        .unwrap_or_else(|| "Monolith".to_string());
+    let email = env::var("CHRONOS_EMAIL")
+        .ok()
+        .or_else(|| git_value("user.email"))
+        .unwrap_or_else(|| "monolith@local".to_string());
+    Signature {
+        name,
+        email,
+        time: current_unix_secs(),
+        tz_minutes: 0,
+    }
 }
 
 fn cmd_commit(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
@@ -259,16 +342,11 @@ fn cmd_commit(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
     if msg.is_empty() {
         return Err(CliError::Op("commit message cannot be empty".to_string()));
     }
-    let (_root, mut repo) = open_repo(base_dir)?;
+    let (root, mut repo) = open_repo(base_dir)?;
     if repo.status().is_empty() {
         return Err(CliError::Op("nothing to commit".to_string()));
     }
-    let sig = Signature {
-        name: "Monolith".to_string(),
-        email: "monolith@local".to_string(),
-        time: current_unix_secs(),
-        tz_minutes: 0,
-    };
+    let sig = default_identity(&root);
     let id = repo
         .commit(msg, &sig)
         .map_err(|e| CliError::Op(format!("commit failed: {e}")))?;
@@ -392,6 +470,129 @@ fn cmd_checkout(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError
         set_executable(p, *exec);
     }
     println!("checked out {name}");
+    Ok(())
+}
+
+fn cmd_diff(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    if !args.is_empty() {
+        return Err(CliError::Usage("diff takes no arguments".to_string()));
+    }
+    let (_root, repo) = open_repo(base_dir)?;
+    let head_files = match repo.head() {
+        Some(head) => repo
+            .files(&head)
+            .map_err(|e| CliError::Op(format!("diff failed: {e}")))?,
+        None => Default::default(),
+    };
+    let staged = repo.staged();
+    let mut out = io::stdout().lock();
+    for change in repo.status() {
+        let path = match change {
+            Change::Added(p) | Change::Modified(p) | Change::Deleted(p) => p,
+        };
+        let old: &[u8] = head_files
+            .get(&path)
+            .map(|(b, _)| b.as_slice())
+            .unwrap_or(&[]);
+        let new: &[u8] = staged.get(&path).map(|(b, _)| b.as_slice()).unwrap_or(&[]);
+        let written = if old.contains(&0) || new.contains(&0) {
+            writeln!(out, "Binary files a/{path} and b/{path} differ")
+        } else {
+            out.write_all(&unified(&path, old, new, 3))
+        };
+        written.map_err(|e| CliError::Op(format!("failed to write stdout: {e}")))?;
+    }
+    Ok(())
+}
+
+/// Write checked-out files under `root`. Used after an import, into an empty directory.
+fn write_worktree(root: &Path, files: &chronos::Files) -> Result<(), CliError> {
+    for (rel, (bytes, exec)) in files {
+        let p = disk_path_for_rel(root, rel)?;
+        if let Some(parent) = p.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                CliError::Op(format!("failed to create '{}': {e}", parent.display()))
+            })?;
+        }
+        fs::write(&p, bytes)
+            .map_err(|e| CliError::Op(format!("failed to write '{}': {e}", p.display())))?;
+        set_executable(&p, *exec);
+    }
+    Ok(())
+}
+
+fn print_warnings(summary: &git::Summary) {
+    for line in &summary.warnings {
+        eprintln!("chronos: warning: {line}");
+    }
+}
+
+fn cmd_import(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    let [git_dir] = args else {
+        return Err(CliError::Usage("import expects one GIT_DIR".to_string()));
+    };
+    let target = match base_dir {
+        Some(b) => b.to_path_buf(),
+        None => env::current_dir()
+            .map_err(|e| CliError::Op(format!("cannot get current directory: {e}")))?,
+    };
+    if !target.is_dir() {
+        return Err(CliError::Op(format!(
+            "import target '{}' is not a directory",
+            target.display()
+        )));
+    }
+    let mut entries = fs::read_dir(&target)
+        .map_err(|e| CliError::Op(format!("cannot read '{}': {e}", target.display())))?;
+    if entries.next().is_some() {
+        return Err(CliError::Op(format!(
+            "import needs an empty directory; '{}' is not empty",
+            target.display()
+        )));
+    }
+    let chronos_dir = target.join(".chronos");
+    fs::create_dir(&chronos_dir)
+        .map_err(|e| CliError::Op(format!("failed to create '{}': {e}", chronos_dir.display())))?;
+    let mut repo = Repo::init(DirStore::new(&chronos_dir));
+    let summary = match git::import(&mut repo, Path::new(git_dir)) {
+        Ok(summary) => summary,
+        Err(e) => {
+            let _ = fs::remove_dir_all(&chronos_dir);
+            return Err(CliError::Op(format!("import failed: {e}")));
+        }
+    };
+    if let Some(head) = repo.head() {
+        let files = repo
+            .files(&head)
+            .map_err(|e| CliError::Op(format!("cannot read HEAD: {e}")))?;
+        write_worktree(&target, &files)?;
+    }
+    print_warnings(&summary);
+    println!(
+        "imported {} commits and {} refs from {git_dir} into {}",
+        summary.commits,
+        summary.refs,
+        chronos_dir.display()
+    );
+    Ok(())
+}
+
+fn cmd_export(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    let [git_dir] = args else {
+        return Err(CliError::Usage("export expects one GIT_DIR".to_string()));
+    };
+    let (_root, mut repo) = open_repo(base_dir)?;
+    let summary = git::export(&mut repo, Path::new(git_dir))
+        .map_err(|e| CliError::Op(format!("export failed: {e}")))?;
+    print_warnings(&summary);
+    if summary.commits == 0 && summary.refs == 0 {
+        println!("nothing to export to {git_dir}");
+    } else {
+        println!(
+            "exported {} commits and {} refs to {git_dir}",
+            summary.commits, summary.refs
+        );
+    }
     Ok(())
 }
 
@@ -556,9 +757,12 @@ fn run() -> Result<(), CliError> {
                 "commit" => cmd_commit(rest, base_ref),
                 "log" => cmd_log(rest, base_ref),
                 "branch" => cmd_branch(rest, base_ref),
-                "checkout" => cmd_checkout(rest, base_ref),
+                "checkout" | "switch" => cmd_checkout(rest, base_ref),
                 "cat-file" => cmd_cat_file(rest, base_ref),
                 "status" => cmd_status(rest, base_ref),
+                "diff" => cmd_diff(rest, base_ref),
+                "import" => cmd_import(rest, base_ref),
+                "export" => cmd_export(rest, base_ref),
                 "serve" => cmd_serve(rest, base_ref),
                 other => Err(CliError::Usage(format!("unknown subcommand '{other}'"))),
             }

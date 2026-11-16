@@ -7,6 +7,8 @@ extern crate alloc;
 
 mod diff;
 mod format;
+#[cfg(feature = "std")]
+pub mod git;
 mod id;
 mod index;
 mod merge;
