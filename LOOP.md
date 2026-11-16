@@ -461,3 +461,11 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | --help fixes bench/iridium-cli/logos/pandora | leader | - | PASS d37ebae | 4 gates pass; D5 athena serve dispatched
 - 2026-11-16 | D5 athena serve | haiku | 147k | PASS | worker's 3 selftest failures were headless timing (32/32 in devtools); calliope Style::Selection arm fixed in athena wasm
 - 2026-11-16 | D6 daily-use batch | haiku | 195k | PASS | gap seen by hand: chronos status does not list untracked files; dropped silicon step-limit test is fine (chisel's tested design: OutOfSteps exits 0)
+- 2026-11-16 | SIM p1-p4 (MiroFish-style simulated users: git dev, shell, editor/IDE, server/data) | haiku x4 | ~600k budget | running | operator: test without depending on me; tools installed to sandbox HOME, reports to reports/sim/
+- 2026-11-16 | SIM results | haiku x4 | ~541k | DONE | p1 git 36/19 worked, p2 shell 60/42, p3 editor 88/78, p4 server 49/33. Leader re-ran: chronos deletion not committable (confirmed), iridium two writers lose rows silently (confirmed: exit 0, 196 of 300 rows), calliope CRLF mixed endings (confirmed), athena installed serve fails (confirmed). Not reproduced: krypton python hang (R1), chronos status 7-10 s (0.4 s for leader). Rejected: R2 kryptonrc in piped mode (bash also skips rc when not interactive), R4 `cmd //c` (Git Bash path-conversion habit), R22 bare hello.cmd (POSIX search rule)
+- 2026-11-16 | FIX chronos-1, athena-calliope, iridium-1, krypton-1 | haiku x4 | running | briefs/sim/fix-*.md
+- 2026-11-16 | FIX iridium-1 | haiku | 146k | PASS ff776bc | two-writer repro 5/5 now 600 rows, lock message
+- 2026-11-16 | FIX krypton-1 | haiku | 188k | PASS 306094c | piped-prompt assert inverted on purpose (bash prints no prompt off a tty); R21 argv0 unix only
+- 2026-11-16 | FIX athena-calliope | haiku | 203k | PASS aa7fb38 | fresh sandbox install serves IDE 200; CRLF kept; worker skipped its report file
+- 2026-11-16 | FIX chronos-1 | haiku | 237k | PASS (this push) | deletion, .gitignore, untracked, add -A, restore/reset, rm/mv, switch, commit no -m
+- 2026-11-16 | FIX iridium-2, misc-1 (mercury/hades/help), krypton-2, chronos-2 | haiku x4 | running |
