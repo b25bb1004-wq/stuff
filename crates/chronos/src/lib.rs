@@ -10,6 +10,7 @@ mod format;
 #[cfg(feature = "std")]
 pub mod git;
 mod id;
+pub mod ignore;
 mod index;
 mod merge;
 #[cfg(feature = "std")]

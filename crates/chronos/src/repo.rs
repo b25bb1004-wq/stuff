@@ -25,6 +25,25 @@ fn object_path(id: &Id) -> String {
     format!("objects/{}/{}", &hex[..2], &hex[2..])
 }
 
+/// True if `path` is `dir` or lies under it. The empty `dir` is the whole tree.
+fn under(path: &str, dir: &str) -> bool {
+    dir.is_empty() || path == dir || path.strip_prefix(dir).is_some_and(|r| r.starts_with('/'))
+}
+
+/// What a switch would do, computed once and shared by `switch_conflicts` and `checkout_keep`.
+struct SwitchPlan {
+    is_branch: bool,
+    target_id: Id,
+    /// Index of the target commit.
+    target: IndexMap,
+    /// Index now.
+    current: IndexMap,
+    /// Paths whose local state survives the switch.
+    keep: BTreeSet<String>,
+    /// Kept paths that HEAD and the target disagree on.
+    conflicts: Vec<String>,
+}
+
 fn parse_head_ref(raw: &[u8]) -> Result<HeadTarget, Error> {
     let s = core::str::from_utf8(raw).map_err(|_| Error::Corrupt)?;
     let trimmed = s.trim_end_matches(['\r', '\n']);
@@ -226,15 +245,7 @@ impl<S: Store> Repo<S> {
 
     /// Check out a branch name or revision, updating `HEAD` and the index.
     pub fn checkout(&mut self, rev: &str) -> Result<Files, Error> {
-        let branch_path = format!("refs/heads/{rev}");
-        let (is_branch, target_id) = if let Some(raw) = self.store.read(&branch_path) {
-            let s = core::str::from_utf8(&raw).map_err(|_| Error::Corrupt)?;
-            let id = from_hex(s.trim()).ok_or(Error::Corrupt)?;
-            (true, id)
-        } else {
-            let id = self.resolve(rev).ok_or(Error::NotFound)?;
-            (false, id)
-        };
+        let (is_branch, target_id) = self.checkout_target(rev)?;
 
         let target_commit = self.read_commit(&target_id)?;
         let cur_index = read_index(&self.store)?;
@@ -256,6 +267,119 @@ impl<S: Store> Repo<S> {
                 .write("HEAD", format!("{}\n", to_hex(&target_id)).as_bytes());
         }
         Ok(files)
+    }
+
+    /// Like `checkout`, but local changes survive when they do not conflict. Paths in `dirty` (the
+    /// caller's worktree or index changes) and paths whose index entry differs from `HEAD` are
+    /// kept as they are, unless HEAD and `rev` differ on them (`Error::Dirty`). Returns the files
+    /// the caller must write to the work tree: every path of `rev` that is not kept.
+    pub fn checkout_keep(&mut self, rev: &str, dirty: &BTreeSet<String>) -> Result<Files, Error> {
+        let plan = self.plan_switch(rev, dirty)?;
+        if !plan.conflicts.is_empty() {
+            return Err(Error::Dirty);
+        }
+        let mut to_write = IndexMap::new();
+        for (path, entry) in &plan.target {
+            if !plan.keep.contains(path) {
+                to_write.insert(path.clone(), *entry);
+            }
+        }
+        let files = self.materialize_index(&to_write)?;
+        let mut index = plan.target;
+        for path in &plan.keep {
+            match plan.current.get(path) {
+                Some(entry) => index.insert(path.clone(), *entry),
+                None => index.remove(path),
+            };
+        }
+        write_index(&mut self.store, &index);
+        self.point_head(rev, plan.is_branch, &plan.target_id);
+        Ok(files)
+    }
+
+    /// Paths with local changes (from `dirty`) that `checkout_keep(rev)` would overwrite.
+    /// An empty list means the switch is allowed.
+    pub fn switch_conflicts(
+        &self,
+        rev: &str,
+        dirty: &BTreeSet<String>,
+    ) -> Result<Vec<String>, Error> {
+        Ok(self.plan_switch(rev, dirty)?.conflicts)
+    }
+
+    /// Reset index entries at or under `path` ("" for the whole index) to their `HEAD` version;
+    /// entries that HEAD lacks are removed. The work tree is not touched.
+    pub fn unstage(&mut self, path: &str) -> Result<(), Error> {
+        if !path.is_empty() {
+            validate_path(path)?;
+        }
+        let head = self.head_index()?;
+        let mut index = read_index(&self.store)?;
+        let matched: BTreeSet<String> = index
+            .keys()
+            .chain(head.keys())
+            .filter(|p| under(p, path))
+            .cloned()
+            .collect();
+        if matched.is_empty() && !path.is_empty() {
+            return Err(Error::NotFound);
+        }
+        for p in matched {
+            match head.get(&p) {
+                Some(entry) => index.insert(p, *entry),
+                None => index.remove(&p),
+            };
+        }
+        write_index(&mut self.store, &index);
+        Ok(())
+    }
+
+    fn checkout_target(&self, rev: &str) -> Result<(bool, Id), Error> {
+        let branch_path = format!("refs/heads/{rev}");
+        if let Some(raw) = self.store.read(&branch_path) {
+            let s = core::str::from_utf8(&raw).map_err(|_| Error::Corrupt)?;
+            Ok((true, from_hex(s.trim()).ok_or(Error::Corrupt)?))
+        } else {
+            Ok((false, self.resolve(rev).ok_or(Error::NotFound)?))
+        }
+    }
+
+    fn point_head(&mut self, rev: &str, is_branch: bool, target_id: &Id) {
+        if is_branch {
+            self.store
+                .write("HEAD", format!("ref: refs/heads/{rev}\n").as_bytes());
+        } else {
+            self.store
+                .write("HEAD", format!("{}\n", to_hex(target_id)).as_bytes());
+        }
+    }
+
+    fn plan_switch(&self, rev: &str, dirty: &BTreeSet<String>) -> Result<SwitchPlan, Error> {
+        let (is_branch, target_id) = self.checkout_target(rev)?;
+        let target_commit = self.read_commit(&target_id)?;
+        let mut target = BTreeMap::new();
+        flatten_tree_to_index(self, &target_commit.tree, "", &mut target)?;
+        let current = read_index(&self.store)?;
+        let head = self.head_index()?;
+        let mut keep = dirty.clone();
+        for path in current.keys().chain(head.keys()) {
+            if current.get(path) != head.get(path) {
+                keep.insert(path.clone());
+            }
+        }
+        let conflicts = keep
+            .iter()
+            .filter(|p| head.get(*p) != target.get(*p))
+            .cloned()
+            .collect();
+        Ok(SwitchPlan {
+            is_branch,
+            target_id,
+            target,
+            current,
+            keep,
+            conflicts,
+        })
     }
 
     /// Resolve `HEAD`, branch name, full hex, unique hex prefix (`>= 4`), `X~n`, or `X^`.
