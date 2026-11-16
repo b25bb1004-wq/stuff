@@ -275,6 +275,7 @@ dependencies = [
  "lithium",
  "logos",
  "mercury",
+ "midas",
  "neon",
  "odyssey",
  "pandora",

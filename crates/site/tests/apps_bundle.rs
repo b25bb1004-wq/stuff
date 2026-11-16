@@ -275,7 +275,7 @@ fn pack_produces_all_installable_apps_and_launcher() {
         "site.wasm must export site_abi"
     );
 
-    let expected_apps: [(&str, &str); 23] = [
+    let expected_apps: [(&str, &str); 25] = [
         ("titan", "Titan"),
         ("iridium", "Iridium"),
         ("elysium", "Elysium"),
@@ -299,6 +299,8 @@ fn pack_produces_all_installable_apps_and_launcher() {
         ("xenon", "Xenon"),
         ("lithium", "Lithium"),
         ("kairos", "Kairos"),
+        ("midas", "Midas"),
+        ("zeus", "Zeus"),
     ];
 
     for demo in site::demos::all() {
@@ -423,14 +425,13 @@ fn pack_produces_all_installable_apps_and_launcher() {
         check_png_ihdr(&target, 192, 192);
     }
 
-    for soon in ["midas", "zeus"] {
+    for app in ["midas", "zeus"] {
         assert!(
-            !launcher_html.contains(&format!("href=\"../{soon}/\"")),
-            "coming-soon system `{soon}` must not be a link"
+            launcher_html.contains(&format!("href=\"../{app}/\"")),
+            "launcher must link the {app} app"
         );
     }
     assert!(launcher_html.contains("href=\"../athena/\""));
-    assert!(launcher_html.contains("coming soon"));
 
     let site_html = std::fs::read_to_string(tmp.join("index.html")).unwrap();
     assert!(site_html.contains("href=\"apps/\""));
@@ -459,7 +460,7 @@ fn pack_produces_all_installable_apps_and_launcher() {
 
 #[test]
 fn all_second_and_error_examples_match_expected_outcomes() {
-    let second_examples: [(&str, &str); 21] = [
+    let second_examples: [(&str, &str); 22] = [
         (
             "iridium",
             "CREATE TABLE rocks (id INT PRIMARY KEY, kind TEXT, mass INT);\n\
@@ -578,6 +579,10 @@ fn all_second_and_error_examples_match_expected_outcomes() {
         ),
         ("lithium", "50000"),
         (
+            "midas",
+            "arena 1048576\nalloc a 100\nalloc b 200\nalloc c 5000\nfree a\nalloc d 64\nfree c\nalloc e 4096",
+        ),
+        (
             "kairos",
             "cpus 1\ntask heavy 8 16\ntask medium 2 8\ntask light 1 4",
         ),
@@ -590,7 +595,7 @@ fn all_second_and_error_examples_match_expected_outcomes() {
     }
 
     let oversized = "x".repeat(65537);
-    let error_examples: [(&str, &str); 21] = [
+    let error_examples: [(&str, &str); 22] = [
         ("iridium", "SELECT * FROM missing_table;"),
         ("elysium", "fn main() {\n  let bad: int = \"wrong\"\n}"),
         ("mercury", "BAD_REQUEST_LINE\nHost: monolith.local\n\n"),
@@ -615,6 +620,7 @@ fn all_second_and_error_examples_match_expected_outcomes() {
         ("xenon", "loss 100\ndelay 10\nsend unreachable"),
         ("lithium", "0"),
         ("kairos", "cpus 99\ntask bad 1 4"),
+        ("midas", "alloc a 64\nfree a\nfree a"),
     ];
 
     for (id, input) in error_examples {

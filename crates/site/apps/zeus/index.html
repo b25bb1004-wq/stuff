@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e1013">
+  <title>Monolith Zeus</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+  <link rel="stylesheet" href="../_kit/kit.css">
+  <style>
+.zeus-wrap {
+  display: grid;
+  gap: 20px;
+  padding: 16px;
+  max-width: 960px;
+  min-width: 0;
+}
+
+.zeus-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.zeus-section p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.zeus-code {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre;
+  overflow-x: auto;
+  max-width: 100%;
+}
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#app-root">Skip to app</a>
+  <main id="app-root" class="app-root">
+    <div class="zeus-wrap">
+      <section class="zeus-section" aria-labelledby="zeus-what">
+        <h2 id="zeus-what" class="demo-toolbar-label">What zeus is</h2>
+        <p>Zeus is a type-1 hypervisor. It runs in the hypervisor mode of Silicon's RISC-V H extension, one level below the guests. It gives each guest its own memory space, takes turns running the guests round-robin, and emulates the devices they touch, such as the UART, the timer and the test finisher. The guests in this build are lithium, a small assembly kernel, and titan, a Rust kernel with its own processes.</p>
+        <p>This page does not run zeus in the browser. Zeus is an RV64 program, and the site bundle carries no built copy of it, so the console output below is a recorded run, not a live one.</p>
+      </section>
+
+      <section class="zeus-section" aria-labelledby="zeus-run">
+        <h2 id="zeus-run" class="demo-toolbar-label">Run it</h2>
+        <pre class="zeus-code" tabindex="0"><code>cargo run -p zeus --example two_guests --release
+zeusctl run --guest lithium:4 --guest titan:16 --steps 80000000</code></pre>
+        <p>The example builds zeus and titan for riscv64gc-unknown-none-elf, boots both guests and prints each guest's console with a name prefix. Up to three guests fit, each in its own slot of guest RAM.</p>
+      </section>
+
+      <section class="zeus-section" aria-labelledby="zeus-cli">
+        <h2 id="zeus-cli" class="demo-toolbar-label">CLI usage</h2>
+        <pre class="zeus-code" tabindex="0"><code>zeusctl - Boot and inspect guests under the zeus hypervisor on Silicon
+
+USAGE:
+    zeusctl &lt;COMMAND&gt; [OPTIONS]
+    zeusctl --help
+    zeusctl --version
+
+COMMANDS:
+    run     Boot zeus with one or more guests and print per-source console output
+
+OPTIONS (run):
+    --zeus PATH         Path to zeus RV64 ELF
+                        [default: target/zeus-bin/riscv64gc-unknown-none-elf/release/zeus]
+    --guest NAME[:MiB]  Guest to boot: lithium (default 4 MiB) or titan (default 16 MiB);
+                        repeatable up to 3 guests, even MiB in 2..=16
+                        [default: lithium:4]
+    --titan PATH        Path to titan RV64 kernel ELF
+                        [default: target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel]
+    --steps N           Maximum Silicon steps to execute [default: 20000000]
+    -h, --help          Print help
+
+EXAMPLES:
+    zeusctl run
+    zeusctl run --guest lithium:4 --guest titan:16 --steps 80000000
+</code></pre>
+      </section>
+
+      <section class="zeus-section" aria-labelledby="zeus-transcript">
+        <h2 id="zeus-transcript" class="demo-toolbar-label">Recorded transcript</h2>
+        <p class="demo-hint">Captured 2026-11-16 from <code>cargo run -p zeus --example two_guests --release</code>. Exit: machine Pass after 6331955 steps.</p>
+        <pre class="zeus-code zeus-transcript" tabindex="0" aria-label="Recorded zeus console output"><code>[lithium] lithium: boot
+[lithium] A0
+[titan] Titan v0.1
+[lithium] B0
+[titan] ram 0x80000000..0x81000000 (16 MiB)
+[lithium] A1
+[lithium] B1
+[titan] heap 0x80200000..0x80600000
+[lithium] A2
+[titan] frames 2560 free
+[lithium] B2
+[lithium] A3
+[lithium] B3
+[lithium] A4
+[lithium] B4
+[lithium] lithium: halt
+zeus: lithium exited 0
+[titan] sv39 on
+[titan] heap ok
+[titan] fault load 0x81000000 scause 13
+[titan] fault store 0x80021000 scause 15
+[titan] fault fetch 0x80076000 scause 12
+[titan] ticks ok
+[titan] boot ok
+[titan] init: hello pid 1
+[titan] ping 0
+[titan] pong 0
+[titan] ping 1
+[titan] pong 1
+[titan] ping 2
+[titan] pong 2
+[titan] ping 3
+[titan] pong 3
+[titan] ping 4
+[titan] pong 4
+[titan] init: ping exited 7
+[titan] init: pong exited 9
+[titan] hog: sbrk ok
+[titan] init: hog exited 0
+[titan] kill pid 5: load fault at 0x0
+[titan] init: fault exited -1
+[titan] evil: rejected
+[titan] init: evil exited 3
+[titan] 1 running init
+[titan] init: uptime ok
+[titan] init exited 0
+[titan] frames 2543 free
+zeus: titan exited 0
+zeus: all guests done
+machine exit: Pass (steps=6331955)
+</code></pre>
+      </section>
+    </div>
+  </main>
+  <script src="../_kit/wasm.js" defer></script>
+  <script src="../_kit/kit.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>

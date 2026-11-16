@@ -37,6 +37,7 @@ fn all_default_demos_run_fast_and_match_expected_fragments() {
         ("xenon", "=== delivered in order ==="),
         ("lithium", "exit:"),
         ("kairos", "=== task shares vs weight ==="),
+        ("midas", "stats used 4416 live 3 freed 2 check ok"),
     ];
 
     for (id, fragment) in expected_text {

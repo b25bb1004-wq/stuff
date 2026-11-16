@@ -33,6 +33,7 @@ iris = { path = "../iris" }
 indium = { path = "../indium" }
 xenon = { path = "../xenon" }
 pandora = { path = "../pandora" }
+midas = { path = "../midas" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 athena = { path = "../athena" }

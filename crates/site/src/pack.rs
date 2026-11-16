@@ -13,7 +13,7 @@ struct AppSpec {
     initial: char,
 }
 
-const APPS: [AppSpec; 23] = [
+const APPS: [AppSpec; 25] = [
     AppSpec {
         id: "titan",
         name: "Titan",
@@ -128,6 +128,16 @@ const APPS: [AppSpec; 23] = [
         id: "kairos",
         name: "Kairos",
         initial: 'K',
+    },
+    AppSpec {
+        id: "midas",
+        name: "Midas",
+        initial: 'M',
+    },
+    AppSpec {
+        id: "zeus",
+        name: "Zeus",
+        initial: 'Z',
     },
 ];
 

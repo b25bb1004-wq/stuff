@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e1013">
+  <title>Monolith Midas</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+  <link rel="stylesheet" href="../_kit/kit.css">
+  <style>
+.midas-wrap {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  max-width: 960px;
+  min-width: 0;
+}
+
+.midas-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.midas-bar {
+  position: relative;
+  height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.midas-used {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  background: var(--accent);
+  border-left: 1px solid var(--bg);
+}
+
+.midas-stats {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-family: var(--font-code);
+  font-size: 13px;
+}
+
+.midas-stats dt {
+  color: var(--muted);
+}
+
+.midas-stats dd {
+  margin: 0;
+}
+
+.midas-table-wrap {
+  overflow-x: auto;
+}
+
+.midas-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-code);
+  font-size: 13px;
+}
+
+.midas-table th,
+.midas-table td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+}
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#app-root">Skip to app</a>
+  <main id="app-root" class="app-root"></main>
+  <script src="../_kit/wasm.js" defer></script>
+  <script src="../_kit/kit.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>

@@ -16,6 +16,7 @@ pub mod kairos;
 pub mod krypton;
 pub mod lithium;
 pub mod mercury;
+pub mod midas;
 pub mod odyssey;
 pub mod pandora;
 pub mod silicon;
@@ -54,7 +55,7 @@ pub struct Demo {
     pub run: fn(&str) -> Result<Output, String>,
 }
 
-static DEMOS: [Demo; 21] = [
+static DEMOS: [Demo; 22] = [
     iridium::DEMO,
     elysium::DEMO,
     mercury::DEMO,
@@ -76,6 +77,7 @@ static DEMOS: [Demo; 21] = [
     xenon::DEMO,
     lithium::DEMO,
     kairos::DEMO,
+    midas::DEMO,
 ];
 
 /// Return all registered live demos in presentation order.
@@ -133,7 +135,7 @@ mod tests {
     #[test]
     fn registry_ids_are_unique_and_lookup_works() {
         let demos = all();
-        assert_eq!(demos.len(), 21);
+        assert_eq!(demos.len(), 22);
         for d in demos {
             assert_eq!(find(d.id).unwrap().id, d.id);
         }
