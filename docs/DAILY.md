@@ -22,7 +22,42 @@ Each gap he hits becomes the next task. Order:
 4. Athena as the desktop IDE: the web app served locally by Mercury (`athena serve`), opening a real folder.
 5. Mercury serving real sites (static + TLS later), Iridium as a real local database server, Argo installing
    Monolith's own tools into ~/.monolith/bin with one command, plus an installer script.
-Packaging: `argo install monolith` (or one release zip) puts every tool on PATH on Windows and Linux.
+Packaging: one script installs every tool on Windows and Linux (see "Packaging" below). `argo install monolith` comes later.
+
+## Packaging
+
+Every Monolith command-line tool (27 binaries) is built in release mode and copied to `~/.monolith/bin`
+(Windows: `%USERPROFILE%\.monolith\bin`). `VERSION` there holds the git short sha, and `MANIFEST` lists each
+tool with its one-line `--help` summary. The tool list lives in `tools/install.sh` and `tools/install.ps1`.
+
+Install (run from the strata folder; needs Rust/cargo):
+- Windows 11: `powershell -ExecutionPolicy Bypass -File tools\install.ps1`
+- Linux or Git Bash: `bash tools/install.sh`
+
+Neither script changes PATH. Each prints the folder to add. To have it done for you, add `--add-to-path`
+(sh: appends one guarded line to `~/.profile`) or `-AddToPath` (ps1: adds to the USER Path only, and refuses
+if the entry is already there). Open a new terminal afterwards.
+
+Update: pull, then run the same install command again. Tools are replaced in place. A tool that is running
+is reported as NOT UPDATED; close it and run the command again.
+
+Uninstall: `bash tools/install.sh --uninstall` or `powershell -ExecutionPolicy Bypass -File tools\install.ps1 -Uninstall`.
+This removes `~/.monolith/bin`, `VERSION`, `MANIFEST` and the PATH entry the script added. Nothing else is touched.
+
+Krypton as the Windows Terminal profile: the scripts do not edit Windows Terminal. In its settings (JSON),
+add this to `profiles` > `list`, replacing `<you>` with your Windows user folder name:
+
+```json
+{
+    "guid": "{fc1ef26d-1d99-4c66-bbbd-37a60ef7bef1}",
+    "name": "Krypton",
+    "commandline": "C:\\Users\\<you>\\.monolith\\bin\\krypton.exe",
+    "startingDirectory": "C:\\Users\\<you>",
+    "hidden": false
+}
+```
+
+To make it the default, set `"defaultProfile": "{fc1ef26d-1d99-4c66-bbbd-37a60ef7bef1}"` at the top level of the settings.
 
 ## Track B: own OS booting this PC (x86-64 UEFI)
 Titan today is RISC-V. Port plan, in order, each step gated in QEMU (OVMF) before real hardware:
