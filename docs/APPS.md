@@ -17,7 +17,7 @@ Each of the 25 systems has:
   Std only, hand-written argument parsing, no shared CLI crate.
 - `<id> --help` prints usage with every subcommand and one example each; `<id> --version` prints `<id> 0.1.0`.
 - Files are paths; `-` means stdin or stdout. Output is plain text, one fact per line, stable enough to grep.
-  `--json` is not required.
+  `--describe` and `--json` follow docs/ai-computer/ACI.md.
 - Errors go to stderr as `<id>: <message>`. Exit codes: 0 ok, 1 the operation failed (bad input, check failed),
   2 usage error. Never panic on user input.
 - No network access except the tools whose job is network (mercury `get`/`serve`, xenon, argo `serve`, aurum
