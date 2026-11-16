@@ -7,14 +7,111 @@
 mod tty;
 
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 
+use aci::envelope::{self, Code, DEFAULT_LIMIT, MAX_LIMIT};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind, Manifest};
 use calliope::{ansi_changed, file, Buffer, Cursor, Editor, Regex, Screen, Session};
 
 const VERSION_STR: &str = "calliope 0.1.0";
+
+/// Matched text in a `grep` item is cut at this many bytes.
+const GREP_TEXT_CAP: usize = 400;
+
+const GREP_ARGS: &[Arg] = &[
+    Arg {
+        name: "REGEX",
+        kind: Kind::Text,
+        required: true,
+        default: None,
+        choices: &[],
+    },
+    Arg {
+        name: "FILE...",
+        kind: Kind::Path,
+        required: true,
+        default: None,
+        choices: &[],
+    },
+    Arg {
+        name: "--limit",
+        kind: Kind::Int,
+        required: false,
+        default: Some("100"),
+        choices: &[],
+    },
+    Arg {
+        name: "--offset",
+        kind: Kind::Int,
+        required: false,
+        default: Some("0"),
+        choices: &[],
+    },
+];
+
+const EDIT_ARGS: &[Arg] = &[
+    Arg {
+        name: "SCRIPT",
+        kind: Kind::Path,
+        required: true,
+        default: None,
+        choices: &[],
+    },
+    Arg {
+        name: "FILE",
+        kind: Kind::Path,
+        required: true,
+        default: None,
+        choices: &[],
+    },
+];
+
+const FILE_ARGS: &[Arg] = &[Arg {
+    name: "FILE",
+    kind: Kind::Path,
+    required: true,
+    default: None,
+    choices: &[],
+}];
+
+const COMMANDS: &[Command] = &[
+    Command {
+        name: "grep",
+        summary: "Search FILE(s) for REGEX, one item per matching line",
+        effect: Effect::Read,
+        args: GREP_ARGS,
+        returns: "items: [{path, line, col, text}], total, more, next_offset",
+        example: "calliope --json grep \"fn [a-z]+\" src/main.rs",
+    },
+    Command {
+        name: "edit",
+        summary: "Apply edit SCRIPT to FILE; save writes FILE back",
+        effect: Effect::Write,
+        args: EDIT_ARGS,
+        returns: "path, changed, saved, lines_before, lines_after, text (capped)",
+        example: "calliope --json edit script.txt notes.txt",
+    },
+    Command {
+        name: "FILE",
+        summary: "Open the terminal editor on FILE; refused under --json",
+        effect: Effect::Write,
+        args: FILE_ARGS,
+        returns: "nothing: always code unsupported",
+        example: "calliope --json notes.txt",
+    },
+];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "calliope",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "Terminal editor, regex grep and scripted edits",
+    commands: COMMANDS,
+};
 
 fn usage() -> &'static str {
     "\
@@ -43,6 +140,8 @@ enum CliError {
     SilentFail,
     /// stdout was closed by the reader (`calliope grep ... | head -1`): stop quietly with exit 0.
     Closed,
+    /// An operation failed (exit 1) with the ACI code it maps to under `--json`.
+    Coded(Code, String),
 }
 
 /// A failed stdout write: a closed pipe ends the run quietly, anything else is an error.
@@ -63,36 +162,54 @@ fn read_input(path: &str) -> Result<String, CliError> {
             .map_err(|e| CliError::Op(format!("failed to read stdin: {e}")))?;
         Ok(buf)
     } else {
-        fs::read_to_string(path).map_err(|e| CliError::Op(format!("failed to read '{path}': {e}")))
+        fs::read_to_string(path).map_err(|e| {
+            let code = if e.kind() == io::ErrorKind::NotFound {
+                Code::NotFound
+            } else {
+                Code::Io
+            };
+            CliError::Coded(code, format!("failed to read '{path}': {e}"))
+        })
     }
+}
+
+fn compile_regex(pattern: &str) -> Result<Regex, CliError> {
+    Regex::new(pattern)
+        .map_err(|e| CliError::Usage(format!("invalid regex at {}: {}", e.pos, e.msg)))
+}
+
+/// Matching lines of `text` as (1-based line, 1-based column, line text without its line ending).
+fn hits<'a>(regex: &Regex, text: &'a str) -> Vec<(usize, usize, &'a str)> {
+    let mut lines: Vec<&str> = text.split('\n').collect();
+    if text.ends_with('\n') {
+        lines.pop();
+    }
+    let mut found = Vec::new();
+    for (idx, raw_line) in lines.into_iter().enumerate() {
+        let line = raw_line.strip_suffix('\r').unwrap_or(raw_line);
+        if let Some(groups) = regex.find_at(line, 0) {
+            if let Some(Some((start, _end))) = groups.first().copied() {
+                let col = line[..start].chars().count() + 1;
+                found.push((idx + 1, col, line));
+            }
+        }
+    }
+    found
 }
 
 fn cmd_grep(args: &[String]) -> Result<(), CliError> {
     if args.len() < 2 {
         return Err(CliError::Usage("grep expects REGEX FILE...".to_string()));
     }
-    let pattern = &args[0];
-    let regex = Regex::new(pattern)
-        .map_err(|e| CliError::Usage(format!("invalid regex at {}: {}", e.pos, e.msg)))?;
+    let regex = compile_regex(&args[0])?;
 
     let mut matched_any = false;
     let mut out = io::stdout().lock();
     for file in &args[1..] {
         let text = read_input(file)?;
-        let mut lines: Vec<&str> = text.split('\n').collect();
-        if text.ends_with('\n') {
-            lines.pop();
-        }
-        for (idx, raw_line) in lines.into_iter().enumerate() {
-            let line = raw_line.strip_suffix('\r').unwrap_or(raw_line);
-            if let Some(groups) = regex.find_at(line, 0) {
-                if let Some(Some((start, _end))) = groups.first().copied() {
-                    let line_no = idx + 1;
-                    let col = line[..start].chars().count() + 1;
-                    writeln!(out, "{file}:{line_no}:{col}: {line}").map_err(stdout_err)?;
-                    matched_any = true;
-                }
-            }
+        for (line_no, col, line) in hits(&regex, &text) {
+            writeln!(out, "{file}:{line_no}:{col}: {line}").map_err(stdout_err)?;
+            matched_any = true;
         }
     }
     if matched_any {
@@ -109,13 +226,17 @@ fn line_col_to_offset(
     col_1: usize,
 ) -> Result<usize, CliError> {
     if line_1 == 0 || col_1 == 0 {
-        return Err(CliError::Op(format!(
-            "script line {line_no}: line and column must be >= 1"
-        )));
+        return Err(CliError::Coded(
+            Code::Invalid,
+            format!("script line {line_no}: line and column must be >= 1"),
+        ));
     }
     let line_idx = line_1 - 1;
     let start = buf.line_start(line_idx).ok_or_else(|| {
-        CliError::Op(format!("script line {line_no}: line {line_1} out of range"))
+        CliError::Coded(
+            Code::Invalid,
+            format!("script line {line_no}: line {line_1} out of range"),
+        )
     })?;
     let next_start = buf.line_start(line_idx + 1).unwrap_or(buf.len());
     let mut end = next_start;
@@ -174,23 +295,43 @@ fn unescape_insert(raw: &str) -> String {
 fn parse_two_usize(rest: &str, line_no: usize, cmd_name: &str) -> Result<(usize, usize), CliError> {
     let parts: Vec<&str> = rest.split_whitespace().collect();
     if parts.len() != 2 {
-        return Err(CliError::Op(format!(
-            "script line {line_no}: {cmd_name} expects LINE COL"
-        )));
+        return Err(CliError::Coded(
+            Code::Invalid,
+            format!("script line {line_no}: {cmd_name} expects LINE COL"),
+        ));
     }
     let a = parts[0].parse::<usize>().map_err(|_| {
-        CliError::Op(format!(
-            "script line {line_no}: invalid line '{}'",
-            parts[0]
-        ))
+        CliError::Coded(
+            Code::Invalid,
+            format!("script line {line_no}: invalid line '{}'", parts[0]),
+        )
     })?;
-    let b = parts[1]
-        .parse::<usize>()
-        .map_err(|_| CliError::Op(format!("script line {line_no}: invalid col '{}'", parts[1])))?;
+    let b = parts[1].parse::<usize>().map_err(|_| {
+        CliError::Coded(
+            Code::Invalid,
+            format!("script line {line_no}: invalid col '{}'", parts[1]),
+        )
+    })?;
     Ok((a, b))
 }
 
+/// What a script run produced: the file text before, the buffer after, and the text of the last save.
+struct EditOutcome {
+    before: String,
+    buffer: String,
+    saved: Option<String>,
+}
+
 fn cmd_edit(args: &[String]) -> Result<(), CliError> {
+    let out = run_edit(args)?;
+    let mut stdout = io::stdout().lock();
+    stdout
+        .write_all(out.buffer.as_bytes())
+        .map_err(stdout_err)?;
+    Ok(())
+}
+
+fn run_edit(args: &[String]) -> Result<EditOutcome, CliError> {
     if args.len() != 2 {
         return Err(CliError::Usage("edit expects SCRIPT FILE".to_string()));
     }
@@ -206,6 +347,7 @@ fn cmd_edit(args: &[String]) -> Result<(), CliError> {
     // Inserted newlines take the file's own style: CRLF for a CRLF file, LF otherwise.
     let newline = file::newline_for(&initial);
     let mut editor = Editor::new(&initial);
+    let mut saved: Option<String> = None;
 
     for (idx, raw_line) in script.lines().enumerate() {
         let line_no = idx + 1;
@@ -237,7 +379,10 @@ fn cmd_edit(args: &[String]) -> Result<(), CliError> {
             editor.type_text("");
         } else if let Some(rest) = trimmed.strip_prefix("delete ") {
             let n = rest.trim().parse::<usize>().map_err(|_| {
-                CliError::Op(format!("script line {line_no}: invalid delete count"))
+                CliError::Coded(
+                    Code::Invalid,
+                    format!("script line {line_no}: invalid delete count"),
+                )
             })?;
             if n > 0 {
                 let sels: Vec<Cursor> = editor
@@ -261,26 +406,32 @@ fn cmd_edit(args: &[String]) -> Result<(), CliError> {
             editor.redo();
         } else if trimmed == "save" {
             if file_path == "-" {
-                return Err(CliError::Op(format!(
-                    "script line {line_no}: cannot save when FILE is '-'"
-                )));
+                return Err(CliError::Coded(
+                    Code::Invalid,
+                    format!("script line {line_no}: cannot save when FILE is '-'"),
+                ));
             }
-            fs::write(file_path, editor.buffer.text()).map_err(|e| {
-                CliError::Op(format!(
-                    "script line {line_no}: failed to save '{file_path}': {e}"
-                ))
+            let text = editor.buffer.text();
+            fs::write(file_path, &text).map_err(|e| {
+                CliError::Coded(
+                    Code::Io,
+                    format!("script line {line_no}: failed to save '{file_path}': {e}"),
+                )
             })?;
+            saved = Some(text);
         } else {
-            return Err(CliError::Op(format!(
-                "script line {line_no}: unknown command '{trimmed}'"
-            )));
+            return Err(CliError::Coded(
+                Code::Invalid,
+                format!("script line {line_no}: unknown command '{trimmed}'"),
+            ));
         }
     }
 
-    let mut out = io::stdout().lock();
-    out.write_all(editor.buffer.text().as_bytes())
-        .map_err(stdout_err)?;
-    Ok(())
+    Ok(EditOutcome {
+        before: initial,
+        buffer: editor.buffer.text(),
+        saved,
+    })
 }
 
 fn run() -> Result<(), CliError> {
@@ -376,14 +527,224 @@ fn run_editor(files: &[String]) -> Result<(), CliError> {
     Ok(())
 }
 
+/// A failed `--json` run: the envelope code, its message and hint, and the process exit code.
+struct Failure {
+    code: Code,
+    message: String,
+    hint: Option<String>,
+    exit: i32,
+}
+
+const HINT_DESCRIBE: &str = "run: calliope --describe";
+
+fn failure(e: CliError) -> Failure {
+    match e {
+        CliError::Usage(message) => Failure {
+            code: Code::Usage,
+            message,
+            hint: Some(HINT_DESCRIBE.into()),
+            exit: 2,
+        },
+        CliError::Coded(code, message) => Failure {
+            code,
+            message,
+            hint: None,
+            exit: 1,
+        },
+        CliError::Op(message) => Failure {
+            code: Code::Io,
+            message,
+            hint: None,
+            exit: 1,
+        },
+        CliError::SilentFail | CliError::Closed => Failure {
+            code: Code::Internal,
+            message: "unexpected end of run".into(),
+            hint: None,
+            exit: 1,
+        },
+    }
+}
+
+fn editor_unsupported() -> Failure {
+    Failure {
+        code: Code::Unsupported,
+        message: "the terminal editor is not available under --json".into(),
+        hint: Some(
+            "run: calliope --json edit SCRIPT FILE or calliope --json grep REGEX FILE".into(),
+        ),
+        exit: 1,
+    }
+}
+
+/// Split `--limit N` and `--offset N` out of a grep's arguments.
+fn paging_flags(args: &[String]) -> Result<(usize, usize, Vec<String>), CliError> {
+    let (mut limit, mut offset, mut rest) = (DEFAULT_LIMIT, 0usize, Vec::new());
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        match arg.as_str() {
+            "--limit" | "--offset" => {
+                let value = it
+                    .next()
+                    .and_then(|v| v.parse::<usize>().ok())
+                    .ok_or_else(|| CliError::Usage(format!("{arg} expects a number")))?;
+                if arg == "--limit" {
+                    if value == 0 || value > MAX_LIMIT {
+                        return Err(CliError::Usage(format!("--limit must be 1 to {MAX_LIMIT}")));
+                    }
+                    limit = value;
+                } else {
+                    offset = value;
+                }
+            }
+            _ => rest.push(arg.clone()),
+        }
+    }
+    Ok((limit, offset, rest))
+}
+
+/// `calliope --json grep`: one page of matches over every FILE. No match is ok with total 0 and exit 1.
+fn json_grep(args: &[String]) -> Result<(Json, i32), Failure> {
+    let (limit, offset, rest) = paging_flags(args).map_err(failure)?;
+    if rest.len() < 2 {
+        return Err(failure(CliError::Usage(
+            "grep expects REGEX FILE...".into(),
+        )));
+    }
+    let regex = Regex::new(&rest[0]).map_err(|e| Failure {
+        code: Code::Invalid,
+        message: format!("invalid regex at {}: {}", e.pos, e.msg),
+        hint: Some(HINT_DESCRIBE.into()),
+        exit: 2,
+    })?;
+    let mut all: Vec<(&str, usize, usize, &str)> = Vec::new();
+    let mut texts = Vec::new();
+    for file in &rest[1..] {
+        texts.push((file.as_str(), read_input(file).map_err(failure)?));
+    }
+    for (file, text) in &texts {
+        for (line, col, line_text) in hits(&regex, text) {
+            all.push((file, line, col, line_text));
+        }
+    }
+    let total = all.len();
+    let items: Vec<Json> = all
+        .iter()
+        .skip(offset)
+        .take(limit)
+        .map(|&(file, line, col, line_text)| {
+            let (text, cut) = cut_text(line_text, GREP_TEXT_CAP);
+            let mut pairs = vec![
+                ("path".to_string(), Json::path(Path::new(file))),
+                ("line".to_string(), Json::Int(line as i64)),
+                ("col".to_string(), Json::Int(col as i64)),
+                ("text".to_string(), Json::Str(text.into())),
+            ];
+            if cut {
+                pairs.push(("truncated".to_string(), Json::Bool(true)));
+            }
+            Json::Obj(pairs)
+        })
+        .collect();
+    let exit = if total == 0 { 1 } else { 0 };
+    Ok((envelope::page(items, total, offset, limit), exit))
+}
+
+/// The longest prefix of `s` within `cap` bytes that ends on a character boundary, and whether it was cut.
+fn cut_text(s: &str, cap: usize) -> (&str, bool) {
+    if s.len() <= cap {
+        return (s, false);
+    }
+    let mut end = cap;
+    while !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    (&s[..end], true)
+}
+
+/// Lines in `text`, counted the way `lines()` does.
+fn line_count(text: &str) -> i64 {
+    text.lines().count() as i64
+}
+
+/// `calliope --json edit SCRIPT FILE`: the same run as the text path, reported as fields.
+fn json_edit(args: &[String]) -> Result<(Json, i32), Failure> {
+    let out = run_edit(args).map_err(failure)?;
+    let changed = out
+        .saved
+        .as_deref()
+        .is_some_and(|saved| saved != out.before);
+    let mut pairs = vec![
+        ("path".to_string(), Json::path(Path::new(&args[1]))),
+        ("changed".to_string(), Json::Bool(changed)),
+        ("saved".to_string(), Json::Bool(out.saved.is_some())),
+        (
+            "lines_before".to_string(),
+            Json::Int(line_count(&out.before)),
+        ),
+        (
+            "lines_after".to_string(),
+            Json::Int(line_count(&out.buffer)),
+        ),
+    ];
+    pairs.extend(envelope::capped(out.buffer.as_bytes()));
+    Ok((Json::Obj(pairs), 0))
+}
+
+/// Run `calliope --json ARGS...` (`args` are the arguments after `--json`): one envelope on stdout.
+fn run_json(args: &[String]) -> i32 {
+    let (cmd, result) = match args.first().map(String::as_str) {
+        None => ("FILE", Err(editor_unsupported())),
+        Some("grep") => ("grep", json_grep(&args[1..])),
+        Some("edit") => ("edit", json_edit(&args[1..])),
+        Some(word) if !word.starts_with('-') && looks_like_file(word) => {
+            ("FILE", Err(editor_unsupported()))
+        }
+        Some(word) => (
+            "",
+            Err(failure(CliError::Usage(format!(
+                "unknown subcommand '{word}'"
+            )))),
+        ),
+    };
+    let exit = match result {
+        Ok((data, exit)) => {
+            print!("{}", envelope::ok("calliope", cmd, data));
+            exit
+        }
+        Err(f) => {
+            eprintln!("calliope: {}", f.message);
+            print!(
+                "{}",
+                envelope::err("calliope", cmd, f.code, &f.message, f.hint.as_deref())
+            );
+            f.exit
+        }
+    };
+    let _ = io::stdout().flush();
+    exit
+}
+
 fn main() {
+    let raw: Vec<OsString> = env::args_os().skip(1).collect();
+    if envelope::take_describe_flag(&raw) {
+        println!("{}", MANIFEST.to_json().write());
+        return;
+    }
+    if raw.first().and_then(|a| a.to_str()) == Some("--json") {
+        let rest: Vec<String> = raw[1..]
+            .iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        process::exit(run_json(&rest));
+    }
     if let Err(err) = run() {
         match err {
             CliError::Usage(msg) => {
                 eprintln!("calliope: {msg}");
                 process::exit(2);
             }
-            CliError::Op(msg) => {
+            CliError::Op(msg) | CliError::Coded(_, msg) => {
                 eprintln!("calliope: {msg}");
                 process::exit(1);
             }
