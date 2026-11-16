@@ -5,14 +5,20 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[features]
+default = ["std"]
+std = ["dep:aci"]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
 name = "titan"
 path = "src/bin/titan.rs"
+required-features = ["std"]
 
 [dependencies]
+aci = { path = "../aci", optional = true }
 chisel = { path = "../chisel" }
 cobalt = { path = "../cobalt" }
 hades = { path = "../hades" }

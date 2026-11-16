@@ -1,14 +1,63 @@
 //! Command-line tool for the lithium RV64 kernel.
+//!
+//! Text mode is unchanged. `--describe` prints the manifest and `--json` prints one ACI envelope
+//! (docs/ai-computer/ACI.md). Both modes share `run_machine` and the `Run` result.
 #![forbid(unsafe_code)]
 
+use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Write};
 use std::process::ExitCode;
+use std::time::Instant;
 
+use aci::envelope::{self, Code};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind as ArgKind, Manifest};
 use silicon::machine::{Config, Exit};
 
 const VERSION: &str = "lithium 0.1.0";
 const DEFAULT_STEPS: u64 = 1_000_000;
+
+const RUN_ARGS: &[Arg] = &[Arg {
+    name: "--steps",
+    kind: ArgKind::Int,
+    required: false,
+    default: Some("1000000"),
+    choices: &[],
+}];
+const IMAGE_ARGS: &[Arg] = &[Arg {
+    name: "-o",
+    kind: ArgKind::Path,
+    required: true,
+    default: None,
+    choices: &[],
+}];
+
+const COMMANDS: &[Command] = &[
+    Command {
+        name: "run",
+        summary: "Boot lithium on Silicon and run up to --steps N (default 1000000)",
+        effect: Effect::Read,
+        args: RUN_ARGS,
+        returns: "exit (only when stop is exit), stdout (capped, with stdout_truncated, stdout_bytes, stdout_lossy when they apply), steps, duration_ms, stop: exit, step_limit",
+        example: "lithium --json run --steps 100000",
+    },
+    Command {
+        name: "image",
+        summary: "Write the assembled kernel image to -o OUT.bin (--json needs a file, not -)",
+        effect: Effect::Write,
+        args: IMAGE_ARGS,
+        returns: "path, bytes",
+        example: "lithium --json image -o kernel.bin",
+    },
+];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "lithium",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "Lithium RV64 kernel boot tool",
+    commands: COMMANDS,
+};
 
 const USAGE: &str = "\
 lithium - boot the lithium RV64 OS image or export its binary
@@ -37,6 +86,8 @@ enum Action {
 struct CliErr {
     code: u8,
     msg: String,
+    /// The error code under `--json`.
+    kind: Code,
 }
 
 impl CliErr {
@@ -44,6 +95,15 @@ impl CliErr {
         Self {
             code: 1,
             msg: msg.into(),
+            kind: Code::Invalid,
+        }
+    }
+
+    fn io(msg: impl Into<String>) -> Self {
+        Self {
+            code: 1,
+            msg: msg.into(),
+            kind: Code::Io,
         }
     }
 
@@ -51,6 +111,7 @@ impl CliErr {
         Self {
             code: 2,
             msg: msg.into(),
+            kind: Code::Usage,
         }
     }
 }
@@ -139,27 +200,51 @@ fn format_exit(exit: Exit) -> String {
     }
 }
 
-fn cmd_run(steps: u64) -> Result<(), CliErr> {
-    let mut machine =
-        lithium::boot(Config::default()).map_err(|e| CliErr::fail(format!("boot failed: {e}")))?;
+/// One boot and run: how it stopped, what the guest printed, and the steps and time it used.
+struct Run {
+    exit: Exit,
+    uart: Vec<u8>,
+    steps: u64,
+    duration_ms: i64,
+}
+
+fn run_machine(steps: u64) -> Result<Run, CliErr> {
+    let mut machine = lithium::boot(Config::default()).map_err(|e| CliErr {
+        code: 1,
+        msg: format!("boot failed: {e}"),
+        kind: Code::Internal,
+    })?;
     let start_mtime = machine.board.mtime();
+    let started = Instant::now();
     let exit = machine.run(steps);
+    let duration_ms = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
     let executed = machine.board.mtime().saturating_sub(start_mtime);
     let uart = machine.board.take_uart_output();
+    Ok(Run {
+        exit,
+        uart,
+        steps: executed,
+        duration_ms,
+    })
+}
+
+fn cmd_run(steps: u64) -> Result<(), CliErr> {
+    let run = run_machine(steps)?;
+    let uart = &run.uart;
 
     let mut stdout = io::stdout().lock();
     stdout
-        .write_all(&uart)
+        .write_all(uart)
         .map_err(|e| CliErr::fail(format!("stdout error: {e}")))?;
     if !uart.is_empty() && !uart.ends_with(b"\n") {
         writeln!(stdout).map_err(|e| CliErr::fail(format!("stdout error: {e}")))?;
     }
-    writeln!(stdout, "exit: {}", format_exit(exit))
+    writeln!(stdout, "exit: {}", format_exit(run.exit))
         .map_err(|e| CliErr::fail(format!("stdout error: {e}")))?;
-    writeln!(stdout, "steps: {executed}")
+    writeln!(stdout, "steps: {}", run.steps)
         .map_err(|e| CliErr::fail(format!("stdout error: {e}")))?;
 
-    match exit {
+    match run.exit {
         Exit::Pass | Exit::OutOfSteps => Ok(()),
         Exit::Fail(code) => Err(CliErr::fail(format!("kernel exited with fail({code})"))),
     }
@@ -196,7 +281,19 @@ fn dispatch(args: &[String]) -> Result<(), CliErr> {
 }
 
 fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut raw: Vec<OsString> = std::env::args_os().skip(1).collect();
+    let json = envelope::take_json_flag(&mut raw);
+    if envelope::take_describe_flag(&raw) {
+        println!("{}", MANIFEST.to_json().write());
+        return ExitCode::SUCCESS;
+    }
+    let args: Vec<String> = raw
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    if json {
+        return run_json(&args);
+    }
     match dispatch(&args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
@@ -204,4 +301,96 @@ fn main() -> ExitCode {
             ExitCode::from(err.code)
         }
     }
+}
+
+/// The subcommand name for the envelope, or the empty string when the name is not one of ours.
+fn known_command(first: Option<&String>) -> &'static str {
+    const NAMES: [&str; 4] = ["run", "image", "--help", "--version"];
+    first
+        .and_then(|s| NAMES.iter().copied().find(|n| *n == s.as_str()))
+        .unwrap_or("")
+}
+
+/// `lithium --json ...`: one envelope on stdout; stderr keeps the `lithium: message` line.
+fn run_json(args: &[String]) -> ExitCode {
+    let cmd = known_command(args.first());
+    match json_dispatch(args) {
+        Ok((data, exit)) => {
+            print!("{}", envelope::ok("lithium", cmd, data));
+            ExitCode::from(exit)
+        }
+        Err(err) => {
+            eprintln!("lithium: {}", err.msg);
+            let hint = match err.kind {
+                Code::Usage => Some("run: lithium --describe"),
+                _ => None,
+            };
+            print!(
+                "{}",
+                envelope::err("lithium", cmd, err.kind, &err.msg, hint)
+            );
+            ExitCode::from(err.code)
+        }
+    }
+}
+
+/// Run one command under `--json`. Returns the data and the exit code the text path gives.
+fn json_dispatch(args: &[String]) -> Result<(Json, u8), CliErr> {
+    match parse_args(args)? {
+        Action::Help => Ok((Json::obj([("usage", Json::Str(USAGE.into()))]), 0)),
+        Action::Version => Ok((Json::obj([("version", Json::Str(VERSION.into()))]), 0)),
+        Action::Run { steps } => {
+            let run = run_machine(steps)?;
+            // A guest that failed its own test is ok: true with the text path's exit code 1.
+            let (stop, guest_exit, exit) = match run.exit {
+                Exit::Pass => ("exit", Some(0), 0),
+                Exit::Fail(code) => ("exit", Some(i64::from(code)), 1),
+                Exit::OutOfSteps => ("step_limit", None, 0),
+            };
+            let mut pairs = Vec::new();
+            if let Some(code) = guest_exit {
+                pairs.push(("exit".to_string(), Json::Int(code)));
+            }
+            pairs.extend(stream("stdout", &run.uart));
+            pairs.push(("steps".to_string(), int(run.steps)));
+            pairs.push(("duration_ms".to_string(), Json::Int(run.duration_ms)));
+            pairs.push(("stop".to_string(), Json::Str(stop.into())));
+            Ok((Json::Obj(pairs), exit))
+        }
+        Action::Image { out } => {
+            if out == "-" {
+                return Err(CliErr::usage("--json needs a file: image -o FILE, not -"));
+            }
+            let bytes = lithium::image().map_err(|e| CliErr {
+                code: 1,
+                msg: format!("assemble failed: {e}"),
+                kind: Code::Internal,
+            })?;
+            fs::write(&out, &bytes)
+                .map_err(|e| CliErr::io(format!("failed to write '{out}': {e}")))?;
+            let data = Json::obj([
+                ("path", Json::path(std::path::Path::new(&out))),
+                ("bytes", int(bytes.len())),
+            ]);
+            Ok((data, 0))
+        }
+    }
+}
+
+fn int<T: TryInto<i64>>(n: T) -> Json {
+    Json::Int(n.try_into().unwrap_or(i64::MAX))
+}
+
+/// A captured stream: `name` for the text, `name_<field>` for `truncated`, `bytes`, `lossy`.
+fn stream(name: &str, bytes: &[u8]) -> Vec<(String, Json)> {
+    envelope::capped(bytes)
+        .into_iter()
+        .map(|(key, value)| {
+            if key == "text" {
+                (name.to_string(), value)
+            } else {
+                (format!("{name}_{key}"), value)
+            }
+        })
+        .collect()
 }

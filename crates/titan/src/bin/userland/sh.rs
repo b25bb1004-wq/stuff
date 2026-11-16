@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 use core::fmt::Write;
 
 use krypton::ast::{AndOr, Command, Pipeline, Redir, RedirOp, Script, Simple};
-use krypton::{expand, expand_one, parse, Env};
+use krypton::{expand, expand_one, parse, Env, Escapes};
 
 use crate::sys::{self, FdWriter, O_APPEND, O_CREATE, O_READ, O_TRUNC, O_WRITE};
 
@@ -322,7 +322,7 @@ pub fn run_sh() -> i32 {
             env.last_status = 2;
             continue;
         };
-        let script = match parse(line) {
+        let script = match parse(line, Escapes::Posix) {
             Ok(s) => s,
             Err(e) => {
                 let _ = writeln!(FdWriter(2), "sh: {}", e.msg);

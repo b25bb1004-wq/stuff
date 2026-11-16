@@ -5,16 +5,26 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[features]
+default = ["std"]
+std = ["dep:aci"]
+
 [[bin]]
 name = "zeusctl"
 path = "src/bin/zeusctl.rs"
+required-features = ["std"]
 
 [dependencies]
 
+# aci is host-only: the bare-metal zeus kernel builds with default features too, and aci needs std.
 [target.'cfg(not(target_os = "none"))'.dependencies]
+aci = { path = "../aci", optional = true }
 chisel = { path = "../chisel" }
 lithium = { path = "../lithium" }
 silicon = { path = "../silicon" }
+
+[dev-dependencies]
+assay = { path = "../assay" }
 
 [lints]
 workspace = true

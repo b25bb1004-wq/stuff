@@ -1,4 +1,7 @@
 //! Command-line runner for booting the Titan kernel on Silicon.
+//!
+//! Text mode is unchanged. `--describe` prints the manifest and `--json` prints one ACI envelope
+//! (docs/ai-computer/ACI.md). `--json` runs only scripted boots; the interactive console is `unsupported`.
 
 #![forbid(unsafe_code)]
 
@@ -7,8 +10,11 @@ use std::fs;
 use std::io::{self, BufRead, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+use aci::envelope::{self, Code};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind as ArgKind, Manifest};
 use neon::session::{default_disk, Pump, Titan};
 
 const DEFAULT_KERNEL: &str = "target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel";
@@ -16,6 +22,67 @@ const BUILD_CMD: &str =
     "cargo build --target-dir target/titan-kernel -p titan --bin kernel --release --target riscv64gc-unknown-none-elf";
 const CHUNK_STEPS: u64 = 500_000;
 const MAX_WAIT_STEPS: u64 = 100_000_000;
+
+const BOOT_ARGS: &[Arg] = &[
+    Arg {
+        name: "--kernel",
+        kind: ArgKind::Path,
+        required: false,
+        default: Some("target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel"),
+        choices: &[],
+    },
+    Arg {
+        name: "--script",
+        kind: ArgKind::Path,
+        required: false,
+        default: None,
+        choices: &[],
+    },
+    Arg {
+        name: "--disk",
+        kind: ArgKind::Path,
+        required: false,
+        default: None,
+        choices: &[],
+    },
+];
+
+const COMMANDS: &[Command] = &[Command {
+    name: "boot",
+    summary: "Boot the Titan kernel on Silicon and run the shell commands in --script FILE (or - for stdin); --json needs --script",
+    effect: Effect::Write,
+    args: BOOT_ARGS,
+    returns: "stdout (the console transcript, capped, with stdout_truncated, stdout_bytes, stdout_lossy when they apply), duration_ms, stop: exit (exit only when stop is exit), halt (script ended with the shell at its prompt)",
+    example: "titan --json boot --script commands.txt",
+}];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "titan",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "Titan OS boot tool: runs the Titan kernel on Silicon",
+    commands: COMMANDS,
+};
+
+const HELP: &str = "\
+Usage: titan <subcommand> [options]
+
+Subcommands:
+  boot [--kernel PATH] [--script FILE] [--disk IMG]
+      Boot the Titan kernel on Silicon through neon::session::Titan.
+      Interactive by default (stdin lines -> shell, output -> stdout).
+      With --script FILE (or - for stdin), feed lines and exit.
+
+Options:
+  --kernel PATH   Kernel ELF path
+                  (default: target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel)
+  --script FILE   Read shell commands from FILE (or - for stdin) then exit
+  --disk IMG      Load Hades disk image IMG (or create if missing) and save on exit
+  -h, --help      Print this help text and exit
+  -V, --version   Print version and exit
+
+Example:
+  titan boot --script commands.txt
+";
 
 enum Action {
     Help,
@@ -35,6 +102,8 @@ enum StopReason {
 struct CliError {
     code: u8,
     message: String,
+    /// The error code under `--json`.
+    kind: Code,
 }
 
 impl CliError {
@@ -42,6 +111,7 @@ impl CliError {
         Self {
             code: 2,
             message: message.into(),
+            kind: Code::Usage,
         }
     }
 
@@ -49,18 +119,132 @@ impl CliError {
         Self {
             code: 1,
             message: message.into(),
+            kind: Code::Invalid,
+        }
+    }
+
+    fn io(message: impl Into<String>, err: &io::Error) -> Self {
+        let kind = if err.kind() == io::ErrorKind::NotFound {
+            Code::NotFound
+        } else {
+            Code::Io
+        };
+        Self {
+            code: 1,
+            message: message.into(),
+            kind,
         }
     }
 }
 
 fn main() -> ExitCode {
-    match run(std::env::args_os().skip(1)) {
+    let mut raw: Vec<OsString> = std::env::args_os().skip(1).collect();
+    let json = envelope::take_json_flag(&mut raw);
+    if envelope::take_describe_flag(&raw) {
+        println!("{}", MANIFEST.to_json().write());
+        return ExitCode::SUCCESS;
+    }
+    if json {
+        return run_json(&raw);
+    }
+    match run(raw.into_iter()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             let _ = writeln!(io::stderr().lock(), "titan: {}", err.message);
             ExitCode::from(err.code)
         }
     }
+}
+
+/// The subcommand name for the envelope, or the empty string when the name is not one of ours.
+fn known_command(first: Option<&OsString>) -> &'static str {
+    const NAMES: [&str; 5] = ["boot", "--help", "-h", "--version", "-V"];
+    first
+        .and_then(|a| a.to_str())
+        .and_then(|s| NAMES.iter().copied().find(|n| *n == s))
+        .unwrap_or("")
+}
+
+/// `titan --json ...`: one envelope on stdout; stderr keeps the `titan: message` line.
+fn run_json(args: &[OsString]) -> ExitCode {
+    let cmd = known_command(args.first());
+    match json_run(args.to_vec()) {
+        Ok((data, exit)) => {
+            print!("{}", envelope::ok("titan", cmd, data));
+            ExitCode::from(exit)
+        }
+        Err(err) => {
+            let _ = writeln!(io::stderr().lock(), "titan: {}", err.message);
+            let hint = match err.kind {
+                Code::Usage => Some("run: titan --describe"),
+                Code::Unsupported => Some("run: titan --json boot --script FILE"),
+                _ => None,
+            };
+            print!(
+                "{}",
+                envelope::err("titan", cmd, err.kind, &err.message, hint)
+            );
+            ExitCode::from(err.code)
+        }
+    }
+}
+
+/// Run one command under `--json`. Returns the data and the exit code the text path gives.
+fn json_run(args: Vec<OsString>) -> Result<(Json, u8), CliError> {
+    match parse_args(args.into_iter())? {
+        Action::Help => Ok((Json::obj([("usage", Json::Str(HELP.into()))]), 0)),
+        Action::Version => Ok((Json::obj([("version", Json::Str("titan 0.1.0".into()))]), 0)),
+        Action::Boot {
+            kernel,
+            script,
+            disk,
+        } => {
+            let Some(script) = script else {
+                return Err(CliError {
+                    code: 1,
+                    message: String::from("the interactive console is not available under --json"),
+                    kind: Code::Unsupported,
+                });
+            };
+            let script_text = read_script(Some(script.as_str()))?;
+            let mut console = Vec::new();
+            let started = Instant::now();
+            let exit = boot_and_run(
+                &kernel,
+                script_text.as_deref(),
+                disk.as_deref(),
+                &mut console,
+            )?;
+            let duration_ms = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+            // A guest that exits non-zero is ok: true with the text path's exit code 1.
+            let (stop, guest_exit, exit_code) = match exit {
+                Some(code) => ("exit", Some(i64::from(code)), if code == 0 { 0 } else { 1 }),
+                None => ("halt", None, 0),
+            };
+            let mut pairs = Vec::new();
+            if let Some(code) = guest_exit {
+                pairs.push(("exit".to_string(), Json::Int(code)));
+            }
+            pairs.extend(stream("stdout", &console));
+            pairs.push(("duration_ms".to_string(), Json::Int(duration_ms)));
+            pairs.push(("stop".to_string(), Json::Str(stop.into())));
+            Ok((Json::Obj(pairs), exit_code))
+        }
+    }
+}
+
+/// A captured stream: `name` for the text, `name_<field>` for `truncated`, `bytes`, `lossy`.
+fn stream(name: &str, bytes: &[u8]) -> Vec<(String, Json)> {
+    envelope::capped(bytes)
+        .into_iter()
+        .map(|(key, value)| {
+            if key == "text" {
+                (name.to_string(), value)
+            } else {
+                (format!("{name}_{key}"), value)
+            }
+        })
+        .collect()
 }
 
 fn run(args: impl Iterator<Item = OsString>) -> Result<(), CliError> {
@@ -138,28 +322,8 @@ fn parse_boot_args(mut iter: impl Iterator<Item = OsString>) -> Result<Action, C
 }
 
 fn print_help() -> Result<(), String> {
-    let text = "\
-Usage: titan <subcommand> [options]
-
-Subcommands:
-  boot [--kernel PATH] [--script FILE] [--disk IMG]
-      Boot the Titan kernel on Silicon through neon::session::Titan.
-      Interactive by default (stdin lines -> shell, output -> stdout).
-      With --script FILE (or - for stdin), feed lines and exit.
-
-Options:
-  --kernel PATH   Kernel ELF path
-                  (default: target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel)
-  --script FILE   Read shell commands from FILE (or - for stdin) then exit
-  --disk IMG      Load Hades disk image IMG (or create if missing) and save on exit
-  -h, --help      Print this help text and exit
-  -V, --version   Print version and exit
-
-Example:
-  titan boot --script commands.txt
-";
     let mut out = io::stdout().lock();
-    out.write_all(text.as_bytes())
+    out.write_all(HELP.as_bytes())
         .map_err(|e| format!("stdout write failed: {e}"))?;
     out.flush().map_err(|e| format!("stdout flush failed: {e}"))
 }
@@ -176,27 +340,49 @@ fn run_boot(
     script_path: Option<&str>,
     disk_path: Option<&Path>,
 ) -> Result<(), CliError> {
-    let script_text = match script_path {
+    let script_text = read_script(script_path)?;
+    let mut stdout = io::stdout().lock();
+    let exit_code = boot_and_run(kernel_path, script_text.as_deref(), disk_path, &mut stdout)?;
+    match exit_code {
+        Some(code) => finish_guest_exit(code),
+        None => Ok(()),
+    }
+}
+
+fn read_script(script_path: Option<&str>) -> Result<Option<String>, CliError> {
+    match script_path {
         Some("-") => {
             let mut buf = String::new();
             io::stdin()
                 .read_to_string(&mut buf)
-                .map_err(|e| CliError::failed(format!("cannot read script from stdin: {e}")))?;
-            Some(buf)
+                .map_err(|e| CliError::io(format!("cannot read script from stdin: {e}"), &e))?;
+            Ok(Some(buf))
         }
         Some(path) => {
             let text = fs::read_to_string(path)
-                .map_err(|e| CliError::failed(format!("cannot read script '{path}': {e}")))?;
-            Some(text)
+                .map_err(|e| CliError::io(format!("cannot read script '{path}': {e}"), &e))?;
+            Ok(Some(text))
         }
-        None => None,
-    };
+        None => Ok(None),
+    }
+}
 
+/// Boot the kernel, run the session with its console going to `out`, and save the disk if asked.
+/// Returns the guest's exit code when it exited, None when the session ended at the prompt.
+fn boot_and_run(
+    kernel_path: &Path,
+    script_text: Option<&str>,
+    disk_path: Option<&Path>,
+    out: &mut impl Write,
+) -> Result<Option<i32>, CliError> {
     let elf_bytes = fs::read(kernel_path).map_err(|e| {
-        CliError::failed(format!(
-            "cannot read kernel '{}': {e} (build with: {BUILD_CMD})",
-            kernel_path.display()
-        ))
+        CliError::io(
+            format!(
+                "cannot read kernel '{}': {e} (build with: {BUILD_CMD})",
+                kernel_path.display()
+            ),
+            &e,
+        )
     })?;
 
     let mut titan = match disk_path {
@@ -207,21 +393,19 @@ fn run_boot(
         None => Titan::boot(&elf_bytes).map_err(CliError::failed)?,
     };
 
-    let exit_code = run_session(&mut titan, script_text.as_deref())?;
+    let exit_code = run_session(&mut titan, script_text, out)?;
     if let Some(path) = disk_path {
         write_disk_atomic(path, &titan.disk_bytes()).map_err(CliError::failed)?;
     }
-
-    match exit_code {
-        Some(code) => finish_guest_exit(code),
-        None => Ok(()),
-    }
+    Ok(exit_code)
 }
 
-fn run_session(titan: &mut Titan, script_text: Option<&str>) -> Result<Option<i32>, CliError> {
-    let mut stdout = io::stdout().lock();
-
-    match pump_until_ready(titan, &mut stdout).map_err(CliError::failed)? {
+fn run_session(
+    titan: &mut Titan,
+    script_text: Option<&str>,
+    stdout: &mut impl Write,
+) -> Result<Option<i32>, CliError> {
+    match pump_until_ready(titan, stdout).map_err(CliError::failed)? {
         StopReason::Prompt => {}
         StopReason::Exited(code) => return Ok(Some(code)),
     }
@@ -229,7 +413,7 @@ fn run_session(titan: &mut Titan, script_text: Option<&str>) -> Result<Option<i3
     if let Some(text) = script_text {
         for line in text.lines() {
             titan.send(line);
-            match pump_until_ready(titan, &mut stdout).map_err(CliError::failed)? {
+            match pump_until_ready(titan, stdout).map_err(CliError::failed)? {
                 StopReason::Prompt => {}
                 StopReason::Exited(code) => return Ok(Some(code)),
             }
@@ -241,7 +425,7 @@ fn run_session(titan: &mut Titan, script_text: Option<&str>) -> Result<Option<i3
     for line_res in stdin.lock().lines() {
         let line = line_res.map_err(|e| CliError::failed(format!("stdin read failed: {e}")))?;
         titan.send(&line);
-        match pump_until_ready(titan, &mut stdout).map_err(CliError::failed)? {
+        match pump_until_ready(titan, stdout).map_err(CliError::failed)? {
             StopReason::Prompt => {}
             StopReason::Exited(code) => return Ok(Some(code)),
         }

@@ -11,11 +11,63 @@ fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
 
 #[cfg(not(target_os = "none"))]
 mod host {
+    use std::ffi::OsString;
     use std::path::PathBuf;
     use std::process::ExitCode;
+    use std::time::Instant;
 
+    use aci::envelope::{self, Code};
+    use aci::json::Json;
+    use aci::manifest::{Arg, Command, Effect, Kind as ArgKind, Manifest};
     use silicon::machine::{Exit, RAM_BASE};
     use zeus::{build_machine, split_console, Guest, Image};
+
+    const RUN_ARGS: &[Arg] = &[
+        Arg {
+            name: "--zeus",
+            kind: ArgKind::Path,
+            required: false,
+            default: Some("target/zeus-bin/riscv64gc-unknown-none-elf/release/zeus"),
+            choices: &[],
+        },
+        Arg {
+            name: "--guest",
+            kind: ArgKind::Text,
+            required: false,
+            default: Some("lithium:4"),
+            choices: &[],
+        },
+        Arg {
+            name: "--titan",
+            kind: ArgKind::Path,
+            required: false,
+            default: Some("target/titan-kernel/riscv64gc-unknown-none-elf/release/kernel"),
+            choices: &[],
+        },
+        Arg {
+            name: "--steps",
+            kind: ArgKind::Int,
+            required: false,
+            default: Some("20000000"),
+            choices: &[],
+        },
+    ];
+
+    const COMMANDS: &[Command] = &[Command {
+        name: "run",
+        summary: "Boot zeus with one or more guests (lithium, titan; up to 3) and report their console output",
+        effect: Effect::Read,
+        args: RUN_ARGS,
+        returns: "exit (only when stop is exit), stdout (console lines as [source] line, capped, with stdout_truncated, stdout_bytes, stdout_lossy when they apply), steps, duration_ms, stop: exit, step_limit",
+        example: "zeusctl --json run --guest lithium:4 --steps 80000000",
+    }];
+
+    const MANIFEST: Manifest = Manifest {
+        tool: "zeusctl",
+        version: env!("CARGO_PKG_VERSION"),
+        summary: "Host CLI for booting guests under the zeus hypervisor",
+        commands: COMMANDS,
+    };
 
     const MIB: u64 = 1024 * 1024;
     const DEFAULT_STEPS: u64 = 20_000_000;
@@ -85,6 +137,8 @@ EXAMPLES:
     struct CliError {
         code: u8,
         message: String,
+        /// The error code under `--json`.
+        kind: Code,
     }
 
     impl CliError {
@@ -92,6 +146,7 @@ EXAMPLES:
             Self {
                 code: 2,
                 message: message.into(),
+                kind: Code::Usage,
             }
         }
 
@@ -99,12 +154,38 @@ EXAMPLES:
             Self {
                 code: 1,
                 message: message.into(),
+                kind: Code::Invalid,
+            }
+        }
+
+        fn io(message: impl Into<String>, err: &std::io::Error) -> Self {
+            let kind = if err.kind() == std::io::ErrorKind::NotFound {
+                Code::NotFound
+            } else {
+                Code::Io
+            };
+            Self {
+                code: 1,
+                message: message.into(),
+                kind,
             }
         }
     }
 
     pub fn main() -> ExitCode {
-        let args: Vec<String> = std::env::args().skip(1).collect();
+        let mut raw: Vec<OsString> = std::env::args_os().skip(1).collect();
+        let json = envelope::take_json_flag(&mut raw);
+        if envelope::take_describe_flag(&raw) {
+            println!("{}", MANIFEST.to_json().write());
+            return ExitCode::SUCCESS;
+        }
+        let args: Vec<String> = raw
+            .iter()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        if json {
+            return run_json(&args);
+        }
         match run_cli(&args) {
             Ok(()) => ExitCode::SUCCESS,
             Err(err) => {
@@ -112,6 +193,87 @@ EXAMPLES:
                 ExitCode::from(err.code)
             }
         }
+    }
+
+    /// The subcommand name for the envelope, or the empty string when the name is not one of ours.
+    fn known_command(first: Option<&String>) -> &'static str {
+        const NAMES: [&str; 4] = ["run", "--help", "--version", "-h"];
+        first
+            .and_then(|s| NAMES.iter().copied().find(|n| *n == s.as_str()))
+            .unwrap_or("")
+    }
+
+    /// `zeusctl --json ...`: one envelope on stdout; stderr keeps the `zeusctl: message` line.
+    fn run_json(args: &[String]) -> ExitCode {
+        let cmd = known_command(args.first());
+        match json_cli(args) {
+            Ok((data, exit)) => {
+                print!("{}", envelope::ok("zeusctl", cmd, data));
+                ExitCode::from(exit)
+            }
+            Err(err) => {
+                eprintln!("zeusctl: {}", err.message);
+                let hint = match err.kind {
+                    Code::Usage => Some("run: zeusctl --describe"),
+                    _ => None,
+                };
+                print!(
+                    "{}",
+                    envelope::err("zeusctl", cmd, err.kind, &err.message, hint)
+                );
+                ExitCode::from(err.code)
+            }
+        }
+    }
+
+    /// Run one command under `--json`. Returns the data and the exit code the text path gives.
+    fn json_cli(args: &[String]) -> Result<(Json, u8), CliError> {
+        match parse_args(args)? {
+            Action::Help => Ok((Json::obj([("usage", Json::Str(HELP.into()))]), 0)),
+            Action::Version => Ok((Json::obj([("version", Json::Str(VERSION.into()))]), 0)),
+            Action::Run(run_args) => {
+                let booted = boot(&run_args)?;
+                // A guest run that did not pass is ok: true with the text path's exit code 1.
+                let (stop, guest_exit, exit) = match booted.exit {
+                    Exit::Pass => ("exit", Some(0), 0),
+                    Exit::Fail(code) => ("exit", Some(i64::from(code)), 1),
+                    Exit::OutOfSteps => ("step_limit", None, 0),
+                };
+                let mut console = String::new();
+                for (source, lines) in split_console(&booted.console) {
+                    for line in lines {
+                        console.push_str(&format!("[{source}] {line}\n"));
+                    }
+                }
+                let mut pairs = Vec::new();
+                if let Some(code) = guest_exit {
+                    pairs.push(("exit".to_string(), Json::Int(code)));
+                }
+                pairs.extend(stream("stdout", console.as_bytes()));
+                pairs.push(("steps".to_string(), int(booted.steps)));
+                pairs.push(("duration_ms".to_string(), Json::Int(booted.duration_ms)));
+                pairs.push(("stop".to_string(), Json::Str(stop.into())));
+                Ok((Json::Obj(pairs), exit))
+            }
+        }
+    }
+
+    fn int<T: TryInto<i64>>(n: T) -> Json {
+        Json::Int(n.try_into().unwrap_or(i64::MAX))
+    }
+
+    /// A captured stream: `name` for the text, `name_<field>` for `truncated`, `bytes`, `lossy`.
+    fn stream(name: &str, bytes: &[u8]) -> Vec<(String, Json)> {
+        envelope::capped(bytes)
+            .into_iter()
+            .map(|(key, value)| {
+                if key == "text" {
+                    (name.to_string(), value)
+                } else {
+                    (format!("{name}_{key}"), value)
+                }
+            })
+            .collect()
     }
 
     fn run_cli(args: &[String]) -> Result<(), CliError> {
@@ -277,21 +439,55 @@ EXAMPLES:
         Ok(GuestSpec { kind, size_mib })
     }
 
+    /// One boot: how it stopped, the console bytes, and the steps and time it used.
+    struct Booted {
+        exit: Exit,
+        console: Vec<u8>,
+        steps: u64,
+        duration_ms: i64,
+    }
+
     fn execute_run(args: &RunArgs) -> Result<(), CliError> {
+        let booted = boot(args)?;
+        for (source, lines) in split_console(&booted.console) {
+            for line in lines {
+                println!("[{source}] {line}");
+            }
+        }
+        println!("exit: {:?}", booted.exit);
+        println!("steps: {}", booted.steps);
+
+        if booted.exit == Exit::Pass {
+            Ok(())
+        } else {
+            Err(CliError::fail(format!(
+                "machine exited with {:?}",
+                booted.exit
+            )))
+        }
+    }
+
+    fn boot(args: &RunArgs) -> Result<Booted, CliError> {
         let zeus_elf = std::fs::read(&args.zeus_path).map_err(|err| {
-            CliError::fail(format!(
-                "missing or unreadable zeus ELF at {}: {err}; build it with: {ZEUS_BUILD_CMD}",
-                args.zeus_path.display()
-            ))
+            CliError::io(
+                format!(
+                    "missing or unreadable zeus ELF at {}: {err}; build it with: {ZEUS_BUILD_CMD}",
+                    args.zeus_path.display()
+                ),
+                &err,
+            )
         })?;
 
         let needs_titan = args.guests.iter().any(|g| g.kind == GuestKind::Titan);
         let titan_elf = if needs_titan {
             Some(std::fs::read(&args.titan_path).map_err(|err| {
-                CliError::fail(format!(
-                    "missing or unreadable titan kernel at {}: {err}; build it with: {TITAN_BUILD_CMD}",
-                    args.titan_path.display()
-                ))
+                CliError::io(
+                    format!(
+                        "missing or unreadable titan kernel at {}: {err}; build it with: {TITAN_BUILD_CMD}",
+                        args.titan_path.display()
+                    ),
+                    &err,
+                )
             })?)
         } else {
             None
@@ -346,23 +542,17 @@ EXAMPLES:
         }
 
         let mut machine = build_machine(&zeus_elf, &built_guests).map_err(CliError::fail)?;
+        let started = Instant::now();
         let exit = machine.run(args.steps);
-        let steps_ran = machine.board.mtime();
-        let out = machine.board.take_uart_output();
-
-        for (source, lines) in split_console(&out) {
-            for line in lines {
-                println!("[{source}] {line}");
-            }
-        }
-        println!("exit: {exit:?}");
-        println!("steps: {steps_ran}");
-
-        if exit == Exit::Pass {
-            Ok(())
-        } else {
-            Err(CliError::fail(format!("machine exited with {exit:?}")))
-        }
+        let duration_ms = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+        let steps = machine.board.mtime();
+        let console = machine.board.take_uart_output();
+        Ok(Booted {
+            exit,
+            console,
+            steps,
+            duration_ms,
+        })
     }
 
     #[cfg(test)]

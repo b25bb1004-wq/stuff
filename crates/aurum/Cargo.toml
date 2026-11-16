@@ -10,6 +10,7 @@ name = "aurum"
 path = "src/bin/aurum.rs"
 
 [dependencies]
+aci = { path = "../aci" }
 elysium = { path = "../elysium" }
 entropy = { path = "../entropy" }
 logos = { path = "../logos" }
