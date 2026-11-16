@@ -19,7 +19,7 @@ mod repo;
 mod status;
 mod store;
 
-pub use diff::{diff, lines, unified, Edit};
+pub use diff::{diff, hunks, lines, unified, Edit, Hunk};
 pub use format::{
     decode_commit, decode_tree, encode_commit, encode_tree, Commit, Mode, Signature, TreeEntry,
 };

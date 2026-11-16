@@ -12,6 +12,7 @@ std = ["dep:mercury"]
 [dependencies]
 sphinx = { path = "../sphinx" }
 mercury = { path = "../mercury", optional = true }
+aci = { path = "../aci" }
 
 [dev-dependencies]
 assay = { path = "../assay" }

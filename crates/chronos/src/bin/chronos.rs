@@ -3,21 +3,491 @@
 
 use std::collections::BTreeSet;
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io::{self, IsTerminal, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use aci::envelope::{self, Code};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind as ArgKind, Manifest};
 use chronos::git;
 use chronos::ignore::Rules;
 use chronos::{
-    decode_commit, decode_tree, from_hex, to_hex, unified, validate_entry_name, Change, DirStore,
-    Error, Id, Kind, MergeError, MergeOutcome, Mode, Repo, Signature, Store,
+    decode_commit, decode_tree, from_hex, hunks, to_hex, unified, validate_entry_name, Change,
+    Commit, DirStore, Error, Hunk, Id, Kind, MergeError, MergeOutcome, Mode, Repo, Signature,
+    Store,
 };
 
 const VERSION_STR: &str = "chronos 0.1.0";
+
+/// Subcommands the manifest lists; `--json` names the one it ran.
+const SUBCOMMANDS: &[&str] = &[
+    "init", "add", "commit", "status", "log", "diff", "show", "branch", "switch", "checkout",
+    "cat-file", "restore", "reset", "rm", "mv", "merge", "stash", "tag", "import", "export",
+    "serve",
+];
+
+const LIMIT: Arg = Arg {
+    name: "--limit",
+    kind: ArgKind::Int,
+    required: false,
+    default: Some("100"),
+    choices: &[],
+};
+const OFFSET: Arg = Arg {
+    name: "--offset",
+    kind: ArgKind::Int,
+    required: false,
+    default: Some("0"),
+    choices: &[],
+};
+
+const fn arg(name: &'static str, kind: ArgKind, required: bool) -> Arg {
+    Arg {
+        name,
+        kind,
+        required,
+        default: None,
+        choices: &[],
+    }
+}
+
+const COMMANDS: &[Command] = &[
+    Command {
+        name: "init",
+        summary: "Create a repository in DIR/.chronos (default the current folder)",
+        effect: Effect::Write,
+        args: &[arg("DIR", ArgKind::Path, false)],
+        returns: "path",
+        example: "chronos --json init myrepo",
+    },
+    Command {
+        name: "add",
+        summary: "Stage PATH... into the index; -A stages the whole work tree, -f adds ignored paths",
+        effect: Effect::Write,
+        args: &[
+            arg("-f", ArgKind::Flag, false),
+            arg("-A", ArgKind::Flag, false),
+            arg("PATH", ArgKind::Path, false),
+        ],
+        returns: "paths: the staged and removed paths",
+        example: "chronos --json add a.txt src/main.rs",
+    },
+    Command {
+        name: "commit",
+        summary: "Record a commit from the staged index; -m MSG is required under --json",
+        effect: Effect::Write,
+        args: &[arg("-m", ArgKind::Text, true)],
+        returns: "id, branch (null when detached), count (paths changed)",
+        example: "chronos --json commit -m \"initial commit\"",
+    },
+    Command {
+        name: "status",
+        summary: "Show staged, unstaged, untracked and unmerged paths",
+        effect: Effect::Read,
+        args: &[],
+        returns: "branch, head, clean, staged and unstaged [{path, change}], untracked, unmerged",
+        example: "chronos --json status",
+    },
+    Command {
+        name: "log",
+        summary: "List commits reachable from HEAD, newest first",
+        effect: Effect::Read,
+        args: &[LIMIT, OFFSET],
+        returns: "items: [{id, parents, author, time, message}], total, more, next_offset",
+        example: "chronos --json log --limit 20",
+    },
+    Command {
+        name: "diff",
+        summary: "Diff unstaged edits, or with --staged the staged changes against HEAD",
+        effect: Effect::Read,
+        args: &[arg("--staged", ArgKind::Flag, false), LIMIT, OFFSET],
+        returns: "files: [{path, change, hunks}], total, more, next_offset",
+        example: "chronos --json diff --staged",
+    },
+    Command {
+        name: "show",
+        summary: "Show one commit (default HEAD) with its files",
+        effect: Effect::Read,
+        args: &[arg("ID", ArgKind::Text, false)],
+        returns: "id, parents, author, time, message, files",
+        example: "chronos --json show HEAD",
+    },
+    Command {
+        name: "branch",
+        summary: "List branches, create NAME at HEAD, or delete with -d or -D NAME",
+        effect: Effect::Write,
+        args: &[
+            arg("NAME", ArgKind::Text, false),
+            arg("-d", ArgKind::Flag, false),
+            arg("-D", ArgKind::Flag, false),
+            LIMIT,
+            OFFSET,
+        ],
+        returns: "list: items [{name, id, current}]; create or delete: name, id",
+        example: "chronos --json branch feature",
+    },
+    Command {
+        name: "switch",
+        summary: "Switch to branch NAME and update the work tree",
+        effect: Effect::Write,
+        args: &[arg("NAME", ArgKind::Text, true)],
+        returns: "branch (null when detached), id",
+        example: "chronos --json switch main",
+    },
+    Command {
+        name: "checkout",
+        summary: "Same as switch: move to branch or revision NAME",
+        effect: Effect::Write,
+        args: &[arg("NAME", ArgKind::Text, true)],
+        returns: "branch (null when detached), id",
+        example: "chronos --json checkout main",
+    },
+    Command {
+        name: "cat-file",
+        summary: "Print object ID: text for a blob or commit, items for a tree",
+        effect: Effect::Read,
+        args: &[arg("ID", ArgKind::Text, true)],
+        returns: "kind, id, text (capped), or items [{mode, kind, id, name}] for a tree",
+        example: "chronos --json cat-file HEAD",
+    },
+    Command {
+        name: "restore",
+        summary: "Unstage PATH... (restore --staged); the work tree is not touched",
+        effect: Effect::Write,
+        args: &[
+            arg("--staged", ArgKind::Flag, true),
+            arg("PATH", ArgKind::Path, true),
+        ],
+        returns: "paths",
+        example: "chronos --json restore --staged a.txt",
+    },
+    Command {
+        name: "reset",
+        summary: "Unstage everything; the work tree is not touched",
+        effect: Effect::Write,
+        args: &[],
+        returns: "paths: the paths that differed from HEAD in the index",
+        example: "chronos --json reset",
+    },
+    Command {
+        name: "rm",
+        summary: "Remove tracked PATH... from the index and the work tree; --cached keeps the files",
+        effect: Effect::Write,
+        args: &[
+            arg("-f", ArgKind::Flag, false),
+            arg("--cached", ArgKind::Flag, false),
+            arg("PATH", ArgKind::Path, true),
+        ],
+        returns: "paths",
+        example: "chronos --json rm --cached notes.txt",
+    },
+    Command {
+        name: "mv",
+        summary: "Rename tracked SRC to DST in the work tree and the index",
+        effect: Effect::Write,
+        args: &[
+            arg("SRC", ArgKind::Path, true),
+            arg("DST", ArgKind::Path, true),
+        ],
+        returns: "paths: [SRC, DST] as repository paths",
+        example: "chronos --json mv old.txt new.txt",
+    },
+    Command {
+        name: "merge",
+        summary: "Merge branch NAME into the current branch, or --abort a merge in progress",
+        effect: Effect::Write,
+        args: &[arg("NAME", ArgKind::Text, false), arg("--abort", ArgKind::Flag, false)],
+        returns: "status (fast_forward, merged, up_to_date) and id; --abort gives status aborted; a conflict is code conflict",
+        example: "chronos --json merge feature",
+    },
+    Command {
+        name: "stash",
+        summary: "Save tracked changes on a stack (push), or list, pop or drop the newest",
+        effect: Effect::Write,
+        args: &[
+            Arg {
+                name: "ACTION",
+                kind: ArgKind::Choice,
+                required: false,
+                default: Some("push"),
+                choices: &["push", "list", "pop", "drop"],
+            },
+            LIMIT,
+            OFFSET,
+        ],
+        returns: "push: id, message; list: items [{name, message}]; pop and drop: name, id",
+        example: "chronos --json stash",
+    },
+    Command {
+        name: "tag",
+        summary: "List tags, create NAME at ID (default HEAD), or delete with -d NAME",
+        effect: Effect::Write,
+        args: &[
+            arg("NAME", ArgKind::Text, false),
+            arg("ID", ArgKind::Text, false),
+            arg("-d", ArgKind::Flag, false),
+            LIMIT,
+            OFFSET,
+        ],
+        returns: "list: items [{name, id}]; create or delete: name, id",
+        example: "chronos --json tag v1",
+    },
+    Command {
+        name: "import",
+        summary: "Import all branches and tags of the git repository GIT_DIR into an empty folder",
+        effect: Effect::Write,
+        args: &[arg("GIT_DIR", ArgKind::Path, true)],
+        returns: "path, count (commits), refs",
+        example: "chronos --json -C work import ../project/.git",
+    },
+    Command {
+        name: "export",
+        summary: "Append chronos commits that git does not have to the git repository GIT_DIR",
+        effect: Effect::Write,
+        args: &[arg("GIT_DIR", ArgKind::Path, true)],
+        returns: "path, count (commits), refs",
+        example: "chronos --json export ../project",
+    },
+    Command {
+        name: "serve",
+        summary: "Serve /repo over HTTP until stopped; it never returns, so --json is unsupported",
+        effect: Effect::Net,
+        args: &[
+            arg("--addr", ArgKind::Text, false),
+            arg("--push-token-file", ArgKind::Path, false),
+        ],
+        returns: "nothing: always code unsupported under --json",
+        example: "chronos --json serve",
+    },
+];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "chronos",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "Git-style SHA-256 version control for Monolith",
+    commands: COMMANDS,
+};
+
+/// Under `--json` a run prints one envelope and no text: commands store their data here.
+static JSON: AtomicBool = AtomicBool::new(false);
+static DATA: Mutex<Option<Json>> = Mutex::new(None);
+
+fn json_mode() -> bool {
+    JSON.load(Ordering::Relaxed)
+}
+
+fn reply(data: Json) {
+    if let Ok(mut slot) = DATA.lock() {
+        *slot = Some(data);
+    }
+}
+
+fn take_reply() -> Option<Json> {
+    DATA.lock().ok().and_then(|mut slot| slot.take())
+}
+
+fn object<K: Into<String>>(pairs: Vec<(K, Json)>) -> Json {
+    Json::Obj(pairs.into_iter().map(|(k, v)| (k.into(), v)).collect())
+}
+
+fn s(text: impl Into<String>) -> Json {
+    Json::Str(text.into())
+}
+
+fn int(n: usize) -> Json {
+    Json::Int(i64::try_from(n).unwrap_or(i64::MAX))
+}
+
+fn hex(id: &Id) -> Json {
+    Json::Str(to_hex(id))
+}
+
+fn opt_hex(id: Option<Id>) -> Json {
+    id.as_ref().map_or(Json::Null, hex)
+}
+
+fn opt_str(text: Option<String>) -> Json {
+    text.map_or(Json::Null, Json::Str)
+}
+
+fn str_list<T: AsRef<str>>(items: impl IntoIterator<Item = T>) -> Json {
+    Json::Arr(items.into_iter().map(|t| s(t.as_ref())).collect())
+}
+
+/// The change words ACI.md shares: `added`, `modified`, `deleted`.
+fn change_name(change: &Change) -> &'static str {
+    match change {
+        Change::Added(_) => "added",
+        Change::Modified(_) => "modified",
+        Change::Deleted(_) => "deleted",
+    }
+}
+
+fn change_json(change: &Change) -> Json {
+    object(vec![
+        ("path", s(path_of(change))),
+        ("change", s(change_name(change))),
+    ])
+}
+
+/// One file of a diff: path, change name, old bytes, new bytes.
+type Entry = (String, &'static str, Vec<u8>, Vec<u8>);
+
+fn file_json(entry: &Entry) -> Json {
+    let (path, change, old, new) = entry;
+    let binary = old.contains(&0) || new.contains(&0);
+    let body: Vec<Json> = if binary {
+        Vec::new()
+    } else {
+        hunks(old, new, 3).iter().map(hunk_json).collect()
+    };
+    let mut pairs = vec![
+        ("path", s(path.as_str())),
+        ("change", s(*change)),
+        ("hunks", Json::Arr(body)),
+    ];
+    if binary {
+        pairs.push(("binary", Json::Bool(true)));
+    }
+    object(pairs)
+}
+
+fn hunk_json(h: &Hunk) -> Json {
+    let lines = h
+        .lines
+        .iter()
+        .map(|(prefix, text)| {
+            let body = String::from_utf8_lossy(text);
+            s(format!(
+                "{}{}",
+                *prefix as char,
+                body.trim_end_matches('\n')
+            ))
+        })
+        .collect();
+    object(vec![
+        ("old_start", int(h.old_start)),
+        ("old_lines", int(h.old_lines)),
+        ("new_start", int(h.new_start)),
+        ("new_lines", int(h.new_lines)),
+        ("lines", Json::Arr(lines)),
+    ])
+}
+
+/// The fields `log` and `show` give for a commit.
+fn commit_pairs(id: &Id, commit: &Commit) -> Vec<(&'static str, Json)> {
+    vec![
+        ("id", hex(id)),
+        (
+            "parents",
+            Json::Arr(commit.parents.iter().map(hex).collect()),
+        ),
+        (
+            "author",
+            s(format!("{} <{}>", commit.author.name, commit.author.email)),
+        ),
+        ("time", Json::Int(commit.committer.time)),
+        ("message", s(commit.message.to_string())),
+    ]
+}
+
+/// `--limit N` and `--offset N` of a paged list under `--json`; returns the other arguments.
+fn paging(args: &[String]) -> Result<(usize, usize, Vec<String>), CliError> {
+    let mut limit = envelope::DEFAULT_LIMIT;
+    let mut offset = 0;
+    let mut rest = Vec::new();
+    let mut it = args.iter();
+    while let Some(arg) = it.next() {
+        if arg == "--limit" || arg == "--offset" {
+            let value = it
+                .next()
+                .and_then(|v| v.parse::<usize>().ok())
+                .ok_or_else(|| CliError::Usage(format!("{arg} expects a whole number")))?;
+            if arg == "--offset" {
+                offset = value;
+            } else if value == 0 {
+                return Err(CliError::Usage("--limit must be at least 1".to_string()));
+            } else {
+                limit = value.min(envelope::MAX_LIMIT);
+            }
+        } else {
+            rest.push(arg.clone());
+        }
+    }
+    Ok((limit, offset, rest))
+}
+
+/// A page whose items are named `key` (for example `files`) instead of `items`.
+fn page_under(key: &str, items: Vec<Json>, total: usize, offset: usize, limit: usize) -> Json {
+    match envelope::page(items, total, offset, limit) {
+        Json::Obj(pairs) => Json::Obj(
+            pairs
+                .into_iter()
+                .map(|(k, v)| {
+                    if k == "items" {
+                        (key.to_string(), v)
+                    } else {
+                        (k, v)
+                    }
+                })
+                .collect(),
+        ),
+        other => other,
+    }
+}
+
+fn help_refused() -> CliError {
+    fail(
+        Code::Usage,
+        "--help is text; the manifest is --describe",
+        Some("run: chronos --describe"),
+    )
+}
+
+/// The subcommand a `--json` run names, or "" when there is none or it is unknown.
+fn json_cmd(args: &[String]) -> String {
+    let rest = if args.first().map(String::as_str) == Some("-C") {
+        args.get(2..).unwrap_or(&[])
+    } else {
+        args
+    };
+    match rest.first() {
+        Some(sub) if SUBCOMMANDS.contains(&sub.as_str()) => sub.clone(),
+        _ => String::new(),
+    }
+}
+
+/// Print the one envelope a `--json` run owes, then exit with its code.
+fn finish_json(args: &[String], result: Result<(), CliError>) -> ! {
+    let cmd = json_cmd(args);
+    let (code, msg, hint) = match result {
+        Ok(()) => {
+            let data = take_reply().unwrap_or_else(|| Json::Obj(Vec::new()));
+            print!("{}", envelope::ok("chronos", &cmd, data));
+            process::exit(0)
+        }
+        Err(CliError::Closed) => process::exit(0),
+        Err(CliError::Usage(msg)) => (
+            Code::Usage,
+            msg,
+            Some("run: chronos --describe".to_string()),
+        ),
+        Err(CliError::Op(msg)) => (Code::Invalid, msg, None),
+        Err(CliError::Fail { code, msg, hint }) => (code, msg, hint.map(str::to_string)),
+    };
+    eprintln!("chronos: {msg}");
+    print!(
+        "{}",
+        envelope::err("chronos", &cmd, code, &msg, hint.as_deref())
+    );
+    process::exit(if code == Code::Usage { 2 } else { 1 });
+}
 
 fn usage() -> &'static str {
     "\
@@ -147,8 +617,22 @@ Subcommands:
 enum CliError {
     Usage(String),
     Op(String),
+    /// A failure with the envelope code and hint `--json` gives it. The text path prints only `msg`.
+    Fail {
+        code: Code,
+        msg: String,
+        hint: Option<&'static str>,
+    },
     /// stdout was closed by the reader (`chronos log | head`): stop quietly with exit 0.
     Closed,
+}
+
+fn fail(code: Code, msg: impl Into<String>, hint: Option<&'static str>) -> CliError {
+    CliError::Fail {
+        code,
+        msg: msg.into(),
+        hint,
+    }
 }
 
 fn stdout_err(e: io::Error) -> CliError {
@@ -166,8 +650,10 @@ fn find_repo_root(start: &Path) -> Result<PathBuf, CliError> {
             return Ok(cur);
         }
         if !cur.pop() {
-            return Err(CliError::Op(
-                "not a chronos repository (missing .chronos/)".to_string(),
+            return Err(fail(
+                Code::NotFound,
+                "not a chronos repository (missing .chronos/)",
+                Some("run: chronos --json init"),
             ));
         }
     }
@@ -315,6 +801,10 @@ fn cmd_init(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
     fs::create_dir_all(&chronos_dir)
         .map_err(|e| CliError::Op(format!("failed to create '{}': {e}", chronos_dir.display())))?;
     let _repo = Repo::init(DirStore::new(&chronos_dir));
+    if json_mode() {
+        reply(object(vec![("path", Json::path(&chronos_dir))]));
+        return Ok(());
+    }
     println!(
         "initialized chronos repository in {}",
         chronos_dir.display()
@@ -437,6 +927,10 @@ fn cmd_add(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
             .map_err(|e| CliError::Op(format!("failed to stat '{rel}': {e}")))?;
         repo.add(rel, &bytes, is_executable(&meta))
             .map_err(|e| CliError::Op(format!("failed to stage '{rel}': {e}")))?;
+    }
+    if json_mode() {
+        let affected: BTreeSet<&String> = stage.iter().chain(remove.iter()).collect();
+        reply(object(vec![("paths", str_list(affected))]));
     }
     Ok(())
 }
@@ -583,6 +1077,13 @@ fn cmd_commit(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
     if message == Some("") {
         return Err(CliError::Op("commit message cannot be empty".to_string()));
     }
+    if json_mode() && message.is_none() {
+        return Err(fail(
+            Code::Usage,
+            "commit needs a message under --json: no editor is opened",
+            Some("run: chronos --json commit -m MSG"),
+        ));
+    }
     let (root, mut repo) = open_repo(base_dir)?;
     if !repo.unmerged().is_empty() {
         return Err(CliError::Op(
@@ -609,7 +1110,15 @@ fn cmd_commit(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
         }
     };
     let sig = default_identity(&root);
+    // Counted before the commit: the paths it will record, against HEAD.
+    let count = repo.status().len();
+    let branch = repo.current_branch();
     match repo.commit(msg, &sig) {
+        Ok(id) if json_mode() => reply(object(vec![
+            ("id", hex(&id)),
+            ("branch", opt_str(branch)),
+            ("count", int(count)),
+        ])),
         Ok(id) => println!("{}", to_hex(&id)),
         Err(e) => {
             if message.is_none() {
@@ -683,9 +1192,18 @@ fn run_editor(editor: &str, path: &Path) -> Result<String, CliError> {
 }
 
 fn cmd_log(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
-    if !args.is_empty() {
-        return Err(CliError::Usage("log takes no arguments".to_string()));
-    }
+    let (limit, offset) = if json_mode() {
+        let (limit, offset, rest) = paging(args)?;
+        if !rest.is_empty() {
+            return Err(CliError::Usage("log takes no arguments".to_string()));
+        }
+        (limit, offset)
+    } else {
+        if !args.is_empty() {
+            return Err(CliError::Usage("log takes no arguments".to_string()));
+        }
+        (envelope::MAX_LIMIT, 0)
+    };
     let (_root, repo) = open_repo(base_dir)?;
     let head = repo
         .head()
@@ -693,6 +1211,19 @@ fn cmd_log(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
     let ids = repo
         .log(&head)
         .map_err(|e| CliError::Op(format!("log failed: {e}")))?;
+    if json_mode() {
+        let mut page = Vec::new();
+        for id in ids.iter().skip(offset).take(limit) {
+            let (_, raw) = repo
+                .get(id)
+                .map_err(|e| CliError::Op(format!("failed to read commit: {e}")))?;
+            let commit =
+                decode_commit(&raw).map_err(|e| CliError::Op(format!("corrupt commit: {e}")))?;
+            page.push(object(commit_pairs(id, &commit)));
+        }
+        reply(envelope::page(page, ids.len(), offset, limit));
+        return Ok(());
+    }
     let mut out = io::stdout().lock();
     for id in ids {
         let (_, raw) = repo
@@ -712,19 +1243,45 @@ fn cmd_branch(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
             return delete_branch(args, base_dir);
         }
     }
-    if args.len() > 1 {
+    let (limit, offset, rest) = if json_mode() {
+        paging(args)?
+    } else {
+        (envelope::MAX_LIMIT, 0, args.to_vec())
+    };
+    if rest.len() > 1 {
         return Err(CliError::Usage(
             "branch expects zero or one NAME".to_string(),
         ));
     }
     let (_root, mut repo) = open_repo(base_dir)?;
-    if let Some(name) = args.first() {
+    if let Some(name) = rest.first() {
         let head = repo
             .head()
             .ok_or_else(|| CliError::Op("cannot create branch: no commits yet".to_string()))?;
         repo.branch(name, &head)
             .map_err(|e| CliError::Op(format!("branch '{name}' failed: {e}")))?;
-        println!("created branch {name} at {}", to_hex(&head));
+        if json_mode() {
+            reply(object(vec![("name", s(name.as_str())), ("id", hex(&head))]));
+        } else {
+            println!("created branch {name} at {}", to_hex(&head));
+        }
+    } else if json_mode() {
+        let cur = repo.current_branch();
+        let all = repo.branches();
+        let total = all.len();
+        let page = all
+            .iter()
+            .skip(offset)
+            .take(limit)
+            .map(|(name, id)| {
+                object(vec![
+                    ("name", s(name.as_str())),
+                    ("id", hex(id)),
+                    ("current", Json::Bool(cur.as_deref() == Some(name.as_str()))),
+                ])
+            })
+            .collect();
+        reply(envelope::page(page, total, offset, limit));
     } else {
         let cur = repo.current_branch();
         for (name, _) in repo.branches() {
@@ -780,10 +1337,14 @@ fn cmd_checkout(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError
         .switch_conflicts(name, &dirty)
         .map_err(|e| CliError::Op(format!("checkout '{name}' failed: {e}")))?;
     if !conflicts.is_empty() {
-        return Err(CliError::Op(format!(
-            "cannot switch to '{name}': local changes to {} would be overwritten; commit or restore them first",
-            conflicts.join(", ")
-        )));
+        return Err(fail(
+            Code::Conflict,
+            format!(
+                "cannot switch to '{name}': local changes to {} would be overwritten; commit or restore them first",
+                conflicts.join(", ")
+            ),
+            Some("run: chronos --json status"),
+        ));
     }
     let old_files = repo.staged();
     let new_files = repo
@@ -813,7 +1374,14 @@ fn cmd_checkout(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError
             .map_err(|e| CliError::Op(format!("failed to write '{}': {e}", p.display())))?;
         set_executable(p, *exec);
     }
-    println!("checked out {name}");
+    if json_mode() {
+        reply(object(vec![
+            ("branch", opt_str(repo.current_branch())),
+            ("id", opt_hex(repo.head())),
+        ]));
+    } else {
+        println!("checked out {name}");
+    }
     Ok(())
 }
 
@@ -844,12 +1412,21 @@ fn cmd_restore(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError>
     }
     let cwd = cwd_or_current(base_dir)?;
     let (root, mut repo) = open_repo(Some(&cwd))?;
+    let mut done = Vec::new();
     for arg in paths {
         let rel = repo_rel(&root, &cwd, arg)?;
         repo.unstage(&rel).map_err(|e| match e {
-            Error::NotFound => CliError::Op(format!("pathspec '{arg}' did not match any file")),
+            Error::NotFound => fail(
+                Code::NotFound,
+                format!("pathspec '{arg}' did not match any file"),
+                None,
+            ),
             other => CliError::Op(format!("restore '{arg}' failed: {other}")),
         })?;
+        done.push(rel);
+    }
+    if json_mode() {
+        reply(object(vec![("paths", str_list(&done))]));
     }
     Ok(())
 }
@@ -861,8 +1438,17 @@ fn cmd_reset(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
         ));
     }
     let (_root, mut repo) = open_repo(base_dir)?;
+    let affected: Vec<String> = repo
+        .status()
+        .iter()
+        .map(|c| path_of(c).to_string())
+        .collect();
     repo.unstage("")
-        .map_err(|e| CliError::Op(format!("reset failed: {e}")))
+        .map_err(|e| CliError::Op(format!("reset failed: {e}")))?;
+    if json_mode() {
+        reply(object(vec![("paths", str_list(&affected))]));
+    }
+    Ok(())
 }
 
 fn cmd_rm(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
@@ -907,7 +1493,6 @@ fn cmd_rm(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
             doomed.insert(k);
         }
     }
-    let mut out = io::stdout().lock();
     for k in &doomed {
         if !cached {
             let p = disk_path_for_rel(&root, k)?;
@@ -919,7 +1504,12 @@ fn cmd_rm(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
         }
         repo.rm(k)
             .map_err(|e| CliError::Op(format!("failed to unstage '{k}': {e}")))?;
-        writeln!(out, "rm '{k}'").map_err(stdout_err)?;
+        if !json_mode() {
+            writeln!(io::stdout().lock(), "rm '{k}'").map_err(stdout_err)?;
+        }
+    }
+    if json_mode() {
+        reply(object(vec![("paths", str_list(&doomed))]));
     }
     Ok(())
 }
@@ -965,11 +1555,50 @@ fn cmd_mv(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
     repo.rm(&src_rel)
         .map_err(|e| CliError::Op(format!("failed to unstage '{src}': {e}")))?;
     prune_empty_parents(&root, &src_disk);
+    if json_mode() {
+        reply(object(vec![("paths", str_list([&src_rel, &dst_rel]))]));
+    }
     Ok(())
 }
 
+/// The files a diff shows: unstaged edits, or with `staged` the staged changes against HEAD.
+fn diff_entries(root: &Path, repo: &Repo<DirStore>, staged: bool) -> Result<Vec<Entry>, CliError> {
+    if !staged {
+        let list = unstaged(root, repo)?;
+        return Ok(list
+            .into_iter()
+            .map(|(change, old, new)| {
+                (path_of(&change).to_string(), change_name(&change), old, new)
+            })
+            .collect());
+    }
+    let head_files = match repo.head() {
+        Some(head) => repo
+            .files(&head)
+            .map_err(|e| CliError::Op(format!("diff failed: {e}")))?,
+        None => Default::default(),
+    };
+    let index = repo.staged();
+    let mut out = Vec::new();
+    for change in repo.status() {
+        let path = path_of(&change).to_string();
+        let old = head_files
+            .get(&path)
+            .map(|(b, _)| b.clone())
+            .unwrap_or_default();
+        let new = index.get(&path).map(|(b, _)| b.clone()).unwrap_or_default();
+        out.push((path, change_name(&change), old, new));
+    }
+    Ok(out)
+}
+
 fn cmd_diff(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
-    let staged = match args {
+    let (limit, offset, rest) = if json_mode() {
+        paging(args)?
+    } else {
+        (envelope::MAX_LIMIT, 0, args.to_vec())
+    };
+    let staged = match rest.as_slice() {
         [] => false,
         [flag] if flag == "--staged" || flag == "--cached" => true,
         _ => {
@@ -979,30 +1608,21 @@ fn cmd_diff(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
         }
     };
     let (root, repo) = open_repo(base_dir)?;
-    let mut out = io::stdout().lock();
-    if !staged {
-        for (change, old, new) in unstaged(&root, &repo)? {
-            write_diff(&mut out, path_of(&change), &old, &new).map_err(stdout_err)?;
-        }
+    let entries = diff_entries(&root, &repo, staged)?;
+    if json_mode() {
+        let total = entries.len();
+        let page = entries
+            .iter()
+            .skip(offset)
+            .take(limit)
+            .map(file_json)
+            .collect();
+        reply(page_under("files", page, total, offset, limit));
         return Ok(());
     }
-    let head_files = match repo.head() {
-        Some(head) => repo
-            .files(&head)
-            .map_err(|e| CliError::Op(format!("diff failed: {e}")))?,
-        None => Default::default(),
-    };
-    let index = repo.staged();
-    for change in repo.status() {
-        let path = match change {
-            Change::Added(p) | Change::Modified(p) | Change::Deleted(p) => p,
-        };
-        let old: &[u8] = head_files
-            .get(&path)
-            .map(|(b, _)| b.as_slice())
-            .unwrap_or(&[]);
-        let new: &[u8] = index.get(&path).map(|(b, _)| b.as_slice()).unwrap_or(&[]);
-        write_diff(&mut out, &path, old, new).map_err(stdout_err)?;
+    let mut out = io::stdout().lock();
+    for (path, _, old, new) in &entries {
+        write_diff(&mut out, path, old, new).map_err(stdout_err)?;
     }
     Ok(())
 }
@@ -1057,6 +1677,15 @@ fn write_worktree(root: &Path, files: &chronos::Files) -> Result<(), CliError> {
     Ok(())
 }
 
+/// The data of import and export: the folder, the commit count and the ref count.
+fn counts(path: Json, summary: &git::Summary) -> Json {
+    object(vec![
+        ("path", path),
+        ("count", int(summary.commits)),
+        ("refs", int(summary.refs)),
+    ])
+}
+
 fn print_warnings(summary: &git::Summary) {
     for line in &summary.warnings {
         eprintln!("chronos: warning: {line}");
@@ -1104,6 +1733,10 @@ fn cmd_import(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
         write_worktree(&target, &files)?;
     }
     print_warnings(&summary);
+    if json_mode() {
+        reply(counts(Json::path(&chronos_dir), &summary));
+        return Ok(());
+    }
     println!(
         "imported {} commits and {} refs from {git_dir} into {}",
         summary.commits,
@@ -1130,6 +1763,10 @@ fn cmd_export(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
     let summary =
         git::export(&mut repo, target).map_err(|e| CliError::Op(format!("export failed: {e}")))?;
     print_warnings(&summary);
+    if json_mode() {
+        reply(counts(Json::path(target), &summary));
+        return Ok(());
+    }
     if summary.commits == 0 && summary.refs == 0 {
         println!("nothing to export to {git_dir}");
     } else {
@@ -1176,6 +1813,13 @@ fn remove_disk(root: &Path, rel: &str) -> Result<(), CliError> {
     Ok(())
 }
 
+const MERGE_CONFLICT_HINT: &str = "fix the files, then run: chronos --json add PATH... and chronos --json commit -m MSG, or chronos --json merge --abort";
+
+/// The merge data `--json` gives: a status word and the commit it reached.
+fn merged(status: &str, id: Option<Id>) -> Json {
+    object(vec![("status", s(status)), ("id", opt_hex(id))])
+}
+
 fn cmd_merge(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
     let (root, mut repo) = open_repo(base_dir)?;
     if args.len() == 1 && args[0] == "--abort" {
@@ -1199,18 +1843,35 @@ fn cmd_merge(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
         .map_err(|e| merge_failure(name, e))?;
     sync_worktree(&root, &before, &repo.staged())?;
     match outcome {
-        MergeOutcome::UpToDate => println!("Already up to date."),
+        MergeOutcome::UpToDate => {
+            if json_mode() {
+                reply(merged("up_to_date", repo.head()));
+            } else {
+                println!("Already up to date.");
+            }
+        }
         MergeOutcome::FastForward(id) => {
-            println!("Fast-forward");
-            println!("HEAD is now at {}", to_hex(&id));
+            if json_mode() {
+                reply(merged("fast_forward", Some(id)));
+            } else {
+                println!("Fast-forward");
+                println!("HEAD is now at {}", to_hex(&id));
+            }
         }
         MergeOutcome::Merged(id) => {
-            println!("Merge made by the recursive strategy.");
-            println!("{}", to_hex(&id));
+            if json_mode() {
+                reply(merged("merged", Some(id)));
+            } else {
+                println!("Merge made by the recursive strategy.");
+                println!("{}", to_hex(&id));
+            }
         }
         MergeOutcome::Conflicted(conflicts) => {
             for c in &conflicts {
                 write_disk(&root, &c.path, &c.text, c.exec)?;
+                if json_mode() {
+                    continue;
+                }
                 if c.content {
                     println!("CONFLICT (content): Merge conflict in {}", c.path);
                 } else {
@@ -1219,6 +1880,14 @@ fn cmd_merge(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
             }
             repo.store
                 .write("MERGE_MSG", format!("{message}\n").as_bytes());
+            if json_mode() {
+                let paths: Vec<String> = conflicts.iter().map(|c| c.path.to_string()).collect();
+                return Err(fail(
+                    Code::Conflict,
+                    format!("merge stopped on conflicts in: {}", paths.join(", ")),
+                    Some(MERGE_CONFLICT_HINT),
+                ));
+            }
             return Err(CliError::Op(
                 "Automatic merge failed; fix conflicts, then 'chronos add' them and 'chronos commit'."
                     .to_string(),
@@ -1230,10 +1899,14 @@ fn cmd_merge(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
 
 fn merge_failure(name: &str, e: MergeError) -> CliError {
     match e {
-        MergeError::Local(paths) => CliError::Op(format!(
-            "Your local changes to the following files would be overwritten by merge:\n\t{}\nPlease commit or restore them before you merge.",
-            paths.join("\n\t")
-        )),
+        MergeError::Local(paths) => fail(
+            Code::Conflict,
+            format!(
+                "Your local changes to the following files would be overwritten by merge:\n\t{}\nPlease commit or restore them before you merge.",
+                paths.join("\n\t")
+            ),
+            Some("run: chronos --json status"),
+        ),
         MergeError::Repo(Error::NotFound) => {
             CliError::Op(format!("merge: {name} - not something we can merge"))
         }
@@ -1268,7 +1941,11 @@ fn merge_abort(root: &Path, repo: &mut Repo<DirStore>) -> Result<(), CliError> {
             None => remove_disk(root, path)?,
         }
     }
-    println!("merge aborted");
+    if json_mode() {
+        reply(object(vec![("status", s("aborted"))]));
+    } else {
+        println!("merge aborted");
+    }
     Ok(())
 }
 
@@ -1302,18 +1979,40 @@ fn subject_of(repo: &Repo<DirStore>, id: &Id) -> String {
 }
 
 fn cmd_stash(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    let (limit, offset, rest) = if json_mode() {
+        paging(args)?
+    } else {
+        (envelope::MAX_LIMIT, 0, args.to_vec())
+    };
     let (root, mut repo) = open_repo(base_dir)?;
-    match args.first().map(String::as_str) {
-        None | Some("push") if args.len() <= 1 => stash_push(&root, &mut repo),
-        Some("list") if args.len() == 1 => {
+    match rest.first().map(String::as_str) {
+        None | Some("push") if rest.len() <= 1 => stash_push(&root, &mut repo),
+        Some("list") if rest.len() == 1 => {
+            let stack = stash_stack(&repo);
+            if json_mode() {
+                let page = stack
+                    .iter()
+                    .enumerate()
+                    .skip(offset)
+                    .take(limit)
+                    .map(|(i, id)| {
+                        object(vec![
+                            ("name", s(format!("stash@{{{i}}}"))),
+                            ("message", s(subject_of(&repo, id))),
+                        ])
+                    })
+                    .collect();
+                reply(envelope::page(page, stack.len(), offset, limit));
+                return Ok(());
+            }
             let mut out = io::stdout().lock();
-            for (i, id) in stash_stack(&repo).iter().enumerate() {
+            for (i, id) in stack.iter().enumerate() {
                 writeln!(out, "stash@{{{i}}}: {}", subject_of(&repo, id)).map_err(stdout_err)?;
             }
             Ok(())
         }
-        Some("pop") if args.len() == 1 => stash_pop(&root, &mut repo, true),
-        Some("drop") if args.len() == 1 => stash_pop(&root, &mut repo, false),
+        Some("pop") if rest.len() == 1 => stash_pop(&root, &mut repo, true),
+        Some("drop") if rest.len() == 1 => stash_pop(&root, &mut repo, false),
         _ => Err(CliError::Usage(
             "stash expects push, list, pop or drop".to_string(),
         )),
@@ -1356,7 +2055,14 @@ fn stash_push(root: &Path, repo: &mut Repo<DirStore>) -> Result<(), CliError> {
     repo.unstage("")
         .map_err(|e| CliError::Op(format!("stash failed: {e}")))?;
     sync_worktree(root, &work, &head_files)?;
-    println!("Saved working directory and index state {message}");
+    if json_mode() {
+        reply(object(vec![
+            ("id", hex(&id)),
+            ("message", s(message.as_str())),
+        ]));
+    } else {
+        println!("Saved working directory and index state {message}");
+    }
     Ok(())
 }
 
@@ -1413,7 +2119,11 @@ fn stash_pop(root: &Path, repo: &mut Repo<DirStore>, apply: bool) -> Result<(), 
         }
     }
     set_stash_stack(repo, &stack[1..]);
-    println!("Dropped stash@{{0}} ({})", to_hex(&top));
+    if json_mode() {
+        reply(object(vec![("name", s("stash@{0}")), ("id", hex(&top))]));
+    } else {
+        println!("Dropped stash@{{0}} ({})", to_hex(&top));
+    }
     Ok(())
 }
 
@@ -1453,6 +2163,32 @@ fn cmd_show(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
             .map_err(|e| CliError::Op(format!("show failed: {e}")))?,
         None => Default::default(),
     };
+    let paths: BTreeSet<&String> = old_files.keys().chain(new_files.keys()).collect();
+    let mut changed: Vec<Entry> = Vec::new();
+    for path in paths {
+        let old: &[u8] = old_files
+            .get(path)
+            .map(|(b, _)| b.as_slice())
+            .unwrap_or(&[]);
+        let new: &[u8] = new_files
+            .get(path)
+            .map(|(b, _)| b.as_slice())
+            .unwrap_or(&[]);
+        if old != new {
+            let change = match (old_files.contains_key(path), new_files.contains_key(path)) {
+                (false, _) => "added",
+                (true, false) => "deleted",
+                (true, true) => "modified",
+            };
+            changed.push((path.clone(), change, old.to_vec(), new.to_vec()));
+        }
+    }
+    if json_mode() {
+        let mut pairs = commit_pairs(&id, &commit);
+        pairs.push(("files", Json::Arr(changed.iter().map(file_json).collect())));
+        reply(object(pairs));
+        return Ok(());
+    }
     let mut out = io::stdout().lock();
     writeln!(out, "commit {}", to_hex(&id)).map_err(stdout_err)?;
     writeln!(
@@ -1467,19 +2203,8 @@ fn cmd_show(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
         writeln!(out, "    {line}").map_err(stdout_err)?;
     }
     writeln!(out).map_err(stdout_err)?;
-    let paths: BTreeSet<&String> = old_files.keys().chain(new_files.keys()).collect();
-    for path in paths {
-        let old: &[u8] = old_files
-            .get(path)
-            .map(|(b, _)| b.as_slice())
-            .unwrap_or(&[]);
-        let new: &[u8] = new_files
-            .get(path)
-            .map(|(b, _)| b.as_slice())
-            .unwrap_or(&[]);
-        if old != new {
-            write_diff(&mut out, path, old, new).map_err(stdout_err)?;
-        }
+    for (path, _, old, new) in &changed {
+        write_diff(&mut out, path, old, new).map_err(stdout_err)?;
     }
     Ok(())
 }
@@ -1491,17 +2216,31 @@ fn tag_path(name: &str) -> Result<String, CliError> {
 }
 
 fn cmd_tag(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    let (limit, offset, rest) = if json_mode() {
+        paging(args)?
+    } else {
+        (envelope::MAX_LIMIT, 0, args.to_vec())
+    };
     let (_root, mut repo) = open_repo(base_dir)?;
-    match args {
+    match rest.as_slice() {
         [] => {}
         [flag] if flag == "-l" || flag == "--list" => {}
         [flag, name] if flag == "-d" || flag == "--delete" => {
             let path = tag_path(name)?;
-            if repo.store.read(&path).is_none() {
-                return Err(CliError::Op(format!("tag '{name}' not found")));
-            }
+            let raw = repo
+                .store
+                .read(&path)
+                .ok_or_else(|| CliError::Op(format!("tag '{name}' not found")))?;
             repo.store.remove(&path);
-            println!("Deleted tag '{name}'");
+            if json_mode() {
+                let id = from_hex(String::from_utf8_lossy(&raw).trim());
+                reply(object(vec![
+                    ("name", s(name.as_str())),
+                    ("id", opt_hex(id)),
+                ]));
+            } else {
+                println!("Deleted tag '{name}'");
+            }
             return Ok(());
         }
         [name] | [name, _] => {
@@ -1509,7 +2248,7 @@ fn cmd_tag(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
             if repo.store.read(&path).is_some() {
                 return Err(CliError::Op(format!("tag '{name}' already exists")));
             }
-            let target = match args.get(1) {
+            let target = match rest.get(1) {
                 Some(rev) => resolve_rev(&repo, rev)
                     .ok_or_else(|| CliError::Op(format!("unknown revision '{rev}'")))?,
                 None => repo
@@ -1522,6 +2261,12 @@ fn cmd_tag(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
             }
             repo.store
                 .write(&path, format!("{}\n", to_hex(&target)).as_bytes());
+            if json_mode() {
+                reply(object(vec![
+                    ("name", s(name.as_str())),
+                    ("id", hex(&target)),
+                ]));
+            }
             return Ok(());
         }
         _ => {
@@ -1530,11 +2275,32 @@ fn cmd_tag(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
             ))
         }
     }
+    let names: Vec<String> = repo
+        .store
+        .list("refs/tags/")
+        .into_iter()
+        .filter_map(|p| p.strip_prefix("refs/tags/").map(str::to_string))
+        .collect();
+    if json_mode() {
+        let total = names.len();
+        let page = names
+            .iter()
+            .skip(offset)
+            .take(limit)
+            .map(|name| {
+                let id = repo
+                    .store
+                    .read(&format!("refs/tags/{name}"))
+                    .and_then(|raw| from_hex(String::from_utf8_lossy(&raw).trim()));
+                object(vec![("name", s(name.as_str())), ("id", opt_hex(id))])
+            })
+            .collect();
+        reply(envelope::page(page, total, offset, limit));
+        return Ok(());
+    }
     let mut out = io::stdout().lock();
-    for path in repo.store.list("refs/tags/") {
-        if let Some(name) = path.strip_prefix("refs/tags/") {
-            writeln!(out, "{name}").map_err(stdout_err)?;
-        }
+    for name in &names {
+        writeln!(out, "{name}").map_err(stdout_err)?;
     }
     Ok(())
 }
@@ -1569,7 +2335,11 @@ fn delete_branch(args: &[String], base_dir: Option<&Path>) -> Result<(), CliErro
     }
     repo.delete_branch(name)
         .map_err(|e| CliError::Op(format!("cannot delete branch '{name}': {e}")))?;
-    println!("Deleted branch {name} (was {}).", to_hex(&tip));
+    if json_mode() {
+        reply(object(vec![("name", s(name)), ("id", hex(&tip))]));
+    } else {
+        println!("Deleted branch {name} (was {}).", to_hex(&tip));
+    }
     Ok(())
 }
 
@@ -1653,6 +2423,18 @@ fn cmd_cat_file(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError
         .map_err(|e| CliError::Op(format!("cat-file '{rev}' failed: {e}")))?;
     match kind {
         chronos::Kind::Blob | chronos::Kind::Commit => {
+            if json_mode() {
+                let name = if matches!(kind, chronos::Kind::Blob) {
+                    "blob"
+                } else {
+                    "commit"
+                };
+                let mut pairs: Vec<(String, Json)> =
+                    vec![("id".to_string(), hex(&id)), ("kind".to_string(), s(name))];
+                pairs.extend(envelope::capped(&data));
+                reply(object(pairs));
+                return Ok(());
+            }
             let mut out = io::stdout().lock();
             out.write_all(&data)
                 .map_err(|e| CliError::Op(format!("failed to write stdout: {e}")))?;
@@ -1660,12 +2442,32 @@ fn cmd_cat_file(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError
         chronos::Kind::Tree => {
             let entries = decode_tree(&data)
                 .map_err(|e| CliError::Op(format!("corrupt tree object: {e}")))?;
+            let names = |mode: &Mode| match mode {
+                Mode::File => ("100644", "blob"),
+                Mode::Exec => ("100755", "blob"),
+                Mode::Dir => ("040000", "tree"),
+            };
+            if json_mode() {
+                let items = entries
+                    .iter()
+                    .map(|entry| {
+                        let (mode_s, kind_s) = names(&entry.mode);
+                        object(vec![
+                            ("mode", s(mode_s)),
+                            ("kind", s(kind_s)),
+                            ("id", hex(&entry.id)),
+                            ("name", s(entry.name.to_string())),
+                        ])
+                    })
+                    .collect();
+                reply(object(vec![
+                    ("kind", s("tree")),
+                    ("items", Json::Arr(items)),
+                ]));
+                return Ok(());
+            }
             for entry in entries {
-                let (mode_s, kind_s) = match entry.mode {
-                    Mode::File => ("100644", "blob"),
-                    Mode::Exec => ("100755", "blob"),
-                    Mode::Dir => ("040000", "tree"),
-                };
+                let (mode_s, kind_s) = names(&entry.mode);
                 println!("{mode_s} {kind_s} {}\t{}", to_hex(&entry.id), entry.name);
             }
         }
@@ -1678,6 +2480,35 @@ fn cmd_status(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
         return Err(CliError::Usage("status takes no arguments".to_string()));
     }
     let (root, repo) = open_repo(base_dir)?;
+    let unmerged = repo.unmerged();
+    let staged = repo.status();
+    // Conflicted paths are listed above, not again as unstaged edits.
+    let dirty: Vec<_> = unstaged(&root, &repo)?
+        .into_iter()
+        .filter(|(c, _, _)| !unmerged.contains(&path_of(c).to_string()))
+        .collect();
+    let tracked: BTreeSet<String> = repo.staged().into_keys().collect();
+    let untracked = untracked_paths(&root, &tracked)?;
+    if json_mode() {
+        let clean =
+            unmerged.is_empty() && staged.is_empty() && dirty.is_empty() && untracked.is_empty();
+        reply(object(vec![
+            ("branch", opt_str(repo.current_branch())),
+            ("head", opt_hex(repo.head())),
+            ("clean", Json::Bool(clean)),
+            (
+                "staged",
+                Json::Arr(staged.iter().map(change_json).collect()),
+            ),
+            (
+                "unstaged",
+                Json::Arr(dirty.iter().map(|(c, _, _)| change_json(c)).collect()),
+            ),
+            ("untracked", str_list(&untracked)),
+            ("unmerged", str_list(&unmerged)),
+        ]));
+        return Ok(());
+    }
     let mut out = io::stdout().lock();
     let head_line = if let Some(branch) = repo.current_branch() {
         format!("on branch {branch}")
@@ -1687,29 +2518,20 @@ fn cmd_status(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
         "on branch main (no commits)".to_string()
     };
     writeln!(out, "{head_line}").map_err(stdout_err)?;
-    let unmerged = repo.unmerged();
     if !unmerged.is_empty() {
         writeln!(out, "Unmerged paths:").map_err(stdout_err)?;
         for path in &unmerged {
             writeln!(out, "  both modified: {path}").map_err(stdout_err)?;
         }
     }
-    let staged = repo.status();
     if !staged.is_empty() {
         writeln!(out, "Changes to be committed:").map_err(stdout_err)?;
         write_changes(&mut out, staged.iter()).map_err(stdout_err)?;
     }
-    // Conflicted paths are listed above, not again as unstaged edits.
-    let dirty: Vec<_> = unstaged(&root, &repo)?
-        .into_iter()
-        .filter(|(c, _, _)| !unmerged.contains(&path_of(c).to_string()))
-        .collect();
     if !dirty.is_empty() {
         writeln!(out, "Changes not staged for commit:").map_err(stdout_err)?;
         write_changes(&mut out, dirty.iter().map(|(c, _, _)| c)).map_err(stdout_err)?;
     }
-    let tracked: BTreeSet<String> = repo.staged().into_keys().collect();
-    let untracked = untracked_paths(&root, &tracked)?;
     if !untracked.is_empty() {
         writeln!(out, "Untracked files:").map_err(stdout_err)?;
         for path in &untracked {
@@ -1758,8 +2580,7 @@ fn write_changes<'a>(
     Ok(())
 }
 
-fn run() -> Result<(), CliError> {
-    let raw_args: Vec<String> = env::args().skip(1).collect();
+fn run(raw_args: &[String]) -> Result<(), CliError> {
     let mut base_dir: Option<PathBuf> = None;
     let mut idx = 0;
     if raw_args.first().map(String::as_str) == Some("-C") {
@@ -1777,16 +2598,26 @@ fn run() -> Result<(), CliError> {
     };
     match first.as_str() {
         "--help" | "-h" | "help" => {
+            if json_mode() {
+                return Err(help_refused());
+            }
             println!("{}", usage());
             Ok(())
         }
         "--version" | "-V" => {
+            if json_mode() {
+                reply(object(vec![("version", s(VERSION_STR))]));
+                return Ok(());
+            }
             println!("{VERSION_STR}");
             Ok(())
         }
         sub => {
             let rest = &args[1..];
             if rest.iter().any(|a| a == "--help" || a == "-h") {
+                if json_mode() {
+                    return Err(help_refused());
+                }
                 println!("{}", usage());
                 return Ok(());
             }
@@ -1807,6 +2638,11 @@ fn run() -> Result<(), CliError> {
                 "diff" => cmd_diff(rest, base_ref),
                 "import" => cmd_import(rest, base_ref),
                 "export" => cmd_export(rest, base_ref),
+                "serve" if json_mode() => Err(fail(
+                    Code::Unsupported,
+                    "serve runs until stopped, so it has no --json answer",
+                    Some("run: chronos serve (without --json)"),
+                )),
                 "serve" => cmd_serve(rest, base_ref),
                 "merge" => cmd_merge(rest, base_ref),
                 "stash" => cmd_stash(rest, base_ref),
@@ -1819,17 +2655,32 @@ fn run() -> Result<(), CliError> {
 }
 
 fn main() {
-    if let Err(err) = run() {
-        match err {
-            CliError::Closed => process::exit(0),
-            CliError::Usage(msg) => {
-                eprintln!("chronos: {msg}");
-                process::exit(2);
-            }
-            CliError::Op(msg) => {
-                eprintln!("chronos: {msg}");
-                process::exit(1);
-            }
+    let raw: Vec<String> = env::args().skip(1).collect();
+    let mut os: Vec<OsString> = raw.iter().map(OsString::from).collect();
+    if envelope::take_describe_flag(&os) {
+        println!("{}", MANIFEST.to_json().write());
+        return;
+    }
+    let json = envelope::take_json_flag(&mut os);
+    let args: Vec<String> = os
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    JSON.store(json, Ordering::Relaxed);
+    let result = run(&args);
+    if json {
+        finish_json(&args, result);
+    }
+    match result {
+        Ok(()) => {}
+        Err(CliError::Closed) => process::exit(0),
+        Err(CliError::Usage(msg)) => {
+            eprintln!("chronos: {msg}");
+            process::exit(2);
+        }
+        Err(CliError::Op(msg)) | Err(CliError::Fail { msg, .. }) => {
+            eprintln!("chronos: {msg}");
+            process::exit(1);
         }
     }
 }

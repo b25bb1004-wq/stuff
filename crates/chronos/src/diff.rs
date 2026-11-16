@@ -39,32 +39,66 @@ pub fn lines(text: &[u8]) -> Vec<&[u8]> {
 /// `git diff -U<context>` style hunks for two texts, with `"--- a/<path>"` / `"+++ b/<path>"`
 /// headers and `"\ No newline at end of file"` markers. Empty output when equal.
 pub fn unified(path: &str, a: &[u8], b: &[u8], context: usize) -> Vec<u8> {
+    let parts = hunks(a, b, context);
+    if parts.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    out.extend_from_slice(format!("--- a/{path}\n+++ b/{path}\n").as_bytes());
+    for part in &parts {
+        write_hunk_header(
+            &mut out,
+            part.old_start,
+            part.old_lines,
+            part.new_start,
+            part.new_lines,
+        );
+        for (prefix, line) in &part.lines {
+            write_diff_line(&mut out, *prefix, line);
+        }
+    }
+    out
+}
+
+/// One hunk of a unified diff. The starts are numbered as the header prints them (1-based, or the
+/// line before the hunk when the count is 0).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Hunk {
+    /// First old line in the header.
+    pub old_start: usize,
+    /// Old line count in the header.
+    pub old_lines: usize,
+    /// First new line in the header.
+    pub new_start: usize,
+    /// New line count in the header.
+    pub new_lines: usize,
+    /// Body lines: `b'-'`, `b'+'` or `b' '`, and the line text with its newline when it has one.
+    pub lines: Vec<(u8, Vec<u8>)>,
+}
+
+/// The hunks `unified` prints for two texts, with `context` lines around each change. Empty when equal.
+pub fn hunks(a: &[u8], b: &[u8], context: usize) -> Vec<Hunk> {
     if a == b {
         return Vec::new();
     }
     let a_lines = lines(a);
     let b_lines = lines(b);
-    let hunks = diff_hunks(&a_lines, &b_lines);
-    if hunks.is_empty() {
-        return Vec::new();
-    }
+    let changes = diff_hunks(&a_lines, &b_lines);
 
     let mut out = Vec::new();
-    out.extend_from_slice(format!("--- a/{path}\n+++ b/{path}\n").as_bytes());
-
     let mut idx = 0;
-    while idx < hunks.len() {
-        let first = hunks[idx];
+    while idx < changes.len() {
+        let first = changes[idx];
         let mut last_idx = idx;
-        while last_idx + 1 < hunks.len() {
-            let gap = hunks[last_idx + 1].base_start - hunks[last_idx].base_end;
+        while last_idx + 1 < changes.len() {
+            let gap = changes[last_idx + 1].base_start - changes[last_idx].base_end;
             if gap <= context.saturating_mul(2) {
                 last_idx += 1;
             } else {
                 break;
             }
         }
-        let last = hunks[last_idx];
+        let last = changes[last_idx];
 
         let lead = first.base_start.min(context);
         let tail = (a_lines.len() - last.base_end).min(context);
@@ -75,31 +109,44 @@ pub fn unified(path: &str, a: &[u8], b: &[u8], context: usize) -> Vec<u8> {
         let a_count = a_end - a_start;
         let b_count = b_end - b_start;
 
-        write_hunk_header(&mut out, a_start, a_count, b_start, b_count);
-
+        let mut body = Vec::new();
         let mut a_pos = a_start;
-        for h in &hunks[idx..=last_idx] {
+        for h in &changes[idx..=last_idx] {
             while a_pos < h.base_start {
-                write_diff_line(&mut out, b' ', a_lines[a_pos]);
+                body.push((b' ', a_lines[a_pos].to_vec()));
                 a_pos += 1;
             }
             for line in &a_lines[h.base_start..h.base_end] {
-                write_diff_line(&mut out, b'-', line);
+                body.push((b'-', line.to_vec()));
             }
             for line in &b_lines[h.side_start..h.side_end] {
-                write_diff_line(&mut out, b'+', line);
+                body.push((b'+', line.to_vec()));
             }
             a_pos = h.base_end;
         }
         while a_pos < a_end {
-            write_diff_line(&mut out, b' ', a_lines[a_pos]);
+            body.push((b' ', a_lines[a_pos].to_vec()));
             a_pos += 1;
         }
-
+        out.push(Hunk {
+            old_start: header_start(a_start, a_count),
+            old_lines: a_count,
+            new_start: header_start(b_start, b_count),
+            new_lines: b_count,
+            lines: body,
+        });
         idx = last_idx + 1;
     }
-
     out
+}
+
+/// The number a header prints for a range that starts at 0-based `start` with `count` lines.
+fn header_start(start: usize, count: usize) -> usize {
+    if count == 0 {
+        start
+    } else {
+        start + 1
+    }
 }
 
 pub(crate) fn diff_hunks(a: &[&[u8]], b: &[&[u8]]) -> Vec<DiffHunk> {
@@ -200,13 +247,12 @@ fn write_hunk_header(
     out.extend_from_slice(b" @@\n");
 }
 
+/// `start` is already the printed number (see `header_start`).
 fn write_range(out: &mut Vec<u8>, start: usize, count: usize) {
-    if count == 0 {
-        out.extend_from_slice(format!("{start},0").as_bytes());
-    } else if count == 1 {
-        out.extend_from_slice(format!("{}", start + 1).as_bytes());
+    if count == 1 {
+        out.extend_from_slice(format!("{start}").as_bytes());
     } else {
-        out.extend_from_slice(format!("{},{count}", start + 1).as_bytes());
+        out.extend_from_slice(format!("{start},{count}").as_bytes());
     }
 }
 
