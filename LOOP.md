@@ -451,3 +451,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | operator pivot | - | - | DIRECTION | "everything u have built ... in place of the actual terminal, GUI, version control ... my own bootable OS"; chose daily tools on this PC first, OS must boot this PC (x86-64 UEFI). Plan: docs/DAILY.md. Site and app-UI polish paused ("not the site"); T131 site workers stopped, nothing written
 - 2026-11-16 | dispatched D1 krypton real shell, D2 chronos GitHub bridge; T132 midas/zeus apps + silicon CLI back, gates rerunning | haiku | - | RUNNING |
 - Track B blocked on operator OK for downloads: `rustup target add x86_64-unknown-uefi`, QEMU for Windows with its bundled OVMF (edk2-x86_64-code.fd)
+- 2026-11-16 | T132 midas+zeus apps, silicon CLI | haiku | 242k | PASS 11f9307 | zeus page is a recorded transcript (no wasm path)
+- 2026-11-16 | D2 chronos GitHub bridge | haiku | 247k | PASS 23fb7d1 | strata 265 commits, 1672/1672 files match; gaps: annotated tags, symlinks, log pipe panic, diff staged-only
+- 2026-11-16 | D1 krypton daily shell | haiku | 127k | PASS 79137be, RETRY D1b | by hand: Windows backslashes eaten, cmd builtins (type, dir) not found, /c/ paths; sent to same worker
