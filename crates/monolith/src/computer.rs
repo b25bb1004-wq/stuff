@@ -56,6 +56,8 @@ pub struct Computer {
     pub name: String,
     /// Its folder.
     pub dir: PathBuf,
+    /// Where its tool binaries are ([`tool_dir`] unless a test points it elsewhere).
+    pub tools: PathBuf,
 }
 
 /// What a tool run produced.
@@ -355,6 +357,7 @@ impl Computer {
         Ok(Self {
             name: name.into(),
             dir,
+            tools: tool_dir(),
         })
     }
 
@@ -371,6 +374,7 @@ impl Computer {
         Ok(Self {
             name: name.into(),
             dir,
+            tools: tool_dir(),
         })
     }
 
@@ -484,7 +488,7 @@ impl Computer {
     /// Runs `argv[0]` (a Monolith tool) with the rest as arguments, cwd `root/`, after
     /// [`Computer::check_args`]. Kills it at `timeout`. Output is capped at 256 KiB per stream.
     pub fn exec(&self, argv: &[String], timeout: Duration) -> Result<ExecResult> {
-        self.exec_in(&tool_dir(), argv, timeout)
+        self.exec_in(&self.tools, argv, timeout)
     }
 
     /// Like [`Computer::exec`], but the tool binaries are looked for in `tool_dir`.

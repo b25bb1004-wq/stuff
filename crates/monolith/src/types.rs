@@ -231,7 +231,8 @@ pub struct RunConfig {
     pub tool_timeout_secs: u64,
     /// Most bytes of one observation shown to the model.
     pub obs_cap_bytes: usize,
-    /// Level 2: read memory but never write lessons, skills or facts.
+    /// Level 2: lessons and skills are read but never written (the model's own `remember`
+    /// facts still go to its computer's memory).
     pub freeze_memory: bool,
     /// Memory store to use instead of the computer's own `memory/` (a shared mind).
     pub mind_dir: Option<PathBuf>,
