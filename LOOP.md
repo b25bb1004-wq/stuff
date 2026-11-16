@@ -498,3 +498,5 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | ACI T10 aurum, pandora, lithium, zeusctl, titan | haiku | 134k | PASS | sh.rs fix was real (krypton parse signature from D1b); pandora Linux paths untested on this host; existing bug: zeusctl --guest lithium:2 panics 0x7 (same before conversion), add to fix round
 - 2026-11-16 | ACI T11 indium, iris, odyssey, helios, bench | haiku | 165k | PASS after leader fix | bench manifest named a command its parser rejected; fixed inline with test
 - PHASE 1 conversions DONE 2026-11-16: all 28 binaries have --describe/--json. Worker tokens about 2.57M. Next: T12 simulated-agent gate in a fresh sandbox install
+- 2026-11-16 | T12 gate part 1: fresh sandbox install, tools/aci-check.sh | leader | - | PASS | ACI PASS 27/27
+- 2026-11-16 | T12 gate part 2: agents A1-dev and A2-data, 30 tasks each, bar 54/60 | haiku x2 | 2 x 150k | running |
