@@ -23,6 +23,7 @@ Rules
 - Usage-error hints say `run: <tool> --describe` (agents read the manifest, not --help). A failure keeps the exit code the text path gives for the same failure.
 - Field names come from ACI.md's shared list. Paths through `Json::path`. Program or file text through `capped`.
 - No `unsafe`, no external crates, no panics on user input.
+- If any no-std crate (titan, lithium, zeus, the kernels) depends on your crate, `aci` must be optional behind a `std` feature that is on by default, the binary gets `required-features = ["std"]`, and you confirm `bash tools/check.sh titan` still passes. See crates/hades/Cargo.toml.
 - Do not commit, push, stash or `git checkout` files. Do not invoke skills. Do not start other agents.
 - If a subcommand cannot give a sensible JSON answer (an interactive screen, a server that never returns), return
   code `unsupported` with a hint naming the command to use instead, and say so in your report.
