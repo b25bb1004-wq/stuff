@@ -427,6 +427,10 @@ fn main() {
             Some(a) if a == "--store" => {
                 store = Some(PathBuf::from(next_val(&mut args, "--store")));
             }
+            Some(a) if a == "--help" || a == "-h" => {
+                println!("{USAGE}");
+                exit(0)
+            }
             Some(a) => break a,
             None => fail(USAGE),
         }

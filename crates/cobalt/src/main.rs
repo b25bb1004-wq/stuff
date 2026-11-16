@@ -19,6 +19,11 @@ fn main() {
     match cmd {
         "run" => cmd_run(&args[1..]),
         "test" => cmd_test(&args[1..]),
+        "--help" | "-h" => println!(
+            "usage: logos <run|test> FILE [options]
+  logos run FILE [--fuel N]
+  logos test FILE [options]"
+        ),
         _ => {
             eprintln!("unknown subcommand '{cmd}' (expected 'run' or 'test')");
             process::exit(2);

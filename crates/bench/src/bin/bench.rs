@@ -45,6 +45,10 @@ fn parse_args_from<I: IntoIterator<Item = String>>(args: I) -> Result<(bool, Vec
 
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "--help" | "-h" => {
+                println!("{USAGE}");
+                std::process::exit(0);
+            }
             "--full" => full = true,
             "--only" => {
                 let Some(name) = args.next() else {

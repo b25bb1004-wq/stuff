@@ -31,6 +31,10 @@ fn run() -> Result<(), String> {
     let Some(target) = args.next() else {
         return Err("usage: iridium-cli <host:port>".to_owned());
     };
+    if target == "--help" || target == "-h" {
+        println!("usage: iridium-cli <host:port>");
+        return Ok(());
+    }
     if args.next().is_some() {
         return Err("usage: iridium-cli <host:port>".to_owned());
     }
