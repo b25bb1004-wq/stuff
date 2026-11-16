@@ -99,11 +99,9 @@ impl Document {
         out
     }
 
-    /// Serialize the tree in html5lib test format.
-    // shortcut: indentation stops at DUMP_MAX_INDENT levels, so output stays linear in node count; deeper trees differ from html5lib format
-    pub fn dump(&self) -> String {
-        const DUMP_MAX_INDENT: usize = 256;
-        let mut out = String::new();
+    /// Pre-order walk below the root: each node with its depth (the root's children are at depth 0).
+    pub fn walk(&self) -> Vec<(usize, NodeId)> {
+        let mut out = Vec::new();
         let Some(root) = self.nodes.first() else {
             return out;
         };
@@ -112,6 +110,23 @@ impl Document {
             stack.push((child, 0));
         }
         while let Some((id, depth)) = stack.pop() {
+            let Some(node) = self.nodes.get(id) else {
+                continue;
+            };
+            out.push((depth, id));
+            for &child in node.children.iter().rev() {
+                stack.push((child, depth + 1));
+            }
+        }
+        out
+    }
+
+    /// Serialize the tree in html5lib test format.
+    // shortcut: indentation stops at DUMP_MAX_INDENT levels, so output stays linear in node count; deeper trees differ from html5lib format
+    pub fn dump(&self) -> String {
+        const DUMP_MAX_INDENT: usize = 256;
+        let mut out = String::new();
+        for (depth, id) in self.walk() {
             let Some(node) = self.nodes.get(id) else {
                 continue;
             };
@@ -153,9 +168,6 @@ impl Document {
                     out.push_str(text);
                     out.push_str(" -->\n");
                 }
-            }
-            for &child in node.children.iter().rev() {
-                stack.push((child, depth + 1));
             }
         }
         out

@@ -5,7 +5,16 @@ edition = "2021"
 license = "MIT"
 publish = false
 
+[features]
+default = ["std"]
+std = ["dep:aci"]
+
+[[bin]]
+name = "helios"
+required-features = ["std"]
+
 [dependencies]
+aci = { path = "../aci", optional = true }
 elysium = { path = "../elysium" }
 logos = { path = "../logos" }
 pigment = { path = "../pigment" }

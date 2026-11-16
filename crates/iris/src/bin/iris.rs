@@ -2,13 +2,18 @@
 #![forbid(unsafe_code)]
 
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Read, Write};
+use std::path::Path;
 use std::process;
 
+use aci::envelope::{self, Code};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind as ArgKind, Manifest};
 use indium::{Event, Key};
 use iris::{App, Desktop, Editor, Files, Layout, Terminal, WinId};
-use pigment::encode_png;
+use pigment::{encode_png, Rect};
 
 const VERSION: &str = "iris 0.1.0";
 const MAX_DIM: u32 = 8192;
@@ -66,7 +71,47 @@ struct ReplayArgs {
 
 enum CliError {
     Usage(String),
+    /// A usage problem with a specific hint (the `--json` stdout refusal).
+    Refused(String),
     Runtime(String),
+    Missing(String),
+    Io(String),
+}
+
+impl CliError {
+    fn message(&self) -> &str {
+        match self {
+            Self::Usage(m)
+            | Self::Refused(m)
+            | Self::Runtime(m)
+            | Self::Missing(m)
+            | Self::Io(m) => m,
+        }
+    }
+
+    fn exit(&self) -> i32 {
+        match self {
+            Self::Usage(_) | Self::Refused(_) => 2,
+            _ => 1,
+        }
+    }
+
+    fn code(&self) -> Code {
+        match self {
+            Self::Usage(_) | Self::Refused(_) => Code::Usage,
+            Self::Runtime(_) => Code::Invalid,
+            Self::Missing(_) => Code::NotFound,
+            Self::Io(_) => Code::Io,
+        }
+    }
+
+    fn hint(&self) -> &'static str {
+        match self {
+            Self::Refused(_) => "use --out FILE.png",
+            Self::Usage(_) => "run: iris --describe",
+            _ => "",
+        }
+    }
 }
 
 struct Stats {
@@ -74,9 +119,62 @@ struct Stats {
     frame_count: usize,
     damage_rects: usize,
     damage_pixels: u64,
+    damage: Vec<Rect>,
 }
 
+const fn req(name: &'static str, kind: ArgKind) -> Arg {
+    Arg {
+        name,
+        kind,
+        required: true,
+        default: None,
+        choices: &[],
+    }
+}
+
+const fn opt(name: &'static str, kind: ArgKind, default: &'static str) -> Arg {
+    Arg {
+        name,
+        kind,
+        required: false,
+        default: Some(default),
+        choices: &[],
+    }
+}
+
+const REPLAY_ARGS: &[Arg] = &[
+    req("EVENTS", ArgKind::Path),
+    req("--out", ArgKind::Path),
+    opt("--width", ArgKind::Int, "800"),
+    opt("--height", ArgKind::Int, "600"),
+];
+
+const COMMANDS: &[Command] = &[Command {
+    name: "replay",
+    summary: "Replay desktop events, write the final PNG frame to --out FILE",
+    effect: Effect::Write,
+    args: REPLAY_ARGS,
+    returns: "path, bytes, width, height, events, frames, damage_rects, damage_pixels, damage: [{x, y, width, height}], layout, focused, windows: [{id, title, x, y, width, height, focused}] (--out - is refused under --json)",
+    example: "iris --json replay events.txt --out frame.png --width 800 --height 600",
+}];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "iris",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "Desktop compositor replay tool",
+    commands: COMMANDS,
+};
+
 fn main() {
+    let mut raw: Vec<OsString> = env::args_os().skip(1).collect();
+    let json = envelope::take_json_flag(&mut raw);
+    if envelope::take_describe_flag(&raw) {
+        println!("{}", MANIFEST.to_json().write());
+        return;
+    }
+    if json {
+        process::exit(run_json(&raw));
+    }
     let args: Vec<String> = env::args().skip(1).collect();
     match parse_args(&args).and_then(|act| match act {
         CliAction::Help => {
@@ -90,13 +188,9 @@ fn main() {
         CliAction::Replay(cfg) => run_replay(&cfg),
     }) {
         Ok(()) => {}
-        Err(CliError::Usage(msg)) => {
-            eprintln!("iris: {msg}");
-            process::exit(2);
-        }
-        Err(CliError::Runtime(msg)) => {
-            eprintln!("iris: {msg}");
-            process::exit(1);
+        Err(err) => {
+            eprintln!("iris: {}", err.message());
+            process::exit(err.exit());
         }
     }
 }
@@ -205,15 +299,29 @@ fn read_events(path: &str) -> Result<String, CliError> {
         let mut buf = String::new();
         io::stdin()
             .read_to_string(&mut buf)
-            .map_err(|e| CliError::Runtime(format!("failed to read stdin: {e}")))?;
+            .map_err(|e| CliError::Io(format!("failed to read stdin: {e}")))?;
         Ok(buf)
     } else {
-        fs::read_to_string(path)
-            .map_err(|e| CliError::Runtime(format!("failed to read '{path}': {e}")))
+        fs::read_to_string(path).map_err(|e| {
+            let msg = format!("failed to read '{path}': {e}");
+            if e.kind() == io::ErrorKind::NotFound {
+                CliError::Missing(msg)
+            } else {
+                CliError::Io(msg)
+            }
+        })
     }
 }
 
-fn run_replay(cfg: &ReplayArgs) -> Result<(), CliError> {
+/// A finished replay: the desktop as it ends, its layout, the counters and the encoded frame.
+struct Replay {
+    desktop: Desktop,
+    layout: Layout,
+    stats: Stats,
+    png: Vec<u8>,
+}
+
+fn simulate(cfg: &ReplayArgs) -> Result<Replay, CliError> {
     let script = read_events(&cfg.events_path)?;
     let mut desktop = Desktop::new(cfg.width, cfg.height);
     let mut now_ms: u64 = 0;
@@ -223,6 +331,7 @@ fn run_replay(cfg: &ReplayArgs) -> Result<(), CliError> {
         frame_count: 0,
         damage_rects: 0,
         damage_pixels: 0,
+        damage: Vec::new(),
     };
 
     for (idx, raw_line) in script.lines().enumerate() {
@@ -250,26 +359,161 @@ fn run_replay(cfg: &ReplayArgs) -> Result<(), CliError> {
     }
 
     let png = encode_png(desktop.screen());
+    Ok(Replay {
+        desktop,
+        layout,
+        stats,
+        png,
+    })
+}
+
+fn run_replay(cfg: &ReplayArgs) -> Result<(), CliError> {
+    let run = simulate(cfg)?;
+    let png = &run.png;
     if cfg.out_path == "-" {
         let mut stdout = io::stdout().lock();
         stdout
-            .write_all(&png)
-            .map_err(|e| CliError::Runtime(format!("failed to write stdout: {e}")))?;
+            .write_all(png)
+            .map_err(|e| CliError::Io(format!("failed to write stdout: {e}")))?;
         stdout
             .flush()
-            .map_err(|e| CliError::Runtime(format!("failed to flush stdout: {e}")))?;
+            .map_err(|e| CliError::Io(format!("failed to flush stdout: {e}")))?;
         let mut stderr = io::stderr().lock();
-        write_report(&mut stderr, &desktop, layout, &stats, cfg, png.len())
-            .map_err(|e| CliError::Runtime(format!("failed to write report: {e}")))?;
+        write_report(
+            &mut stderr,
+            &run.desktop,
+            run.layout,
+            &run.stats,
+            cfg,
+            png.len(),
+        )
+        .map_err(|e| CliError::Io(format!("failed to write report: {e}")))?;
     } else {
-        fs::write(&cfg.out_path, &png)
-            .map_err(|e| CliError::Runtime(format!("failed to write '{}': {e}", cfg.out_path)))?;
+        fs::write(&cfg.out_path, png)
+            .map_err(|e| CliError::Io(format!("failed to write '{}': {e}", cfg.out_path)))?;
         let mut stdout = io::stdout().lock();
-        write_report(&mut stdout, &desktop, layout, &stats, cfg, png.len())
-            .map_err(|e| CliError::Runtime(format!("failed to write report: {e}")))?;
+        write_report(
+            &mut stdout,
+            &run.desktop,
+            run.layout,
+            &run.stats,
+            cfg,
+            png.len(),
+        )
+        .map_err(|e| CliError::Io(format!("failed to write report: {e}")))?;
     }
 
     Ok(())
+}
+
+/// `iris --json ...`: one envelope on stdout; stderr keeps the `iris: message` line. Returns the exit code.
+fn run_json(args: &[OsString]) -> i32 {
+    let args: Vec<String> = args
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    let cmd = match args.first().map(String::as_str) {
+        Some("replay") => "replay",
+        Some("-h" | "--help" | "help") => "--help",
+        Some("-V" | "--version") => "--version",
+        _ => "",
+    };
+    match json_command(&args) {
+        Ok((data, exit)) => {
+            print!("{}", envelope::ok("iris", cmd, data));
+            exit
+        }
+        Err(err) => {
+            eprintln!("iris: {}", err.message());
+            let hint = err.hint();
+            print!(
+                "{}",
+                envelope::err(
+                    "iris",
+                    cmd,
+                    err.code(),
+                    err.message(),
+                    (!hint.is_empty()).then_some(hint),
+                )
+            );
+            err.exit()
+        }
+    }
+}
+
+/// Run one command under `--json`. Returns the data and the exit code for a successful run.
+fn json_command(args: &[String]) -> Result<(Json, i32), CliError> {
+    match parse_args(args)? {
+        CliAction::Help => Ok((Json::obj([("usage", Json::Str(HELP.into()))]), 0)),
+        CliAction::Version => Ok((Json::obj([("version", Json::Str(VERSION.into()))]), 0)),
+        CliAction::Replay(cfg) => replay_json(&cfg).map(|data| (data, 0)),
+    }
+}
+
+fn replay_json(cfg: &ReplayArgs) -> Result<Json, CliError> {
+    if cfg.out_path == "-" {
+        return Err(CliError::Refused(String::from(
+            "--json needs --out FILE.png; PNG bytes cannot go to stdout",
+        )));
+    }
+    let run = simulate(cfg)?;
+    fs::write(&cfg.out_path, &run.png)
+        .map_err(|e| CliError::Io(format!("failed to write '{}': {e}", cfg.out_path)))?;
+
+    let desktop = &run.desktop;
+    let windows = desktop
+        .order()
+        .into_iter()
+        .filter_map(|id| {
+            let r = desktop.rect(id)?;
+            let title = desktop.app(id).map_or("", App::title);
+            Some(Json::obj([
+                ("id", int(id)),
+                ("title", Json::Str(title.into())),
+                ("x", int(r.x)),
+                ("y", int(r.y)),
+                ("width", int(r.w)),
+                ("height", int(r.h)),
+                ("focused", Json::Bool(desktop.focused() == Some(id))),
+            ]))
+        })
+        .collect();
+    let damage = run
+        .stats
+        .damage
+        .iter()
+        .map(|r| {
+            Json::obj([
+                ("x", int(r.x)),
+                ("y", int(r.y)),
+                ("width", int(r.w)),
+                ("height", int(r.h)),
+            ])
+        })
+        .collect();
+    let layout = match run.layout {
+        Layout::Floating => "floating",
+        Layout::Tiling => "tiling",
+    };
+    let focused = desktop.focused().map_or(Json::Null, int);
+    Ok(Json::obj([
+        ("path", Json::path(Path::new(&cfg.out_path))),
+        ("bytes", int(run.png.len())),
+        ("width", int(cfg.width)),
+        ("height", int(cfg.height)),
+        ("events", int(run.stats.event_count)),
+        ("frames", int(run.stats.frame_count)),
+        ("damage_rects", int(run.stats.damage_rects)),
+        ("damage_pixels", int(run.stats.damage_pixels)),
+        ("damage", Json::Arr(damage)),
+        ("layout", Json::Str(layout.into())),
+        ("focused", focused),
+        ("windows", Json::Arr(windows)),
+    ]))
+}
+
+fn int<T: TryInto<i64>>(n: T) -> Json {
+    Json::Int(n.try_into().unwrap_or(i64::MAX))
 }
 
 fn record_frame(desktop: &mut Desktop, now_ms: u64, stats: &mut Stats) {
@@ -279,6 +523,7 @@ fn record_frame(desktop: &mut Desktop, now_ms: u64, stats: &mut Stats) {
     for r in rects {
         let px = u64::from(r.w).saturating_mul(u64::from(r.h));
         stats.damage_pixels = stats.damage_pixels.saturating_add(px);
+        stats.damage.push(r);
     }
 }
 

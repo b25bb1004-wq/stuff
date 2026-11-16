@@ -1,11 +1,20 @@
 //! Command-line runner, input recorder, and deterministic replay tool for `helios`.
+//!
+//! Text mode prints the same lines as before. `--describe` prints the manifest, and `--json` prints one ACI
+//! envelope (docs/ai-computer/ACI.md). Each subcommand computes an `Outcome`; text and JSON differ only in
+//! how they print it.
 #![forbid(unsafe_code)]
 
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Read, Write};
+use std::path::Path;
 use std::process::ExitCode;
 
+use aci::envelope::{self, Code};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind as ArgKind, Manifest};
 use helios::scene::{replay, Recorder, Stage};
 use helios::script::ScriptScene;
 
@@ -16,6 +25,8 @@ const FUEL_PER_FRAME: u64 = 1_000_000;
 
 struct CliError {
     code: u8,
+    kind: Code,
+    hint: Option<&'static str>,
     msg: String,
 }
 
@@ -23,20 +34,138 @@ impl CliError {
     fn fail(msg: impl Into<String>) -> Self {
         Self {
             code: 1,
+            kind: Code::Invalid,
+            hint: None,
             msg: msg.into(),
         }
     }
 
     fn usage(msg: impl Into<String>) -> Self {
+        Self::refused(msg, "run: helios --describe")
+    }
+
+    fn refused(msg: impl Into<String>, hint: &'static str) -> Self {
         Self {
             code: 2,
+            kind: Code::Usage,
+            hint: Some(hint),
+            msg: msg.into(),
+        }
+    }
+
+    fn io(msg: impl Into<String>, err: &io::Error) -> Self {
+        let kind = if err.kind() == io::ErrorKind::NotFound {
+            Code::NotFound
+        } else {
+            Code::Io
+        };
+        Self {
+            code: 1,
+            kind,
+            hint: None,
             msg: msg.into(),
         }
     }
 }
 
-fn print_help() {
-    println!(
+/// What a subcommand computed. Text and JSON print it in their own way.
+enum Outcome {
+    Help,
+    Run {
+        ticks: u64,
+        seed: u64,
+        hashes: Vec<(u64, u64)>,
+        final_hash: u64,
+    },
+    Record {
+        path: String,
+        bytes: usize,
+        ticks: u64,
+        final_hash: u64,
+        stdout: bool,
+    },
+    Replay {
+        ticks: u64,
+        seed: u64,
+        final_hash: u64,
+    },
+}
+
+const fn req(name: &'static str, kind: ArgKind) -> Arg {
+    Arg {
+        name,
+        kind,
+        required: true,
+        default: None,
+        choices: &[],
+    }
+}
+
+const fn opt(name: &'static str, kind: ArgKind, default: &'static str) -> Arg {
+    Arg {
+        name,
+        kind,
+        required: false,
+        default: Some(default),
+        choices: &[],
+    }
+}
+
+const RUN_ARGS: &[Arg] = &[
+    req("GAME", ArgKind::Path),
+    opt("--ticks", ArgKind::Int, "300"),
+    opt("--seed", ArgKind::Int, "0"),
+];
+const RECORD_ARGS: &[Arg] = &[
+    req("GAME", ArgKind::Path),
+    req("INPUTS", ArgKind::Path),
+    req("-o", ArgKind::Path),
+    opt("--ticks", ArgKind::Int, "last input frame + 1"),
+    opt("--seed", ArgKind::Int, "0"),
+];
+const REPLAY_ARGS: &[Arg] = &[
+    req("GAME", ArgKind::Path),
+    req("REPLAY", ArgKind::Path),
+    opt("--ticks", ArgKind::Int, "last input frame + 1"),
+    opt("--seed", ArgKind::Int, "0"),
+];
+
+const COMMANDS: &[Command] = &[
+    Command {
+        name: "run",
+        summary: "Run a Logos game headless; hashes are recorded every 60 ticks",
+        effect: Effect::Read,
+        args: RUN_ARGS,
+        returns: "ticks, seed, hashes: [{tick, hash}] (hash as lowercase hex), final_hash",
+        example: "helios --json run game.logos --ticks 180 --seed 42",
+    },
+    Command {
+        name: "record",
+        summary: "Record key-state inputs (\"<frame> <keys>\" lines) into a TREC file at -o FILE",
+        effect: Effect::Write,
+        args: RECORD_ARGS,
+        returns: "path, bytes, ticks (-o - is refused under --json)",
+        example: "helios --json record game.logos inputs.txt -o run.trec",
+    },
+    Command {
+        name: "replay",
+        summary: "Replay a TREC file against a Logos game and print the final world hash",
+        effect: Effect::Read,
+        args: REPLAY_ARGS,
+        returns: "ticks, seed, final_hash (hash as lowercase hex)",
+        example: "helios --json replay game.logos run.trec",
+    },
+];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "helios",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "Deterministic game runner and input replay tool",
+    commands: COMMANDS,
+};
+
+fn help_text() -> String {
+    format!(
         "\
 {VERSION} - deterministic game runner and input replay tool
 
@@ -61,7 +190,11 @@ SUBCOMMANDS:
 OPTIONS:
   -h, --help       Print this help message
   -V, --version    Print version ({VERSION})"
-    );
+    )
+}
+
+fn print_help() {
+    println!("{}", help_text());
 }
 
 fn parse_u64_radix(s: &str, flag: &str) -> Result<u64, CliError> {
@@ -87,10 +220,10 @@ fn read_bytes(path: &str) -> Result<Vec<u8>, CliError> {
         let mut buf = Vec::new();
         io::stdin()
             .read_to_end(&mut buf)
-            .map_err(|e| CliError::fail(format!("failed to read stdin: {e}")))?;
+            .map_err(|e| CliError::io(format!("failed to read stdin: {e}"), &e))?;
         Ok(buf)
     } else {
-        fs::read(path).map_err(|e| CliError::fail(format!("failed to read '{path}': {e}")))
+        fs::read(path).map_err(|e| CliError::io(format!("failed to read '{path}': {e}"), &e))
     }
 }
 
@@ -104,13 +237,14 @@ fn write_bytes(path: &str, data: &[u8]) -> Result<(), CliError> {
     if path == "-" {
         io::stdout()
             .write_all(data)
-            .map_err(|e| CliError::fail(format!("failed to write stdout: {e}")))?;
+            .map_err(|e| CliError::io(format!("failed to write stdout: {e}"), &e))?;
         io::stdout()
             .flush()
-            .map_err(|e| CliError::fail(format!("failed to flush stdout: {e}")))?;
+            .map_err(|e| CliError::io(format!("failed to flush stdout: {e}"), &e))?;
         Ok(())
     } else {
-        fs::write(path, data).map_err(|e| CliError::fail(format!("failed to write '{path}': {e}")))
+        fs::write(path, data)
+            .map_err(|e| CliError::io(format!("failed to write '{path}': {e}"), &e))
     }
 }
 
@@ -183,7 +317,7 @@ fn take_flag_value(
         .ok_or_else(|| CliError::usage(format!("option '{flag}' requires a value")))
 }
 
-fn cmd_run(args: Vec<String>) -> Result<bool, CliError> {
+fn cmd_run(args: Vec<String>) -> Result<Outcome, CliError> {
     let mut game_path: Option<String> = None;
     let mut ticks = DEFAULT_RUN_TICKS;
     let mut seed = 0u64;
@@ -196,8 +330,7 @@ fn cmd_run(args: Vec<String>) -> Result<bool, CliError> {
             continue;
         }
         if !raw_only && (arg == "-h" || arg == "--help") {
-            print_help();
-            return Ok(true);
+            return Ok(Outcome::Help);
         }
         if !raw_only && arg.starts_with('-') && arg != "-" {
             let (flag, inline) = match arg.split_once('=') {
@@ -228,20 +361,26 @@ fn cmd_run(args: Vec<String>) -> Result<bool, CliError> {
     let src = read_text(&game_path)?;
     let mut stage = make_stage(&src, seed)?;
 
+    let mut hashes = Vec::new();
     for _ in 0..ticks {
         if !stage.step(0) {
             break;
         }
         let frame = stage.frame();
         if frame.is_multiple_of(60) {
-            println!("tick {frame} hash 0x{:016x}", stage.hash());
+            hashes.push((frame, stage.hash()));
         }
     }
-    println!("final tick {} hash 0x{:016x}", stage.frame(), stage.hash());
-    Ok(false)
+    Ok(Outcome::Run {
+        ticks: stage.frame(),
+        seed,
+        hashes,
+        final_hash: stage.hash(),
+    })
 }
 
-fn cmd_record(args: Vec<String>) -> Result<bool, CliError> {
+/// `json` is true under `--json`, where `-o -` is refused: TREC bytes need a file.
+fn cmd_record(args: Vec<String>, json: bool) -> Result<Outcome, CliError> {
     let mut positionals: Vec<String> = Vec::new();
     let mut out_path: Option<String> = None;
     let mut ticks: Option<u64> = None;
@@ -255,8 +394,7 @@ fn cmd_record(args: Vec<String>) -> Result<bool, CliError> {
             continue;
         }
         if !raw_only && (arg == "-h" || arg == "--help") {
-            print_help();
-            return Ok(true);
+            return Ok(Outcome::Help);
         }
         if !raw_only && arg.starts_with('-') && arg != "-" {
             let (flag, inline) = match arg.split_once('=') {
@@ -297,6 +435,12 @@ fn cmd_record(args: Vec<String>) -> Result<bool, CliError> {
         .ok_or_else(|| CliError::usage("record requires INPUTS"))?;
     let out_path = out_path.ok_or_else(|| CliError::usage("record requires -o REPLAY"))?;
 
+    if json && out_path == "-" {
+        return Err(CliError::refused(
+            "--json needs -o FILE.trec; TREC bytes cannot go to stdout",
+            "use -o FILE.trec",
+        ));
+    }
     if game_path == "-" && inputs_path == "-" {
         return Err(CliError::usage(
             "cannot read both GAME.logos and INPUTS from stdin",
@@ -317,13 +461,16 @@ fn cmd_record(args: Vec<String>) -> Result<bool, CliError> {
 
     let encoded = rec.encode();
     write_bytes(&out_path, &encoded)?;
-    if out_path != "-" {
-        println!("final tick {} hash 0x{hash:016x}", stage.frame());
-    }
-    Ok(false)
+    Ok(Outcome::Record {
+        stdout: out_path == "-",
+        path: out_path,
+        bytes: encoded.len(),
+        ticks: stage.frame(),
+        final_hash: hash,
+    })
 }
 
-fn cmd_replay(args: Vec<String>) -> Result<bool, CliError> {
+fn cmd_replay(args: Vec<String>) -> Result<Outcome, CliError> {
     let mut positionals: Vec<String> = Vec::new();
     let mut ticks: Option<u64> = None;
     let mut seed = 0u64;
@@ -336,8 +483,7 @@ fn cmd_replay(args: Vec<String>) -> Result<bool, CliError> {
             continue;
         }
         if !raw_only && (arg == "-h" || arg == "--help") {
-            print_help();
-            return Ok(true);
+            return Ok(Outcome::Help);
         }
         if !raw_only && arg.starts_with('-') && arg != "-" {
             let (flag, inline) = match arg.split_once('=') {
@@ -391,8 +537,89 @@ fn cmd_replay(args: Vec<String>) -> Result<bool, CliError> {
             .map_or(DEFAULT_REPLAY_TICKS, |inp| inp.frame.saturating_add(1))
     });
     let hash = replay(&mut stage, &rec, frames);
-    println!("final tick {} hash 0x{hash:016x}", stage.frame());
-    Ok(false)
+    Ok(Outcome::Replay {
+        ticks: stage.frame(),
+        seed,
+        final_hash: hash,
+    })
+}
+
+/// The text output of an outcome, byte for byte what the tool printed before `--json` existed.
+fn print_outcome(outcome: &Outcome) {
+    match outcome {
+        Outcome::Help => print_help(),
+        Outcome::Run {
+            ticks,
+            hashes,
+            final_hash,
+            ..
+        } => {
+            for (tick, hash) in hashes {
+                println!("tick {tick} hash 0x{hash:016x}");
+            }
+            println!("final tick {ticks} hash 0x{final_hash:016x}");
+        }
+        Outcome::Record {
+            stdout,
+            ticks,
+            final_hash,
+            ..
+        } => {
+            if !stdout {
+                println!("final tick {ticks} hash 0x{final_hash:016x}");
+            }
+        }
+        Outcome::Replay {
+            ticks, final_hash, ..
+        } => println!("final tick {ticks} hash 0x{final_hash:016x}"),
+    }
+}
+
+fn int<T: TryInto<i64>>(n: T) -> Json {
+    Json::Int(n.try_into().unwrap_or(i64::MAX))
+}
+
+fn hex(value: u64) -> Json {
+    Json::Str(format!("{value:016x}"))
+}
+
+fn outcome_json(outcome: Outcome) -> Json {
+    match outcome {
+        Outcome::Help => Json::obj([("usage", Json::Str(help_text()))]),
+        Outcome::Run {
+            ticks,
+            seed,
+            hashes,
+            final_hash,
+        } => {
+            let list = hashes
+                .into_iter()
+                .map(|(tick, hash)| Json::obj([("tick", int(tick)), ("hash", hex(hash))]))
+                .collect();
+            Json::obj([
+                ("ticks", int(ticks)),
+                ("seed", int(seed)),
+                ("hashes", Json::Arr(list)),
+                ("final_hash", hex(final_hash)),
+            ])
+        }
+        Outcome::Record {
+            path, bytes, ticks, ..
+        } => Json::obj([
+            ("path", Json::path(Path::new(&path))),
+            ("bytes", int(bytes)),
+            ("ticks", int(ticks)),
+        ]),
+        Outcome::Replay {
+            ticks,
+            seed,
+            final_hash,
+        } => Json::obj([
+            ("ticks", int(ticks)),
+            ("seed", int(seed)),
+            ("final_hash", hex(final_hash)),
+        ]),
+    }
 }
 
 fn dispatch() -> Result<(), CliError> {
@@ -401,32 +628,76 @@ fn dispatch() -> Result<(), CliError> {
         return Err(CliError::usage("missing subcommand (try --help)"));
     };
 
-    match first.as_str() {
-        "-h" | "--help" | "help" => {
-            print_help();
-            Ok(())
-        }
+    let outcome = match first.as_str() {
+        "-h" | "--help" | "help" => Outcome::Help,
         "-V" | "--version" => {
             println!("{VERSION}");
-            Ok(())
+            return Ok(());
         }
-        "run" => {
-            let rest: Vec<String> = args.collect();
-            cmd_run(rest).map(|_| ())
+        "run" => cmd_run(args.collect())?,
+        "record" => cmd_record(args.collect(), false)?,
+        "replay" => cmd_replay(args.collect())?,
+        other => return Err(CliError::usage(format!("unknown subcommand '{other}'"))),
+    };
+    print_outcome(&outcome);
+    Ok(())
+}
+
+/// `helios --json ...`: one envelope on stdout; stderr keeps the `helios: message` line.
+fn run_json(args: &[OsString]) -> ExitCode {
+    let args: Vec<String> = args
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    let cmd = match args.first().map(String::as_str) {
+        Some("run") => "run",
+        Some("record") => "record",
+        Some("replay") => "replay",
+        Some("-h" | "--help" | "help") => "--help",
+        Some("-V" | "--version") => "--version",
+        _ => "",
+    };
+    match json_command(&args) {
+        Ok(data) => {
+            print!("{}", envelope::ok("helios", cmd, data));
+            ExitCode::SUCCESS
         }
-        "record" => {
-            let rest: Vec<String> = args.collect();
-            cmd_record(rest).map(|_| ())
+        Err(err) => {
+            eprintln!("helios: {}", err.msg);
+            print!(
+                "{}",
+                envelope::err("helios", cmd, err.kind, &err.msg, err.hint)
+            );
+            ExitCode::from(err.code)
         }
-        "replay" => {
-            let rest: Vec<String> = args.collect();
-            cmd_replay(rest).map(|_| ())
-        }
+    }
+}
+
+fn json_command(args: &[String]) -> Result<Json, CliError> {
+    let Some((first, rest)) = args.split_first() else {
+        return Err(CliError::usage("missing subcommand (try --help)"));
+    };
+    let rest = rest.to_vec();
+    match first.as_str() {
+        "-h" | "--help" | "help" => Ok(outcome_json(Outcome::Help)),
+        "-V" | "--version" => Ok(Json::obj([("version", Json::Str(VERSION.into()))])),
+        "run" => cmd_run(rest).map(outcome_json),
+        "record" => cmd_record(rest, true).map(outcome_json),
+        "replay" => cmd_replay(rest).map(outcome_json),
         other => Err(CliError::usage(format!("unknown subcommand '{other}'"))),
     }
 }
 
 fn main() -> ExitCode {
+    let mut raw: Vec<OsString> = env::args_os().skip(1).collect();
+    let json = envelope::take_json_flag(&mut raw);
+    if envelope::take_describe_flag(&raw) {
+        println!("{}", MANIFEST.to_json().write());
+        return ExitCode::SUCCESS;
+    }
+    if json {
+        return run_json(&raw);
+    }
     match dispatch() {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {

@@ -10,6 +10,7 @@ name = "iris"
 path = "src/bin/iris.rs"
 
 [dependencies]
+aci = { path = "../aci" }
 pigment = { path = "../pigment" }
 indium = { path = "../indium" }
 krypton = { path = "../krypton" }

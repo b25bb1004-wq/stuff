@@ -3,10 +3,15 @@
 
 use std::collections::HashMap;
 use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Read, Write};
+use std::path::Path;
 use std::process;
 
+use aci::envelope::{self, Code};
+use aci::json::Json;
+use aci::manifest::{Arg, Command, Effect, Kind as ArgKind, Manifest};
 use indium::{Action, Align, Canvas, Dir, Event, Insets, Key, Kind, NodeId, Style, Theme, Ui};
 use pigment::encode_png;
 
@@ -48,9 +53,61 @@ EXAMPLE:
   indium render layout.txt --out ui.png --width 480 --height 320 --focus 0
 ";
 
-/// Exit code wrapper for CLI errors.
+const fn req(name: &'static str, kind: ArgKind) -> Arg {
+    Arg {
+        name,
+        kind,
+        required: true,
+        default: None,
+        choices: &[],
+    }
+}
+
+const fn opt(name: &'static str, kind: ArgKind, default: &'static str) -> Arg {
+    Arg {
+        name,
+        kind,
+        required: false,
+        default: Some(default),
+        choices: &[],
+    }
+}
+
+const RENDER_ARGS: &[Arg] = &[
+    req("LAYOUT", ArgKind::Path),
+    req("--out", ArgKind::Path),
+    opt("--width", ArgKind::Int, "640"),
+    opt("--height", ArgKind::Int, "480"),
+    Arg {
+        name: "--focus",
+        kind: ArgKind::Int,
+        required: false,
+        default: None,
+        choices: &[],
+    },
+];
+
+const COMMANDS: &[Command] = &[Command {
+    name: "render",
+    summary: "Parse an indented layout file, print focus order and write a PNG to --out FILE",
+    effect: Effect::Write,
+    args: RENDER_ARGS,
+    returns: "path, bytes, width, height, focus: [label] in focus order (--out - is refused under --json)",
+    example: "indium --json render layout.txt --out ui.png --width 480 --height 320 --focus 0",
+}];
+
+const MANIFEST: Manifest = Manifest {
+    tool: "indium",
+    version: env!("CARGO_PKG_VERSION"),
+    summary: "Widget layout renderer and focus inspector",
+    commands: COMMANDS,
+};
+
+/// Exit code, envelope code and optional hint for a CLI error.
 struct CliError {
     code: i32,
+    kind: Code,
+    hint: Option<String>,
     message: String,
 }
 
@@ -58,6 +115,8 @@ impl CliError {
     fn usage(msg: impl Into<String>) -> Self {
         Self {
             code: 2,
+            kind: Code::Usage,
+            hint: None,
             message: msg.into(),
         }
     }
@@ -65,9 +124,29 @@ impl CliError {
     fn fail(msg: impl Into<String>) -> Self {
         Self {
             code: 1,
+            kind: Code::Invalid,
+            hint: None,
             message: msg.into(),
         }
     }
+
+    fn with_kind(mut self, kind: Code) -> Self {
+        self.kind = kind;
+        self
+    }
+
+    fn with_hint(mut self, hint: &str) -> Self {
+        self.hint = Some(hint.to_string());
+        self
+    }
+}
+
+/// What a render produced: the PNG bytes and the focus order the text path prints.
+struct Rendered {
+    png: Vec<u8>,
+    order: Vec<NodeId>,
+    info: HashMap<NodeId, WidgetInfo>,
+    active: Option<usize>,
 }
 
 /// Parsed arguments for `indium render`.
@@ -93,6 +172,15 @@ struct Frame {
 }
 
 fn main() {
+    let mut raw: Vec<OsString> = env::args_os().skip(1).collect();
+    let json = envelope::take_json_flag(&mut raw);
+    if envelope::take_describe_flag(&raw) {
+        println!("{}", MANIFEST.to_json().write());
+        return;
+    }
+    if json {
+        process::exit(run_json(&raw));
+    }
     match run() {
         Ok(()) => {}
         Err(err) => {
@@ -100,6 +188,88 @@ fn main() {
             process::exit(err.code);
         }
     }
+}
+
+/// `indium --json ...`: one envelope on stdout; stderr keeps the `indium: message` line. Returns the exit code.
+fn run_json(args: &[OsString]) -> i32 {
+    let args: Vec<String> = args
+        .iter()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    let cmd = match args.first().map(String::as_str) {
+        Some("render") => "render",
+        Some("-h" | "--help") => "--help",
+        Some("-V" | "--version") => "--version",
+        _ => "",
+    };
+    match json_command(&args) {
+        Ok((data, exit)) => {
+            print!("{}", envelope::ok("indium", cmd, data));
+            i32::from(exit)
+        }
+        Err(err) => {
+            eprintln!("indium: {}", err.message);
+            let hint = match (err.hint, err.kind) {
+                (Some(hint), _) => Some(hint),
+                (None, Code::Usage) => Some(String::from("run: indium --describe")),
+                (None, _) => None,
+            };
+            print!(
+                "{}",
+                envelope::err("indium", cmd, err.kind, &err.message, hint.as_deref())
+            );
+            err.code
+        }
+    }
+}
+
+/// Run one command under `--json`. Returns the data and the exit code for a successful run.
+fn json_command(args: &[String]) -> Result<(Json, u8), CliError> {
+    match args.first().map(String::as_str) {
+        None => Err(CliError::usage("missing subcommand (try --help)")),
+        Some("-h" | "--help") => Ok((Json::obj([("usage", Json::Str(HELP.into()))]), 0)),
+        Some("-V" | "--version") => Ok((Json::obj([("version", Json::Str(VERSION.into()))]), 0)),
+        Some("render") => {
+            let rest = &args[1..];
+            if rest.iter().any(|a| a == "-h" || a == "--help") {
+                return Ok((Json::obj([("usage", Json::Str(HELP.into()))]), 0));
+            }
+            let parsed = parse_render_args(rest)?;
+            if parsed.out_path == "-" {
+                return Err(CliError::usage(
+                    "--json needs --out FILE.png; PNG bytes cannot go to stdout",
+                )
+                .with_hint("use --out FILE.png"));
+            }
+            let rendered = build_render(&parsed)?;
+            write_output(&parsed.out_path, &rendered.png)?;
+            let focus = rendered
+                .order
+                .iter()
+                .map(|nid| Json::Str(label_of(&rendered.info, *nid)))
+                .collect();
+            let data = Json::obj([
+                ("path", Json::path(Path::new(&parsed.out_path))),
+                ("bytes", int(rendered.png.len())),
+                ("width", int(parsed.width as usize)),
+                ("height", int(parsed.height as usize)),
+                ("focus", Json::Arr(focus)),
+            ]);
+            Ok((data, 0))
+        }
+        Some(other) => Err(CliError::usage(format!(
+            "unknown subcommand '{other}' (try --help)"
+        ))),
+    }
+}
+
+fn int(n: usize) -> Json {
+    Json::Int(i64::try_from(n).unwrap_or(i64::MAX))
+}
+
+fn label_of(info: &HashMap<NodeId, WidgetInfo>, nid: NodeId) -> String {
+    info.get(&nid)
+        .map_or_else(|| String::from("widget"), |meta| meta.label.clone())
 }
 
 fn run() -> Result<(), CliError> {
@@ -214,6 +384,17 @@ fn parse_usize(flag: &str, val: &str) -> Result<usize, CliError> {
 }
 
 fn cmd_render(args: &RenderArgs) -> Result<(), CliError> {
+    let rendered = build_render(args)?;
+    write_output(&args.out_path, &rendered.png)?;
+
+    if args.out_path != "-" {
+        print_focus_order(&rendered.order, &rendered.info, rendered.active);
+    }
+    Ok(())
+}
+
+/// Parse the layout, apply `--focus`, lay out and paint it, and encode the PNG. Writes nothing.
+fn build_render(args: &RenderArgs) -> Result<Rendered, CliError> {
     let source = read_layout(&args.layout_path)?;
     let (mut ui, info) = parse_layout(&source)?;
 
@@ -240,25 +421,30 @@ fn cmd_render(args: &RenderArgs) -> Result<(), CliError> {
     }
     ui.render(&mut canvas);
 
-    let png_bytes = encode_png(&canvas);
-    write_output(&args.out_path, &png_bytes)?;
-
-    if args.out_path != "-" {
-        print_focus_order(&focus_order, &info, args.focus);
-    }
-    Ok(())
+    Ok(Rendered {
+        png: encode_png(&canvas),
+        order: focus_order,
+        info,
+        active: args.focus,
+    })
 }
 
 fn read_layout(path: &str) -> Result<String, CliError> {
     if path == "-" {
         let mut buf = String::new();
-        io::stdin()
-            .read_to_string(&mut buf)
-            .map_err(|e| CliError::fail(format!("failed to read stdin: {e}")))?;
+        io::stdin().read_to_string(&mut buf).map_err(|e| {
+            CliError::fail(format!("failed to read stdin: {e}")).with_kind(Code::Io)
+        })?;
         Ok(buf)
     } else {
-        fs::read_to_string(path)
-            .map_err(|e| CliError::fail(format!("failed to read '{path}': {e}")))
+        fs::read_to_string(path).map_err(|e| {
+            let kind = if e.kind() == io::ErrorKind::NotFound {
+                Code::NotFound
+            } else {
+                Code::Io
+            };
+            CliError::fail(format!("failed to read '{path}': {e}")).with_kind(kind)
+        })
     }
 }
 
@@ -268,9 +454,11 @@ fn write_output(path: &str, bytes: &[u8]) -> Result<(), CliError> {
         stdout
             .write_all(bytes)
             .and_then(|()| stdout.flush())
-            .map_err(|e| CliError::fail(format!("failed to write stdout: {e}")))
+            .map_err(|e| CliError::fail(format!("failed to write stdout: {e}")).with_kind(Code::Io))
     } else {
-        fs::write(path, bytes).map_err(|e| CliError::fail(format!("failed to write '{path}': {e}")))
+        fs::write(path, bytes).map_err(|e| {
+            CliError::fail(format!("failed to write '{path}': {e}")).with_kind(Code::Io)
+        })
     }
 }
 

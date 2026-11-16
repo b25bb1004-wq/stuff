@@ -6,6 +6,7 @@ license = "MIT"
 publish = false
 
 [dependencies]
+aci = { path = "../aci" }
 cobalt = { path = "../cobalt" }
 elysium = { path = "../elysium" }
 indium = { path = "../indium" }

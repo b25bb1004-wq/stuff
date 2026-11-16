@@ -10,6 +10,7 @@ name = "indium"
 path = "src/bin/indium.rs"
 
 [dependencies]
+aci = { path = "../aci" }
 pigment = { path = "../pigment" }
 
 [dev-dependencies]
