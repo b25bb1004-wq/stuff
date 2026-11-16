@@ -92,6 +92,7 @@ mod sys {
     const ENABLE_VIRTUAL_TERMINAL_PROCESSING: u32 = 0x0004;
     const KEY_EVENT: u16 = 0x0001;
     const MOUSE_EVENT: u16 = 0x0002;
+    const WINDOW_BUFFER_SIZE_EVENT: u16 = 0x0004;
 
     /// `INPUT_RECORD`: a type word, then the 16-byte event payload read as four DWORDs.
     #[repr(C)]
@@ -230,6 +231,8 @@ mod sys {
                     .into_iter()
                     .collect()
             }
+            // A resize carries no key: returning empty lets the caller re-read the size.
+            WINDOW_BUFFER_SIZE_EVENT => Vec::new(),
             _ => Vec::new(),
         };
         Some(events)
@@ -339,12 +342,23 @@ mod sys {
     const TIOCGWINSZ: u64 = 0x5413;
     const STDIN: i32 = 0;
     const STDOUT: i32 = 1;
+    const POLLIN: i16 = 0x001;
+    // Longest a resize can go unnoticed while no key arrives (no SIGWINCH handler is installed).
+    const RESIZE_POLL_MS: i32 = 200;
+
+    #[repr(C)]
+    struct PollFd {
+        fd: i32,
+        events: i16,
+        revents: i16,
+    }
 
     extern "C" {
         fn isatty(fd: i32) -> i32;
         fn tcgetattr(fd: i32, t: *mut Saved) -> i32;
         fn tcsetattr(fd: i32, action: i32, t: *const Saved) -> i32;
         fn read(fd: i32, buf: *mut u8, count: usize) -> isize;
+        fn poll(fds: *mut PollFd, nfds: std::ffi::c_ulong, timeout: i32) -> i32;
         fn ioctl(fd: i32, request: u64, ...) -> i32;
     }
 
@@ -379,6 +393,23 @@ mod sys {
     }
 
     pub(super) fn read_events() -> Option<Vec<Ev>> {
+        let mut pfd = PollFd {
+            fd: STDIN,
+            events: POLLIN,
+            revents: 0,
+        };
+        // SAFETY: `pfd` is one valid, writable pollfd and nfds is 1.
+        match unsafe { poll(&mut pfd, 1, RESIZE_POLL_MS) } {
+            0 => return Some(Vec::new()), // timeout: the caller re-reads the size
+            n if n < 0 => {
+                return if io::Error::last_os_error().kind() == io::ErrorKind::Interrupted {
+                    Some(Vec::new())
+                } else {
+                    None
+                };
+            }
+            _ => {}
+        }
         let mut buf = [0u8; 256];
         // SAFETY: `buf` is a valid writable buffer of exactly the length passed.
         let n = unsafe { read(STDIN, buf.as_mut_ptr(), buf.len()) };

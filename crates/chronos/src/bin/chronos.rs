@@ -38,8 +38,9 @@ Subcommands:
       CHRONOS_EMAIL, else git's user.name and user.email, else Monolith.
       Example: chronos commit -m \"initial commit\"
 
-  diff
-      Show the unified diff of staged changes against HEAD (same set as status).
+  diff [--staged|--cached]
+      Show the unified diff of unstaged edits (working tree against the index),
+      or with --staged/--cached the staged changes (index against HEAD).
       Example: chronos diff
 
   switch NAME
@@ -73,7 +74,7 @@ Subcommands:
       Example: chronos cat-file HEAD
 
   status
-      Show staged changes relative to HEAD.
+      Show staged changes (against HEAD) and unstaged edits (against the index).
       Example: chronos status
 
   serve [--addr HOST:PORT] [--push-token-file PATH]
@@ -85,6 +86,16 @@ Subcommands:
 enum CliError {
     Usage(String),
     Op(String),
+    /// stdout was closed by the reader (`chronos log | head`): stop quietly with exit 0.
+    Closed,
+}
+
+fn stdout_err(e: io::Error) -> CliError {
+    if e.kind() == io::ErrorKind::BrokenPipe {
+        CliError::Closed
+    } else {
+        CliError::Op(format!("failed to write stdout: {e}"))
+    }
 }
 
 fn find_repo_root(start: &Path) -> Result<PathBuf, CliError> {
@@ -412,6 +423,7 @@ fn cmd_log(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
     let ids = repo
         .log(&head)
         .map_err(|e| CliError::Op(format!("log failed: {e}")))?;
+    let mut out = io::stdout().lock();
     for id in ids {
         let (_, raw) = repo
             .get(&id)
@@ -419,7 +431,7 @@ fn cmd_log(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
         let commit =
             decode_commit(&raw).map_err(|e| CliError::Op(format!("corrupt commit: {e}")))?;
         let subject = commit.message.lines().next().unwrap_or("");
-        println!("{} {subject}", to_hex(&id));
+        writeln!(out, "{} {subject}", to_hex(&id)).map_err(stdout_err)?;
     }
     Ok(())
 }
@@ -521,18 +533,30 @@ fn cmd_checkout(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError
 }
 
 fn cmd_diff(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
-    if !args.is_empty() {
-        return Err(CliError::Usage("diff takes no arguments".to_string()));
+    let staged = match args {
+        [] => false,
+        [flag] if flag == "--staged" || flag == "--cached" => true,
+        _ => {
+            return Err(CliError::Usage(
+                "diff takes no arguments or --staged".to_string(),
+            ))
+        }
+    };
+    let (root, repo) = open_repo(base_dir)?;
+    let mut out = io::stdout().lock();
+    if !staged {
+        for (change, old, new) in unstaged(&root, &repo)? {
+            write_diff(&mut out, path_of(&change), &old, &new).map_err(stdout_err)?;
+        }
+        return Ok(());
     }
-    let (_root, repo) = open_repo(base_dir)?;
     let head_files = match repo.head() {
         Some(head) => repo
             .files(&head)
             .map_err(|e| CliError::Op(format!("diff failed: {e}")))?,
         None => Default::default(),
     };
-    let staged = repo.staged();
-    let mut out = io::stdout().lock();
+    let index = repo.staged();
     for change in repo.status() {
         let path = match change {
             Change::Added(p) | Change::Modified(p) | Change::Deleted(p) => p,
@@ -541,15 +565,44 @@ fn cmd_diff(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
             .get(&path)
             .map(|(b, _)| b.as_slice())
             .unwrap_or(&[]);
-        let new: &[u8] = staged.get(&path).map(|(b, _)| b.as_slice()).unwrap_or(&[]);
-        let written = if old.contains(&0) || new.contains(&0) {
-            writeln!(out, "Binary files a/{path} and b/{path} differ")
-        } else {
-            out.write_all(&unified(&path, old, new, 3))
-        };
-        written.map_err(|e| CliError::Op(format!("failed to write stdout: {e}")))?;
+        let new: &[u8] = index.get(&path).map(|(b, _)| b.as_slice()).unwrap_or(&[]);
+        write_diff(&mut out, &path, old, new).map_err(stdout_err)?;
     }
     Ok(())
+}
+
+fn write_diff(out: &mut impl Write, path: &str, old: &[u8], new: &[u8]) -> io::Result<()> {
+    if old.contains(&0) || new.contains(&0) {
+        writeln!(out, "Binary files a/{path} and b/{path} differ")
+    } else {
+        out.write_all(&unified(path, old, new, 3))
+    }
+}
+
+fn path_of(change: &Change) -> &str {
+    match change {
+        Change::Added(p) | Change::Modified(p) | Change::Deleted(p) => p,
+    }
+}
+
+/// (change, index bytes, disk bytes); disk bytes are empty when the file is deleted.
+type Unstaged = Vec<(Change, Vec<u8>, Vec<u8>)>;
+
+/// Index entries whose working-tree file differs (Modified) or is gone (Deleted).
+fn unstaged(root: &Path, repo: &Repo<DirStore>) -> Result<Unstaged, CliError> {
+    let mut out = Vec::new();
+    for (path, (index_bytes, _)) in repo.staged() {
+        let disk = disk_path_for_rel(root, &path)?;
+        match fs::read(&disk) {
+            Ok(now) if now == index_bytes => {}
+            Ok(now) => out.push((Change::Modified(path), index_bytes, now)),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                out.push((Change::Deleted(path), index_bytes, Vec::new()));
+            }
+            Err(e) => return Err(CliError::Op(format!("failed to read '{path}': {e}"))),
+        }
+    }
+    Ok(out)
 }
 
 /// Write checked-out files under `root`. Used after an import, into an empty directory.
@@ -747,20 +800,40 @@ fn cmd_status(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
     if !args.is_empty() {
         return Err(CliError::Usage("status takes no arguments".to_string()));
     }
-    let (_root, repo) = open_repo(base_dir)?;
-    if let Some(branch) = repo.current_branch() {
-        println!("on branch {branch}");
+    let (root, repo) = open_repo(base_dir)?;
+    let mut out = io::stdout().lock();
+    let head_line = if let Some(branch) = repo.current_branch() {
+        format!("on branch {branch}")
     } else if let Some(head) = repo.head() {
-        println!("HEAD detached at {}", to_hex(&head));
+        format!("HEAD detached at {}", to_hex(&head))
     } else {
-        println!("on branch main (no commits)");
+        "on branch main (no commits)".to_string()
+    };
+    writeln!(out, "{head_line}").map_err(stdout_err)?;
+    let staged = repo.status();
+    if !staged.is_empty() {
+        writeln!(out, "Changes to be committed:").map_err(stdout_err)?;
+        write_changes(&mut out, staged.iter()).map_err(stdout_err)?;
     }
-    for ch in repo.status() {
-        match ch {
-            Change::Added(p) => println!("A {p}"),
-            Change::Modified(p) => println!("M {p}"),
-            Change::Deleted(p) => println!("D {p}"),
-        }
+    let dirty = unstaged(&root, &repo)?;
+    if !dirty.is_empty() {
+        writeln!(out, "Changes not staged for commit:").map_err(stdout_err)?;
+        write_changes(&mut out, dirty.iter().map(|(c, _, _)| c)).map_err(stdout_err)?;
+    }
+    Ok(())
+}
+
+fn write_changes<'a>(
+    out: &mut impl Write,
+    changes: impl Iterator<Item = &'a Change>,
+) -> io::Result<()> {
+    for ch in changes {
+        let tag = match ch {
+            Change::Added(_) => "A",
+            Change::Modified(_) => "M",
+            Change::Deleted(_) => "D",
+        };
+        writeln!(out, "{tag} {}", path_of(ch))?;
     }
     Ok(())
 }
@@ -820,6 +893,7 @@ fn run() -> Result<(), CliError> {
 fn main() {
     if let Err(err) = run() {
         match err {
+            CliError::Closed => process::exit(0),
             CliError::Usage(msg) => {
                 eprintln!("chronos: {msg}");
                 process::exit(2);

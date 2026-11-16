@@ -318,17 +318,18 @@ fn run_editor(files: &[String]) -> Result<(), CliError> {
         tty::enter().map_err(|e| CliError::Op(format!("cannot start the terminal editor: {e}")))?;
     let mut previous: Option<Screen> = None;
     loop {
+        // Checked before every draw, so a resize that woke the last read repaints at once.
+        let size = tty::size();
+        if size != session.size() {
+            session.resize(size.0, size.1);
+            previous = None;
+        }
         let frame = session.render();
         tty::write(&ansi_changed(previous.as_ref(), &frame))
             .map_err(|e| CliError::Op(format!("failed to write to the terminal: {e}")))?;
         previous = Some(frame);
         if session.quit_requested() {
             break;
-        }
-        let size = tty::size();
-        if size != session.size() {
-            session.resize(size.0, size.1);
-            previous = None;
         }
         match tty::read_events() {
             None => break,

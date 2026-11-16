@@ -418,3 +418,44 @@ fn windows_records_map_to_keys_and_mouse() {
         Some(Ev::Mouse(Mouse::Wheel(3)))
     );
 }
+
+#[test]
+fn undo_to_saved_text_is_clean_and_redo_away_is_dirty() {
+    let path = temp_path("dirty_undo");
+    fs::write(&path, b"base\n").unwrap();
+    let mut s = Session::from_bytes(Some(path.clone()), b"base\n", 40, 10).unwrap();
+    assert!(!s.modified());
+    type_str(&mut s, "a");
+    ctrl(&mut s, 's');
+    assert!(!s.modified());
+    type_str(&mut s, "b");
+    assert!(s.modified());
+    ctrl(&mut s, 'z');
+    assert!(!s.modified(), "undo back to the saved text is clean");
+    ctrl(&mut s, 'y');
+    assert!(s.modified(), "redo away from the saved text is dirty");
+    ctrl(&mut s, 'z');
+    ctrl(&mut s, 'z');
+    assert!(s.modified(), "undo past the save point is dirty");
+    fs::remove_file(path).ok();
+}
+
+#[test]
+fn resize_changes_size_and_repaints_every_row() {
+    let mut s = session("one\ntwo\nthree", None); // 40 x 10
+    let before = s.render();
+    s.resize(25, 6);
+    assert_eq!(s.size(), (25, 6));
+    let after = s.render();
+    assert_eq!(after.rows.len(), 6);
+    assert!(after.rows.iter().all(|r| r.chars().count() == 25));
+    // Repainting against the stale 40 x 10 frame rewrites every one of the six rows.
+    let out = ansi_changed(Some(&before), &after);
+    for row in 1..=6 {
+        assert!(
+            out.contains(&format!("\x1b[{row};1H")),
+            "row {row} missing: {out:?}"
+        );
+    }
+    assert!(before.rows.len() == 10);
+}

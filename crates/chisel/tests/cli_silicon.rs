@@ -227,3 +227,71 @@ fn usage_errors_exit_two() {
     assert_eq!(bad_steps.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&bad_steps.stderr).contains("silicon:"));
 }
+
+// Moved from crates/silicon/tests/cli.rs when the second `silicon` binary was removed (D6).
+
+/// Prints "OK\n" to the UART at 0x1000_0000, then writes 0x5555 to the finisher at 0x0010_0000.
+const OK_PROGRAM: [u32; 12] = [
+    0x1000_02b7, // lui   t0, 0x10000
+    0x04f0_0313, // addi  t1, zero, 'O'
+    0x0062_8023, // sb    t1, 0(t0)
+    0x04b0_0313, // addi  t1, zero, 'K'
+    0x0062_8023, // sb    t1, 0(t0)
+    0x00a0_0313, // addi  t1, zero, '\n'
+    0x0062_8023, // sb    t1, 0(t0)
+    0x0010_03b7, // lui   t2, 0x100
+    0x0000_5e37, // lui   t3, 0x5
+    0x555e_0e13, // addi  t3, t3, 0x555
+    0x01c3_a023, // sw    t3, 0(t2)
+    0x0000_006f, // j     .
+];
+
+fn ok_elf() -> Vec<u8> {
+    let code: Vec<u8> = OK_PROGRAM.iter().flat_map(|w| w.to_le_bytes()).collect();
+    let img = Image {
+        entry: 0x8000_0000,
+        segments: vec![Segment {
+            vaddr: 0x8000_0000,
+            flags: PF_R | PF_X,
+            mem_size: code.len() as u64,
+            data: code,
+        }],
+        symbols: Vec::new(),
+    };
+    elf::write(&img).unwrap()
+}
+
+#[test]
+fn silicon_cli_help_and_version_exit_zero() {
+    let help = Command::new(bin()).arg("--help").output().unwrap();
+    assert_eq!(help.status.code(), Some(0));
+    let text = String::from_utf8_lossy(&help.stdout);
+    assert!(text.contains("run ELF"), "{text}");
+    assert!(text.contains("--steps N"), "{text}");
+
+    let version = Command::new(bin()).arg("--version").output().unwrap();
+    assert_eq!(version.status.code(), Some(0));
+    assert_eq!(String::from_utf8_lossy(&version.stdout), "silicon 0.1.0\n");
+}
+
+#[test]
+fn silicon_cli_run_prints_uart_and_exits_zero_on_pass() {
+    let path = temp_file("ok.elf", &ok_elf());
+    let out = Command::new(bin())
+        .args(["run", path.to_str().unwrap()])
+        .output()
+        .unwrap();
+    let _ = fs::remove_file(&path);
+    assert_eq!(out.status.code(), Some(0), "{:?}", out);
+    // The guest's UART bytes come first; this binary then prints its exit and instret lines.
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.starts_with("OK\n"), "{stdout}");
+    assert!(stdout.contains("exit: Pass\n"), "{stdout}");
+}
+
+#[test]
+fn silicon_cli_unknown_command_exits_two() {
+    let out = Command::new(bin()).arg("bogus").output().unwrap();
+    assert_eq!(out.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&out.stderr).starts_with("silicon: unknown subcommand"));
+}

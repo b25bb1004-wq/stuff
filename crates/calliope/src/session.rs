@@ -33,7 +33,8 @@ pub struct Session {
     eol: Eol,
     lang: Lang,
     editor: Editor,
-    dirty: bool,
+    // Undo-tree node the text was last saved at (or opened at); dirty means "not there".
+    saved: usize,
     version: u64,
     // Derived view of the text, rebuilt whenever `version` moves on.
     cache_version: Option<u64>,
@@ -84,7 +85,7 @@ impl Session {
             eol,
             lang,
             editor: Editor::new(&text),
-            dirty: false,
+            saved: 0,
             version: 0,
             cache_version: None,
             text: String::new(),
@@ -124,8 +125,9 @@ impl Session {
     }
 
     /// True when the text differs from the last save (or was never saved).
+    /// Undoing back to the saved state is clean again; redoing away from it is dirty.
     pub fn modified(&self) -> bool {
-        self.dirty
+        self.editor.current_node() != self.saved
     }
 
     /// The current text (line endings as the editor holds them: `\n`).
@@ -165,7 +167,7 @@ impl Session {
         let bytes = file::encode(&self.editor.buffer.text(), self.eol).into_bytes();
         match file::save_atomic(&path, &bytes) {
             Ok(()) => {
-                self.dirty = false;
+                self.saved = self.editor.current_node();
                 self.message = format!("saved {} bytes", bytes.len());
                 true
             }
@@ -307,7 +309,6 @@ impl Session {
         let changed = op(&mut self.editor);
         if changed {
             self.version += 1;
-            self.dirty = true;
             self.sync();
             let after = self.line_of(self.cursor().start());
             self.states.truncate(before.min(after) + 1);
@@ -408,7 +409,7 @@ impl Session {
                 self.save();
             }
             'q' => {
-                if self.dirty {
+                if self.modified() {
                     self.prompt = Some(Prompt::Quit);
                     self.message =
                         "Unsaved changes: y = save and quit, n = quit without saving, Esc = cancel"
@@ -618,7 +619,7 @@ impl Session {
         let head = self.cursor().head;
         let line = self.line_of(head) + 1;
         let col = self.col_of(head) + 1;
-        let dirty = if self.dirty { " [+]" } else { "" };
+        let dirty = if self.modified() { " [+]" } else { "" };
         let eol = match self.eol {
             Eol::Lf => "LF",
             Eol::Crlf => "CRLF",

@@ -200,3 +200,125 @@ fn bad_inputs_exit_one() {
         );
     }
 }
+
+#[test]
+fn closed_stdout_pipe_exits_cleanly() {
+    use std::io::{BufRead, BufReader, Read};
+    use std::process::Stdio;
+
+    let tmp = TempDir::new("pipe");
+    let repo_dir = tmp.path().join("repo");
+    assert!(Command::new(bin())
+        .arg("init")
+        .arg(&repo_dir)
+        .status()
+        .unwrap()
+        .success());
+    let files = repo_dir.join("files");
+    fs::create_dir_all(&files).unwrap();
+    for i in 0..1500 {
+        fs::write(
+            files.join(format!("file_with_a_long_name_{i:05}.txt")),
+            b"x\n",
+        )
+        .unwrap();
+    }
+    assert!(run_git(&repo_dir, &["add", "files"]).status.success());
+
+    // status prints one line per staged file, far more than a pipe buffer holds
+    let mut child = Command::new(bin())
+        .arg("status")
+        .current_dir(&repo_dir)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut first = String::new();
+    BufReader::new(child.stdout.take().unwrap())
+        .read_line(&mut first)
+        .unwrap();
+    assert!(first.starts_with("on branch"), "first line: {first}");
+    // the reader is gone now; the child must not panic on the broken pipe
+    let status = child.wait().unwrap();
+    let mut stderr = String::new();
+    child
+        .stderr
+        .take()
+        .unwrap()
+        .read_to_string(&mut stderr)
+        .unwrap();
+    assert_eq!(status.code(), Some(0), "stderr: {stderr}");
+    assert!(!stderr.contains("panicked"), "stderr: {stderr}");
+}
+
+#[test]
+fn diff_is_worktree_vs_index_and_staged_is_index_vs_head() {
+    let tmp = TempDir::new("diffstage");
+    let repo_dir = tmp.path().join("repo");
+    assert!(Command::new(bin())
+        .arg("init")
+        .arg(&repo_dir)
+        .status()
+        .unwrap()
+        .success());
+    fs::write(repo_dir.join("a.txt"), b"one\n").unwrap();
+    assert!(run_git(&repo_dir, &["add", "a.txt"]).status.success());
+    assert!(run_git(&repo_dir, &["commit", "-m", "first"])
+        .status
+        .success());
+
+    let text = |out: std::process::Output| String::from_utf8(out.stdout).unwrap();
+
+    // unstaged edit: default diff shows it, --staged does not
+    fs::write(repo_dir.join("a.txt"), b"two\n").unwrap();
+    let d = text(run_git(&repo_dir, &["diff"]));
+    assert!(d.contains("-one") && d.contains("+two"), "diff: {d}");
+    assert!(text(run_git(&repo_dir, &["diff", "--staged"])).is_empty());
+    let s = text(run_git(&repo_dir, &["status"]));
+    assert!(
+        s.contains("Changes not staged for commit:\nM a.txt"),
+        "status: {s}"
+    );
+    assert!(!s.contains("Changes to be committed:"), "status: {s}");
+
+    // stage it: now the default diff is empty and --staged/--cached show it
+    assert!(run_git(&repo_dir, &["add", "a.txt"]).status.success());
+    assert!(text(run_git(&repo_dir, &["diff"])).is_empty());
+    for flag in ["--staged", "--cached"] {
+        let d = text(run_git(&repo_dir, &["diff", flag]));
+        assert!(d.contains("-one") && d.contains("+two"), "{flag}: {d}");
+    }
+    let s = text(run_git(&repo_dir, &["status"]));
+    assert!(
+        s.contains("Changes to be committed:\nM a.txt"),
+        "status: {s}"
+    );
+    assert!(!s.contains("Changes not staged"), "status: {s}");
+
+    // edit again on top of the staged version: both headings, both diffs
+    fs::write(repo_dir.join("a.txt"), b"three\n").unwrap();
+    let d = text(run_git(&repo_dir, &["diff"]));
+    assert!(d.contains("-two") && d.contains("+three"), "diff: {d}");
+    let d = text(run_git(&repo_dir, &["diff", "--cached"]));
+    assert!(
+        d.contains("+two") && !d.contains("+three"),
+        "diff --cached: {d}"
+    );
+    let s = text(run_git(&repo_dir, &["status"]));
+    assert!(s.contains("Changes to be committed:"), "status: {s}");
+    assert!(
+        s.contains("Changes not staged for commit:\nM a.txt"),
+        "status: {s}"
+    );
+
+    // a deleted working file shows as an unstaged deletion
+    fs::remove_file(repo_dir.join("a.txt")).unwrap();
+    let s = text(run_git(&repo_dir, &["status"]));
+    assert!(
+        s.contains("Changes not staged for commit:\nD a.txt"),
+        "status: {s}"
+    );
+
+    let out = run_git(&repo_dir, &["diff", "--bogus"]);
+    assert_eq!(out.status.code(), Some(2));
+}

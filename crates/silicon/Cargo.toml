@@ -12,7 +12,3 @@ assay = { path = "../assay" }
 
 [lints]
 workspace = true
-
-[[bin]]
-name = "silicon"
-path = "src/bin/silicon.rs"
