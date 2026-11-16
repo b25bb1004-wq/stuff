@@ -443,3 +443,8 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T74d | haiku | 121k | PASS | for-loop and match-arm locals in debugger; logos, cobalt, athena gates (7fb133c)
 - 2026-11-16 | operator: UI "feels like ai slop", wants "modern, crazy, dynamic" | - | - | REDESIGN | circuit-board direction chosen; brief briefs/T130-board.md; T104 and site Wave 3 wait for T130
 - 2026-11-16 | dispatched T130a board.js, T130b feed.js; T103 told to finish and explain the 20,900 px double-hero page | haiku | - | RUNNING |
+- 2026-11-16 | T103 | haiku | 205k | PASS | site gate (leader ran it; worker stalled), Chrome self-test 11/11 (0f5c9dc)
+- 2026-11-16 | T130b feed.js | haiku | 135k | PASS | node feed-check: uart, trap, ecall, block events, 0 unknown ids (0254204)
+- 2026-11-16 | T130a board.js | haiku | 458k (1 retry) | PASS | retry fixed spaghetti routing and card-like chips; Chrome demo 7/7 (1a8f198, d763dd9)
+- 2026-11-16 | T130c home page | haiku | 436k (1 retry) | PASS | retry: header band, live Titan die on load, pane fit, stray square; page 2,600 px, was 20,900 (bc53a3a, next commit)
+- open: chip one-liners missing on the board, refdes overlap pins, phone board too small (list carries phones), leader has not checked 360 px or reduced motion in Chrome himself; T104 and site Wave 3 must be rebased on the board design
