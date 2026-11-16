@@ -34,11 +34,24 @@ pub enum MergeError {
     Conflict(Vec<String>),
     /// `other` is already an ancestor of `HEAD` (including `HEAD == other`).
     UpToDate,
+    /// Local changes to these paths would be overwritten; nothing was written.
+    Local(Vec<String>),
 }
 
 /// diff3-style line merge of `ours` and `theirs` against `base`, as `git merge-file -p` with
 /// labels `"ours"`, `"base"`, `"theirs"` and the default (merge) conflict style.
 pub fn merge3(base: &[u8], ours: &[u8], theirs: &[u8]) -> Merged {
+    merge3_labeled(base, ours, theirs, "ours", "theirs")
+}
+
+/// As [`merge3`], with the conflict marker labels given by the caller (`HEAD`, a branch name).
+pub fn merge3_labeled(
+    base: &[u8],
+    ours: &[u8],
+    theirs: &[u8],
+    ours_label: &str,
+    theirs_label: &str,
+) -> Merged {
     if ours == theirs {
         return Merged {
             text: ours.to_vec(),
@@ -167,11 +180,11 @@ pub fn merge3(base: &[u8], ours: &[u8], theirs: &[u8]) -> Merged {
                 t_start,
                 t_end,
             } => {
-                out.extend_from_slice(b"<<<<<<< ours\n");
+                out.extend_from_slice(format!("<<<<<<< {ours_label}\n").as_bytes());
                 emit_conflict_side(&mut out, &our_lines[o_start..o_end]);
                 out.extend_from_slice(b"=======\n");
                 emit_conflict_side(&mut out, &their_lines[t_start..t_end]);
-                out.extend_from_slice(b">>>>>>> theirs\n");
+                out.extend_from_slice(format!(">>>>>>> {theirs_label}\n").as_bytes());
                 conflicts += 1;
             }
         }
@@ -292,11 +305,136 @@ fn emit_conflict_side(out: &mut Vec<u8>, lines: &[&[u8]]) {
     }
 }
 
+/// Result of [`Repo::merge_branch`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MergeOutcome {
+    /// `other` is already part of HEAD's history; nothing changed.
+    UpToDate,
+    /// HEAD moved to `other`; no commit was made.
+    FastForward(Id),
+    /// A merge commit with parents `[HEAD, other]` was made.
+    Merged(Id),
+    /// Paths that did not merge. The index keeps HEAD's entry for them and MERGE_HEAD is recorded.
+    Conflicted(Vec<Conflict>),
+}
+
+/// One path that did not merge cleanly.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Conflict {
+    /// Work-tree path.
+    pub path: String,
+    /// True when both sides changed the file (markers in `text`); false for modify/delete.
+    pub content: bool,
+    /// Bytes to write to the work tree: the text with markers, or the surviving side.
+    pub text: Vec<u8>,
+    /// Executable bit of the file.
+    pub exec: bool,
+}
+
+/// A merge computed without writing anything.
+struct Plan {
+    head: Option<Id>,
+    other: Id,
+    /// HEAD's index, which is also the current index.
+    current: IndexMap,
+    kind: PlanKind,
+}
+
+enum PlanKind {
+    UpToDate,
+    FastForward(IndexMap),
+    Merge {
+        index: IndexMap,
+        pending: Vec<(String, Vec<u8>, bool)>,
+        conflicts: Vec<Conflict>,
+    },
+}
+
+/// Paths whose entry differs between two indexes (either side may lack the path).
+pub(crate) fn changed_paths(a: &IndexMap, b: &IndexMap) -> BTreeSet<String> {
+    a.keys()
+        .chain(b.keys())
+        .filter(|p| a.get(*p) != b.get(*p))
+        .cloned()
+        .collect()
+}
+
+/// `Err(Local)` when a path the operation would write also has local changes.
+pub(crate) fn refuse_dirty(
+    touched: &BTreeSet<String>,
+    dirty: &BTreeSet<String>,
+) -> Result<(), MergeError> {
+    let hit: Vec<String> = touched.intersection(dirty).cloned().collect();
+    if hit.is_empty() {
+        Ok(())
+    } else {
+        Err(MergeError::Local(hit))
+    }
+}
+
 impl<S: Store> Repo<S> {
     /// Merge branch or rev `other` into the current branch: fast-forward when possible, else a
     /// merge commit with parents `[HEAD, other]` when no file conflicts, else `Err(MergeError::Conflict(paths))`
     /// leaving `HEAD` and the index unchanged. Merge base = the newest common ancestor by committer time.
     pub fn merge(&mut self, other: &str, message: &str, who: &Signature) -> Result<Id, MergeError> {
+        let plan = self.plan_merge(other)?;
+        if let PlanKind::Merge { conflicts, .. } = &plan.kind {
+            if !conflicts.is_empty() {
+                let paths = conflicts.iter().map(|c| c.path.clone()).collect();
+                return Err(MergeError::Conflict(paths));
+            }
+        }
+        match self.apply_merge(plan, message, who, &BTreeSet::new())? {
+            MergeOutcome::UpToDate => Err(MergeError::UpToDate),
+            MergeOutcome::FastForward(id) | MergeOutcome::Merged(id) => Ok(id),
+            MergeOutcome::Conflicted(_) => Err(MergeError::Repo(Error::Corrupt)),
+        }
+    }
+
+    /// Merge `other` like [`Repo::merge`], but conflicts are recorded (MERGE_HEAD and
+    /// MERGE_UNMERGED) instead of refused. Nothing is written when a path in `dirty` (local
+    /// changes) would be touched.
+    pub fn merge_branch(
+        &mut self,
+        other: &str,
+        message: &str,
+        who: &Signature,
+        dirty: &BTreeSet<String>,
+    ) -> Result<MergeOutcome, MergeError> {
+        let plan = self.plan_merge(other)?;
+        self.apply_merge(plan, message, who, dirty)
+    }
+
+    /// The commit an unfinished merge will join, if any.
+    pub fn merge_head(&self) -> Option<Id> {
+        let raw = self.store.read("MERGE_HEAD")?;
+        from_hex(core::str::from_utf8(&raw).ok()?.trim())
+    }
+
+    /// Paths still unmerged after a conflicted merge.
+    pub fn unmerged(&self) -> Vec<String> {
+        let Some(raw) = self.store.read("MERGE_UNMERGED") else {
+            return Vec::new();
+        };
+        core::str::from_utf8(&raw)
+            .unwrap_or("")
+            .lines()
+            .filter(|l| !l.is_empty())
+            .map(|l| l.to_string())
+            .collect()
+    }
+
+    /// Forget an unfinished merge and put the index back to HEAD. The caller restores the work tree.
+    pub fn abort_merge(&mut self) -> Result<(), Error> {
+        self.store.remove("MERGE_HEAD");
+        self.store.remove("MERGE_UNMERGED");
+        self.unstage("")
+    }
+
+    fn plan_merge(&self, other: &str) -> Result<Plan, MergeError> {
+        if self.store.read("MERGE_HEAD").is_some() {
+            return Err(MergeError::Repo(Error::Dirty));
+        }
         let cur_index = read_index(&self.store).map_err(MergeError::Repo)?;
         let head_opt = self.head();
         let head_index = match head_opt {
@@ -311,12 +449,21 @@ impl<S: Store> Repo<S> {
             .resolve(other)
             .ok_or(MergeError::Repo(Error::NotFound))?;
         let other_commit = read_commit_checked(self, &other_id).map_err(MergeError::Repo)?;
+        let mut theirs_index = IndexMap::new();
+        flatten_tree_to_index(self, &other_commit.tree, "", &mut theirs_index)
+            .map_err(MergeError::Repo)?;
+        let plan = |kind| Plan {
+            head: head_opt,
+            other: other_id,
+            current: head_index.clone(),
+            kind,
+        };
 
         let Some(head_id) = head_opt else {
-            return fast_forward(self, &other_id, &other_commit.tree).map_err(MergeError::Repo);
+            return Ok(plan(PlanKind::FastForward(theirs_index)));
         };
         if head_id == other_id {
-            return Err(MergeError::UpToDate);
+            return Ok(plan(PlanKind::UpToDate));
         }
 
         let head_log = self.log(&head_id).map_err(MergeError::Repo)?;
@@ -325,10 +472,10 @@ impl<S: Store> Repo<S> {
         let other_ancestors: BTreeSet<Id> = other_log.iter().copied().collect();
 
         if head_ancestors.contains(&other_id) {
-            return Err(MergeError::UpToDate);
+            return Ok(plan(PlanKind::UpToDate));
         }
         if other_ancestors.contains(&head_id) {
-            return fast_forward(self, &other_id, &other_commit.tree).map_err(MergeError::Repo);
+            return Ok(plan(PlanKind::FastForward(theirs_index)));
         }
 
         let base_id = head_log
@@ -339,43 +486,99 @@ impl<S: Store> Repo<S> {
             Some(id) => tree_index_of(self, &id).map_err(MergeError::Repo)?,
             None => BTreeMap::new(),
         };
-        let mut theirs_index = IndexMap::new();
-        flatten_tree_to_index(self, &other_commit.tree, "", &mut theirs_index)
-            .map_err(MergeError::Repo)?;
+        let (index, pending, conflicts) =
+            merge_trees(self, &base_index, &head_index, &theirs_index, other)
+                .map_err(MergeError::Repo)?;
+        Ok(plan(PlanKind::Merge {
+            index,
+            pending,
+            conflicts,
+        }))
+    }
 
-        let (merged_index, pending_blobs, conflicts) =
-            merge_trees(self, &base_index, &head_index, &theirs_index).map_err(MergeError::Repo)?;
-        if !conflicts.is_empty() {
-            return Err(MergeError::Conflict(conflicts));
-        }
+    fn apply_merge(
+        &mut self,
+        plan: Plan,
+        message: &str,
+        who: &Signature,
+        dirty: &BTreeSet<String>,
+    ) -> Result<MergeOutcome, MergeError> {
+        let Plan {
+            head,
+            other,
+            current,
+            kind,
+        } = plan;
+        match kind {
+            PlanKind::UpToDate => Ok(MergeOutcome::UpToDate),
+            PlanKind::FastForward(index) => {
+                refuse_dirty(&changed_paths(&current, &index), dirty)?;
+                write_index(&mut self.store, &index);
+                update_head_target(self, &other).map_err(MergeError::Repo)?;
+                Ok(MergeOutcome::FastForward(other))
+            }
+            PlanKind::Merge {
+                mut index,
+                pending,
+                conflicts,
+            } => {
+                let Some(head_id) = head else {
+                    return Err(MergeError::Repo(Error::Corrupt));
+                };
+                let conflict_paths: Vec<String> =
+                    conflicts.iter().map(|c| c.path.clone()).collect();
+                let mut touched = changed_paths(&current, &index);
+                touched.extend(conflict_paths.iter().cloned());
+                refuse_dirty(&touched, dirty)?;
 
-        let mut final_index = merged_index;
-        for (path, bytes, exec) in pending_blobs {
-            let blob_id = self.put(Kind::Blob, &bytes);
-            final_index.insert(path, (blob_id, exec));
+                for (path, bytes, exec) in pending {
+                    let blob_id = self.put(Kind::Blob, &bytes);
+                    index.insert(path, (blob_id, exec));
+                }
+                for path in &conflict_paths {
+                    match current.get(path) {
+                        Some(entry) => index.insert(path.clone(), *entry),
+                        None => index.remove(path),
+                    };
+                }
+                if conflicts.is_empty() {
+                    let tree = build_tree_from_index(self, &index).map_err(MergeError::Repo)?;
+                    let commit = Commit {
+                        tree,
+                        parents: alloc::vec![head_id, other],
+                        author: who.clone(),
+                        committer: who.clone(),
+                        message: message.to_string(),
+                    };
+                    let commit_id = self.put(Kind::Commit, &encode_commit(&commit));
+                    write_index(&mut self.store, &index);
+                    update_head_target(self, &commit_id).map_err(MergeError::Repo)?;
+                    return Ok(MergeOutcome::Merged(commit_id));
+                }
+                write_index(&mut self.store, &index);
+                self.store
+                    .write("MERGE_HEAD", format!("{}\n", to_hex(&other)).as_bytes());
+                let mut unmerged = String::new();
+                for path in &conflict_paths {
+                    unmerged.push_str(path);
+                    unmerged.push('\n');
+                }
+                self.store.write("MERGE_UNMERGED", unmerged.as_bytes());
+                Ok(MergeOutcome::Conflicted(conflicts))
+            }
         }
-        let tree = build_tree_from_index(self, &final_index).map_err(MergeError::Repo)?;
-        let commit = Commit {
-            tree,
-            parents: alloc::vec![head_id, other_id],
-            author: who.clone(),
-            committer: who.clone(),
-            message: message.to_string(),
-        };
-        let commit_id = self.put(Kind::Commit, &encode_commit(&commit));
-        write_index(&mut self.store, &final_index);
-        update_head_target(self, &commit_id).map_err(MergeError::Repo)?;
-        Ok(commit_id)
     }
 }
 
-type TreeMergePlan = (IndexMap, Vec<(String, Vec<u8>, bool)>, Vec<String>);
+type TreeMergePlan = (IndexMap, Vec<(String, Vec<u8>, bool)>, Vec<Conflict>);
 
-fn merge_trees<S: Store>(
+/// Three-way merge of two indexes against `base`. `label` names `theirs` in conflict markers.
+pub(crate) fn merge_trees<S: Store>(
     repo: &Repo<S>,
     base: &IndexMap,
     ours: &IndexMap,
     theirs: &IndexMap,
+    label: &str,
 ) -> Result<TreeMergePlan, Error> {
     let mut paths = BTreeSet::new();
     for p in base.keys().chain(ours.keys()).chain(theirs.keys()) {
@@ -384,7 +587,7 @@ fn merge_trees<S: Store>(
 
     let mut merged = IndexMap::new();
     let mut pending_blobs = Vec::new();
-    let mut conflicts = BTreeSet::new();
+    let mut conflicts: BTreeMap<String, Conflict> = BTreeMap::new();
 
     for path in paths {
         let b = base.get(path).copied();
@@ -423,45 +626,94 @@ fn merge_trees<S: Store>(
                         let b_bytes = read_blob(repo, &b_id)?;
                         let o_bytes = read_blob(repo, &o_id)?;
                         let t_bytes = read_blob(repo, &t_id)?;
-                        let res = merge3(&b_bytes, &o_bytes, &t_bytes);
+                        let res = merge3_labeled(&b_bytes, &o_bytes, &t_bytes, "HEAD", label);
                         if res.conflicts > 0 {
-                            conflicts.insert(path.clone());
+                            conflicts.insert(path.clone(), content_conflict(path, res.text, exec));
                         } else {
                             pending_blobs.push((path.clone(), res.text, exec));
                         }
                     }
                 }
+                (None, Some((o_id, o_exec)), Some((t_id, _))) => {
+                    // Added on both sides: merge against an empty base.
+                    let o_bytes = read_blob(repo, &o_id)?;
+                    let t_bytes = read_blob(repo, &t_id)?;
+                    let res = merge3_labeled(&[], &o_bytes, &t_bytes, "HEAD", label);
+                    if res.conflicts > 0 {
+                        conflicts.insert(path.clone(), content_conflict(path, res.text, o_exec));
+                    } else {
+                        pending_blobs.push((path.clone(), res.text, o_exec));
+                    }
+                }
                 _ => {
-                    conflicts.insert(path.clone());
+                    // Modify/delete: keep the side that still has the file.
+                    if let Some((id, exec)) = o.or(t) {
+                        let bytes = read_blob(repo, &id)?;
+                        conflicts.insert(
+                            path.clone(),
+                            Conflict {
+                                path: path.clone(),
+                                content: false,
+                                text: bytes,
+                                exec,
+                            },
+                        );
+                    }
                 }
             }
         }
     }
 
+    // A file and a directory cannot both survive at one path: name both sides as conflicts.
     let all_surviving: Vec<String> = merged
         .keys()
         .cloned()
         .chain(pending_blobs.iter().map(|(p, _, _)| p.clone()))
         .collect();
-    for i in 0..all_surviving.len() {
-        let prefix = format!("{}/", all_surviving[i]);
+    let mut clashing = BTreeSet::new();
+    for a in &all_surviving {
+        let prefix = format!("{a}/");
         for p in &all_surviving {
             if p.starts_with(&prefix) {
-                conflicts.insert(all_surviving[i].clone());
-                conflicts.insert(p.clone());
+                clashing.insert(a.clone());
+                clashing.insert(p.clone());
             }
         }
     }
+    for p in clashing {
+        if conflicts.contains_key(&p) {
+            continue;
+        }
+        let (text, exec) = match merged.get(&p).copied() {
+            Some((id, exec)) => (read_blob(repo, &id)?, exec),
+            None => match pending_blobs.iter().find(|(q, _, _)| *q == p) {
+                Some((_, bytes, exec)) => (bytes.clone(), *exec),
+                None => continue,
+            },
+        };
+        conflicts.insert(
+            p.clone(),
+            Conflict {
+                path: p,
+                content: false,
+                text,
+                exec,
+            },
+        );
+    }
+    merged.retain(|p, _| !conflicts.contains_key(p));
+    pending_blobs.retain(|(p, _, _)| !conflicts.contains_key(p));
 
-    Ok((merged, pending_blobs, conflicts.into_iter().collect()))
+    Ok((merged, pending_blobs, conflicts.into_values().collect()))
 }
 
-fn fast_forward<S: Store>(repo: &mut Repo<S>, target_id: &Id, tree: &Id) -> Result<Id, Error> {
-    let mut next_index = IndexMap::new();
-    flatten_tree_to_index(repo, tree, "", &mut next_index)?;
-    write_index(&mut repo.store, &next_index);
-    update_head_target(repo, target_id)?;
-    Ok(*target_id)
+fn content_conflict(path: &str, text: Vec<u8>, exec: bool) -> Conflict {
+    Conflict {
+        path: path.to_string(),
+        content: true,
+        text,
+        exec,
+    }
 }
 
 fn read_commit_checked<S: Store>(repo: &Repo<S>, id: &Id) -> Result<Commit, Error> {

@@ -809,6 +809,41 @@ fn write_data<W: Write>(w: &mut W, bytes: &[u8]) -> io::Result<()> {
 /// refused before anything is written.
 pub fn export<S: Store>(repo: &mut Repo<S>, git_dir: &Path) -> Result<Summary, GitError> {
     let mut map = GitMap::load(&repo.store)?;
+    // The git-map belongs to this chronos repo, not to the target: forget links and refs the
+    // target does not have, so a second target gets the full history again.
+    let present: BTreeSet<String> = git_opt(git_dir, &["rev-list", "--all"])?
+        .unwrap_or_default()
+        .lines()
+        .map(str::to_string)
+        .collect();
+    map.git_to_chronos.retain(|sha, _| present.contains(sha));
+    map.chronos_to_git.retain(|_, sha| present.contains(sha));
+    // Annotated tags: the git-map holds the commit, so compare with the peeled sha.
+    let target_refs: BTreeMap<String, String> = git_opt(
+        git_dir,
+        &[
+            "for-each-ref",
+            "--format=%(objectname) %(*objectname) %(refname)",
+        ],
+    )?
+    .unwrap_or_default()
+    .lines()
+    .filter_map(|l| {
+        let parts: Vec<&str> = l.split(' ').collect();
+        let [sha, peeled, name] = parts[..] else {
+            return None;
+        };
+        let commit = if peeled.is_empty() { sha } else { peeled };
+        Some((name.to_string(), commit.to_string()))
+    })
+    .collect();
+    let git_to_chronos = &map.git_to_chronos;
+    map.refs.retain(|name, id| {
+        target_refs
+            .get(name)
+            .is_some_and(|sha| git_to_chronos.get(sha) == Some(&*id))
+    });
+
     let mut wanted: BTreeMap<String, Id> = BTreeMap::new();
     for (name, id) in repo.branches() {
         wanted.insert(format!("refs/heads/{name}"), id);
@@ -837,7 +872,25 @@ pub fn export<S: Store>(repo: &mut Repo<S>, git_dir: &Path) -> Result<Summary, G
         collect_new(repo, &map, *tip, &mut seen, &mut order)?;
     }
 
-    let head_ref = git_opt(git_dir, &["symbolic-ref", "-q", "HEAD"])?;
+    let mut head_ref = git_opt(git_dir, &["symbolic-ref", "-q", "HEAD"])?;
+    if git_opt(git_dir, &["rev-parse", "--verify", "-q", "HEAD"])?.is_none() {
+        // A fresh git init has an unborn HEAD: point it at the branch being exported.
+        let current = repo.current_branch().map(|b| format!("refs/heads/{b}"));
+        let branches = || {
+            changed
+                .iter()
+                .map(|(name, _)| name)
+                .filter(|n| n.starts_with("refs/heads/"))
+        };
+        let pick = branches()
+            .find(|n| Some(*n) == current.as_ref())
+            .or_else(|| branches().next())
+            .cloned();
+        if let Some(branch) = pick {
+            git(git_dir, &["symbolic-ref", "HEAD", &branch])?;
+            head_ref = Some(branch);
+        }
+    }
     let moving = head_ref.filter(|r| changed.iter().any(|(name, _)| name == r));
     let mut old_tip = None;
     if let Some(r) = &moving {

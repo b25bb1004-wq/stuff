@@ -110,7 +110,23 @@ impl<S: Store> Repo<S> {
         let blob_id = self.put(Kind::Blob, data);
         index.insert(path.to_string(), (blob_id, exec));
         write_index(&mut self.store, &index);
+        // Staging a conflicted path resolves it.
+        let unmerged = self.unmerged();
+        if unmerged.iter().any(|p| p == path) {
+            let rest: Vec<String> = unmerged.into_iter().filter(|p| p != path).collect();
+            self.set_unmerged(&rest);
+        }
         Ok(())
+    }
+
+    /// Replace the unmerged-path record; an empty list removes it.
+    pub(crate) fn set_unmerged(&mut self, paths: &[String]) {
+        if paths.is_empty() {
+            self.store.remove("MERGE_UNMERGED");
+        } else {
+            let text: String = paths.iter().map(|p| format!("{p}\n")).collect();
+            self.store.write("MERGE_UNMERGED", text.as_bytes());
+        }
     }
 
     /// Unstage and remove `path` from the index, returning `NotFound` if absent.
@@ -140,12 +156,15 @@ impl<S: Store> Repo<S> {
 
     /// Create a new commit from the current index with `author = committer = who`.
     pub fn commit(&mut self, message: &str, who: &Signature) -> Result<Id, Error> {
+        if !self.unmerged().is_empty() {
+            return Err(Error::Dirty);
+        }
         let index = read_index(&self.store)?;
         let tree = build_tree_from_index(self, &index)?;
-        let parents = match self.head() {
-            Some(h) => alloc::vec![h],
-            None => Vec::new(),
-        };
+        let mut parents: Vec<Id> = self.head().into_iter().collect();
+        // A finished merge commit also has MERGE_HEAD as its second parent.
+        let merging = self.merge_head();
+        parents.extend(merging);
         let commit = Commit {
             tree,
             parents,
@@ -168,7 +187,37 @@ impl<S: Store> Repo<S> {
                 self.store.write("HEAD", hex_line.as_bytes());
             }
         }
+        if merging.is_some() {
+            for name in ["MERGE_HEAD", "MERGE_UNMERGED", "MERGE_MSG"] {
+                self.store.remove(name);
+            }
+        }
         Ok(commit_id)
+    }
+
+    /// Store `files` as a commit with `parents`, without moving HEAD or touching the index.
+    pub fn commit_snapshot(
+        &mut self,
+        files: &Files,
+        parents: Vec<Id>,
+        message: &str,
+        who: &Signature,
+    ) -> Result<Id, Error> {
+        let mut index = IndexMap::new();
+        for (path, (bytes, exec)) in files {
+            validate_path(path)?;
+            let blob = self.put(Kind::Blob, bytes);
+            index.insert(path.clone(), (blob, *exec));
+        }
+        let tree = build_tree_from_index(self, &index)?;
+        let commit = Commit {
+            tree,
+            parents,
+            author: who.clone(),
+            committer: who.clone(),
+            message: message.to_string(),
+        };
+        Ok(self.put(Kind::Commit, &encode_commit(&commit)))
     }
 
     /// Return the commit `Id` pointed to by `HEAD`, or `None` if unborn/missing.

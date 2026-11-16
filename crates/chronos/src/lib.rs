@@ -24,7 +24,7 @@ pub use format::{
     decode_commit, decode_tree, encode_commit, encode_tree, Commit, Mode, Signature, TreeEntry,
 };
 pub use id::{from_hex, hash_object, to_hex, Error, Id, Kind};
-pub use merge::{merge3, MergeError, Merged};
+pub use merge::{merge3, merge3_labeled, Conflict, MergeError, MergeOutcome, Merged};
 pub use repo::Repo;
 pub use status::Change;
 #[cfg(feature = "std")]

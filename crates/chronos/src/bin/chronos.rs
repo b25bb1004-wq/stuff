@@ -14,7 +14,7 @@ use chronos::git;
 use chronos::ignore::Rules;
 use chronos::{
     decode_commit, decode_tree, from_hex, to_hex, unified, validate_entry_name, Change, DirStore,
-    Error, Mode, Repo, Signature,
+    Error, Id, Kind, MergeError, MergeOutcome, Mode, Repo, Signature, Store,
 };
 
 const VERSION_STR: &str = "chronos 0.1.0";
@@ -63,7 +63,9 @@ Subcommands:
 
   export GIT_DIR
       Append chronos commits that git does not have yet to the git repository
-      GIT_DIR (via git fast-import). Repeat runs only send new work.
+      GIT_DIR (via git fast-import). GIT_DIR may be the work-tree folder or its .git folder.
+      Each target gets the full history; repeat runs to the same target only send new work.
+      An empty git repo (git init) gets its branch checked out as HEAD.
       Example: chronos export C:/Users/ADMIN/strata
 
   log
@@ -73,6 +75,21 @@ Subcommands:
   branch [NAME]
       List branches or create a new branch at HEAD.
       Example: chronos branch feature
+
+  branch -d NAME | branch -D NAME
+      Delete branch NAME. Refuses the current branch; -d also refuses a branch whose tip
+      is not reachable from HEAD, and -D deletes it anyway.
+      Example: chronos branch -d feature
+
+  show [ID|BRANCH]
+      Show a commit (default HEAD): its header and message, then its diff against the first
+      parent. A tag name also works.
+      Example: chronos show HEAD
+
+  tag
+      List tags. tag NAME [ID] creates a lightweight tag at ID (default HEAD). tag -d NAME
+      deletes one.
+      Example: chronos tag v1 HEAD~1
 
   checkout NAME
       Switch to branch or revision NAME and update working files.
@@ -105,6 +122,21 @@ Subcommands:
       Rename a tracked file in the work tree and the index. If DST is a directory, SRC
       moves into it.
       Example: chronos mv old.txt new.txt
+
+  merge NAME | merge --abort
+      Merge branch NAME into the current branch. Fast-forwards when HEAD is an ancestor of
+      NAME; otherwise makes a merge commit. A conflict writes <<<<<<< / ======= / >>>>>>>
+      markers into the files, lists them as unmerged in status, and exits 1. Resolve them,
+      'add' the paths, then 'commit' (no -m uses the merge message). --abort restores HEAD.
+      A local change to a file the merge would touch stops the merge before anything is written.
+      Example: chronos merge feature
+
+  stash [push] | stash list | stash pop | stash drop
+      Save the tracked changes (staged and unstaged) on a stack and reset the work tree
+      and index to HEAD. Untracked files are left alone. pop applies the newest stash and
+      drops it; if a changed path has local changes or changed since the stash, pop is refused
+      and the stash is kept. drop discards the newest stash without applying it.
+      Example: chronos stash && chronos stash pop
 
   serve [--addr HOST:PORT] [--push-token-file PATH]
       Serve /repo over HTTP. Fetch is open; POST /push needs the token in
@@ -552,14 +584,26 @@ fn cmd_commit(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
         return Err(CliError::Op("commit message cannot be empty".to_string()));
     }
     let (root, mut repo) = open_repo(base_dir)?;
-    if repo.status().is_empty() {
+    if !repo.unmerged().is_empty() {
+        return Err(CliError::Op(
+            "committing is not possible because you have unmerged files; add them after fixing the conflicts".to_string(),
+        ));
+    }
+    let merging = repo.merge_head().is_some();
+    if !merging && repo.status().is_empty() {
         return Err(CliError::Op("nothing to commit".to_string()));
     }
     // Without -m the message comes from $EDITOR, as in git (checked after "nothing to commit").
+    // A finished merge uses the message `merge` prepared.
+    let merge_msg = repo
+        .store
+        .read("MERGE_MSG")
+        .and_then(|raw| String::from_utf8(raw).ok());
     let edited;
-    let msg = match message {
-        Some(m) => m,
-        None => {
+    let msg = match (message, &merge_msg) {
+        (Some(m), _) => m,
+        (None, Some(m)) if merging => m.trim_end(),
+        (None, _) => {
             edited = edit_message(&root)?;
             edited.as_str()
         }
@@ -663,6 +707,11 @@ fn cmd_log(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
 }
 
 fn cmd_branch(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    if let [flag, _] = args {
+        if flag == "-d" || flag == "-D" {
+            return delete_branch(args, base_dir);
+        }
+    }
     if args.len() > 1 {
         return Err(CliError::Usage(
             "branch expects zero or one NAME".to_string(),
@@ -1069,8 +1118,17 @@ fn cmd_export(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
         return Err(CliError::Usage("export expects one GIT_DIR".to_string()));
     };
     let (_root, mut repo) = open_repo(base_dir)?;
-    let summary = git::export(&mut repo, Path::new(git_dir))
-        .map_err(|e| CliError::Op(format!("export failed: {e}")))?;
+    // Accept the work-tree folder or its .git folder; git needs the work tree for checkout.
+    let given = Path::new(git_dir);
+    let target = match given.file_name() {
+        Some(name) if name == ".git" => given
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or(Path::new(".")),
+        _ => given,
+    };
+    let summary =
+        git::export(&mut repo, target).map_err(|e| CliError::Op(format!("export failed: {e}")))?;
     print_warnings(&summary);
     if summary.commits == 0 && summary.refs == 0 {
         println!("nothing to export to {git_dir}");
@@ -1080,6 +1138,438 @@ fn cmd_export(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
             summary.commits, summary.refs
         );
     }
+    Ok(())
+}
+
+/// Write one file into the work tree, creating folders as needed.
+fn write_disk(root: &Path, rel: &str, bytes: &[u8], exec: bool) -> Result<(), CliError> {
+    let p = disk_path_for_rel(root, rel)?;
+    if let Some(parent) = p.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| CliError::Op(format!("failed to create '{}': {e}", parent.display())))?;
+    }
+    fs::write(&p, bytes)
+        .map_err(|e| CliError::Op(format!("failed to write '{}': {e}", p.display())))?;
+    set_executable(&p, exec);
+    Ok(())
+}
+
+/// Make the work tree match `to` wherever the snapshots `from` and `to` differ.
+fn sync_worktree(root: &Path, from: &chronos::Files, to: &chronos::Files) -> Result<(), CliError> {
+    for rel in from.keys().filter(|rel| !to.contains_key(*rel)) {
+        remove_disk(root, rel)?;
+    }
+    for (rel, (bytes, exec)) in to {
+        if from.get(rel) != Some(&(bytes.clone(), *exec)) {
+            write_disk(root, rel, bytes, *exec)?;
+        }
+    }
+    Ok(())
+}
+
+fn remove_disk(root: &Path, rel: &str) -> Result<(), CliError> {
+    let p = disk_path_for_rel(root, rel)?;
+    if p.is_file() {
+        let _ = fs::remove_file(&p);
+        prune_empty_parents(root, &p);
+    }
+    Ok(())
+}
+
+fn cmd_merge(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    let (root, mut repo) = open_repo(base_dir)?;
+    if args.len() == 1 && args[0] == "--abort" {
+        return merge_abort(&root, &mut repo);
+    }
+    let [name] = args else {
+        return Err(CliError::Usage("merge expects NAME or --abort".to_string()));
+    };
+    if repo.merge_head().is_some() {
+        return Err(CliError::Op(
+            "cannot merge: a merge is already in progress; commit it or run merge --abort"
+                .to_string(),
+        ));
+    }
+    let dirty = dirty_paths(&root, &repo)?;
+    let who = default_identity(&root);
+    let before = repo.staged();
+    let message = format!("Merge branch '{name}'");
+    let outcome = repo
+        .merge_branch(name, &message, &who, &dirty)
+        .map_err(|e| merge_failure(name, e))?;
+    sync_worktree(&root, &before, &repo.staged())?;
+    match outcome {
+        MergeOutcome::UpToDate => println!("Already up to date."),
+        MergeOutcome::FastForward(id) => {
+            println!("Fast-forward");
+            println!("HEAD is now at {}", to_hex(&id));
+        }
+        MergeOutcome::Merged(id) => {
+            println!("Merge made by the recursive strategy.");
+            println!("{}", to_hex(&id));
+        }
+        MergeOutcome::Conflicted(conflicts) => {
+            for c in &conflicts {
+                write_disk(&root, &c.path, &c.text, c.exec)?;
+                if c.content {
+                    println!("CONFLICT (content): Merge conflict in {}", c.path);
+                } else {
+                    println!("CONFLICT (modify/delete): {} (one side deleted it)", c.path);
+                }
+            }
+            repo.store
+                .write("MERGE_MSG", format!("{message}\n").as_bytes());
+            return Err(CliError::Op(
+                "Automatic merge failed; fix conflicts, then 'chronos add' them and 'chronos commit'."
+                    .to_string(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn merge_failure(name: &str, e: MergeError) -> CliError {
+    match e {
+        MergeError::Local(paths) => CliError::Op(format!(
+            "Your local changes to the following files would be overwritten by merge:\n\t{}\nPlease commit or restore them before you merge.",
+            paths.join("\n\t")
+        )),
+        MergeError::Repo(Error::NotFound) => {
+            CliError::Op(format!("merge: {name} - not something we can merge"))
+        }
+        MergeError::Repo(Error::Dirty) => CliError::Op(
+            "cannot merge: staged changes or an unfinished merge; commit or reset first"
+                .to_string(),
+        ),
+        other => CliError::Op(format!("merge '{name}' failed: {other:?}")),
+    }
+}
+
+fn merge_abort(root: &Path, repo: &mut Repo<DirStore>) -> Result<(), CliError> {
+    if repo.merge_head().is_none() {
+        return Err(CliError::Op("there is no merge to abort".to_string()));
+    }
+    let unmerged = repo.unmerged();
+    let before = repo.staged();
+    repo.abort_merge()
+        .map_err(|e| CliError::Op(format!("merge --abort failed: {e}")))?;
+    repo.store.remove("MERGE_MSG");
+    sync_worktree(root, &before, &repo.staged())?;
+    // Conflicted paths keep HEAD's index entry, so restore their files from HEAD here.
+    let head_files = match repo.head() {
+        Some(head) => repo
+            .files(&head)
+            .map_err(|e| CliError::Op(format!("cannot read HEAD: {e}")))?,
+        None => Default::default(),
+    };
+    for path in &unmerged {
+        match head_files.get(path) {
+            Some((bytes, exec)) => write_disk(root, path, bytes, *exec)?,
+            None => remove_disk(root, path)?,
+        }
+    }
+    println!("merge aborted");
+    Ok(())
+}
+
+/// The stash stack lives in `.chronos/refs/stash`, one commit id per line, newest first.
+const STASH_REF: &str = "refs/stash";
+
+fn stash_stack(repo: &Repo<DirStore>) -> Vec<Id> {
+    let raw = repo.store.read(STASH_REF).unwrap_or_default();
+    String::from_utf8_lossy(&raw)
+        .lines()
+        .filter_map(|l| from_hex(l.trim()))
+        .collect()
+}
+
+fn set_stash_stack(repo: &mut Repo<DirStore>, stack: &[Id]) {
+    if stack.is_empty() {
+        repo.store.remove(STASH_REF);
+    } else {
+        let text: String = stack.iter().map(|id| format!("{}\n", to_hex(id))).collect();
+        repo.store.write(STASH_REF, text.as_bytes());
+    }
+}
+
+/// First line of a commit message, or "" when the commit cannot be read.
+fn subject_of(repo: &Repo<DirStore>, id: &Id) -> String {
+    repo.get(id)
+        .ok()
+        .and_then(|(_, data)| decode_commit(&data).ok())
+        .map(|c| c.message.lines().next().unwrap_or("").to_string())
+        .unwrap_or_default()
+}
+
+fn cmd_stash(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    let (root, mut repo) = open_repo(base_dir)?;
+    match args.first().map(String::as_str) {
+        None | Some("push") if args.len() <= 1 => stash_push(&root, &mut repo),
+        Some("list") if args.len() == 1 => {
+            let mut out = io::stdout().lock();
+            for (i, id) in stash_stack(&repo).iter().enumerate() {
+                writeln!(out, "stash@{{{i}}}: {}", subject_of(&repo, id)).map_err(stdout_err)?;
+            }
+            Ok(())
+        }
+        Some("pop") if args.len() == 1 => stash_pop(&root, &mut repo, true),
+        Some("drop") if args.len() == 1 => stash_pop(&root, &mut repo, false),
+        _ => Err(CliError::Usage(
+            "stash expects push, list, pop or drop".to_string(),
+        )),
+    }
+}
+
+/// Save the work tree's tracked files as a stash commit, then reset the work tree and index to HEAD.
+fn stash_push(root: &Path, repo: &mut Repo<DirStore>) -> Result<(), CliError> {
+    let Some(head) = repo.head() else {
+        return Err(CliError::Op(
+            "You do not have the initial commit yet".to_string(),
+        ));
+    };
+    let head_files = repo
+        .files(&head)
+        .map_err(|e| CliError::Op(format!("cannot read HEAD: {e}")))?;
+    let mut work = chronos::Files::new();
+    for (path, (_, exec)) in repo.staged() {
+        if let Ok(now) = fs::read(disk_path_for_rel(root, &path)?) {
+            work.insert(path, (now, exec));
+        }
+    }
+    if work == head_files {
+        return Err(CliError::Op("No local changes to save".to_string()));
+    }
+    let branch = repo
+        .current_branch()
+        .unwrap_or_else(|| "(no branch)".to_string());
+    let message = format!(
+        "WIP on {branch}: {} {}",
+        &to_hex(&head)[..7],
+        subject_of(repo, &head)
+    );
+    let id = repo
+        .commit_snapshot(&work, vec![head], &message, &default_identity(root))
+        .map_err(|e| CliError::Op(format!("stash failed: {e}")))?;
+    let mut stack = vec![id];
+    stack.extend(stash_stack(repo));
+    set_stash_stack(repo, &stack);
+    repo.unstage("")
+        .map_err(|e| CliError::Op(format!("stash failed: {e}")))?;
+    sync_worktree(root, &work, &head_files)?;
+    println!("Saved working directory and index state {message}");
+    Ok(())
+}
+
+/// Apply the newest stash to the work tree (`apply`) and drop it, or only drop it.
+/// A path the stash changes is refused when it has local changes or HEAD moved it since the stash
+/// was made; then nothing is written and the stash is kept.
+fn stash_pop(root: &Path, repo: &mut Repo<DirStore>, apply: bool) -> Result<(), CliError> {
+    let stack = stash_stack(repo);
+    let Some(&top) = stack.first() else {
+        return Err(CliError::Op("No stash entries found.".to_string()));
+    };
+    if apply {
+        let (_, data) = repo
+            .get(&top)
+            .map_err(|e| CliError::Op(format!("cannot read stash: {e}")))?;
+        let parent = decode_commit(&data)
+            .map_err(|e| CliError::Op(format!("cannot read stash: {e}")))?
+            .parents
+            .first()
+            .copied();
+        let base = match parent {
+            Some(p) => repo.files(&p),
+            None => Ok(Default::default()),
+        }
+        .map_err(|e| CliError::Op(format!("cannot read stash base: {e}")))?;
+        let saved = repo
+            .files(&top)
+            .map_err(|e| CliError::Op(format!("cannot read stash: {e}")))?;
+        let head_files = match repo.head() {
+            Some(h) => repo
+                .files(&h)
+                .map_err(|e| CliError::Op(format!("cannot read HEAD: {e}")))?,
+            None => Default::default(),
+        };
+        let dirty = dirty_paths(root, repo)?;
+        let changed: BTreeSet<String> = base
+            .keys()
+            .chain(saved.keys())
+            .filter(|p| base.get(*p) != saved.get(*p))
+            .cloned()
+            .collect();
+        for path in &changed {
+            if dirty.contains(path) || head_files.get(path) != base.get(path) {
+                return Err(CliError::Op(format!(
+                    "cannot pop stash: {path} has local changes or changed since the stash was made; the stash is kept"
+                )));
+            }
+        }
+        for path in &changed {
+            match saved.get(path) {
+                Some((bytes, exec)) => write_disk(root, path, bytes, *exec)?,
+                None => remove_disk(root, path)?,
+            }
+        }
+    }
+    set_stash_stack(repo, &stack[1..]);
+    println!("Dropped stash@{{0}} ({})", to_hex(&top));
+    Ok(())
+}
+
+/// Resolve a revision for show and tag: anything `resolve` takes, or a tag name.
+fn resolve_rev(repo: &Repo<DirStore>, rev: &str) -> Option<Id> {
+    repo.resolve(rev).or_else(|| {
+        validate_entry_name(rev).ok()?;
+        let raw = repo.store.read(&format!("refs/tags/{rev}"))?;
+        from_hex(String::from_utf8_lossy(&raw).trim())
+    })
+}
+
+fn cmd_show(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    if args.len() > 1 {
+        return Err(CliError::Usage(
+            "show expects zero or one ID or BRANCH".to_string(),
+        ));
+    }
+    let (_root, repo) = open_repo(base_dir)?;
+    let id = match args.first() {
+        Some(rev) => resolve_rev(&repo, rev)
+            .ok_or_else(|| CliError::Op(format!("unknown revision '{rev}'")))?,
+        None => repo
+            .head()
+            .ok_or_else(|| CliError::Op("no commits yet".to_string()))?,
+    };
+    let (_, raw) = repo
+        .get(&id)
+        .map_err(|e| CliError::Op(format!("failed to read commit: {e}")))?;
+    let commit = decode_commit(&raw).map_err(|e| CliError::Op(format!("corrupt commit: {e}")))?;
+    let new_files = repo
+        .files(&id)
+        .map_err(|e| CliError::Op(format!("show failed: {e}")))?;
+    let old_files = match commit.parents.first() {
+        Some(parent) => repo
+            .files(parent)
+            .map_err(|e| CliError::Op(format!("show failed: {e}")))?,
+        None => Default::default(),
+    };
+    let mut out = io::stdout().lock();
+    writeln!(out, "commit {}", to_hex(&id)).map_err(stdout_err)?;
+    writeln!(
+        out,
+        "Author: {} <{}>",
+        commit.author.name, commit.author.email
+    )
+    .map_err(stdout_err)?;
+    writeln!(out, "Date:   {} (unix seconds)", commit.committer.time).map_err(stdout_err)?;
+    writeln!(out).map_err(stdout_err)?;
+    for line in commit.message.lines() {
+        writeln!(out, "    {line}").map_err(stdout_err)?;
+    }
+    writeln!(out).map_err(stdout_err)?;
+    let paths: BTreeSet<&String> = old_files.keys().chain(new_files.keys()).collect();
+    for path in paths {
+        let old: &[u8] = old_files
+            .get(path)
+            .map(|(b, _)| b.as_slice())
+            .unwrap_or(&[]);
+        let new: &[u8] = new_files
+            .get(path)
+            .map(|(b, _)| b.as_slice())
+            .unwrap_or(&[]);
+        if old != new {
+            write_diff(&mut out, path, old, new).map_err(stdout_err)?;
+        }
+    }
+    Ok(())
+}
+
+fn tag_path(name: &str) -> Result<String, CliError> {
+    validate_entry_name(name)
+        .map_err(|_| CliError::Op(format!("'{name}' is not a valid tag name")))?;
+    Ok(format!("refs/tags/{name}"))
+}
+
+fn cmd_tag(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    let (_root, mut repo) = open_repo(base_dir)?;
+    match args {
+        [] => {}
+        [flag] if flag == "-l" || flag == "--list" => {}
+        [flag, name] if flag == "-d" || flag == "--delete" => {
+            let path = tag_path(name)?;
+            if repo.store.read(&path).is_none() {
+                return Err(CliError::Op(format!("tag '{name}' not found")));
+            }
+            repo.store.remove(&path);
+            println!("Deleted tag '{name}'");
+            return Ok(());
+        }
+        [name] | [name, _] => {
+            let path = tag_path(name)?;
+            if repo.store.read(&path).is_some() {
+                return Err(CliError::Op(format!("tag '{name}' already exists")));
+            }
+            let target = match args.get(1) {
+                Some(rev) => resolve_rev(&repo, rev)
+                    .ok_or_else(|| CliError::Op(format!("unknown revision '{rev}'")))?,
+                None => repo
+                    .head()
+                    .ok_or_else(|| CliError::Op("no commits yet".to_string()))?,
+            };
+            let is_commit = repo.get(&target).map(|(kind, _)| kind == Kind::Commit);
+            if is_commit != Ok(true) {
+                return Err(CliError::Op("a tag must point to a commit".to_string()));
+            }
+            repo.store
+                .write(&path, format!("{}\n", to_hex(&target)).as_bytes());
+            return Ok(());
+        }
+        _ => {
+            return Err(CliError::Usage(
+                "tag expects [-l], -d NAME, or NAME [ID]".to_string(),
+            ))
+        }
+    }
+    let mut out = io::stdout().lock();
+    for path in repo.store.list("refs/tags/") {
+        if let Some(name) = path.strip_prefix("refs/tags/") {
+            writeln!(out, "{name}").map_err(stdout_err)?;
+        }
+    }
+    Ok(())
+}
+
+fn delete_branch(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> {
+    let (flag, name) = match args {
+        [flag, name] => (flag.as_str(), name.as_str()),
+        _ => return Err(CliError::Usage("branch -d/-D expects NAME".to_string())),
+    };
+    let (_root, mut repo) = open_repo(base_dir)?;
+    let tip = repo
+        .branches()
+        .into_iter()
+        .find(|(n, _)| n == name)
+        .map(|(_, id)| id)
+        .ok_or_else(|| CliError::Op(format!("branch '{name}' not found")))?;
+    if repo.current_branch().as_deref() == Some(name) {
+        return Err(CliError::Op(format!(
+            "cannot delete branch '{name}': it is the current branch"
+        )));
+    }
+    if flag == "-d" {
+        let merged = match repo.head() {
+            Some(head) => repo.log(&head).is_ok_and(|ids| ids.contains(&tip)),
+            None => false,
+        };
+        if !merged {
+            return Err(CliError::Op(format!(
+                "branch '{name}' is not fully merged into HEAD; use -D to delete it anyway"
+            )));
+        }
+    }
+    repo.delete_branch(name)
+        .map_err(|e| CliError::Op(format!("cannot delete branch '{name}': {e}")))?;
+    println!("Deleted branch {name} (was {}).", to_hex(&tip));
     Ok(())
 }
 
@@ -1197,12 +1687,23 @@ fn cmd_status(args: &[String], base_dir: Option<&Path>) -> Result<(), CliError> 
         "on branch main (no commits)".to_string()
     };
     writeln!(out, "{head_line}").map_err(stdout_err)?;
+    let unmerged = repo.unmerged();
+    if !unmerged.is_empty() {
+        writeln!(out, "Unmerged paths:").map_err(stdout_err)?;
+        for path in &unmerged {
+            writeln!(out, "  both modified: {path}").map_err(stdout_err)?;
+        }
+    }
     let staged = repo.status();
     if !staged.is_empty() {
         writeln!(out, "Changes to be committed:").map_err(stdout_err)?;
         write_changes(&mut out, staged.iter()).map_err(stdout_err)?;
     }
-    let dirty = unstaged(&root, &repo)?;
+    // Conflicted paths are listed above, not again as unstaged edits.
+    let dirty: Vec<_> = unstaged(&root, &repo)?
+        .into_iter()
+        .filter(|(c, _, _)| !unmerged.contains(&path_of(c).to_string()))
+        .collect();
     if !dirty.is_empty() {
         writeln!(out, "Changes not staged for commit:").map_err(stdout_err)?;
         write_changes(&mut out, dirty.iter().map(|(c, _, _)| c)).map_err(stdout_err)?;
@@ -1307,6 +1808,10 @@ fn run() -> Result<(), CliError> {
                 "import" => cmd_import(rest, base_ref),
                 "export" => cmd_export(rest, base_ref),
                 "serve" => cmd_serve(rest, base_ref),
+                "merge" => cmd_merge(rest, base_ref),
+                "stash" => cmd_stash(rest, base_ref),
+                "show" => cmd_show(rest, base_ref),
+                "tag" => cmd_tag(rest, base_ref),
                 other => Err(CliError::Usage(format!("unknown subcommand '{other}'"))),
             }
         }
