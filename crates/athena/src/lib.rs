@@ -4,12 +4,16 @@
 
 pub mod debug;
 #[cfg(not(target_arch = "wasm32"))]
+pub mod fsscope;
+#[cfg(not(target_arch = "wasm32"))]
 mod icons;
 pub mod lang;
 mod lang_fmt;
 mod lang_walk;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod pack;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod serve;
 pub mod service;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;

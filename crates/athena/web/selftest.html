@@ -23,6 +23,125 @@
 <div id="box"></div>
 <script type="module">
 import { showEl, afterPaint, createRunLine, tokenMs } from "./athena-motion.js";
+import { tokenFromSearch, createFsApi, createFsTree, parentOf, isWithin, remapPath } from "./fs-api.js";
+
+// A fake API object with the shape createFsApi returns: a folder held in memory, no server.
+function fakeFolder(seed) {
+  const files = new Map(Object.entries(seed));
+  const dirs = new Set();
+  const calls = [];
+  const under = (p, dir) => p.startsWith(dir + "/");
+  const exists = (p) => files.has(p) || dirs.has(p) || [...files.keys()].some((k) => under(k, p));
+  return {
+    calls,
+    paths: () => [...files.keys()].sort(),
+    dirs: () => [...dirs].sort(),
+    async list(dir) {
+      calls.push(["list", dir]);
+      const kids = new Map();
+      const add = (p) => {
+        if (dir && !under(p, dir)) return;
+        const rest = dir ? p.slice(dir.length + 1) : p;
+        const [first] = rest.split("/");
+        kids.set(first, rest.includes("/") || dirs.has(dir ? `${dir}/${first}` : first) ? "dir" : "file");
+      };
+      [...files.keys(), ...dirs].forEach(add);
+      return [...kids].map(([name, kind]) => ({ name, kind, size: 0 }));
+    },
+    async read(p) {
+      calls.push(["read", p]);
+      if (!files.has(p)) throw new Error("not found");
+      return files.get(p);
+    },
+    async write(p, text) {
+      calls.push(["write", p]);
+      files.set(p, text);
+    },
+    async create(p, kind) {
+      calls.push(["create", p, kind]);
+      if (exists(p)) throw new Error("already exists");
+      if (kind === "dir") dirs.add(p);
+      else files.set(p, "");
+    },
+    async rename(from, to) {
+      calls.push(["rename", from, to]);
+      if (!exists(from)) throw new Error("not found");
+      if (exists(to)) throw new Error("target exists");
+      for (const k of [...files.keys()]) if (k === from || under(k, from)) { files.set(remapPath(k, from, to), files.get(k)); files.delete(k); }
+      for (const d of [...dirs]) if (d === from || under(d, from)) { dirs.delete(d); dirs.add(remapPath(d, from, to)); }
+    },
+    async trash(p) {
+      calls.push(["trash", p]);
+      for (const k of [...files.keys()]) if (k === p || under(k, p)) files.delete(k);
+      for (const d of [...dirs]) if (d === p || under(d, p)) dirs.delete(d);
+    },
+  };
+}
+
+// Checks for the folder mode: URL token, HTTP client shape, the explorer model, and path helpers.
+async function fsChecks() {
+  check("fs-token-valid", tokenFromSearch("?t=" + "ab".repeat(32)) === "ab".repeat(32), "valid token refused");
+  check("fs-token-absent", tokenFromSearch("") === null && tokenFromSearch("?t=../x") === null && tokenFromSearch("?t=AB") === null,
+    "a missing or odd token opened folder mode");
+
+  // The HTTP client: the path is encoded, the token header is sent, and failures carry the server message.
+  // Replies are served in order: list, a refused read, a read, and a write.
+  const seen = [];
+  const replies = [
+    new Response(JSON.stringify([{ name: "a b.logos", kind: "file", size: 3 }]), { status: 200 }),
+    new Response(JSON.stringify({ error: "missing or wrong token" }), { status: 401 }),
+    new Response("text body", { status: 200 }),
+    new Response('{"ok":true}', { status: 200 }),
+  ];
+  const http = createFsApi({ token: "ab".repeat(32), fetchFn: async (url, init) => { seen.push({ url, init }); return replies.shift(); } });
+  const listed = await http.list("notes/a b");
+  check("fs-client-list", listed[0].name === "a b.logos" && seen[0].url === "/api/fs/list?path=notes%2Fa%20b" &&
+    seen[0].init.method === "GET" && seen[0].init.headers["X-Athena-Token"] === "ab".repeat(32), seen[0].url);
+  let refusedWith = "";
+  try { await http.read("x.logos"); } catch (err) { refusedWith = err.message; }
+  check("fs-client-error", refusedWith === "missing or wrong token", "message " + refusedWith);
+  check("fs-client-read", (await http.read("y.logos")) === "text body", "read text not returned");
+  const written = await http.write("y.logos", "t");
+  check("fs-client-write", written.ok === true && seen[3].init.method === "PUT" && seen[3].init.body === "t",
+    "method " + seen[3].init.method);
+
+  // Path helpers: a rename or trash reaches every path under the folder, and nothing else.
+  check("fs-paths", parentOf("a/b/c.logos") === "a/b" && parentOf("top.logos") === "" &&
+    isWithin("a/b/c", "a/b") && !isWithin("a/bc", "a/b") && remapPath("a/b/c", "a/b", "x") === "x/c" &&
+    remapPath("a/bc", "a/b", "x") === "a/bc", "path helpers disagree");
+
+  // The explorer model over the fake folder: folders start closed, open on toggle, and reload after a change.
+  const folder = fakeFolder({ "main.logos": "fn main() {}", "notes/todo.md": "- a", "notes/deep/x.txt": "x" });
+  let changes = 0;
+  const tree = createFsTree(folder, () => { changes += 1; });
+  await tree.load("");
+  const top = tree.rows().map((r) => r.path);
+  check("tree-root", top.join(",") === "notes,main.logos" && tree.rows()[0].dir === true, "rows " + top.join(","));
+  await tree.toggle("notes");
+  const opened = tree.rows().map((r) => `${r.depth}:${r.path}`);
+  check("tree-toggle", opened.includes("1:notes/todo.md") && opened.includes("1:notes/deep") && changes >= 2,
+    "rows " + opened.join(","));
+  await tree.reveal("notes/deep");
+  check("tree-reveal", tree.rows().some((r) => r.path === "notes/deep/x.txt"), "reveal did not open the folder");
+  check("tree-no-error", tree.error() === "", "error " + tree.error());
+
+  // A listing failure is reported, not thrown, and the explorer keeps its last rows.
+  const broken = createFsTree({ list: async () => { throw new Error("HTTP 403"); } });
+  check("tree-error", (await broken.load("")) === "HTTP 403" && broken.error() === "HTTP 403", "error not kept");
+
+  // Create, rename and trash through the fake API keep the listing in step.
+  await folder.create("draft.logos", "file");
+  await folder.rename("notes", "journal");
+  tree.forget("notes");
+  await tree.load("");
+  check("tree-rename", folder.paths().includes("journal/todo.md") && !folder.paths().includes("notes/todo.md") &&
+    tree.rows().some((r) => r.path === "journal"), "rename not reflected");
+  await folder.trash("journal/deep");
+  check("trash-subtree", !folder.paths().includes("journal/deep/x.txt") && folder.paths().includes("journal/todo.md"),
+    "trash removed the wrong paths");
+  check("fake-folder-calls", folder.calls.some((c) => c[0] === "rename" && c[1] === "notes" && c[2] === "journal"),
+    "rename call missing");
+}
 
 const out = document.getElementById("out");
 const root = document.documentElement;
@@ -126,6 +245,12 @@ async function run() {
     check("style-run-tick", css.includes(".run-tick") && css.includes(".run-hair"), "run line styles missing");
   } catch (e) {
     check("index-fetch", false, String(e));
+  }
+
+  try {
+    await fsChecks();
+  } catch (e) {
+    check("fs-checks-run", false, String(e));
   }
 
   document.title = "SELFTEST " + (pass === total ? "PASS " : "FAIL ") + pass + "/" + total;

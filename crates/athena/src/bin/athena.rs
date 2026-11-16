@@ -21,6 +21,8 @@ SUBCOMMANDS:
     check FILE.logos           Parse and type-check Logos source
     fmt FILE.logos [--write]   Format Logos source (refuses files with comments)
     test FILE.logos            Run unit tests and property tests
+    serve [FOLDER] [--port N] [--web DIR]
+                               Open FOLDER in the Athena IDE on 127.0.0.1 (default port 8480)
 
 OPTIONS:
     -h, --help                 Print this help message
@@ -30,14 +32,24 @@ EXAMPLES:
     athena check main.logos
     athena fmt main.logos --write
     athena test main.logos
+    athena serve ~/notes
 ";
 
 enum Command {
     Help,
     Version,
-    Check { path: String },
-    Fmt { path: String, write: bool },
-    Test { path: String },
+    Check {
+        path: String,
+    },
+    Fmt {
+        path: String,
+        write: bool,
+    },
+    Test {
+        path: String,
+    },
+    #[cfg(not(target_arch = "wasm32"))]
+    Serve(athena::serve::ServeArgs),
 }
 
 fn main() -> ExitCode {
@@ -65,6 +77,11 @@ fn parse_args(args: &[String]) -> Result<Command, String> {
         "fmt" => parse_fmt_args(&args[1..]),
         "test" => match parse_single_file(&args[1..])? {
             Some(path) => Ok(Command::Test { path }),
+            None => Ok(Command::Help),
+        },
+        #[cfg(not(target_arch = "wasm32"))]
+        "serve" => match athena::serve::parse_serve_args(&args[1..])? {
+            Some(opts) => Ok(Command::Serve(opts)),
             None => Ok(Command::Help),
         },
         other if is_flag(other) => Err(format!("unknown option '{other}'; try 'athena --help'")),
@@ -143,6 +160,32 @@ fn run(cmd: Command) -> ExitCode {
         Command::Check { path } => run_check(&path),
         Command::Fmt { path, write } => run_fmt(&path, write),
         Command::Test { path } => run_test(&path),
+        #[cfg(not(target_arch = "wasm32"))]
+        Command::Serve(opts) => run_serve(&opts),
+    }
+}
+
+/// Serve until the process is stopped (Ctrl-C, or kill by PID). The server runs on its own threads.
+#[cfg(not(target_arch = "wasm32"))]
+fn run_serve(opts: &athena::serve::ServeArgs) -> ExitCode {
+    let served = match athena::serve::start(
+        std::path::Path::new(&opts.folder),
+        std::path::Path::new(&opts.web),
+        opts.port,
+    ) {
+        Ok(s) => s,
+        Err(msg) => {
+            eprintln!("athena: {msg}");
+            return ExitCode::from(1);
+        }
+    };
+    println!("{}", served.url);
+    eprintln!(
+        "athena: serving {} on 127.0.0.1; Ctrl-C stops it",
+        opts.folder
+    );
+    loop {
+        std::thread::park();
     }
 }
 

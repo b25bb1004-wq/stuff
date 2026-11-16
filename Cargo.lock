@@ -24,6 +24,7 @@ dependencies = [
  "cobalt",
  "elysium",
  "logos",
+ "mercury",
  "neon",
  "pigment",
 ]

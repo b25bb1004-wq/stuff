@@ -11,6 +11,7 @@
 - `debug::Debugger` steps a program with breakpoints and exposes frames and variables as `State`
 - `pack::pack` (non-`wasm32` only) writes the web bundle: the wasm module, the Titan ELF image, HTML, CSS, JavaScript and the service worker
 - `athena` binary with `check`, `fmt` and `test` subcommands; `fmt --write` rewrites the file in place
+- `athena serve [FOLDER] [--port N] [--web DIR]` serves the packed web app on 127.0.0.1 (default port 8480) through Mercury. The explorer then shows the real folder: open, edit, Ctrl-S, new, rename and delete (to `.athena-trash`). Every `/api/fs` call needs the token printed in the URL. Run `cargo run -q --release -p athena --example pack` first; `serve` reads `target/athena-web` by default.
 
 ## Public API
 

@@ -380,8 +380,10 @@ export function createWorkbench(app) {
   function renderFileTree() {
     const active = app.getActiveFile();
     const frag = document.createDocumentFragment();
-    for (const name of app.getFileNames()) {
+    for (const row of app.getTreeRows()) {
+      const name = row.path;
       const li = el("li", name === active ? "file-row is-active" : "file-row");
+      if (row.depth > 0) li.style.marginLeft = `${row.depth * 12}px`;
       if (editingState && editingState.mode === "rename" && editingState.name === name) {
         const form = el("form", "inline-form");
         const inp = el("input", "inline-input");
@@ -396,9 +398,9 @@ export function createWorkbench(app) {
           editingState = null;
           renderFileTree();
         }));
-        form.addEventListener("submit", (ev) => {
+        form.addEventListener("submit", async (ev) => {
           ev.preventDefault();
-          const res = app.renameFile(name, inp.value);
+          const res = await app.renameFile(name, inp.value);
           if (!res.ok) {
             err.textContent = res.error;
             return;
@@ -416,9 +418,16 @@ export function createWorkbench(app) {
         continue;
       }
       const mainRow = el("div", "file-row-main");
+      const label = row.dir
+        ? `${row.open ? "▾" : "▸"} ${row.name}`
+        : app.isDirty(name) ? `${row.name} *` : row.name;
       mainRow.appendChild(
-        mkBtn("file-open-btn", app.isDirty(name) ? `${name} *` : name, () => {
+        mkBtn("file-open-btn", label, () => {
           editingState = null;
+          if (row.dir) {
+            app.toggleDir(name);
+            return;
+          }
           app.setActiveFile(name);
           if (isMobile()) setMobileView("editor");
         })
@@ -426,10 +435,10 @@ export function createWorkbench(app) {
       const actions = el("div", "file-row-actions");
       if (editingState && editingState.mode === "delete" && editingState.name === name) {
         actions.append(
-          mkBtn("btn btn-sm btn-danger", "Confirm", () => {
+          mkBtn("btn btn-sm btn-danger", "Confirm", async () => {
             editingState = null;
             if (pendingCloseTab === name) dismissUnsavedBar();
-            app.deleteFile(name);
+            await app.deleteFile(name);
             renderAll();
           }),
           mkBtn("btn btn-sm", "Cancel", () => {
@@ -473,9 +482,9 @@ export function createWorkbench(app) {
     newFileForm.hidden = true;
     newFileError.textContent = "";
   });
-  newFileForm.addEventListener("submit", (ev) => {
+  newFileForm.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    const res = app.createFile(newFileInput.value);
+    const res = await app.createFile(newFileInput.value);
     if (!res.ok) {
       newFileError.textContent = res.error;
       return;

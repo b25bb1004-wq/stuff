@@ -1,6 +1,16 @@
 import { createWorkbench } from "./workbench.js";
 import { createDebugUi } from "./debug.js";
 import { afterPaint, createRunLine } from "./athena-motion.js";
+import { parseDiagnostics, parseHighlight, lineColToCharOffset, renderHighlighted, byteOffsetToCharOffset, charOffsetToByteOffset, domPosToCharOffset, rectContainsPoint } from "./text-spans.js";
+import { tokenFromSearch, createFsApi, createFsTree, parentOf, isWithin, remapPath } from "./fs-api.js";
+
+// Served by `athena serve` with ?t=TOKEN: the explorer shows a real folder. Otherwise the public site.
+const FS = (() => {
+  const token = tokenFromSearch(window.location.search);
+  if (!token) return null;
+  const api = createFsApi({ token });
+  return { api, tree: createFsTree(api, () => workbench.renderFileTree()) };
+})();
 
 const STORAGE_KEY = "athena.files.v1";
 const TABS_KEY = "athena.tabs.v1";
@@ -79,7 +89,7 @@ function loadTabsState(fileMap) {
   return { openTabs: initial ? [initial] : [], activeFile: initial };
 }
 
-let files = loadFiles();
+let files = FS ? {} : loadFiles();
 let drafts = {};
 let { openTabs, activeFile } = loadTabsState(files);
 let diagnosticsByFile = {};
@@ -93,9 +103,11 @@ let hoverShown = null;
 let formatUndo = null;
 
 const saveFilesToStorage = () => {
+  if (FS) return; // the folder on disk is the store; browser storage keeps only the public site's files
   lastSaveText = storageSet(STORAGE_KEY, JSON.stringify(files)) ? "saved" : "memory only";
 };
 const saveTabsState = () => {
+  if (FS) return;
   storageSet(TABS_KEY, JSON.stringify({ tabs: openTabs, active: activeFile }));
   if (activeFile) storageSet(ACTIVE_KEY, activeFile);
 };
@@ -112,6 +124,7 @@ function validateFileName(name, currentName) {
 }
 
 function setActiveFile(name) {
+  if (FS && name && !hasOwn(files, name)) return openRemote(name);
   if (name && !hasOwn(files, name)) return;
   activeFile = name || null;
   if (activeFile && !openTabs.includes(activeFile)) openTabs.push(activeFile);
@@ -125,6 +138,7 @@ function setActiveFile(name) {
 
 function saveFile(name) {
   if (!name || !hasOwn(files, name)) return;
+  if (FS) return saveRemote(name);
   if (debounceTimer !== null && name === activeFile) { clearTimeout(debounceTimer); debounceTimer = null; }
   if (hasOwn(drafts, name)) { files[name] = drafts[name]; delete drafts[name]; }
   saveFilesToStorage();
@@ -163,6 +177,7 @@ function cycleTab(dir) {
 }
 
 function createFile(rawName) {
+  if (FS) return createRemote(rawName);
   const check = validateFileName(rawName, null);
   if (!check.ok) return check;
   files[check.name] = check.name.endsWith(".logos") ? "fn main() {\n  \n}\n" : "";
@@ -172,6 +187,7 @@ function createFile(rawName) {
 }
 
 function renameFile(oldName, rawNewName) {
+  if (FS) return renameRemote(oldName, rawNewName);
   const check = validateFileName(rawNewName, oldName);
   if (!check.ok) return check;
   const nextName = check.name;
@@ -191,6 +207,7 @@ function renameFile(oldName, rawNewName) {
 }
 
 function deleteFile(name) {
+  if (FS) return deleteRemote(name);
   delete files[name];
   delete drafts[name];
   delete diagnosticsByFile[name];
@@ -205,6 +222,104 @@ function deleteFile(name) {
   }
   saveFilesToStorage();
   saveTabsState();
+  syncEditorFromState();
+}
+
+// Folder mode: each explorer action runs on disk first; the open state then follows the new paths.
+const LOGOS_TEMPLATE = "fn main() {\n  \n}\n";
+
+function movePaths(from, to) {
+  for (const store of [files, drafts, diagnosticsByFile]) {
+    for (const key of Object.keys(store)) {
+      const next = remapPath(key, from, to);
+      if (next !== key) { store[next] = store[key]; delete store[key]; }
+    }
+  }
+  openTabs = openTabs.map((t) => remapPath(t, from, to));
+  if (activeFile) activeFile = remapPath(activeFile, from, to);
+}
+
+function dropPaths(path) {
+  for (const store of [files, drafts, diagnosticsByFile]) {
+    for (const key of Object.keys(store)) if (isWithin(key, path)) delete store[key];
+  }
+  openTabs = openTabs.filter((t) => !isWithin(t, path));
+  if (activeFile && isWithin(activeFile, path)) activeFile = openTabs.length > 0 ? openTabs[0] : null;
+}
+
+async function openRemote(name) {
+  try {
+    files[name] = await FS.api.read(name);
+  } catch (err) {
+    setEditorStatus(`Could not open ${name}: ${err.message}`, true);
+    return;
+  }
+  setActiveFile(name);
+}
+
+async function saveRemote(name) {
+  const text = getFileContent(name);
+  try {
+    await FS.api.write(name, text);
+    files[name] = text;
+    if (drafts[name] === text) delete drafts[name];
+    lastSaveText = "saved";
+  } catch (err) {
+    lastSaveText = `save failed: ${err.message}`;
+  }
+  workbench.renderTabs();
+  workbench.renderFileTree();
+  refreshAnalysis();
+  updateCursorMeta();
+}
+
+async function createRemote(rawName) {
+  const typed = rawName.trim();
+  const isDir = typed.endsWith("/");
+  const path = typed.replace(/\/+$/, "");
+  if (!path) return { ok: false, error: "Name cannot be empty." };
+  const isLogos = path.endsWith(".logos");
+  try {
+    await FS.api.create(path, isDir ? "dir" : "file");
+    if (!isDir && isLogos) await FS.api.write(path, LOGOS_TEMPLATE);
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+  await FS.tree.reveal(isDir ? path : parentOf(path));
+  if (!isDir) {
+    files[path] = isLogos ? LOGOS_TEMPLATE : "";
+    setActiveFile(path);
+  }
+  return { ok: true, name: path };
+}
+
+async function renameRemote(oldName, rawNewName) {
+  const next = rawNewName.trim().replace(/^\/+|\/+$/g, "");
+  if (!next) return { ok: false, error: "Name cannot be empty." };
+  if (next === oldName) return { ok: true, name: next };
+  try {
+    await FS.api.rename(oldName, next);
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+  movePaths(oldName, next);
+  FS.tree.forget(oldName);
+  await FS.tree.load(parentOf(oldName));
+  await FS.tree.reveal(parentOf(next));
+  syncEditorFromState();
+  return { ok: true, name: next };
+}
+
+async function deleteRemote(path) {
+  try {
+    await FS.api.trash(path);
+  } catch (err) {
+    setEditorStatus(`Could not move ${path} to the trash: ${err.message}`, true);
+    return;
+  }
+  dropPaths(path);
+  FS.tree.forget(path);
+  await FS.tree.load(parentOf(path));
   syncEditorFromState();
 }
 
@@ -224,99 +339,6 @@ const readNeonLast = (len) =>
 const readAthenaLast = (len) =>
   len <= 0 ? "" : decoder.decode(new Uint8Array(wasm.memory.buffer, wasm.athena_last_ptr(), len));
 
-function parseDiagnostics(raw) {
-  if (!raw) return [];
-  const out = [];
-  for (const line of raw.split("\n")) {
-    const p = line ? line.split(":") : [];
-    if (p.length >= 5) {
-      out.push({
-        line: Number.parseInt(p[0], 10) || 1,
-        col: Number.parseInt(p[1], 10) || 1,
-        endLine: Number.parseInt(p[2], 10) || 1,
-        endCol: Number.parseInt(p[3], 10) || 1,
-        message: p.slice(4).join(":")
-      });
-    }
-  }
-  return out;
-}
-
-function parseHighlight(raw) {
-  if (!raw) return [];
-  const runs = [];
-  for (const line of raw.split("\n")) {
-    const p = line ? line.split(" ") : [];
-    if (p.length >= 3) {
-      const start = Number.parseInt(p[0], 10);
-      const len = Number.parseInt(p[1], 10);
-      if (!Number.isNaN(start) && !Number.isNaN(len) && len > 0) runs.push({ start, end: start + len, cls: p[2] });
-    }
-  }
-  return runs;
-}
-
-function lineColToCharOffset(src, targetLine, targetCol) {
-  let line = 1;
-  let idx = 0;
-  while (line < targetLine && idx < src.length) {
-    if (src.charCodeAt(idx) === 10) line += 1;
-    idx += 1;
-  }
-  let col = 1;
-  while (col < targetCol && idx < src.length && src.charCodeAt(idx) !== 10) {
-    idx += 1;
-    col += 1;
-  }
-  return idx;
-}
-
-function buildDiagByteRanges(src, totalBytes, diags) {
-  const ranges = [];
-  for (const d of diags) {
-    const startChar = lineColToCharOffset(src, d.line, d.col);
-    let endChar = lineColToCharOffset(src, d.endLine, d.endCol);
-    if (endChar <= startChar) endChar = startChar < src.length && src.charCodeAt(startChar) !== 10 ? startChar + 1 : startChar;
-    const startByte = encoder.encode(src.slice(0, startChar)).length;
-    let endByte = encoder.encode(src.slice(0, endChar)).length;
-    if (endByte <= startByte && startByte < totalBytes) endByte = Math.min(totalBytes, startByte + 1);
-    if (startByte < endByte) ranges.push([startByte, endByte]);
-  }
-  return ranges;
-}
-
-const hasDiagOverlap = (s, e, ranges) => ranges.some(([ds, de]) => s < de && e > ds);
-
-function renderHighlighted(src, bytes, runs, diags) {
-  if (runs.length === 0) { codeHighlightInner.textContent = src; return; }
-  const diagRanges = buildDiagByteRanges(src, bytes.length, diags);
-  const cuts = new Set();
-  for (const r of runs) { cuts.add(r.start); cuts.add(r.end); }
-  for (const [ds, de] of diagRanges) { cuts.add(ds); cuts.add(de); }
-  const sortedCuts = Array.from(cuts).sort((a, b) => a - b);
-  const frag = document.createDocumentFragment();
-  let runIdx = 0;
-  for (let i = 0; i + 1 < sortedCuts.length; i += 1) {
-    const segStart = sortedCuts[i];
-    const segEnd = sortedCuts[i + 1];
-    if (segStart >= segEnd) continue;
-    while (runIdx < runs.length && runs[runIdx].end <= segStart) runIdx += 1;
-    if (runIdx >= runs.length) break;
-    const run = runs[runIdx];
-    const text = decoder.decode(bytes.subarray(segStart, segEnd));
-    const isDiag = hasDiagOverlap(segStart, segEnd, diagRanges);
-    if (run.cls === "plain" && !isDiag) frag.appendChild(document.createTextNode(text));
-    else {
-      const span = document.createElement("span");
-      span.className = isDiag ? `hl-${run.cls} diag-err` : `hl-${run.cls}`;
-      span.textContent = text;
-      frag.appendChild(span);
-    }
-  }
-  if (src.endsWith("\n")) frag.appendChild(document.createTextNode("\n"));
-  codeHighlightInner.replaceChildren(frag);
-}
-
 function setEditorStatus(msg, isError) {
   editorStatus.textContent = msg || "";
   editorStatus.classList.toggle("is-error", Boolean(isError && msg));
@@ -333,20 +355,6 @@ function openFileAt(fileName, line, col, selLen) {
   codeInput.scrollTop = Math.max(0, (line - 3) * LINE_HEIGHT_PX);
   syncScroll();
   updateCursorMeta();
-}
-
-const utf8LenOfCodePoint = (cp) => (cp <= 0x7f ? 1 : cp <= 0x7ff ? 2 : cp <= 0xffff ? 3 : 4);
-const charOffsetToByteOffset = (src, off) => encoder.encode(src.slice(0, Math.max(0, Math.min(off, src.length)))).length;
-
-function byteOffsetToCharOffset(src, byteOffset) {
-  let bytes = 0;
-  let chars = 0;
-  while (chars < src.length && bytes < byteOffset) {
-    const cp = src.codePointAt(chars);
-    bytes += utf8LenOfCodePoint(cp);
-    chars += cp > 0xffff ? 2 : 1;
-  }
-  return chars;
 }
 
 function hideTooltip() {
@@ -371,17 +379,6 @@ function showTooltipAt(text, anchorX, anchorY, byPointer) {
   hoverShown = { x: anchorX, y: anchorY, byPointer };
 }
 
-function domPosToCharOffset(root, targetNode, targetOffset) {
-  try {
-    const r = document.createRange();
-    r.setStart(root, 0);
-    r.setEnd(targetNode, targetOffset);
-    return r.toString().length;
-  } catch (_e) {
-    return null;
-  }
-}
-
 function charRangeRect(root, charOffset, len) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let acc = 0;
@@ -404,9 +401,6 @@ function charRangeRect(root, charOffset, len) {
     return range.getBoundingClientRect();
   } catch (_e) { return null; }
 }
-
-const rectContainsPoint = (r, x, y) =>
-  r.width > 0 && r.height > 0 && x >= r.left - 2 && x <= r.right + 2 && y >= r.top - 2 && y <= r.bottom + 2;
 
 function pointToCharOffset(clientX, clientY) {
   const src = codeInput.value;
@@ -587,7 +581,7 @@ function refreshAnalysis() {
     ? parseDiagnostics(readAthenaLast(withBytes(bytes, (ptr, len) => wasm.athena_check(ptr, len))))
     : [];
   diagnosticsByFile[activeFile] = diags;
-  renderHighlighted(src, bytes, runs, diags);
+  renderHighlighted(codeHighlightInner, src, bytes, runs, diags);
   refreshOpenTabProblems();
   if (diags.length > 0) {
     transientStatus = false;
@@ -858,6 +852,8 @@ const runLine = createRunLine(document.getElementById("editor-area"));
 const debug = createDebugUi({ wasm: () => wasm, withBytes, readAthenaLast, activeFile: () => activeFile, setStatus: (m, e) => { transientStatus = true; setEditorStatus(m, e); } });
 const workbench = createWorkbench({
   getFileNames: sortedFileNames, getFileContent, getOpenTabs: () => [...openTabs],
+  getTreeRows: () => (FS ? FS.tree.rows() : sortedFileNames().map((n) => ({ path: n, name: n, depth: 0, dir: false }))),
+  toggleDir: (path) => FS && FS.tree.toggle(path),
   getActiveFile: () => activeFile, isDirty, setActiveFile, openFileAt, saveFile,
   discardDraft, closeTab, cycleTab, createFile, renameFile, deleteFile,
   runActiveFile, testActiveFile, runAllTests, formatActiveFile, debugCommand: (id) => debug.command(id),
@@ -868,11 +864,16 @@ const workbench = createWorkbench({
   setTransientStatus: (msg, isError) => { transientStatus = true; setEditorStatus(msg, isError); }
 });
 
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+// The worker answers every GET from its cache, which would hide live folder listings and files.
+if (!FS && "serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 
 async function init() {
   workbench.renderAll();
   syncEditorFromState();
+  if (FS) {
+    const listError = await FS.tree.load("");
+    if (listError) setEditorStatus(`Folder not listed: ${listError}`, true);
+  }
   try {
     wasm = await loadWasm();
     workbench.setWasmStatus("wasm ok");

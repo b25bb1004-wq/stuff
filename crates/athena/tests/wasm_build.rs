@@ -304,6 +304,8 @@ fn pack_produces_valid_wasm_and_conforming_web_bundle() {
         "icon-512.png",
         "icon-maskable-512.png",
         "debug.js",
+        "fs-api.js",
+        "text-spans.js",
         "athena-motion.js",
         "selftest.html",
     ]

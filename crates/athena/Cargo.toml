@@ -21,6 +21,7 @@ neon = { path = "../neon" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 pigment = { path = "../pigment" }
+mercury = { path = "../mercury" }
 
 [dev-dependencies]
 assay = { path = "../assay" }

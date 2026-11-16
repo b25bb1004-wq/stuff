@@ -92,6 +92,7 @@ fn style_class(style: Style) -> &'static str {
         Style::Error => "error",
         Style::Status => "status",
         Style::Match => "match",
+        Style::Selection => "selection",
     }
 }
 
