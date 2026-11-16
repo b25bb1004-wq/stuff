@@ -1,0 +1,196 @@
+# Held-out exam: 12 tasks the AI never trains on.
+# h01-h09 use training tools in combinations a basic exam misses; h10-h12 use tools the training exam never uses.
+
+== h01-chronos-merge-feature
+prompt: The repository has a branch named feature with work that main does not have yet.
+| Bring feature into main so that main contains both sides, then tell me the text inside feat.txt.
+setup: run chronos init
+setup: write notes.txt
+| base
+setup: run chronos add notes.txt
+setup: run chronos commit -m base
+setup: run chronos branch feature
+setup: run chronos switch feature
+setup: write feat.txt
+| from feature
+setup: run chronos add feat.txt
+setup: run chronos commit -m "add feat"
+setup: run chronos switch main
+setup: write main.txt
+| main work
+setup: run chronos add main.txt
+setup: run chronos commit -m "add main"
+check: read feat.txt => contains from feature
+check: read main.txt => contains main work
+check: chronos log => contains add feat
+check: answer => contains from feature
+solution: run chronos merge feature
+solution: done The text in feat.txt is: from feature
+
+== h02-chronos-conflict-calliope
+prompt: Merge the other branch into main. The merge will stop on a conflict in notes.txt.
+| Resolve it so notes.txt holds exactly one line: agreed line. Finish the merge with the commit message resolve notes.
+| Then tell me how many conflict marker lines the file had before you fixed it.
+setup: run chronos init
+setup: write notes.txt
+| base
+setup: run chronos add notes.txt
+setup: run chronos commit -m base
+setup: run chronos branch other
+setup: write notes.txt
+| main line
+setup: run chronos add notes.txt
+setup: run chronos commit -m "main edit"
+setup: run chronos switch other
+setup: write notes.txt
+| other line
+setup: run chronos add notes.txt
+setup: run chronos commit -m "other edit"
+setup: run chronos switch main
+check: read notes.txt => contains agreed line
+check: read notes.txt => lacks <<<<<<<
+check: chronos log => contains resolve notes
+check: answer => contains 3
+solution: run chronos merge other
+solution: run calliope --json grep "^<<<<<<<|^=======|^>>>>>>>" notes.txt
+solution: write notes.txt
+| agreed line
+solution: run chronos add notes.txt
+solution: run chronos commit -m "resolve notes"
+solution: done 3
+
+== h03-chronos-restore-previous
+prompt: The last commit broke notes.txt. Put back the version of notes.txt from the commit before it, and record that as a new commit with the message restore notes.
+setup: run chronos init
+setup: write notes.txt
+| original text
+setup: run chronos add notes.txt
+setup: run chronos commit -m first
+setup: write notes.txt
+| broken text
+setup: run chronos add notes.txt
+setup: run chronos commit -m broken
+check: read notes.txt => contains original text
+check: chronos log => contains restore notes
+solution: run chronos restore --source HEAD~1 notes.txt
+solution: run chronos add notes.txt
+solution: run chronos commit -m "restore notes"
+solution: done Restored notes.txt to the earlier version.
+
+== h04-iridium-promote-count
+prompt: In shop.idb, Bo has just been upgraded to the gold tier. Make that change, then tell me how many gold customers there are now.
+setup: run iridium --json sql shop.idb "CREATE TABLE customers (id INTEGER, name TEXT, tier TEXT)"
+setup: run iridium --json sql shop.idb "INSERT INTO customers VALUES (1, 'Ada', 'gold'), (2, 'Bo', 'basic'), (3, 'Cy', 'gold')"
+check: iridium sql shop.idb "SELECT name FROM customers WHERE tier = 'gold' ORDER BY name" => contains Bo
+check: answer => contains 3
+solution: run iridium sql shop.idb "UPDATE customers SET tier = 'gold' WHERE name = 'Bo'"
+solution: done 3
+
+== h05-iridium-spend-table
+prompt: The shop database shop.idb has a customers table and an orders table. Build a table named spend that lists each customer name with the total of their order amounts, then tell me which customer has the highest total.
+setup: run iridium --json sql shop.idb "CREATE TABLE customers (id INTEGER, name TEXT, tier TEXT); CREATE TABLE orders (id INTEGER, cust_id INTEGER, amount INTEGER); INSERT INTO customers VALUES (1, 'Ada', 'gold'), (2, 'Bo', 'basic'); INSERT INTO orders VALUES (10, 1, 120), (11, 1, 30), (12, 2, 75)"
+check: iridium sql shop.idb "SELECT total FROM spend WHERE name = 'Bo'" => contains 75
+check: answer => contains Ada
+solution: run iridium sql shop.idb "CREATE TABLE spend (name TEXT, total INTEGER)"
+solution: run iridium sql shop.idb "INSERT INTO spend VALUES ('Ada', 150), ('Bo', 75)"
+solution: done Ada
+
+== h06-hades-copy-and-hash
+prompt: The disk image disk.img holds the file /docs/report.txt. Copy it out to copy.txt on this computer, and tell me the sha256 hash of the copy.
+setup: run hades --json mkfs disk.img --blocks 256
+setup: run hades --json mkdir disk.img /docs
+setup: write data/report.txt
+| quarterly numbers are up
+setup: run hades --json put disk.img data/report.txt /docs/report.txt
+check: read copy.txt => contains quarterly numbers
+check: answer => contains f6bb0100ac02ae3c20fa6146fdf8017bc5ffd44867d0d3343de12f3abd9e55ed
+solution: run hades --json cat disk.img /docs/report.txt --out copy.txt
+solution: run sphinx --json hash sha256 copy.txt
+solution: done f6bb0100ac02ae3c20fa6146fdf8017bc5ffd44867d0d3343de12f3abd9e55ed
+
+== h07-hades-errors-calliope
+prompt: The disk image disk.img holds /logs/app.log. Copy that file out to app.txt, write errors.txt containing only its ERROR lines, and tell me how many ERROR lines there were.
+| Then delete the file from the image.
+setup: run hades --json mkfs disk.img --blocks 256
+setup: run hades --json mkdir disk.img /logs
+setup: write data/app.log
+| ERROR disk full
+| ok
+| ERROR timeout
+| ok
+| ERROR bad input
+setup: run hades --json put disk.img data/app.log /logs/app.log
+check: read errors.txt => contains ERROR timeout
+check: hades --json ls disk.img /logs => lacks app.log
+check: answer => contains 3
+solution: run hades --json cat disk.img /logs/app.log --out app.txt
+solution: run calliope --json grep "^ERROR" app.txt
+solution: write errors.txt
+| ERROR disk full
+| ERROR timeout
+| ERROR bad input
+solution: run hades --json rm disk.img /logs/app.log
+solution: done 3
+
+== h08-krypton-sum-script
+prompt: Write a shell script named sum.sh that adds up all of its command-line arguments and prints the total. Run it with the arguments 1 2 3 4 and tell me the total.
+check: krypton sum.sh 1 2 3 4 => contains 10
+check: answer => contains 10
+solution: write sum.sh
+| total=0
+| for n in "$@"; do total=$((total + n)); done
+| echo $total
+solution: run krypton sum.sh 1 2 3 4
+solution: done 10
+
+== h09-calliope-fix-typo
+prompt: config.txt has a typo: the port number was typed with a letter O where a zero belongs. Fix the typo in config.txt so the port reads 8080, and leave the other line unchanged.
+setup: write config.txt
+| port = 8O80
+| name = gateway
+check: read config.txt => contains port = 8080
+check: read config.txt => lacks 8O80
+check: read config.txt => contains name = gateway
+solution: write fix.edit
+| goto 1 9
+| delete 1
+| insert 0
+| save
+solution: run calliope --json edit fix.edit config.txt
+solution: done Fixed the port to 8080.
+
+== h10-aurum-demo-chain-tip
+prompt: Build the three-block demo chain into demo.chain, verify it, and tell me the tip block hash that verification reports.
+check: aurum --json verify demo.chain => contains 7d65b73693dd8e98c941009b34c5c5525abbcb4c1e53922a14df2bd01af90a67
+check: answer => contains 7d65b73693dd8e98c941009b34c5c5525abbcb4c1e53922a14df2bd01af90a67
+solution: run aurum --json demo -o demo.chain
+solution: run aurum --json verify demo.chain
+solution: done 7d65b73693dd8e98c941009b34c5c5525abbcb4c1e53922a14df2bd01af90a67
+
+== h11-midas-bytes-in-use
+prompt: Run the allocator trace in trace.txt and save the number of bytes in use after its last step into report.txt. Tell me that number too.
+setup: write trace.txt
+| heap 65536
+| alloc 100
+| alloc 50
+| free 0
+check: read report.txt => contains 64
+check: answer => contains 64
+solution: run midas --json sim trace.txt
+solution: write report.txt
+| 64
+solution: done 64
+
+== h12-kairos-task-share
+prompt: Simulate the workload in workload.txt and save the CPU share that task a actually received into share.txt. Tell me that share as a decimal.
+setup: write workload.txt
+| cpus 2
+| task a 1024 6
+| task b 512 10
+| task c 256 4
+check: read share.txt => contains 0.3
+check: answer => contains 0.3
+solution: run kairos --json sim workload.txt
+solution: write share.txt
+| 0.3
+solution: done 0.3

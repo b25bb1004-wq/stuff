@@ -1,0 +1,113 @@
+# Memory exam: four pairs of sessions on one computer each.
+# Session a runs first and gives facts or creates data; session b (adjacent, same computer) only has the computer's files
+# and whatever session a chose to remember. Session a's solution includes a remember line and a notes file (replay skips remember).
+
+== m1a-zen-facts
+computer: mem1
+prompt: Project facts you must keep: the project folder is zen-42, the service port is 48213, and every report file name ends in .rpt.
+| You will not see this conversation again, so keep these facts in your notes.
+| Now create zen-42/README.txt containing the service port.
+check: read zen-42/README.txt => contains 48213
+check: read notes/memory.md => contains 48213
+solution: write zen-42/README.txt
+| service port 48213
+solution: remember Project folder zen-42, service port 48213, report names end with .rpt
+solution: write notes/memory.md
+| Project folder: zen-42
+| Service port: 48213
+| Report file names end with .rpt
+solution: done Created zen-42/README.txt with the port.
+
+== m1b-zen-report
+computer: mem1
+prompt: Create the status report for the project: a file named status.rpt inside the project folder, containing the service port.
+| Then tell me the port.
+check: read zen-42/status.rpt => contains 48213
+check: answer => contains 48213
+solution: read notes/memory.md
+solution: write zen-42/status.rpt
+| service port 48213
+solution: done 48213
+
+== m2a-ploverline-facts
+computer: mem2
+prompt: Facts to keep, because you will not see this conversation again: the service is called Ploverline, its health-check port is 61407, and its config lives in ops/cfg.
+| Create ops/cfg/service.txt containing the service name.
+check: read ops/cfg/service.txt => contains Ploverline
+check: read notes/memory.md => contains 61407
+solution: write ops/cfg/service.txt
+| Ploverline
+solution: remember Service Ploverline, health-check port 61407, config folder ops/cfg
+solution: write notes/memory.md
+| Service: Ploverline
+| Health-check port: 61407
+| Config folder: ops/cfg
+solution: done Created ops/cfg/service.txt.
+
+== m2b-ploverline-health
+computer: mem2
+prompt: Add the health-check file for the service: ops/cfg/health.txt containing a single line with the health-check port.
+| Then tell me that port.
+check: read ops/cfg/health.txt => contains 61407
+check: answer => contains 61407
+solution: read notes/memory.md
+solution: write ops/cfg/health.txt
+| 61407
+solution: done 61407
+
+== m3a-open-records-count
+computer: mem3
+setup: run iridium --json sql records.idb "CREATE TABLE records (id INTEGER, status TEXT)"
+setup: run iridium --json sql records.idb "INSERT INTO records VALUES (1, 'open'), (2, 'closed'), (3, 'open'), (4, 'open'), (5, 'closed'), (6, 'open'), (7, 'closed'), (8, 'open'), (9, 'closed')"
+prompt: Count the records in the records table of records.idb whose status is open, and tell me the number.
+| You will not see this conversation again, so keep the result in your notes.
+check: answer => contains 5
+check: read notes/memory.md => contains 5
+solution: run iridium sql records.idb "SELECT COUNT(*) AS n FROM records WHERE status = 'open'"
+solution: remember Open records in records.idb: 5
+solution: write notes/memory.md
+| Open records in records.idb: 5
+solution: done 5
+
+== m3b-open-records-report
+computer: mem3
+setup: run iridium --json sql records.idb "DROP TABLE records"
+prompt: The records table in records.idb has been removed from the database.
+| Write report.txt containing the number of open records found earlier, and tell me that number.
+check: read report.txt => contains 5
+check: answer => contains 5
+solution: read notes/memory.md
+solution: write report.txt
+| 5
+solution: done 5
+
+== m4a-blob-prefix
+computer: mem4
+setup: write data/blob.txt
+| payload 4471 for memory test
+prompt: Compute the sha256 of data/blob.txt and find its first 8 hex characters.
+| You will not see this conversation again, so keep that prefix in your notes.
+check: answer => contains 42915764
+check: read notes/memory.md => contains 42915764
+solution: run sphinx --json hash sha256 data/blob.txt
+solution: remember Hash prefix of the original data/blob.txt: 42915764
+solution: write notes/memory.md
+| Hash prefix of the original data/blob.txt: 42915764
+solution: done 42915764
+
+== m4b-blob-prefix-report
+computer: mem4
+setup: write scrub.edit
+| goto 1 1
+| delete 999
+| insert replaced content
+| save
+setup: run calliope --json edit scrub.edit data/blob.txt
+prompt: The file data/blob.txt has been changed since the last session.
+| Write report.txt containing the 8-character sha256 prefix that the original data/blob.txt had, and tell me that prefix.
+check: read report.txt => contains 42915764
+check: answer => contains 42915764
+solution: read notes/memory.md
+solution: write report.txt
+| 42915764
+solution: done 42915764

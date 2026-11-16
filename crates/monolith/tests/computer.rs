@@ -342,3 +342,31 @@ fn cli_round_trip_through_the_binary() {
     let out = run(&["--json", "list"]);
     assert!(text(&out).contains("\"total\":0"), "{}", text(&out));
 }
+
+#[test]
+fn drive_style_unix_paths_are_refused() {
+    let home = std::env::temp_dir().join(format!(
+        "monolith-test-{}-drivepath-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let c = Computer::create(&home, "c1").unwrap();
+    for argv in [
+        vec!["krypton", "-c", "ls /c/Users"],
+        vec!["calliope", "/d/data.txt"],
+        vec!["hades", "ls", "disk.img", "/c"],
+    ] {
+        let argv: Vec<String> = argv.into_iter().map(String::from).collect();
+        let e = c.check_args(&argv).unwrap_err();
+        assert_eq!(e.code, Code::Denied, "{argv:?}");
+    }
+    let ok: Vec<String> = ["hades", "ls", "disk.img", "/docs-not-on-host/a"]
+        .into_iter()
+        .map(String::from)
+        .collect();
+    assert!(c.check_args(&ok).is_ok());
+    fs::remove_dir_all(&home).unwrap();
+}

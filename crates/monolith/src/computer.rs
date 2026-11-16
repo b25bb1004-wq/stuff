@@ -213,6 +213,10 @@ fn outside_reason(word: &str) -> Option<String> {
     }
     if let Some(rest) = word.strip_prefix('/') {
         let first = rest.split(['/', '\\']).next().unwrap_or("");
+        // `/c/Users` is how Unix-style shells on Windows spell the C drive.
+        if first.len() == 1 && first.as_bytes()[0].is_ascii_alphabetic() {
+            return Some("looks like a drive path on the host".into());
+        }
         if Path::new("/").join(first).exists() {
             return Some("names a folder of the host, not the computer".into());
         }
@@ -517,6 +521,9 @@ impl Computer {
         let envs = [
             ("HOME", root.as_os_str()),
             ("USERPROFILE", root.as_os_str()),
+            // Only the Monolith tools are on the search path, so a tool that starts other
+            // programs (the krypton shell) cannot reach the host's.
+            ("PATH", tool_dir.as_os_str()),
             ("MONOLITH_COMPUTER", OsStr::new(self.name.as_str())),
         ];
         run_program(&program, &argv[1..], &root, &envs, timeout)
