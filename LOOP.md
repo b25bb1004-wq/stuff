@@ -454,3 +454,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | T132 midas+zeus apps, silicon CLI | haiku | 242k | PASS 11f9307 | zeus page is a recorded transcript (no wasm path)
 - 2026-11-16 | D2 chronos GitHub bridge | haiku | 247k | PASS 23fb7d1 | strata 265 commits, 1672/1672 files match; gaps: annotated tags, symlinks, log pipe panic, diff staged-only
 - 2026-11-16 | D1 krypton daily shell | haiku | 127k | PASS 79137be, RETRY D1b | by hand: Windows backslashes eaten, cmd builtins (type, dir) not found, /c/ paths; sent to same worker
+- 2026-11-16 | D1b+D1c krypton Windows fixes | haiku | 128k | PASS | first try skipped old tests on Windows (rejected); dialect parameter fixed it
