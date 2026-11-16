@@ -22,7 +22,7 @@ Each phase gets its own task plan in `docs/ai-computer/plans/` when it starts; p
 | Pace | Waves of 3 Haiku workers at medium effort, report per phase |
 | Parallel (2026-11-16) | Both: one AI working beside the operator, and several AIs at once, each with its own computer. `monolith new` and `fork` must be cheap and computers must not share state |
 | Model (2026-11-16) | Not chosen yet. Build model-agnostic first (any OpenAI-style chat endpoint on 127.0.0.1); pick the model once the base works |
-| Purpose (2026-11-16) | A separate AI layer that runs beside the human one; its computer is its memory (files, journal, lessons), and at night it learns from the day (phase 3b) |
+| Purpose (2026-11-16) | A harness for open-source models (what Claude Code is for Claude) plus the computer it runs in: a separate AI layer beside the human one; its computer is its memory (files, journal, lessons), and at night it learns from the day (phase 3b) |
 
 ## The picture
 ```
