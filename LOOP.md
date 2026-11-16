@@ -483,3 +483,6 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-16 | FIX chronos-2 (finish) | haiku | 204k | PASS | merge, stash, show, tag, branch -d/-D, export to empty and second git repo; leader ran every command by hand, git fsck clean; gap: stash pop refuses instead of merging when a path is dirty
 - 2026-11-16 | ACI T4 krypton | haiku | 152k | PASS | leader fixed syntax-error exit code (1 to 2) and hints to --describe; gaps: no flag to read truncated output, script from stdin not offered under --json
 - 2026-11-16 | WAVE 3: ACI T3 chronos, T6 calliope+athena (T5 iridium still running) | haiku x2 | 2 x 230k | running | prompts carry the fixed shapes
+- 2026-11-16 | ACI T5 iridium + iridium-cli | haiku | 197k | PASS | leader ran types, paging, errors, stdin, refused connection; gaps: no hint on parse/missing-table errors, no column types over the network
+- 2026-11-16 | ACI T8 hades, midas, kairos, sphinx | haiku | 240k budget | running | T3 chronos and T6 calliope+athena also running (cap 3 reached)
+- Tokens so far this phase-1 run (workers only): about 1.05M of the 2.5 to 3M phase estimate. Left to convert after this wave: T7, T9, T10, T11 (17 tools), then T12 simulated agents
