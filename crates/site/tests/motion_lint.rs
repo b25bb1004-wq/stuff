@@ -78,7 +78,7 @@ fn packed_bundle_passes_motion_lint() {
         }
         let site_script = matches!(
             path.file_name().and_then(|n| n.to_str()),
-            Some("site.js" | "systems.js")
+            Some("site.js" | "systems.js" | "board.js" | "feed.js")
         ) && path.parent() == Some(bundle.as_path());
         if kind == "html" || site_script {
             for p in webkit::lint_page(&text) {

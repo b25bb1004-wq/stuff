@@ -188,13 +188,15 @@ pub fn pack(out: &Path) -> Result<(), String> {
         .join("kernel");
     let web_dir = manifest_dir.join("web");
 
-    let copies: [(&Path, PathBuf); 7] = [
+    let copies: [(&Path, PathBuf); 9] = [
         (&wasm_src, out.join("site.wasm")),
         (&titan_src, out.join("titan.elf")),
         (&web_dir.join("index.html"), out.join("index.html")),
         (&web_dir.join("site.js"), out.join("site.js")),
         (&web_dir.join("style.css"), out.join("style.css")),
         (&web_dir.join("systems.js"), out.join("systems.js")),
+        (&web_dir.join("board.js"), out.join("board.js")),
+        (&web_dir.join("feed.js"), out.join("feed.js")),
         (&web_dir.join("selftest.html"), out.join("selftest.html")),
     ];
 

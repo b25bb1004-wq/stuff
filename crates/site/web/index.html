@@ -1,60 +1,158 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Monolith — 25 systems, one machine, zero dependencies</title>
+  <title>Monolith: 25 systems written from scratch, running in your browser</title>
+  <meta name="description" content="Monolith: 25 systems written from scratch with zero external crates, running in your browser.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <a class="skip-link" href="#systems">Skip to main content</a>
+  <a class="skip-link" href="#systems">Skip to the system list</a>
 
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="#top">MONOLITH</a>
-      <span class="topbar-meta" id="wasm-status" aria-live="polite">wasm idle</span>
-      <button type="button" class="btn-ghost" id="theme-toggle">Theme: Auto</button>
-    </div>
-  </header>
-
-  <div class="page-shell" id="top">
-    <section class="hero">
-      <p class="eyebrow">25 systems · Rust stdlib only · RV64 + WebAssembly</p>
-      <h1>Monolith: 25 systems, one machine, zero dependencies</h1>
-      <p class="hero-sub">
-        Every layer from the hypervisor and RV64 CPU emulator up to the kernel, filesystem,
-        database, cryptography, language, and browser IDE — built from scratch with zero
-        external crates and running locally in your browser.
-      </p>
-      <div class="hero-actions">
-        <a class="btn-link" href="apps/">All apps</a>
+  <main id="top">
+    <section class="hero" id="hero" aria-label="The board">
+      <div class="board-wrap" id="board-wrap">
+        <canvas id="board"></canvas>
       </div>
+
+      <header class="board-head">
+        <div class="board-title">
+          <h1>Monolith</h1>
+          <p class="board-sub">25 systems written from scratch, running in your browser</p>
+          <button type="button" id="open-terminal">Open the terminal</button>
+        </div>
+        <div class="board-tools">
+          <span class="wasm-status" id="wasm-status" aria-live="polite">wasm idle</span>
+          <button type="button" class="btn-ghost" id="theme-toggle">Theme: Auto</button>
+        </div>
+      </header>
+
+      <p class="chip-label" id="chip-label" hidden></p>
+      <div class="demo-pane" id="demo-pane" hidden></div>
     </section>
 
-    <div class="story-grid">
-      <aside class="layers-rail" aria-label="System layer diagram">
-        <div class="layers-card">
-          <div class="layers-head">
-            <span class="layers-title">Monolith</span>
-            <span class="layers-count" id="active-layer-label">01 / 25</span>
-          </div>
-          <nav id="layer-diagram" class="layer-diagram" aria-label="Jump to system"></nav>
-        </div>
-      </aside>
-
-      <main id="systems" class="systems-list" tabindex="-1"></main>
-    </div>
-  </div>
+    <nav class="system-list" id="systems" aria-labelledby="systems-title">
+      <h2 id="systems-title">The 25 systems</h2>
+      <ul class="system-items">
+        <li>
+          <a href="titan/">Titan</a>
+          <span>Rust no_std kernel + userland on the Monolith CPU. The thick layer everything rides on.</span>
+        </li>
+        <li>
+          <a href="iridium/">Iridium</a>
+          <span>Paged B+tree, write-ahead log, SQL subset, server. A layer of sediment laid down in order.</span>
+        </li>
+        <li>
+          <a href="elysium/">Elysium</a>
+          <span>Bytecode VM with garbage collector. A sealed world inside a plain rock.</span>
+        </li>
+        <li>
+          <a href="mercury/">Mercury</a>
+          <span>HTTP/1.1 server on our own thread pool. Where the rock breaks the surface and the world can see it.</span>
+        </li>
+        <li>
+          <a href="helios/">Helios</a>
+          <span>ECS, software renderer, physics, audio. The thing that moves worlds.</span>
+        </li>
+        <li>
+          <a href="cobalt/">Cobalt</a>
+          <span>Logos to RV64 machine code and to bytecode. Sintering fuses loose powder into solid metal.</span>
+        </li>
+        <li>
+          <a href="logos/">Logos</a>
+          <span>Lexer, parser, type checker, IR. Logos splits into perfect thin layers, like its effect system.</span>
+        </li>
+        <li>
+          <a href="odyssey/">Odyssey</a>
+          <span>HTML + CSS parser, layout, paint. Spelunking is exploring caves.</span>
+        </li>
+        <li>
+          <a href="aurum/">Aurum</a>
+          <span>Proof-of-stake chain, contracts on Elysium, stored in Iridium. One unbroken vein of ore.</span>
+        </li>
+        <li>
+          <a href="sphinx/">Sphinx + Medusa</a>
+          <span>Sphinx: standard primitives proven on vectors. Medusa: our own experimental cipher, never the default.</span>
+        </li>
+        <li>
+          <a href="silicon/">Silicon</a>
+          <span>RV64 emulator with MMU, traps, devices. The crystal that keeps time for every real processor.</span>
+        </li>
+        <li>
+          <a href="hades/">Hades</a>
+          <span>Journaled, checksummed, extent-based. Hades splits into flat pages.</span>
+        </li>
+        <li>
+          <a href="pandora/">Pandora</a>
+          <span>Linux namespaces, cgroups v2, pivot_root. A small sealed cavity in rock.</span>
+        </li>
+        <li>
+          <a href="argo/">Argo</a>
+          <span>Signed packages, version solver, registry. A stack of stones that marks the trail.</span>
+        </li>
+        <li>
+          <a href="krypton/">Krypton</a>
+          <span>POSIX-style shell. The outermost shell of the planet.</span>
+        </li>
+        <li>
+          <a href="iris/">Iris</a>
+          <span>Compositing window manager. Each window is one face of the cut stone.</span>
+        </li>
+        <li>
+          <a href="indium/">Indium</a>
+          <span>Widgets, layout, text, animation. What a polished surface gives back.</span>
+        </li>
+        <li>
+          <a href="calliope/">Calliope</a>
+          <span>Rope-based modal editor. The first thing people wrote on.</span>
+        </li>
+        <li>
+          <a href="athena/">Athena</a>
+          <span>Browser IDE: editor + compiler + emulator + debugger. The workshop where stones are cut.</span>
+        </li>
+        <li>
+          <a href="chronos/">Chronos</a>
+          <span>Content-addressed commits, branches, 3-way merge. A core sample is history you can read layer by layer.</span>
+        </li>
+        <li>
+          <a href="xenon/">Xenon</a>
+          <span>Encrypted reliable transport over UDP. Signals that travel through the earth.</span>
+        </li>
+        <li>
+          <a href="lithium/">Lithium</a>
+          <span>A small kernel in pure RV64 assembly. Small, hard, makes the first spark.</span>
+        </li>
+        <li>
+          <a href="kairos/">Kairos</a>
+          <span>Fair scheduler core + work-stealing pool. Erupts on schedule.</span>
+        </li>
+        <li>
+          <a href="midas/">Midas</a>
+          <span>Buddy + slab allocator. Where blocks are cut.</span>
+        </li>
+        <li>
+          <a href="zeus/">Zeus</a>
+          <span>Type-1 hypervisor on the H extension. Nothing sits lower.</span>
+        </li>
+      </ul>
+      <p class="all-apps"><a href="apps/">All apps</a></p>
+    </nav>
+  </main>
 
   <footer class="site-footer">
-    <p>Monolith · zero external crates · local WebAssembly bundle</p>
+    <p>Monolith. Zero external crates. Runs locally as a WebAssembly bundle.</p>
   </footer>
+
+  <div id="term-holder" hidden></div>
 
   <script src="_kit/wasm.js" defer></script>
   <script src="_kit/term.js" defer></script>
   <script src="systems.js" defer></script>
   <script src="_kit/motion-table.js" defer></script>
   <script src="_kit/motion.js" defer></script>
+  <script src="board.js" defer></script>
+  <script src="feed.js" defer></script>
   <script src="site.js" defer></script>
 </body>
 </html>

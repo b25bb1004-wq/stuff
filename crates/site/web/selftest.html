@@ -83,17 +83,23 @@
   probe.remove();
 
   // The site's own files: no token redefinitions, and no rAF outside the kit.
-  var fetches = ["style.css", "site.js"].map(function (f) {
+  var fetches = ["style.css", "site.js", "index.html"].map(function (f) {
     return fetch(f).then(function (r) { return r.text(); });
   });
   Promise.all(fetches).then(function (texts) {
     var css = texts[0];
     var js = texts[1];
+    var html = texts[2];
     check("site-css-tokens-only", !/--t-[a-z-]+\s*:/.test(css) && !/--ease\s*:/.test(css),
       "style.css redefines a motion token");
     check("site-css-no-bare-durations", !/\d(ms|s)[;\s,)}]/.test(css), "style.css has a bare duration");
     check("site-js-no-raf", js.indexOf("requestAnimationFrame") === -1, "site.js calls requestAnimationFrame");
     check("site-js-hero", js.indexOf('Motion.hero("site"') !== -1, "core sample hero is not wired");
+    // The home page is the board: one canvas, the headline, and the 25-item list (no cards).
+    check("site-board-markup", html.indexOf('id="board"') !== -1 && html.indexOf('id="systems"') !== -1 &&
+      html.indexOf("system-card") === -1, "index.html lacks the board canvas or still has cards");
+    check("site-js-board", js.indexOf("window.Board") !== -1 && js.indexOf("window.Feed") !== -1 &&
+      js.indexOf("requestAnimationFrame") === -1, "site.js does not wire Board and Feed, or calls rAF");
   }).catch(function (err) {
     check("site-files", false, String(err));
   }).then(function () {

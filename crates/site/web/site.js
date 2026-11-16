@@ -13,10 +13,16 @@
       'fn main() {\n  let x: int = "not an int"\n}\n'
   };
 
+  document.documentElement.classList.remove("no-js");
+
   const systems = Array.isArray(window.MONOLITH_SYSTEMS) ? window.MONOLITH_SYSTEMS : [];
-  const layerDiagram = document.getElementById("layer-diagram");
-  const systemsList = document.getElementById("systems");
-  const activeLayerLabel = document.getElementById("active-layer-label");
+  const byId = new Map(systems.map((sys) => [sys.id, sys]));
+  const hero = document.getElementById("hero");
+  const canvas = document.getElementById("board");
+  const chipLabel = document.getElementById("chip-label");
+  const pane = document.getElementById("demo-pane");
+  const openTerminal = document.getElementById("open-terminal");
+  const holder = document.getElementById("term-holder");
   const wasmStatus = document.getElementById("wasm-status");
   const themeToggle = document.getElementById("theme-toggle");
 
@@ -24,9 +30,19 @@
   const decoder = new TextDecoder();
 
   let wasmPromise = null;
+  let wasmApi = null;
   let wasmExports = null;
-  let titanStarted = false;
-  let titanHooks = null;
+  let board = null;
+  let selectedId = null;
+  let seq = 0;
+  let titanBox = null;
+  let titanTerm = null;
+  let titanBoot = null;
+  let feedStop = null;
+
+  function reduced() {
+    return window.Motion ? Motion.reduced() : false;
+  }
 
   function applyTheme(theme) {
     if (theme === "light" || theme === "dark") {
@@ -49,6 +65,7 @@
     } else {
       applyTheme("light");
     }
+    remountBoard();
   });
 
   function ensureWasm() {
@@ -56,6 +73,7 @@
       wasmStatus.textContent = "loading wasm…";
       wasmPromise = Neon.load("site.wasm")
         .then((api) => {
+          wasmApi = api;
           wasmExports = api.exports;
           wasmStatus.textContent = "wasm ready";
           return wasmExports;
@@ -110,10 +128,6 @@
     return el;
   }
 
-  function formatNum(n) {
-    return String(n).padStart(2, "0");
-  }
-
   function renderRegistryDemo(demoId, labelText, defaultInput, isSub) {
     const box = createEl("div", isSub ? "demo-box demo-subbox" : "demo-box");
     const bar = createEl("div", "demo-bar");
@@ -146,10 +160,10 @@
     outPre.setAttribute("aria-live", "polite");
     outPre.tabIndex = 0;
 
-    const canvas = createEl("canvas", "demo-canvas");
-    canvas.hidden = true;
-    canvas.setAttribute("role", "img");
-    canvas.setAttribute("aria-label", `Rendered frame from ${labelText}`);
+    const canvasEl = createEl("canvas", "demo-canvas");
+    canvasEl.hidden = true;
+    canvasEl.setAttribute("role", "img");
+    canvasEl.setAttribute("aria-label", `Rendered frame from ${labelText}`);
 
     resetBtn.addEventListener("click", () => {
       textarea.value = defaultInput || "";
@@ -180,18 +194,18 @@
           const w = wasm.site_pixels_w();
           const h = wasm.site_pixels_h();
           if (w > 0 && h > 0 && bytes.length === w * h * 4) {
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext("2d");
+            canvasEl.width = w;
+            canvasEl.height = h;
+            const ctx = canvasEl.getContext("2d");
             if (ctx) {
               ctx.putImageData(new ImageData(new Uint8ClampedArray(bytes.buffer), w, h), 0, 0);
             }
-            canvas.hidden = false;
+            canvasEl.hidden = false;
             outPre.hidden = true;
             status.className = "demo-status is-ok";
             status.textContent = `${w}x${h} frame`;
           } else {
-            canvas.hidden = true;
+            canvasEl.hidden = true;
             outPre.hidden = false;
             outPre.className = "demo-output is-error";
             outPre.textContent = "invalid pixel buffer";
@@ -199,14 +213,14 @@
             status.textContent = "error";
           }
         } else if (rc === 0) {
-          canvas.hidden = true;
+          canvasEl.hidden = true;
           outPre.hidden = false;
           outPre.className = "demo-output";
           outPre.textContent = decoder.decode(bytes);
           status.className = "demo-status is-ok";
           status.textContent = "ok";
         } else {
-          canvas.hidden = true;
+          canvasEl.hidden = true;
           outPre.hidden = false;
           outPre.className = "demo-output is-error";
           outPre.textContent = decoder.decode(bytes) || "demo failed";
@@ -214,7 +228,7 @@
           status.textContent = "error";
         }
       } catch (err) {
-        canvas.hidden = true;
+        canvasEl.hidden = true;
         outPre.hidden = false;
         outPre.className = "demo-output is-error";
         outPre.textContent = err && err.message ? err.message : String(err);
@@ -230,11 +244,13 @@
     box.appendChild(controls);
     const stage = createEl("div", "demo-stage");
     stage.appendChild(outPre);
-    stage.appendChild(canvas);
+    stage.appendChild(canvasEl);
     box.appendChild(stage);
     return box;
   }
 
+  /* Titan's terminal lives in a hidden holder from page load, so the machine keeps running and
+  the board's events keep flowing; the pane moves it in while Titan is open. */
   function renderTitanDemo() {
     const box = createEl("div", "demo-box");
     const bar = createEl("div", "demo-bar");
@@ -244,7 +260,7 @@
     bar.appendChild(status);
 
     const termRoot = createEl("div", "titan-term");
-    const term = Term.mount(termRoot, {
+    titanTerm = Term.mount(termRoot, {
       send(line) {
         withGuestBytes(wasmExports, encoder.encode(line), (ptr, len) =>
           wasmExports.titan_send(ptr, len)
@@ -281,35 +297,38 @@
     box.appendChild(bar);
     box.appendChild(termRoot);
 
-    titanHooks = {
-      boot: async () => {
-        if (titanStarted) {
-          return;
+    let booting = false;
+    titanBoot = async () => {
+      if (booting) {
+        return;
+      }
+      booting = true;
+      status.className = "demo-status";
+      status.textContent = "loading kernel…";
+      try {
+        const wasm = await ensureWasm();
+        const elfResp = await fetch("titan.elf");
+        if (!elfResp.ok) {
+          throw new Error(`failed to fetch titan.elf: ${elfResp.status}`);
         }
-        titanStarted = true;
-        status.className = "demo-status";
-        status.textContent = "loading kernel…";
-        try {
-          const wasm = await ensureWasm();
-          const elfResp = await fetch("titan.elf");
-          if (!elfResp.ok) {
-            throw new Error(`failed to fetch titan.elf: ${elfResp.status}`);
-          }
-          const elfBytes = new Uint8Array(await elfResp.arrayBuffer());
-          const rc = withGuestBytes(wasm, elfBytes, (ptr, len) => wasm.titan_boot(ptr, len));
-          if (rc !== 0) {
-            const errLen = wasm.neon_last_len();
-            throw new Error(readNeonLast(wasm, errLen) || "titan_boot failed");
-          }
-          status.textContent = "booting…";
-          term.start();
-        } catch (err) {
-          status.className = "demo-status is-bad";
-          status.textContent = "failed";
-          term.append(`
+        const elfBytes = new Uint8Array(await elfResp.arrayBuffer());
+        const rc = withGuestBytes(wasm, elfBytes, (ptr, len) => wasm.titan_boot(ptr, len));
+        if (rc !== 0) {
+          const errLen = wasm.neon_last_len();
+          throw new Error(readNeonLast(wasm, errLen) || "titan_boot failed");
+        }
+        status.textContent = "booting…";
+        titanTerm.start();
+        if (window.Feed && !feedStop) {
+          feedStop = window.Feed.start(wasmApi, emitBoard);
+        }
+      } catch (err) {
+        booting = false;
+        status.className = "demo-status is-bad";
+        status.textContent = "failed";
+        titanTerm.append(`
 [titan error] ${err && err.message ? err.message : String(err)}
 `);
-        }
       }
     };
     return box;
@@ -372,7 +391,7 @@
       status.textContent = "running…";
       try {
         const wasm = await ensureWasm();
-        /* A task break lets the running status paint before the run; rAF is reserved for the kit. */
+        /* A task break lets the running status paint before the run. */
         setTimeout(() => {
           try {
             const bytes = encoder.encode(textarea.value);
@@ -419,154 +438,263 @@
     return box;
   }
 
-  /* Core sample hero (4.5): the layer chips stack up from below on the first load of a session.
-  A key, click, wheel or touch finishes it at once; reduced motion shows the end picture. */
-  function playCoreSample() {
-    if (!window.Motion) {
+  /* One demo pane: the system's own demo(s), built from the render functions above. */
+  function buildDemos(sys) {
+    const boxes = [];
+    if (sys.demo === "titan") {
+      boxes.push(titanBox);
+    } else if (sys.demo === "logos") {
+      boxes.push(renderLogosDemo());
+    } else if (sys.demo === "athena") {
+      boxes.push(renderAthenaDemo());
+    } else if (typeof sys.demo === "string") {
+      boxes.push(renderRegistryDemo(sys.demo, `${sys.name} input`, sys.defaultInput, false));
+    } else {
+      boxes.push(createEl("p", "demo-placeholder", "Live demo coming in the next build"));
+    }
+    if (sys.extraDemo) {
+      boxes.push(
+        renderRegistryDemo(
+          sys.extraDemo.id,
+          `${sys.extraDemo.title} (${sys.extraDemo.source})`,
+          sys.extraDemo.defaultInput,
+          true
+        )
+      );
+    }
+    return boxes.map((el) => ({ el, run: runnerFor(el) }));
+  }
+
+  function runnerFor(el) {
+    if (el === titanBox) {
+      return () => {
+        titanBoot();
+        titanTerm.focus();
+      };
+    }
+    const first = el.querySelector("button");
+    return first ? () => first.click() : null;
+  }
+
+  /* Board events: a real machine event pulses its trace (or blinks the pad under reduced motion). */
+  function emitBoard(kind, fromId, toId) {
+    if (board) {
+      board.pulse(fromId, toId, kind);
+    }
+  }
+
+  function rectOf(id) {
+    return board ? board.chipRect(id) : null;
+  }
+
+  function placePane() {
+    if (!selectedId || pane.hidden) {
       return;
     }
-    Motion.hero("site", (ctl) => {
-      const handles = Motion.stagger(layerDiagram, { curve: "heavy", dist: 3, fill: "backwards" });
-      ctl.onSkip(() => handles.forEach((h) => h.finish()));
-      return Promise.all(handles.map((h) => h.done));
-    });
+    const r = rectOf(selectedId);
+    if (!r) {
+      pane.classList.add("is-static");
+      pane.removeAttribute("style");
+      return;
+    }
+    pane.classList.remove("is-static");
+    pane.style.left = `${r.x}px`;
+    pane.style.top = `${r.y}px`;
+    pane.style.width = `${r.w}px`;
+    pane.style.height = `${r.h}px`;
+  }
+
+  function showLabel(id) {
+    const sys = byId.get(id);
+    const r = rectOf(id);
+    if (!sys || !r) {
+      chipLabel.hidden = true;
+      return;
+    }
+    chipLabel.replaceChildren(createEl("strong", "", sys.name), document.createTextNode(sys.line));
+    chipLabel.style.left = `${r.x}px`;
+    chipLabel.style.top = `${r.y + r.h + 6}px`;
+    chipLabel.hidden = false;
+  }
+
+  function closePane() {
+    if (titanBox && titanBox.parentNode === pane) {
+      holder.appendChild(titanBox);
+    }
+    pane.replaceChildren();
+    pane.hidden = true;
+  }
+
+  function openPane(sys) {
+    const demos = buildDemos(sys);
+    const title = createEl("h2", "pane-title", sys.name);
+    title.tabIndex = -1;
+    const actions = createEl("div", "pane-actions");
+    const again = createEl("button", "", "Run again");
+    again.type = "button";
+    again.disabled = demos.every((d) => !d.run);
+    again.addEventListener("click", () => demos.forEach((d) => d.run && d.run()));
+    const app = createEl("a", "btn-link", "Open app");
+    app.href = `${sys.id}/`;
+    const back = createEl("button", "btn-ghost", "Back to board");
+    back.type = "button";
+    back.addEventListener("click", goBack);
+    actions.append(again, app, back);
+
+    const head = createEl("div", "pane-head");
+    head.append(title, createEl("p", "pane-what", sys.line));
+    pane.replaceChildren(head, actions, ...demos.map((d) => d.el));
+    pane.hidden = false;
+    placePane();
+    if (window.Motion) {
+      Motion.enter(pane, { curve: "firm", dist: 1 });
+    }
+    title.focus();
+    demos.forEach((d) => d.run && d.run());
+  }
+
+  /* One pane at a time. Resolves once the pane is open (after the zoom, if there is a board). */
+  function select(id) {
+    const sys = byId.get(id);
+    if (!sys) {
+      return Promise.resolve();
+    }
+    if (id === selectedId) {
+      return Promise.resolve();
+    }
+    seq += 1;
+    const mine = seq;
+    closePane();
+    selectedId = id;
+    setHash(id);
+    chipLabel.hidden = true;
+    if (!board) {
+      openPane(sys);
+      return Promise.resolve();
+    }
+    return Promise.resolve()
+      .then(() => board.zoomTo(id))
+      .catch(() => {})
+      .then(() => {
+        if (mine === seq && selectedId === id) {
+          openPane(sys);
+        }
+      });
+  }
+
+  async function goBack() {
+    if (!selectedId) {
+      return;
+    }
+    const id = selectedId;
+    seq += 1;
+    selectedId = null;
+    closePane();
+    setHash("");
+    if (!board) {
+      openTerminal.focus();
+      return;
+    }
+    try {
+      await board.zoomOut();
+    } catch (err) {
+      /* The board stays where it is; the list below still works. */
+    }
+    board.focus(id);
+  }
+
+  function setHash(id) {
+    try {
+      history.replaceState(null, "", id ? `#${id}` : `${location.pathname}${location.search}`);
+    } catch (err) {
+      /* Some embedded frames refuse history changes; the hash is then only a convenience. */
+    }
+  }
+
+  function mountBoard() {
+    if (board) {
+      board.destroy();
+      board = null;
+    }
+    if (window.Board && typeof window.Board.mount === "function") {
+      try {
+        board = window.Board.mount(canvas, systems);
+        board.on("hover", (id) => {
+          if (id && !selectedId) {
+            showLabel(id);
+          } else {
+            chipLabel.hidden = true;
+          }
+        });
+        board.on("select", (id) => {
+          select(id);
+        });
+      } catch (err) {
+        console.warn("board unavailable, list view only:", err);
+        board = null;
+      }
+    }
+    hero.classList.toggle("no-board", board === null);
+  }
+
+  /* Colours are read at mount, so a theme change remounts the board and keeps the open chip. */
+  function remountBoard() {
+    const id = selectedId;
+    mountBoard();
+    if (board && id) {
+      Promise.resolve()
+        .then(() => board.zoomTo(id))
+        .then(placePane, () => {});
+    }
   }
 
   function buildPage() {
-    const chips = new Map();
-    const sectionToNum = new Map();
+    mountBoard();
 
-    for (const sys of systems) {
-      const chip = createEl("a", "layer-chip");
-      chip.href = `#sys-${sys.id}`;
-      chip.appendChild(createEl("span", "layer-num", formatNum(sys.num)));
-      chip.appendChild(createEl("span", "layer-name", sys.name));
-      layerDiagram.appendChild(chip);
-      chips.set(sys.num, chip);
-
-      const section = createEl("section", "system-card reveal");
-      section.id = `sys-${sys.id}`;
-      section.dataset.num = String(sys.num);
-      if (sys.demo && sys.demo !== "athena") {
-        section.dataset.demoKind = sys.demo;
-      }
-
-      const head = createEl("div", "system-head");
-      head.appendChild(createEl("span", "system-num", formatNum(sys.num)));
-      head.appendChild(createEl("h2", "system-title", sys.name));
-      head.appendChild(createEl("span", "system-what", sys.what));
-      head.appendChild(createEl("code", "system-src", sys.source));
-      if (sys.demo) {
-        const appLink = createEl("a", "btn-link btn-app", "Open app");
-        appLink.href = `${sys.id}/`;
-        head.appendChild(appLink);
-      }
-
-      const line = createEl("p", "system-line", sys.line);
-
-      section.appendChild(head);
-      section.appendChild(line);
-
-      if (sys.demo === "titan") {
-        section.appendChild(renderTitanDemo());
-      } else if (sys.demo === "logos") {
-        section.appendChild(renderLogosDemo());
-      } else if (sys.demo === "athena") {
-        section.appendChild(renderAthenaDemo());
-      } else if (typeof sys.demo === "string") {
-        section.appendChild(renderRegistryDemo(sys.demo, `${sys.name} input`, sys.defaultInput, false));
-      } else {
-        section.appendChild(createEl("p", "demo-placeholder", "Live demo coming in the next build"));
-      }
-
-      if (sys.extraDemo) {
-        section.appendChild(
-          renderRegistryDemo(
-            sys.extraDemo.id,
-            `${sys.extraDemo.title} (${sys.extraDemo.source})`,
-            sys.extraDemo.defaultInput,
-            true
-          )
-        );
-      }
-
-      systemsList.appendChild(section);
-      sectionToNum.set(section, sys.num);
+    if (window.Motion) {
+      Motion.hero("site", (ctl) => {
+        const handle = Motion.enter(document.getElementById("board-wrap"), { curve: "heavy", dist: 2 });
+        ctl.onSkip(() => handle.finish());
+        return handle.done;
+      });
     }
 
-    function setActiveLayer(num) {
-      for (const [k, chip] of chips.entries()) {
-        chip.classList.toggle("is-active", k === num);
+    openTerminal.addEventListener("click", () => {
+      select("titan").then(() => titanTerm.focus());
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && selectedId) {
+        goBack();
       }
-      activeLayerLabel.textContent = `${formatNum(num)} / ${formatNum(systems.length)}`;
+    });
+
+    window.addEventListener("hashchange", () => {
+      const id = location.hash.slice(1);
+      if (byId.has(id)) {
+        select(id);
+      } else if (selectedId) {
+        goBack();
+      }
+    });
+
+    window.addEventListener("resize", placePane);
+
+    const scheme = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
+    if (scheme && scheme.addEventListener) {
+      scheme.addEventListener("change", remountBoard);
     }
 
-    if (systems.length > 0) {
-      setActiveLayer(systems[0].num);
+    if (titanBoot) {
+      titanBoot();
     }
-
-    playCoreSample();
-
-    /* Kit motion when it loaded; the CSS end state (is-visible) shows the section either way. */
-    const motion = window.Motion || null;
-    const staggerMs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--stagger")) || 0;
-    let revealed = 0;
-
-    if ("IntersectionObserver" in window) {
-      const revealObserver = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            if (entry.isIntersecting) {
-              if (!entry.target.classList.contains("is-visible")) {
-                entry.target.classList.add("is-visible");
-                if (motion) {
-                  /* Sections that arrive together enter one stagger step apart, at most eight steps. */
-                  motion.enter(entry.target, { dist: 2, dur: "slow", delay: Math.min(revealed, 7) * staggerMs });
-                  revealed += 1;
-                }
-              }
-              const num = sectionToNum.get(entry.target);
-              if (num !== undefined) {
-                setActiveLayer(num);
-              }
-            }
-          }
-          revealed = 0;
-        },
-        { threshold: 0.12 }
-      );
-
-      const lazyObserver = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            if (!entry.isIntersecting) {
-              continue;
-            }
-            const kind = entry.target.dataset.demoKind;
-            if (kind) {
-              ensureWasm().catch(() => {});
-            }
-            if (kind === "titan" && titanHooks) {
-              titanHooks.boot();
-            }
-            lazyObserver.unobserve(entry.target);
-          }
-        },
-        { rootMargin: "240px 0px" }
-      );
-
-      for (const section of sectionToNum.keys()) {
-        revealObserver.observe(section);
-        if (section.dataset.demoKind) {
-          lazyObserver.observe(section);
-        }
-      }
-    } else {
-      for (const section of sectionToNum.keys()) {
-        section.classList.add("is-visible");
-      }
+    const initial = location.hash.slice(1);
+    if (byId.has(initial)) {
+      select(initial);
     }
   }
 
+  titanBox = renderTitanDemo();
+  holder.appendChild(titanBox);
   buildPage();
 })();
