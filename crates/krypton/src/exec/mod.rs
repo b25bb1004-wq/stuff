@@ -1,5 +1,6 @@
 //! POSIX shell execution engine (`Shell`).
 
+mod alias;
 mod builtins;
 mod external;
 mod pipeline;
@@ -19,6 +20,7 @@ use crate::expand::{expand, expand_one};
 use crate::glob::glob_match;
 use crate::types::{Env, ExpandError};
 
+use alias::{expand_alias, Expanded};
 use builtins::{is_builtin, run_builtin};
 use external::run_external;
 use pipeline::{exec_pipeline, spawn_background, Job};
@@ -89,6 +91,10 @@ pub struct Shell {
     pub(crate) escapes: crate::types::Escapes,
     /// Trap actions by signal name (`EXIT`, `INT`, `TERM`); only `EXIT` runs.
     pub(crate) traps: BTreeMap<String, String>,
+    /// Alias definitions by name, from `alias name=text`.
+    pub(crate) aliases: BTreeMap<String, String>,
+    /// File-creation mask set by `umask` (stored only; Windows has no mode bits to apply it to).
+    pub(crate) umask: u32,
 }
 
 impl Default for Shell {
@@ -142,6 +148,8 @@ impl Shell {
             inherit_stdio: false,
             escapes: crate::types::Escapes::Posix,
             traps: BTreeMap::new(),
+            aliases: BTreeMap::new(),
+            umask: 0o022,
         }
     }
 
@@ -272,6 +280,8 @@ impl Shell {
             escapes: self.escapes,
             // Subshells do not inherit traps (POSIX: traps reset in a subshell).
             traps: BTreeMap::new(),
+            aliases: self.aliases.clone(),
+            umask: self.umask,
         }
     }
 
@@ -611,6 +621,19 @@ impl Shell {
     }
 
     fn exec_simple(&mut self, simple: &Simple, fds: &mut FdTable, io: &mut IoStreams<'_>) -> i32 {
+        let rewritten: Simple;
+        let simple = match expand_alias(self, simple) {
+            Ok(None) => simple,
+            Ok(Some(Expanded::Simple(s))) => {
+                rewritten = s;
+                &rewritten
+            }
+            Ok(Some(Expanded::Script(script))) => return self.exec_script(&script, fds, io),
+            Err(msg) => {
+                fds.write_err(io, &format!("krypton: {msg}\n"));
+                return 1;
+            }
+        };
         let args = match expand(&simple.words, self) {
             Ok(a) => a,
             Err(e) => return self.handle_expand_err(e, fds, io),

@@ -92,6 +92,78 @@ fn parse_single_quote(scanner: &mut Scanner<'_>) -> Result<Part, ParseError> {
     }
 }
 
+/// Read one hex or octal escape payload of up to `max` digits, starting from `val`.
+fn take_digits(scanner: &mut Scanner<'_>, radix: u32, max: usize, mut val: u32) -> (u32, usize) {
+    let mut count = 0;
+    while count < max {
+        let Some(d) = scanner.cursor.peek_raw().and_then(|ch| ch.to_digit(radix)) else {
+            break;
+        };
+        scanner.cursor.next_raw();
+        val = val.saturating_mul(radix).saturating_add(d);
+        count += 1;
+    }
+    (val, count)
+}
+
+/// Parse `$'...'` (ANSI-C quoting). The `$` is at the cursor; the quote follows it.
+fn parse_ansi_c(scanner: &mut Scanner<'_>) -> Result<Part, ParseError> {
+    let start_err = scanner.cursor.err("unterminated $' quote", true);
+    scanner.cursor.next_char(); // consume '$'
+    scanner.cursor.next_char(); // consume opening '\''
+    let mut s = String::new();
+    loop {
+        match scanner.cursor.next_raw() {
+            None => return Err(start_err),
+            Some('\'') => return Ok(Part::Single(s)),
+            Some('\\') => {
+                let Some(c) = scanner.cursor.next_raw() else {
+                    return Err(start_err);
+                };
+                let decoded = match c {
+                    'a' => '\u{07}',
+                    'b' => '\u{08}',
+                    'e' | 'E' => '\u{1b}',
+                    'f' => '\u{0c}',
+                    'n' => '\n',
+                    'r' => '\r',
+                    't' => '\t',
+                    'v' => '\u{0b}',
+                    '\\' | '\'' | '"' | '?' => c,
+                    '0'..='7' => {
+                        let (v, _) = take_digits(scanner, 8, 2, c.to_digit(8).unwrap_or(0));
+                        char::from_u32(v).unwrap_or('\u{FFFD}')
+                    }
+                    // shortcut: \xHH and \NNN above 0x7f become the code point, not a raw byte,
+                    // because words are UTF-8 strings; upgrade when words can carry bytes
+                    'x' => {
+                        let (v, n) = take_digits(scanner, 16, 2, 0);
+                        if n == 0 {
+                            s.push_str("\\x");
+                            continue;
+                        }
+                        char::from_u32(v).unwrap_or('\u{FFFD}')
+                    }
+                    'u' => {
+                        let (v, n) = take_digits(scanner, 16, 4, 0);
+                        if n == 0 {
+                            s.push_str("\\u");
+                            continue;
+                        }
+                        char::from_u32(v).unwrap_or('\u{FFFD}')
+                    }
+                    other => {
+                        s.push('\\');
+                        other
+                    }
+                };
+                s.push(decoded);
+            }
+            Some(c) => s.push(c),
+        }
+    }
+}
+
 fn parse_double_quote(scanner: &mut Scanner<'_>) -> Result<Part, ParseError> {
     let start_err = scanner.cursor.err("unterminated double quote", true);
     scanner.cursor.next_char(); // consume opening '"'
@@ -493,6 +565,9 @@ fn parse_word_inner(
                     }
                     Some(c) => parts.push(Part::Escaped(c)),
                 }
+            }
+            Some('$') if stop != StopMode::EndOfInput && scanner.cursor.peek2() == Some('\'') => {
+                parts.push(parse_ansi_c(scanner)?);
             }
             Some('$') => {
                 let p = parse_dollar(scanner, false)?;

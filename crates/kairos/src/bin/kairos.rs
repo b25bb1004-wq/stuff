@@ -19,6 +19,7 @@ const CFS_WEIGHTS: [u64; 40] = [
 
 fn usage() -> &'static str {
     "\
+kairos - deterministic multi-CPU fair scheduler simulation
 Usage:
   kairos <subcommand> [args]
   kairos --help
@@ -29,6 +30,10 @@ Subcommands:
       Simulate tasks described in FILE ('-' for stdin) and print a per-CPU
       timeline in ticks plus each task's CPU share against its weight.
       FILE lines: 'cpus N' and 'task NAME WEIGHT WORK'.
+      Example file (runs as given):
+        cpus 2
+        task a 1024 10
+        task b 512 10
       Example: kairos sim workload.txt"
 }
 

@@ -28,7 +28,7 @@ mod tests_prop;
 use alloc::string::String;
 
 pub use disk::{BlockDevice, CrashDisk, MemDisk};
-pub use fs::{mkfs, Fs};
+pub use fs::{mkfs, mkfs_min_blocks, Fs};
 pub use fsck::{fsck, Report};
 
 /// Block size in bytes; every block on disk is this long.

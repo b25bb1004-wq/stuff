@@ -42,6 +42,11 @@ pub(crate) fn is_builtin(name: &str) -> bool {
             | "local"
             | "command"
             | "trap"
+            | "alias"
+            | "unalias"
+            | "umask"
+            | "hash"
+            | "kill"
     )
 }
 
@@ -79,6 +84,12 @@ pub(crate) fn run_builtin(
         "local" => builtin_local(args, shell, fds, io),
         "command" => builtin_command(args, shell, fds, io),
         "trap" => builtin_trap(args, shell, fds, io),
+        "alias" => super::alias::builtin_alias(args, shell, fds, io),
+        "unalias" => super::alias::builtin_unalias(args, shell, fds, io),
+        "umask" => builtin_umask(args, shell, fds, io),
+        // Nothing is cached, so there is nothing to forget.
+        "hash" => 0,
+        "kill" => builtin_kill(args, shell, fds, io),
         _ => 127,
     }
 }
@@ -843,6 +854,48 @@ fn builtin_command(
 }
 
 /// Map a signal operand to its stored name. Only EXIT runs; INT and TERM are stored only.
+/// `umask [mode]`: print the mask as four octal digits, or store a new one.
+fn builtin_umask(
+    args: &[String],
+    shell: &mut Shell,
+    fds: &mut FdTable,
+    io: &mut IoStreams<'_>,
+) -> i32 {
+    let Some(value) = args.first() else {
+        fds.write_out(io, &format!("{:04o}\n", shell.umask));
+        return 0;
+    };
+    match u32::from_str_radix(value, 8) {
+        Ok(mode) if mode <= 0o777 => {
+            shell.umask = mode;
+            0
+        }
+        _ => {
+            fds.write_err(io, &format!("krypton: umask: {value}: invalid mode\n"));
+            1
+        }
+    }
+}
+
+/// `kill -0 PID`: answered here for this shell's own PID; other requests go to the external kill.
+fn builtin_kill(
+    args: &[String],
+    shell: &mut Shell,
+    fds: &mut FdTable,
+    io: &mut IoStreams<'_>,
+) -> i32 {
+    let (signal_zero, pids) = match args {
+        [first, rest @ ..] if first.as_str() == "-0" => (true, rest),
+        [first, sig, rest @ ..] if first.as_str() == "-s" && sig.as_str() == "0" => (true, rest),
+        _ => (false, args),
+    };
+    let own = shell.pid;
+    if signal_zero && !pids.is_empty() && pids.iter().all(|p| p.parse::<u32>().ok() == Some(own)) {
+        return 0;
+    }
+    run_external("kill", args, &[], shell, fds, io)
+}
+
 fn trap_signal_name(sig: &str) -> Option<&'static str> {
     let upper = sig.to_ascii_uppercase();
     match upper.strip_prefix("SIG").unwrap_or(&upper) {

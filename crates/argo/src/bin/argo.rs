@@ -23,6 +23,7 @@ const VERSION_STR: &str = "argo 0.1.0";
 
 fn usage() -> &'static str {
     "\
+argo - dependency solving, lock files, local installation, and registry serving
 Usage:
   argo <subcommand> [options] [args]
   argo --help

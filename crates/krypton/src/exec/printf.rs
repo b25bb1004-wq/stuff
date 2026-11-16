@@ -5,6 +5,10 @@ use std::prelude::rust_2021::*;
 
 use super::redir::{FdTable, IoStreams};
 
+/// Largest width or precision honored, so a huge request cannot exhaust memory.
+// shortcut: width and precision capped at 4096, upgrade if a real report needs more
+const MAX_FIELD: u64 = 4096;
+
 fn unescape_bytes(s: &str, stop_on_c: bool) -> (Vec<u8>, bool) {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
@@ -77,14 +81,19 @@ fn unescape_bytes(s: &str, stop_on_c: bool) -> (Vec<u8>, bool) {
     (out, false)
 }
 
-fn parse_printf_int(s: &str) -> Result<i64, String> {
+/// Value of a `'c` or `"c` character-constant argument.
+fn quoted_char(s: &str) -> Option<char> {
+    let rest = s.strip_prefix('\'').or_else(|| s.strip_prefix('"'))?;
+    rest.chars().next()
+}
+
+/// Integer argument: decimal, octal (leading 0), hex (0x), or a character constant. Empty is 0.
+fn parse_int(s: &str) -> Option<i64> {
     if s.is_empty() {
-        return Ok(0);
+        return Some(0);
     }
-    if let Some(rest) = s.strip_prefix('\'').or_else(|| s.strip_prefix('"')) {
-        if let Some(ch) = rest.chars().next() {
-            return Ok(i64::from(u32::from(ch)));
-        }
+    if let Some(ch) = quoted_char(s) {
+        return Some(i64::from(u32::from(ch)));
     }
     let trimmed = s.trim();
     let (neg, body) = if let Some(r) = trimmed.strip_prefix('-') {
@@ -101,26 +110,197 @@ fn parse_printf_int(s: &str) -> Result<i64, String> {
     } else {
         body.parse::<i64>()
     };
-    match val {
-        Ok(v) => Ok(if neg { v.wrapping_neg() } else { v }),
-        Err(_) => Err(format!("invalid number: {s}")),
+    val.ok().map(|v| if neg { v.wrapping_neg() } else { v })
+}
+
+/// Floating-point argument. Empty is 0.0; a character constant gives its code.
+fn parse_float(s: &str) -> Option<f64> {
+    if s.is_empty() {
+        return Some(0.0);
+    }
+    if let Some(ch) = quoted_char(s) {
+        return Some(f64::from(u32::from(ch)));
+    }
+    s.trim().parse::<f64>().ok()
+}
+
+/// Parsed `%` conversion flags, width and precision.
+#[derive(Default)]
+struct Spec {
+    left: bool,
+    zero: bool,
+    plus: bool,
+    space: bool,
+    alt: bool,
+    width: usize,
+    prec: Option<usize>,
+}
+
+fn clamp_field(n: u64) -> usize {
+    usize::try_from(n.min(MAX_FIELD)).unwrap_or(0)
+}
+
+/// Pad `body` (with an optional sign or `0x` prefix) to the spec's width.
+fn assemble(prefix: &str, body: &str, sp: &Spec, zero_ok: bool) -> String {
+    let len = prefix.chars().count() + body.chars().count();
+    let pad = sp.width.saturating_sub(len);
+    if sp.left {
+        format!("{prefix}{body}{}", " ".repeat(pad))
+    } else if zero_ok {
+        format!("{prefix}{}{body}", "0".repeat(pad))
+    } else {
+        format!("{}{prefix}{body}", " ".repeat(pad))
     }
 }
 
-fn pad_field(s: &str, width: usize, left: bool, pad_char: char) -> String {
-    let char_len = s.chars().count();
-    if char_len >= width {
+fn fmt_int(sp: &Spec, conv: u8, n: i64) -> String {
+    let (neg, mut digits) = match conv {
+        b'd' | b'i' => (n < 0, n.unsigned_abs().to_string()),
+        b'u' => (false, (n as u64).to_string()),
+        b'o' => (false, format!("{:o}", n as u64)),
+        b'x' => (false, format!("{:x}", n as u64)),
+        _ => (false, format!("{:X}", n as u64)),
+    };
+    if sp.prec == Some(0) && n == 0 {
+        digits.clear();
+    }
+    let min = sp.prec.unwrap_or(0);
+    if digits.len() < min {
+        digits = format!("{}{digits}", "0".repeat(min - digits.len()));
+    }
+    let mut prefix = String::new();
+    if matches!(conv, b'd' | b'i') {
+        if neg {
+            prefix.push('-');
+        } else if sp.plus {
+            prefix.push('+');
+        } else if sp.space {
+            prefix.push(' ');
+        }
+    }
+    if sp.alt {
+        match conv {
+            b'o' if !digits.starts_with('0') => digits.insert(0, '0'),
+            b'x' if n != 0 => prefix.push_str("0x"),
+            b'X' if n != 0 => prefix.push_str("0X"),
+            _ => {}
+        }
+    }
+    let zero_ok = sp.zero && !sp.left && sp.prec.is_none();
+    assemble(&prefix, &digits, sp, zero_ok)
+}
+
+/// Decimal exponent of `a` after rounding to `prec` fractional digits in scientific form.
+fn exp10(a: f64, prec: usize) -> i32 {
+    let s = format!("{:.*e}", prec, a);
+    s.split_once('e')
+        .and_then(|(_, e)| e.parse::<i32>().ok())
+        .unwrap_or(0)
+}
+
+/// C-style `%e` body: mantissa, `e`, sign, and at least two exponent digits.
+fn sci(a: f64, prec: usize, alt: bool) -> String {
+    let s = format!("{:.*e}", prec, a);
+    let mant = s.split_once('e').map_or(s.as_str(), |(m, _)| m);
+    let e = exp10(a, prec);
+    let dot = if alt && prec == 0 { "." } else { "" };
+    format!(
+        "{mant}{dot}e{}{:02}",
+        if e < 0 { '-' } else { '+' },
+        e.unsigned_abs()
+    )
+}
+
+fn fixed(a: f64, prec: usize, alt: bool) -> String {
+    let dot = if alt && prec == 0 { "." } else { "" };
+    format!("{:.*}{dot}", prec, a)
+}
+
+/// Drop trailing zeros (and a bare point) from the fraction, keeping any exponent.
+fn strip_zeros(s: &str) -> String {
+    let (num, tail) = match s.find('e') {
+        Some(i) => (&s[..i], &s[i..]),
+        None => (s, ""),
+    };
+    if !num.contains('.') {
         return s.to_string();
     }
-    let pad_len = width - char_len;
-    let pad: String = std::iter::repeat_n(pad_char, pad_len).collect();
-    if left {
-        format!("{s}{pad}")
-    } else if pad_char == '0' && s.starts_with('-') {
-        format!("-{pad}{}", &s[1..])
+    let trimmed = num.trim_end_matches('0').trim_end_matches('.');
+    format!("{trimmed}{tail}")
+}
+
+fn general(a: f64, prec: usize, alt: bool) -> String {
+    let p = prec.max(1);
+    let x = exp10(a, p - 1);
+    let p_i = i32::try_from(p).unwrap_or(i32::MAX);
+    let s = if x < -4 || x >= p_i {
+        sci(a, p - 1, alt)
     } else {
-        format!("{pad}{s}")
+        let frac = p_i - 1 - x;
+        fixed(a, usize::try_from(frac).unwrap_or(0), alt)
+    };
+    if alt {
+        s
+    } else {
+        strip_zeros(&s)
     }
+}
+
+fn fmt_float(sp: &Spec, conv: u8, v: f64) -> String {
+    let neg = v.is_sign_negative() && !v.is_nan();
+    let a = v.abs();
+    let prec = sp.prec.unwrap_or(6);
+    let body = if a.is_nan() {
+        "nan".to_string()
+    } else if a.is_infinite() {
+        "inf".to_string()
+    } else {
+        match conv.to_ascii_lowercase() {
+            b'f' => fixed(a, prec, sp.alt),
+            b'e' => sci(a, prec, sp.alt),
+            _ => general(a, prec, sp.alt),
+        }
+    };
+    let body = if conv.is_ascii_uppercase() {
+        body.to_ascii_uppercase()
+    } else {
+        body
+    };
+    let mut prefix = String::new();
+    if neg {
+        prefix.push('-');
+    } else if sp.plus {
+        prefix.push('+');
+    } else if sp.space {
+        prefix.push(' ');
+    }
+    let zero_ok = sp.zero && !sp.left && a.is_finite();
+    assemble(&prefix, &body, sp, zero_ok)
+}
+
+/// Read the next argument, or "" once the arguments run out.
+fn next_arg<'a>(rest: &'a [String], idx: &mut usize) -> &'a str {
+    let s = rest.get(*idx).map_or("", String::as_str);
+    *idx += 1;
+    s
+}
+
+fn int_arg(arg: &str, fds: &mut FdTable, io: &mut IoStreams<'_>, status: &mut i32) -> i64 {
+    if let Some(v) = parse_int(arg) {
+        return v;
+    }
+    fds.write_err(io, &format!("krypton: printf: {arg}: invalid number\n"));
+    *status = 1;
+    0
+}
+
+fn float_arg(arg: &str, fds: &mut FdTable, io: &mut IoStreams<'_>, status: &mut i32) -> f64 {
+    if let Some(v) = parse_float(arg) {
+        return v;
+    }
+    fds.write_err(io, &format!("krypton: printf: {arg}: invalid number\n"));
+    *status = 1;
+    0.0
 }
 
 /// Execute `printf` builtin.
@@ -148,8 +328,7 @@ pub(crate) fn builtin_printf(args: &[String], fds: &mut FdTable, io: &mut IoStre
                     if esc == b'0' || (b'1'..=b'7').contains(&esc) {
                         let mut count = 1;
                         while count < 3 {
-                            if let Some(&d @ b'0'..=b'7') = fmt_bytes.get(j) {
-                                let _ = d;
+                            if matches!(fmt_bytes.get(j), Some(b'0'..=b'7')) {
                                 j += 1;
                                 count += 1;
                             } else {
@@ -191,41 +370,48 @@ pub(crate) fn builtin_printf(args: &[String], fds: &mut FdTable, io: &mut IoStre
                 continue;
             }
 
-            let mut left = false;
-            let mut zero_pad = false;
+            let mut sp = Spec::default();
             while let Some(&fb) = fmt_bytes.get(i) {
                 match fb {
-                    b'-' => {
-                        left = true;
-                        i += 1;
-                    }
-                    b'0' => {
-                        zero_pad = true;
-                        i += 1;
-                    }
-                    b'+' | b' ' | b'#' => {
-                        i += 1;
-                    }
+                    b'-' => sp.left = true,
+                    b'0' => sp.zero = true,
+                    b'+' => sp.plus = true,
+                    b' ' => sp.space = true,
+                    b'#' => sp.alt = true,
                     _ => break,
                 }
-            }
-            if left {
-                zero_pad = false;
+                i += 1;
             }
 
-            let mut width = 0usize;
-            while let Some(&wb @ b'0'..=b'9') = fmt_bytes.get(i) {
-                width = width
-                    .saturating_mul(10)
-                    .saturating_add(usize::from(wb - b'0'));
+            if fmt_bytes.get(i) == Some(&b'*') {
                 i += 1;
+                let w = int_arg(next_arg(rest, &mut arg_idx), fds, io, &mut status);
+                if w < 0 {
+                    sp.left = true;
+                }
+                sp.width = clamp_field(w.unsigned_abs());
+            } else {
+                let mut w = 0u64;
+                while let Some(&wb @ b'0'..=b'9') = fmt_bytes.get(i) {
+                    w = w.saturating_mul(10).saturating_add(u64::from(wb - b'0'));
+                    i += 1;
+                }
+                sp.width = clamp_field(w);
             }
 
             if fmt_bytes.get(i) == Some(&b'.') {
                 i += 1;
-                while let Some(&pb @ b'0'..=b'9') = fmt_bytes.get(i) {
-                    let _ = pb;
+                if fmt_bytes.get(i) == Some(&b'*') {
                     i += 1;
+                    let p = int_arg(next_arg(rest, &mut arg_idx), fds, io, &mut status);
+                    sp.prec = u64::try_from(p).ok().map(clamp_field);
+                } else {
+                    let mut p = 0u64;
+                    while let Some(&pb @ b'0'..=b'9') = fmt_bytes.get(i) {
+                        p = p.saturating_mul(10).saturating_add(u64::from(pb - b'0'));
+                        i += 1;
+                    }
+                    sp.prec = Some(clamp_field(p));
                 }
             }
 
@@ -235,53 +421,37 @@ pub(crate) fn builtin_printf(args: &[String], fds: &mut FdTable, io: &mut IoStre
             i += 1;
             saw_spec = true;
 
-            let arg = rest.get(arg_idx).map(String::as_str).unwrap_or("");
-            arg_idx += 1;
-
             match spec {
-                b's' => {
-                    let formatted = pad_field(arg, width, left, ' ');
-                    out.extend_from_slice(formatted.as_bytes());
-                }
-                b'b' => {
-                    let (unescaped, stop) = unescape_bytes(arg, true);
-                    let s = String::from_utf8_lossy(&unescaped);
-                    let formatted = pad_field(&s, width, left, ' ');
-                    out.extend_from_slice(formatted.as_bytes());
-                    if stop {
+                b's' | b'b' | b'c' => {
+                    let arg = next_arg(rest, &mut arg_idx);
+                    let mut stop_all = false;
+                    let text = match spec {
+                        b's' => arg.to_string(),
+                        b'b' => {
+                            let (unescaped, stop) = unescape_bytes(arg, true);
+                            // `\c` ends all output, including the rest of the format.
+                            stop_all = stop;
+                            String::from_utf8_lossy(&unescaped).into_owned()
+                        }
+                        _ => arg.chars().next().map(String::from).unwrap_or_default(),
+                    };
+                    let text = match sp.prec {
+                        Some(p) if spec == b's' => text.chars().take(p).collect(),
+                        _ => text,
+                    };
+                    out.extend_from_slice(assemble("", &text, &sp, false).as_bytes());
+                    if stop_all {
                         let _ = fds.write_fd(1, io, &out);
                         return status;
                     }
                 }
-                b'c' => {
-                    let ch = arg.chars().next().unwrap_or('\0');
-                    let s = if ch == '\0' {
-                        String::new()
-                    } else {
-                        ch.to_string()
-                    };
-                    let formatted = pad_field(&s, width, left, ' ');
-                    out.extend_from_slice(formatted.as_bytes());
+                b'd' | b'i' | b'u' | b'x' | b'X' | b'o' => {
+                    let n = int_arg(next_arg(rest, &mut arg_idx), fds, io, &mut status);
+                    out.extend_from_slice(fmt_int(&sp, spec, n).as_bytes());
                 }
-                b'd' | b'i' | b'x' | b'X' | b'o' => {
-                    let n = match parse_printf_int(arg) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            fds.write_err(io, &format!("krypton: printf: {e}\n"));
-                            status = 1;
-                            0
-                        }
-                    };
-                    let raw = match spec {
-                        b'd' | b'i' => format!("{n}"),
-                        b'x' => format!("{:x}", n as u64),
-                        b'X' => format!("{:X}", n as u64),
-                        b'o' => format!("{:o}", n as u64),
-                        _ => unreachable!(),
-                    };
-                    let pad_ch = if zero_pad { '0' } else { ' ' };
-                    let formatted = pad_field(&raw, width, left, pad_ch);
-                    out.extend_from_slice(formatted.as_bytes());
+                b'e' | b'E' | b'f' | b'F' | b'g' | b'G' => {
+                    let v = float_arg(next_arg(rest, &mut arg_idx), fds, io, &mut status);
+                    out.extend_from_slice(fmt_float(&sp, spec, v).as_bytes());
                 }
                 other => {
                     out.push(b'%');

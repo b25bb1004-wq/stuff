@@ -102,3 +102,18 @@ fn truncate_grow_is_zero_filled_and_shrink_cuts() {
     assert!(buf[..100].iter().all(|&b| b == 9));
     assert!(buf[100..].iter().all(|&b| b == 0));
 }
+
+#[test]
+fn mkfs_min_blocks_is_the_real_floor() {
+    let opts = MkfsOptions::default();
+    let min = crate::mkfs_min_blocks(opts);
+    assert_eq!(
+        min, 68,
+        "1 super + 64 journal + 1 bitmap + 1 inode block + 1 data"
+    );
+    let mut small = MemDisk::new(min - 1);
+    assert_eq!(mkfs(&mut small, opts), Err(Error::NoSpace));
+    let mut ok = MemDisk::new(min);
+    mkfs(&mut ok, opts).unwrap();
+    assert!(Fs::mount(ok).unwrap().list("/").unwrap().is_empty());
+}

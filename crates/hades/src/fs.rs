@@ -12,18 +12,29 @@ use crate::{DirEntry, Error, FsStat, MkfsOptions, Stat, BLOCK};
 
 /// Write an empty file system to `dev`. NoSpace if the device is too small for the layout.
 pub fn mkfs<D: BlockDevice>(dev: &mut D, opts: MkfsOptions) -> Result<(), Error> {
-    let blocks = dev.block_count();
+    let geo = geo_for(dev.block_count(), opts).ok_or(Error::NoSpace)?;
+    let mut t = Txn::new(&mut *dev, geo);
+    format(&mut t)?;
+    t.commit_direct()?;
+    dev.flush()
+}
+
+/// Smallest device, in blocks, that `mkfs` accepts with `opts`.
+pub fn mkfs_min_blocks(opts: MkfsOptions) -> u64 {
+    // The layout is small: this stops after a few hundred blocks for the defaults.
+    (1..=u64::from(u32::MAX))
+        .find(|&b| geo_for(b, opts).is_some())
+        .unwrap_or(u64::from(u32::MAX))
+}
+
+/// The layout `mkfs` would use on a device of `blocks` blocks.
+fn geo_for(blocks: u64, opts: MkfsOptions) -> Option<Geo> {
     let inodes = if opts.inodes == 0 {
         (blocks / 4).clamp(32, u64::from(u32::MAX)) as u32
     } else {
         opts.inodes.max(2)
     };
-    let jblocks = u64::from(opts.journal_blocks.max(2));
-    let geo = Geo::plan(blocks, inodes, jblocks).ok_or(Error::NoSpace)?;
-    let mut t = Txn::new(&mut *dev, geo);
-    format(&mut t)?;
-    t.commit_direct()?;
-    dev.flush()
+    Geo::plan(blocks, inodes, u64::from(opts.journal_blocks.max(2)))
 }
 
 fn format<D: BlockDevice>(t: &mut Txn<'_, D>) -> Result<(), Error> {

@@ -8,7 +8,7 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use hades::{fsck, mkfs, Error, Fs, Kind, MemDisk, MkfsOptions, BLOCK};
+use hades::{fsck, mkfs, mkfs_min_blocks, Error, Fs, Kind, MemDisk, MkfsOptions, BLOCK};
 
 const VERSION: &str = "hades 0.1.0";
 const DEFAULT_BLOCKS: u64 = 1024;
@@ -360,6 +360,10 @@ fn write_image_atomic(path: &Path, bytes: &[u8]) -> Result<(), CliError> {
 }
 
 fn cmd_mkfs(img: &Path, blocks: u64) -> Result<(), CliError> {
+    let min = mkfs_min_blocks(MkfsOptions::default());
+    if blocks < min {
+        return Err(CliError::Usage(format!("mkfs: need at least {min} blocks")));
+    }
     if blocks > MAX_CLI_BLOCKS {
         return Err(CliError::Op(format!(
             "block count {blocks} exceeds maximum {MAX_CLI_BLOCKS}"

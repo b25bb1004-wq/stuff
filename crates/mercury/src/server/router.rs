@@ -6,7 +6,7 @@ use std::string::{String, ToString};
 use std::vec;
 use std::vec::Vec;
 
-use super::static_files::{not_found, serve_static};
+use super::static_files::{not_found_with_body, serve_static};
 use crate::types::trim_ows;
 use crate::ws::{accept_key, base64_decode, WebSocket};
 use crate::{Request, Response};
@@ -177,16 +177,20 @@ impl Router {
             }
         }
         if let Some((mount, rel)) = best_static {
-            let range_hdr = req.header("range");
+            let (range_hdr, ims) = (req.header("range"), req.header("if-modified-since"));
             let resp = match req.method.as_str() {
-                "GET" => serve_static(&mount.dir, rel, false, range_hdr),
-                "HEAD" => serve_static(&mount.dir, rel, true, range_hdr),
-                _ => method_not_allowed(&["GET", "HEAD"]),
+                "GET" => serve_static(&mount.dir, rel, false, range_hdr, ims),
+                "HEAD" => serve_static(&mount.dir, rel, true, range_hdr, ims),
+                _ => return Dispatch::Response(method_not_allowed(&["GET", "HEAD"])),
             };
-            return Dispatch::Response(resp);
+            return Dispatch::Response(if resp.status == 404 {
+                not_found_with_body(path)
+            } else {
+                resp
+            });
         }
 
-        Dispatch::Response(not_found())
+        Dispatch::Response(not_found_with_body(path))
     }
 }
 

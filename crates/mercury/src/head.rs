@@ -140,7 +140,8 @@ pub(crate) fn parse_request_head(buf: &[u8], lim: &Limits) -> Result<ParsedReque
         .position(|&b| b == b' ')
         .ok_or(Error::BadRequestLine)?;
     let target_bytes = &rest[..sp2];
-    if target_bytes.is_empty() || !target_bytes.iter().all(|&b| is_vchar(b)) {
+    // Raw UTF-8 bytes (>= 0x80) are allowed; the router serves them like their %-escaped form.
+    if target_bytes.is_empty() || !target_bytes.iter().all(|&b| is_vchar(b) || b >= 0x80) {
         return Err(Error::BadRequestLine);
     }
     let version_bytes = &rest[sp2 + 1..];

@@ -129,8 +129,28 @@ fn mkfs_good_and_bad() {
 
     let bad_img = dir.path("tiny.img");
     let bad = run(&["mkfs", bad_img.to_str().unwrap(), "--blocks", "4"]);
-    assert_failed_with_prefix(&bad, 1);
+    let stderr = assert_failed_with_prefix(&bad, 2);
+    assert!(
+        stderr.contains("hades: mkfs: need at least 68 blocks"),
+        "{stderr}"
+    );
     assert!(!bad_img.exists());
+}
+
+#[test]
+fn mkfs_minimum_is_exact() {
+    let dir = TempDir::new("mkfs_min");
+    let below = dir.path("below.img");
+    let out = run(&["mkfs", below.to_str().unwrap(), "--blocks", "67"]);
+    assert_failed_with_prefix(&out, 2);
+    assert!(!below.exists());
+
+    let at = dir.path("at.img");
+    let out = run(&["mkfs", at.to_str().unwrap(), "--blocks", "68"]);
+    assert_eq!(out.status.code(), Some(0));
+    assert_eq!(read_file(&at).len(), 68 * hades::BLOCK);
+    let check = run(&["fsck", at.to_str().unwrap()]);
+    assert_eq!(check.status.code(), Some(0));
 }
 
 #[test]

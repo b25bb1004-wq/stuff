@@ -96,3 +96,31 @@ fn sim_good_and_errors() {
     assert_eq!(out.status.code(), Some(1));
     assert!(String::from_utf8(out.stderr).unwrap().starts_with("midas:"));
 }
+
+#[test]
+fn help_starts_with_tool_line_and_example_runs() {
+    let out = Command::new(bin()).arg("--help").output().unwrap();
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert!(lines[0].starts_with("midas - "), "{}", lines[0]);
+    assert_eq!(lines[1], "Usage:");
+
+    // The three lines under "runs as given" are a complete input file.
+    let at = lines
+        .iter()
+        .position(|l| l.contains("runs as given"))
+        .unwrap();
+    let example: String = lines[at + 1..at + 4]
+        .iter()
+        .map(|l| format!("{}\n", l.trim()))
+        .collect();
+    let dir = TempDir::new("help_example");
+    let file = dir.path().join("example.txt");
+    fs::write(&file, example).unwrap();
+    let run = Command::new(bin()).arg("sim").arg(&file).output().unwrap();
+    assert!(
+        run.status.success(),
+        "{}",
+        String::from_utf8_lossy(&run.stderr)
+    );
+}

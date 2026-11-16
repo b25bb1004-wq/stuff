@@ -14,6 +14,7 @@ const MAX_SIM_HEAP_BYTES: usize = 128 * 1024 * 1024;
 
 fn usage() -> &'static str {
     "\
+midas - buddy/slab heap allocator simulation
 Usage:
   midas <subcommand> [args]
   midas --help
@@ -23,6 +24,10 @@ Subcommands:
   sim FILE
       Run allocator trace FILE ('-' for stdin) with 'heap BYTES', 'alloc SIZE',
       and 'free N' lines, printing memory usage and invariant check per step.
+      The heap line comes first. Example file (runs as given):
+        heap 65536
+        alloc 100
+        free 0
       Example: midas sim trace.txt"
 }
 

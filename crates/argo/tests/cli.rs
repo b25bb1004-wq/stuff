@@ -323,3 +323,12 @@ fn serve_good_and_bad() {
     assert_eq!(out.status.code(), Some(1));
     assert!(String::from_utf8(out.stderr).unwrap().starts_with("argo:"));
 }
+
+#[test]
+fn help_starts_with_tool_line() {
+    let out = Command::new(bin()).arg("--help").output().unwrap();
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert!(lines[0].starts_with("argo - "), "{}", lines[0]);
+    assert_eq!(lines[1], "Usage:");
+}
