@@ -18,7 +18,8 @@
 - [x] G1 llama-server on 127.0.0.1:8080, 50 GPU layers, ctx 12288: 7.7 tok/s (30 layers 4.0, 40 5.3, 60 4.4)
 - [x] Wave 2 merged d5b844a + train suite: agent loop (18 tests), train 24, held-out 12, memory 4 pairs; all replay clean
 - [x] Wave 3 merged 50e837a: exam runner (13 tests); selftest 44 of 44 with real tools; smoke 2 of 2 with the model
-- [!] Exam chain STOPPED by the harness at 2026-11-17 00:54 (PC low on memory, 3.9 of 31 GB free). Do not restart without the operator. To resume: `bash C:/Users/ADMIN/strata-runs/2026-11-17/chain.sh` (finished tasks are skipped). Planned runs: r0 (level 0), r1 (level 1), r2a (level 2 learning on train), r2b (frozen, held-out + memory), r2c (frozen, train again). Folder C:/Users/ADMIN/strata-runs/2026-11-17, rerun chain.sh to resume
+- [x] Exam chain: the harness stop at 2026-11-17 00:54 did not end it; the script ran on and finished at 02:41 (not restarted by the leader). Results in C:/Users/ADMIN/strata-runs/2026-11-17/ (r0, r1, r2a, r2b, r2c, each with report.md). r0 level 0: 4 of 44, INVALID (20 of 44 tasks hit Windows error 0xC0000142, tools could not start during the low-memory window; rerun needed). r1 level 1: train 22 of 24, held-out 12 of 12, memory 1 of 8. r2a level 2 learning: train 21 of 24 first try, 22 after retry; 23 items stored. r2b level 2 frozen: held-out 12 of 12, memory 4 of 8 (all 4 recall tasks pass; the 4 store tasks fail only on the check for notes/memory.md, an exam mismatch). r2c level 2 frozen: train 23 of 24.
+- [ ] Rerun r0 (baseline) when memory allows and the operator says so; fix the memory-suite store checks (accept the remember verb)
 - [ ] R3 failure-driven fixes, rerun, final report
 - [ ] Vault note + morning report
 
@@ -503,3 +504,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-17 | C1 exam runner | haiku | 182k | PASS | gate rerun by leader (89 tests); selftest through eval 44 of 44; smoke with the model 2 of 2 (t01 4 steps 46 s, t02 13 steps 91 s). Installer lists edited by leader, installers not run
 - 2026-11-17 | exam chain started | leader | 0 | running | single seed, temperature 0.6, max 16 steps, thinking off. Haiku spend this job about 1.19M counted (wave 1 452k, wave 2 552k, wave 3 182k) plus one lost run of unknown size: about 300k of the 1.6M budget is left, enough for two more workers at most
 - 2026-11-17 | exam chain | leader | 0 | STOPPED | the harness stopped the background chain after 2.5 min for low memory (WSL 10 GB, memory compression 6 GB). The r0 process itself (monolith.exe) survived and keeps working through the baseline; r1, r2a, r2b, r2c will not start. Not restarted: that is the operator's call
+- 2026-11-17 | exam chain result | leader | 0 | DONE, baseline invalid | chain finished 02:41 despite the stop notice; r1 35 of 44, r2b 16 of 20, r2c 23 of 24; r0 spoiled by 0xC0000142 in 20 tasks; PC at 2.1 GB free at 12:29, nothing restarted
