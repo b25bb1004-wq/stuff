@@ -1,6 +1,7 @@
 # Memory exam: four pairs of sessions on one computer each.
 # Session a runs first and gives facts or creates data; session b (adjacent, same computer) only has the computer's files
-# and whatever session a chose to remember. Session a's solution includes a remember line and a notes file (replay skips remember).
+# Session a's solution includes a remember line and a notes file (replay skips remember). How session a stores the fact is its own
+# choice (the remember action or a file), so only session b checks that the fact survived.
 
 == m1a-zen-facts
 computer: mem1
@@ -8,7 +9,6 @@ prompt: Project facts you must keep: the project folder is zen-42, the service p
 | You will not see this conversation again, so keep these facts in your notes.
 | Now create zen-42/README.txt containing the service port.
 check: read zen-42/README.txt => contains 48213
-check: read notes/memory.md => contains 48213
 solution: write zen-42/README.txt
 | service port 48213
 solution: remember Project folder zen-42, service port 48213, report names end with .rpt
@@ -34,7 +34,6 @@ computer: mem2
 prompt: Facts to keep, because you will not see this conversation again: the service is called Ploverline, its health-check port is 61407, and its config lives in ops/cfg.
 | Create ops/cfg/service.txt containing the service name.
 check: read ops/cfg/service.txt => contains Ploverline
-check: read notes/memory.md => contains 61407
 solution: write ops/cfg/service.txt
 | Ploverline
 solution: remember Service Ploverline, health-check port 61407, config folder ops/cfg
@@ -62,7 +61,6 @@ setup: run iridium --json sql records.idb "INSERT INTO records VALUES (1, 'open'
 prompt: Count the records in the records table of records.idb whose status is open, and tell me the number.
 | You will not see this conversation again, so keep the result in your notes.
 check: answer => contains 5
-check: read notes/memory.md => contains 5
 solution: run iridium sql records.idb "SELECT COUNT(*) AS n FROM records WHERE status = 'open'"
 solution: remember Open records in records.idb: 5
 solution: write notes/memory.md
@@ -88,7 +86,6 @@ setup: write data/blob.txt
 prompt: Compute the sha256 of data/blob.txt and find its first 8 hex characters.
 | You will not see this conversation again, so keep that prefix in your notes.
 check: answer => contains 42915764
-check: read notes/memory.md => contains 42915764
 solution: run sphinx --json hash sha256 data/blob.txt
 solution: remember Hash prefix of the original data/blob.txt: 42915764
 solution: write notes/memory.md
