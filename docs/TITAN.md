@@ -19,7 +19,7 @@ Target `riscv64gc-unknown-none-elf`. Only `core`, `alloc` and our own crates (mi
 | `0x0010_0000` | test finisher: write `0x5555` pass, `(code << 16) \| 0x3333` fail |
 | `0x0200_0000` | CLINT (`mtimecmp`, `mtime`) |
 | `0x0C00_0000` | PLIC (unused in v1, drivers poll) |
-| `0x1000_0000` | UART (console), `0x1000_1000` block device, `0x1000_2000` keys, `0x1000_3000` display |
+| `0x1000_0000` | UART (console), `0x1000_1000` block device, `0x1000_2000` keys, `0x1000_3000` display, `0x1000_4000` door (hermes frames) |
 | `0x3000_0000` | framebuffer |
 | `0x8000_0000` | kernel text, rodata, data, bss, boot stack (64 KiB) |
 | `_end` aligned to 2 MiB, 4 MiB | kernel heap (midas global allocator) |
@@ -48,6 +48,9 @@ Target `riscv64gc-unknown-none-elf`. Only `core`, `alloc` and our own crates (mi
 | 5 | spawn(path_ptr, len, argv_ptr, argc, stdin_fd, stdout_fd) | | 13 | readdir(fd, buf, len) |
 | 6 | wait(pid) -> exit code | | 14 | ps(buf, len) |
 | 7 | kill(pid) | | 15 | uptime() -> ticks |
+| 16 | result(ptr, len) | | 22 | door_send(chan, ptr, len) (door right) |
+| | | | 23 | door_recv(ptr, cap, chan_out) (door right, -7 if empty) |
+| | | | 25 | child_result(pid, ptr, cap) (after wait) |
 Errors: -1 bad argument, -2 not found, -3 no memory, -4 bad fd, -5 exists, -6 not a directory, -7 busy.
 `open` flags: `1` read, `2` write, `4` create, `8` truncate, `16` append (seek to end on open).
 `spawn` copies up to 16 NUL-terminated strings (max 255 bytes each, 4 KiB total) onto the child's stack (`a0 = argc`, `a1 = argv`; `argc == 0` passes `[name]`). `a4`/`a5` in `3..=15` duplicate that parent file fd into child fd `0`/`1` (with its own offset starting at the parent's); any value outside `3..=15` selects the console.

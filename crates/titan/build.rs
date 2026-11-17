@@ -7,7 +7,10 @@ use std::path::{Path, PathBuf};
 use chisel::elf::{Image, Segment, PF_R, PF_W, PF_X};
 
 const USER_BASE: u64 = 0x1_0000;
-const USER_PROGS: [&str; 7] = ["init", "ping", "pong", "hog", "fault", "evil", "fsdemo"];
+const USER_PROGS: [&str; 11] = [
+    "init", "ping", "pong", "hog", "fault", "evil", "fsdemo", "doorecho", "resulty", "resultp",
+    "doorbad",
+];
 
 fn main() {
     println!("cargo:rerun-if-changed=kernel.ld");

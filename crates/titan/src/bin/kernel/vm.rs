@@ -19,6 +19,7 @@ pub const UART_BASE: u64 = 0x1000_0000;
 pub const BLOCK_BASE: u64 = 0x1000_1000;
 pub const KEYS_BASE: u64 = 0x1000_2000;
 pub const DISPLAY_BASE: u64 = 0x1000_3000;
+pub const DOOR_BASE: u64 = 0x1000_4000;
 pub const FB_BASE: u64 = 0x3000_0000;
 pub const FB_MAP_SIZE: u64 = 320 * 240 * 4;
 
@@ -127,7 +128,7 @@ fn unmap_range_no_free<A: FrameAlloc>(pt: &mut PageTable<A>, start: u64, end: u6
     }
 }
 
-const MMIO_RANGES: [(u64, u64); 8] = [
+const MMIO_RANGES: [(u64, u64); 9] = [
     (CLINT_BASE, CLINT_BASE + CLINT_SIZE),
     (PLIC_BASE, PLIC_BASE + 4 * PAGE_SIZE),
     (
@@ -138,6 +139,7 @@ const MMIO_RANGES: [(u64, u64); 8] = [
     (BLOCK_BASE, BLOCK_BASE + PAGE_SIZE),
     (KEYS_BASE, KEYS_BASE + PAGE_SIZE),
     (DISPLAY_BASE, DISPLAY_BASE + PAGE_SIZE),
+    (DOOR_BASE, DOOR_BASE + PAGE_SIZE),
     (FB_BASE, FB_BASE + FB_MAP_SIZE),
 ];
 

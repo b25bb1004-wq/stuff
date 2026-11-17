@@ -31,6 +31,17 @@ const SYS_UNLINK: u64 = 12;
 const SYS_READDIR: u64 = 13;
 const SYS_PS: u64 = 14;
 const SYS_UPTIME: u64 = 15;
+const SYS_RESULT: u64 = 16;
+const SYS_DOOR_SEND: u64 = 22;
+const SYS_DOOR_RECV: u64 = 23;
+const SYS_CHILD_RESULT: u64 = 25;
+
+/// Largest value `result` (call 16) may store.
+const MAX_RESULT: u64 = 64 * 1024;
+
+// Door driver and calls 22 and 23 (kernel/door.rs lives beside this file).
+#[path = "door.rs"]
+mod door;
 
 pub fn handle_syscall(ks: &mut KernelState, tf: &mut TrapFrame) -> *mut TrapFrame {
     let pid = match ks.current {
@@ -146,6 +157,22 @@ pub fn handle_syscall(ks: &mut KernelState, tf: &mut TrapFrame) -> *mut TrapFram
         SYS_UPTIME => {
             let ticks = TICKS.load(Ordering::Relaxed) as isize;
             finish_syscall(tf, ticks)
+        }
+        SYS_RESULT => {
+            let res = sys_result(ks, pid, pt_root, a0, a1);
+            finish_syscall(tf, res)
+        }
+        SYS_DOOR_SEND => {
+            let res = door::sys_door_send(ks, pid, pt_root, a0, a1, a2);
+            finish_syscall(tf, res)
+        }
+        SYS_DOOR_RECV => {
+            let res = door::sys_door_recv(ks, pid, pt_root, a0, a1, a2);
+            finish_syscall(tf, res)
+        }
+        SYS_CHILD_RESULT => {
+            let res = sys_child_result(ks, pid, pt_root, a0, a1, a2);
+            finish_syscall(tf, res)
         }
         _ => finish_syscall(tf, Errno::BadArg.as_isize()),
     }
@@ -337,6 +364,53 @@ fn sys_spawn(
         Ok(child_pid) => child_pid as isize,
         Err(e) => e.as_isize(),
     }
+}
+
+/// Call 16: store `len` bytes of UTF-8 at `ptr` as this process's result (last call wins).
+fn sys_result(ks: &mut KernelState, pid: Pid, pt_root: u64, ptr: u64, len: u64) -> isize {
+    if len > MAX_RESULT {
+        return Errno::BadArg.as_isize();
+    }
+    let mut buf = alloc::vec![0u8; len as usize];
+    if let Err(e) = vm::copy_from_user(pt_root, ptr, &mut buf) {
+        return e.as_isize();
+    }
+    if core::str::from_utf8(&buf).is_err() {
+        return Errno::BadArg.as_isize();
+    }
+    if let Some(p) = ks.procs.get_mut(&pid) {
+        p.result = Some(buf);
+    }
+    0
+}
+
+/// Call 25: copy a waited child's result to `ptr` (at most `cap` bytes) and free it.
+fn sys_child_result(
+    ks: &mut KernelState,
+    pid: Pid,
+    pt_root: u64,
+    child: u64,
+    ptr: u64,
+    cap: u64,
+) -> isize {
+    let Ok(child) = Pid::try_from(child) else {
+        return Errno::BadArg.as_isize();
+    };
+    let Some(proc) = ks.procs.get_mut(&pid) else {
+        return Errno::BadArg.as_isize();
+    };
+    let Some(bytes) = proc.zombies.get(&child) else {
+        return Errno::NotFound.as_isize();
+    };
+    if bytes.len() as u64 > cap {
+        return Errno::BadArg.as_isize();
+    }
+    if let Err(e) = vm::copy_to_user(pt_root, ptr, bytes) {
+        return e.as_isize();
+    }
+    let len = bytes.len() as isize;
+    proc.zombies.remove(&child);
+    len
 }
 
 fn sys_ps(ks: &KernelState, pt_root: u64, buf_ptr: u64, buf_len: u64) -> isize {

@@ -42,6 +42,12 @@ pub struct KernelProc {
     pub tf_addr: u64,
     pub frames_freed: bool,
     pub fds: FdTable,
+    /// Holds the door right (programs `hermes` and `doorecho` in P1).
+    pub door: bool,
+    /// Last value of call 16 (`result`), moved to the parent's `zombies` on wait.
+    pub result: Option<Vec<u8>>,
+    /// Results of waited children, kept until fetched by `child_result` or until this process exits.
+    pub zombies: BTreeMap<Pid, Vec<u8>>,
 }
 
 pub struct KernelState {
@@ -243,6 +249,9 @@ impl KernelState {
                 tf_addr,
                 frames_freed: false,
                 fds,
+                door: matches!(name, "hermes" | "doorecho"),
+                result: None,
+                zombies: BTreeMap::new(),
             },
         );
         Ok(pid)
@@ -310,6 +319,7 @@ impl KernelState {
         vm::switch_to_kernel_pt();
         if let Some(p) = self.procs.get_mut(&pid) {
             p.fds.clear();
+            p.zombies.clear();
             if !p.frames_freed {
                 vm::destroy_user_pt(p.pt_root, &p.user_pages);
                 p.user_pages.clear();
@@ -330,6 +340,7 @@ impl KernelState {
         let woke = self.table.kill_child(caller_pid, target_pid)?;
         if let Some(p) = self.procs.get_mut(&target_pid) {
             p.fds.clear();
+            p.zombies.clear();
             if !p.frames_freed {
                 vm::destroy_user_pt(p.pt_root, &p.user_pages);
                 p.user_pages.clear();
@@ -354,6 +365,11 @@ impl KernelState {
                         vm::destroy_user_pt(old.pt_root, &old.user_pages);
                         old.user_pages.clear();
                         old.frames_freed = true;
+                    }
+                    if let (Some(bytes), Some(parent)) =
+                        (old.result.take(), self.procs.get_mut(&parent_pid))
+                    {
+                        parent.zombies.insert(child_pid, bytes);
                     }
                 }
                 Ok(WaitStatus::Exited(code))

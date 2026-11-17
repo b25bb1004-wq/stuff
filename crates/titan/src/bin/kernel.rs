@@ -567,14 +567,31 @@ mod kernel {
         // SAFETY: Clearing `SIE` keeps S-mode trap handling non-reentrant.
         unsafe { asm!("csrc sstatus, {sie}", sie = in(reg) 2u64, options(nomem, nostack)) };
 
+        // `/etc/boot` may name a built-in program to run as PID 1 instead of `init` (tests, appliances).
+        let mut fs = fs;
+        let mut boot_buf = [0u8; 32];
+        let boot_len = fs
+            .as_mut()
+            .and_then(|f| f.read("/etc/boot", 0, &mut boot_buf).ok())
+            .unwrap_or(0);
+        let boot_name = boot_buf
+            .get(..boot_len)
+            .and_then(|b| core::str::from_utf8(b).ok())
+            .map(str::trim)
+            .filter(|n| !n.is_empty() && progs::find_builtin(n).is_some())
+            .unwrap_or("init");
+        if boot_name != "init" {
+            let _ = writeln!(Uart, "boot: {boot_name}");
+        }
+
         let free_before_init = vm::free_frame_count();
         let init_tf = {
             let mut guard = KERNEL.lock();
             let ks = guard.insert(KernelState::new(free_before_init, fs));
-            let Some(init_elf) = progs::find_builtin("init") else {
+            let Some(init_elf) = progs::find_builtin(boot_name) else {
                 fail("missing init elf");
             };
-            let Ok(pid) = ks.spawn_process(None, "init", init_elf, &[], None, None) else {
+            let Ok(pid) = ks.spawn_process(None, boot_name, init_elf, &[], None, None) else {
                 fail("spawn init");
             };
             if pid != 1 {
