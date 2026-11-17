@@ -1,0 +1,15 @@
+[package]
+name = "atlas"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "Runtime library for Titan programs: one API, a host backend (std) and a titan backend (system calls)"
+
+[dependencies]
+
+[dev-dependencies]
+assay = { path = "../assay" }
+
+[lints]
+workspace = true

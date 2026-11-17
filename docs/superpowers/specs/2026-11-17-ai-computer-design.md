@@ -212,6 +212,7 @@ harness's wall time, model time excluded. A just-in-time compiler is out of scop
 12. `monolith up` resumes a machine after a host restart with files and memory intact.
 13. Door never binds a network port; a test asserts it.
 14. CI on ubuntu runs the full gate; no OS-specific code in silicon, titan, atlas, hermes, mnemosyne.
+15. Machine speed (million instructions per second) measured and reported before and after P8.
 
 ## 7. Phases (each ends in something that runs)
 
@@ -239,3 +240,39 @@ rules, the atlas API) hold.
 - Porting cost: about 150k lines of tools. Mitigation: edges only, batches of three, host tests guard
   behaviour.
 - Kernel memory: transactions and the journal cost RAM; Silicon's RAM size may need raising.
+
+## 10. Decisions after the builder check (2026-11-17, all leader's calls)
+
+A Haiku builder read this document and raised nine questions. Answers, which override anything above:
+
+1. **Undo.** Every action is its own transaction and commits when the action ends. Before a file is
+   first changed inside an action, the kernel copies the old version to `/sys/undo/<action>/`. The last
+   16 actions are kept; `undo` reverts the newest one, and can be repeated. Journal lines are never
+   removed; an undo appends its own line. `/mem` is never copied or reverted. So no copy-on-write
+   inside Hades and no disk-format migration: calls 18 to 20 become `act_begin`, `act_end`, `undo`.
+2. **Labels spread on read.** A process that reads a `web`-labelled file, or reads from the net channel,
+   is tainted for the rest of its life; every file it writes gets the label, and children it spawns
+   afterwards start tainted. Labels live in a kernel table saved to `/sys/labels`, not in the Hades
+   inode, so the disk format does not change.
+3. **Hades** needs no change for v1 (see 1 and 2).
+4. **Budgets** match the host harness: 60 s per tool run (`tool_timeout_secs`), 256 KiB output cap
+   (`OUTPUT_CAP`), 262 144 bytes per write. The instruction budget is 60 s times the measured speed of
+   the machine, set at boot.
+5. **Speed is reported, not a gate**, except that exam tasks must finish inside the 60 s tool limit.
+   Quality item 15 is added: P8 measures and reports the speed before and after.
+6. **Exam bar.** Model fixed: Qwen3.8-27B on the existing llama-server, same settings as the
+   2026-11-17 runs. Inside the machine, each suite must score within one task of the level 2 host
+   score, over two runs. Claude is not part of the bar.
+7. **Tools the exams use** (counted from the r0b results): chronos, krypton, calliope, hades, iridium,
+   sphinx, aurum, midas, kairos. No exam task needs a host program. P4 order changes to:
+   calliope (P1); chronos, krypton, hades; iridium, sphinx, aurum; midas, kairos; then cobalt, athena,
+   logos; mercury, odyssey; the rest.
+8. **Platforms.** Windows (the operator's PC) runs the full gate; ubuntu CI runs the full gate; Mac
+   must stay portable (no OS-specific code) and is checked when a Mac session is available.
+9. **RAM.** Existing tests keep the 16 MiB default. The AI machine uses its own config with 128 MiB.
+
+Also found: NVIDIA skill signatures (`skill.oms.sig`) are Sigstore bundles v0.3 (JSON, X.509 and ECDSA
+P-256). sphinx has Ed25519 only, so checking them needs P-256 and X.509 work; that is a P6 task.
+Silicon device detail: the door keeps its queues inside the device and the host uses
+`Machine::door_push_to_guest(channel, bytes)` and `Machine::door_take_from_guest()`, the same pattern
+as the UART, so the machine stays `Clone` and snapshot-able (replaces the `DoorHost` trait in 5.2).

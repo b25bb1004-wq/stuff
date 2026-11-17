@@ -22,7 +22,16 @@
 - [x] Baseline rerun r0b (2026-11-17 12:49 to 13:52, 0 tool-start failures): train 21 of 24, held-out 12 of 12, memory 4 of 8 (recall 0 of 4). Versus level 1: 22, 12, 5 (recall 1 of 4); level 2 frozen: 23, 12, 8 (recall 4 of 4). Tool tasks gain is noise at one seed; steps fall 8.0 to 6.7 to 5.8 on train; the memory layer is the real gain.
 - [ ] R3 failure-driven fixes, rerun, final report
 - [ ] Vault note + morning report
-- [ ] PARKED 2026-11-17 by the operator: NEW JOB, a new OS for AI (own rules, not a Linux look-alike; runs on Windows, Mac, Linux through Silicon). Resume point: he confirmed the goal; leader asked whether to write the full design doc (docs/superpowers/specs/2026-11-17-ai-computer-design.md). Ideas so far in the vault note NOW block, incl. NVIDIA skills shelf and memory as an OS feature (baseline shows memory is the gain). Draft roadmap docs/ai-computer/plans/2026-11-17-own-machine.md is superseded. Nothing dispatched.
+- [>] NEW JOB resumed 2026-11-17 evening (operator: "continue ... start fresh", "take full accountability and responsibility, and keep working", "complete permission to download. keep committing, creating skills for tasks, and updating the repo"). Titan as a computer whose user is an AI. Spec docs/superpowers/specs/2026-11-17-ai-computer-design.md (builder-checked, decisions in section 10, leader-approved under the operator's handover). Plan docs/superpowers/plans/2026-11-17-titan-p1-thin-slice.md. Job section below: "## Job: Titan for AI".
+
+## Job: Titan for AI (started 2026-11-17 evening)
+- Goal: spec section 1. Quality bar: spec section 6 (items 1 to 15). P1 done = one calliope exam task passes inside.
+- Workers: Claude Haiku, medium effort. Cap 2 at once (different crates). Retries 2 per task. agy and Argon dropped.
+- Budget stated to the operator before the first dispatch: P1 about 1.2M Claude worker tokens (6 tasks at about 150k,
+  one review at about 130k, one fix round). Whole job P1 to P8 estimate: 6M to 9M worker tokens over several sessions.
+- Stop rules: fable-loop B4. Any usage-limit warning: stop dispatching, write state here.
+- Tasks P1: T140 door device, T141 atlas, T142 titan door + calls, T143 calliope on atlas, T144 hermes, T145 monolith titan backend.
+- [>] T140 silicon door (haiku)   - [>] T141 atlas (haiku)   - [ ] T142   - [ ] T143   - [ ] T144   - [ ] T145
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
@@ -507,3 +516,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-17 | exam chain | leader | 0 | STOPPED | the harness stopped the background chain after 2.5 min for low memory (WSL 10 GB, memory compression 6 GB). The r0 process itself (monolith.exe) survived and keeps working through the baseline; r1, r2a, r2b, r2c will not start. Not restarted: that is the operator's call
 - 2026-11-17 | exam chain result | leader | 0 | DONE, baseline invalid | chain finished 02:41 despite the stop notice; r1 35 of 44, r2b 16 of 20, r2c 23 of 24; r0 spoiled by 0xC0000142 in 20 tasks; PC at 2.1 GB free at 12:29, nothing restarted
 - 2026-11-17 | baseline rerun r0b | leader | 0 | DONE, valid | 33 of 44 raw (memory rescored without notes checks: 4 of 8, all 4 recall tasks fail at the step limit); level 1 35 of 44 (memory 5 of 8); level 2 frozen held-out 12 of 12, memory 8 of 8, recall at 2 to 3 steps; train steps 8.0, 6.7, 5.8; prompt tokens on train 265k, 224k, 211k. Single seed.
+- 2026-11-17 | titan-ai spec + builder check | leader + haiku | 105k | DONE | 9 questions answered in spec section 10
