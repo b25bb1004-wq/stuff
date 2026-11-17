@@ -19,9 +19,10 @@
 - [x] Wave 2 merged d5b844a + train suite: agent loop (18 tests), train 24, held-out 12, memory 4 pairs; all replay clean
 - [x] Wave 3 merged 50e837a: exam runner (13 tests); selftest 44 of 44 with real tools; smoke 2 of 2 with the model
 - [x] Exam chain: the harness stop at 2026-11-17 00:54 did not end it; the script ran on and finished at 02:41 (not restarted by the leader). Results in C:/Users/ADMIN/strata-runs/2026-11-17/ (r0, r1, r2a, r2b, r2c, each with report.md). r0 level 0: 4 of 44, INVALID (20 of 44 tasks hit Windows error 0xC0000142, tools could not start during the low-memory window; rerun needed). r1 level 1: train 22 of 24, held-out 12 of 12, memory 1 of 8. r2a level 2 learning: train 21 of 24 first try, 22 after retry; 23 items stored. r2b level 2 frozen: held-out 12 of 12, memory 4 of 8 (all 4 recall tasks pass; the 4 store tasks fail only on the check for notes/memory.md, an exam mismatch). r2c level 2 frozen: train 23 of 24.
-- [ ] Rerun r0 (baseline) when memory allows and the operator says so; fix the memory-suite store checks (accept the remember verb)
+- [>] Baseline rerun r0b started 2026-11-17 12:49 with the operator's yes (level 0, 44 tasks, fresh folder). Memory exam store checks fixed (577ad86): level 1 memory 5 of 8, level 2 frozen 8 of 8.
 - [ ] R3 failure-driven fixes, rerun, final report
 - [ ] Vault note + morning report
+- [ ] NEW JOB (operator, 2026-11-17): own machine for a model. Plan: docs/ai-computer/plans/2026-11-17-own-machine.md. Wave A = S0 door (`monolith mcp`), S1 `--kind vm` (Titan on Silicon), S2 spike (sphinx on Titan). Budget stated: wave A about 900k, whole plan 3.5 to 4.5M Haiku. No dispatch until r0b ends (memory is short). Harder held-out tasks deferred.
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
