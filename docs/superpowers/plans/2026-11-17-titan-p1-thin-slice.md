@@ -40,7 +40,7 @@ Registers are 64-bit, also readable and writable as 32-bit (low half).
 
 Host API on `Machine` (public): `pub fn door_push_to_guest(&mut self, channel: u8, bytes: &[u8])`
 and `pub fn door_take_from_guest(&mut self) -> Vec<(u8, Vec<u8>)>` (drains the outbox in order).
-Inbox holds at most 64 frames; a push beyond that is dropped and counted (`pub fn door_dropped(&self) -> u64`).
+Outbox holds at most 64 undrained frames (TX_GO beyond that sets TX_ERR). Inbox holds at most 64 frames; a push beyond that is dropped and counted (`pub fn door_dropped(&self) -> u64`).
 The door state is part of `Snapshot` (queues and registers round-trip).
 
 ### C2. Titan calls (added to `docs/TITAN.md` numbering)

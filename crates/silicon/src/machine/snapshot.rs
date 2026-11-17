@@ -4,6 +4,7 @@ use alloc::collections::{BTreeMap, VecDeque};
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicU64, Ordering};
 
+use super::door::{INBOX_CAP, MAX_FRAME};
 use super::{Exit, Machine};
 
 /// Source of snapshot ids; ids are unique within the process.
@@ -115,6 +116,28 @@ pub struct DeviceState {
     pub keys_irq_enable: u32,
     /// Test-finisher exit status, if the guest has written one.
     pub exit: Option<Exit>,
+    /// Door TX_ADDR register.
+    pub door_tx_addr: u64,
+    /// Door TX_LEN register.
+    pub door_tx_len: u64,
+    /// Door TX_CHAN register.
+    pub door_tx_chan: u64,
+    /// Door TX_ERR flag.
+    pub door_tx_err: bool,
+    /// Door RX_ADDR register.
+    pub door_rx_addr: u64,
+    /// Door RX_CAP register.
+    pub door_rx_cap: u64,
+    /// Door flag set by a failed RX_TAKE.
+    pub door_rx_fail: bool,
+    /// Door IRQ_ENABLE register.
+    pub door_irq_enable: u64,
+    /// Host frames waiting for the guest, oldest first.
+    pub door_inbox: Vec<(u8, Vec<u8>)>,
+    /// Guest frames waiting for the host, oldest first.
+    pub door_outbox: Vec<(u8, Vec<u8>)>,
+    /// Host frames refused by the door.
+    pub door_dropped: u64,
 }
 
 /// Machine state, complete when `full` is set, otherwise the pages changed since a full base.
@@ -164,9 +187,16 @@ impl Snapshot {
         let fifo = self.devices.uart_rx.len()
             + self.devices.uart_tx.len()
             + 4 * self.devices.keys_fifo.len();
+        let frames = self
+            .devices
+            .door_inbox
+            .iter()
+            .chain(&self.devices.door_outbox)
+            .fold(0usize, |acc, (_, b)| acc.saturating_add(b.len()));
         pages
             .saturating_add(csr)
             .saturating_add(fifo)
+            .saturating_add(frames)
             .saturating_add(FIXED_STATE_BYTES)
     }
 }
@@ -206,6 +236,15 @@ csr_codec!(
     hcounteren, henvcfg, htval, htinst, hgatp, vsstatus, vstvec, vsscratch, vsepc, vscause, vstval,
     vsatp, mcycle, time,
 );
+
+/// True if the door queues hold no more frames than the device allows and every frame has a legal length.
+fn door_frames_ok(d: &DeviceState) -> bool {
+    d.door_inbox.len() <= INBOX_CAP
+        && d.door_inbox
+            .iter()
+            .chain(&d.door_outbox)
+            .all(|(_, b)| (1..=MAX_FRAME).contains(&(b.len() as u64)))
+}
 
 /// True if `n` bytes at page `index` lie inside a region of `len` bytes.
 fn page_fits(index: u64, n: usize, len: u64) -> bool {
@@ -286,7 +325,7 @@ impl Machine {
             if (snap.ram_size, snap.disk_size, snap.fb_size) != (ram, disk, fb) {
                 return Err(SnapshotError::SizeMismatch);
             }
-            if snap.cpu.csrs.len() != csr_len {
+            if snap.cpu.csrs.len() != csr_len || !door_frames_ok(&snap.devices) {
                 return Err(SnapshotError::Malformed);
             }
             for page in &snap.pages {
@@ -358,6 +397,17 @@ impl Machine {
             keys_fifo: b.keys.fifo.iter().copied().collect(),
             keys_irq_enable: b.keys.irq_enable,
             exit: b.finisher.exit,
+            door_tx_addr: b.door.tx_addr,
+            door_tx_len: b.door.tx_len,
+            door_tx_chan: b.door.tx_chan,
+            door_tx_err: b.door.tx_err,
+            door_rx_addr: b.door.rx_addr,
+            door_rx_cap: b.door.rx_cap,
+            door_rx_fail: b.door.rx_fail,
+            door_irq_enable: b.door.irq_enable,
+            door_inbox: b.door.inbox.iter().cloned().collect(),
+            door_outbox: b.door.outbox.clone(),
+            door_dropped: b.door.dropped,
         }
     }
 
@@ -402,6 +452,17 @@ impl Machine {
         b.keys.fifo = d.keys_fifo.iter().copied().collect::<VecDeque<u32>>();
         b.keys.irq_enable = d.keys_irq_enable;
         b.finisher.exit = d.exit;
+        b.door.tx_addr = d.door_tx_addr;
+        b.door.tx_len = d.door_tx_len;
+        b.door.tx_chan = d.door_tx_chan;
+        b.door.tx_err = d.door_tx_err;
+        b.door.rx_addr = d.door_rx_addr;
+        b.door.rx_cap = d.door_rx_cap;
+        b.door.rx_fail = d.door_rx_fail;
+        b.door.irq_enable = d.door_irq_enable;
+        b.door.inbox = d.door_inbox.iter().cloned().collect::<VecDeque<_>>();
+        b.door.outbox = d.door_outbox.clone();
+        b.door.dropped = d.door_dropped;
         Ok(())
     }
 

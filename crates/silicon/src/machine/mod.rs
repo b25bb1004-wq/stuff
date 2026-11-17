@@ -3,6 +3,7 @@ mod block;
 mod cache;
 mod clint;
 mod display;
+mod door;
 mod finisher;
 mod keys;
 mod plic;
@@ -19,6 +20,7 @@ use block::{Block, BLOCK_SIZE};
 use cache::DecodeCache;
 use clint::{Clint, CLINT_SIZE};
 use display::{Display, DISPLAY_SIZE};
+use door::{Door, DOOR_SIZE};
 use finisher::Finisher;
 use keys::{Keys, KEYS_SIZE};
 use plic::{Plic, PLIC_SIZE};
@@ -37,11 +39,13 @@ const UART_BASE: u64 = 0x1000_0000;
 const BLOCK_BASE: u64 = 0x1000_1000;
 const KEYS_BASE: u64 = 0x1000_2000;
 const DISPLAY_BASE: u64 = 0x1000_3000;
+const DOOR_BASE: u64 = 0x1000_4000;
 const FB_BASE: u64 = 0x3000_0000;
 
 const PLIC_SRC_BLOCK: u32 = 8;
 const PLIC_SRC_UART: u32 = 10;
 const PLIC_SRC_KEYS: u32 = 11;
+const PLIC_SRC_DOOR: u32 = 12;
 
 /// Hardware configuration for a [`Machine`].
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,6 +97,7 @@ pub struct Board {
     block: Block,
     keys: Keys,
     display: Display,
+    door: Door,
     cache: Option<DecodeCache>,
 }
 
@@ -110,6 +115,7 @@ impl Board {
             block: Block::new(cfg.disk),
             keys: Keys::default(),
             display: Display::new(cfg.fb_width, cfg.fb_height),
+            door: Door::default(),
             cache,
         }
     }
@@ -165,6 +171,9 @@ impl Board {
         if self.keys.irq_line() {
             mask |= 1 << PLIC_SRC_KEYS;
         }
+        if self.door.irq_line() {
+            mask |= 1 << PLIC_SRC_DOOR;
+        }
         mask
     }
 }
@@ -200,6 +209,9 @@ impl Bus for Board {
         }
         if let Some(off) = in_window(addr, DISPLAY_BASE, DISPLAY_SIZE) {
             return self.display.read_reg(addr, off, size);
+        }
+        if let Some(off) = in_window(addr, DOOR_BASE, DOOR_SIZE) {
+            return self.door.read(addr, off, size);
         }
         if let Some(off) = in_window(addr, FB_BASE, self.display.fb_len()) {
             return self.display.read_fb(addr, off, size);
@@ -239,6 +251,9 @@ impl Bus for Board {
         }
         if let Some(off) = in_window(addr, DISPLAY_BASE, DISPLAY_SIZE) {
             return self.display.write_reg(addr, off, size);
+        }
+        if let Some(off) = in_window(addr, DOOR_BASE, DOOR_SIZE) {
+            return self.door.write(addr, off, size, value, &mut self.ram);
         }
         if let Some(off) = in_window(addr, FB_BASE, self.display.fb_len()) {
             return self.display.write_fb(addr, off, size, value);
@@ -302,6 +317,21 @@ impl Machine {
         };
         self.cpu.csr_write(0xC01, self.board.mtime());
         step
+    }
+
+    /// Queue a frame for the guest door on `channel`. Dropped and counted if the inbox is full or the frame is empty or over 1 MiB.
+    pub fn door_push_to_guest(&mut self, channel: u8, bytes: &[u8]) {
+        self.board.door.push_to_guest(channel, bytes);
+    }
+
+    /// Drain the frames the guest sent through the door, oldest first, as `(channel, bytes)`.
+    pub fn door_take_from_guest(&mut self) -> Vec<(u8, Vec<u8>)> {
+        self.board.door.take_outbox()
+    }
+
+    /// Number of host frames refused by the door since construction.
+    pub fn door_dropped(&self) -> u64 {
+        self.board.door.dropped
     }
 
     /// Trap, ECALL and device counters since the last `probe_reset` (or since construction).

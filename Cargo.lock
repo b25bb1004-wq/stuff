@@ -39,6 +39,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "atlas"
+version = "0.1.0"
+dependencies = [
+ "assay",
+]
+
+[[package]]
 name = "aurum"
 version = "0.1.0"
 dependencies = [
