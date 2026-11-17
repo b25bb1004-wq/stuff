@@ -1,0 +1,15 @@
+[package]
+name = "hermes"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+description = "Door daemon inside Titan: runs tools for the model and replies with envelopes"
+
+[dependencies]
+
+[dev-dependencies]
+assay = { path = "../assay" }
+
+[lints]
+workspace = true
