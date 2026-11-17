@@ -22,7 +22,7 @@
 - [x] Baseline rerun r0b (2026-11-17 12:49 to 13:52, 0 tool-start failures): train 21 of 24, held-out 12 of 12, memory 4 of 8 (recall 0 of 4). Versus level 1: 22, 12, 5 (recall 1 of 4); level 2 frozen: 23, 12, 8 (recall 4 of 4). Tool tasks gain is noise at one seed; steps fall 8.0 to 6.7 to 5.8 on train; the memory layer is the real gain.
 - [ ] R3 failure-driven fixes, rerun, final report
 - [ ] Vault note + morning report
-- [ ] NEW JOB (operator, 2026-11-17): own machine for a model. Plan: docs/ai-computer/plans/2026-11-17-own-machine.md. Wave A = S0 door (`monolith mcp`), S1 `--kind vm` (Titan on Silicon), S2 spike (sphinx on Titan). Budget stated: wave A about 900k, whole plan 3.5 to 4.5M Haiku. No dispatch until r0b ends (memory is short). Harder held-out tasks deferred.
+- [ ] PARKED 2026-11-17 by the operator: NEW JOB, a new OS for AI (own rules, not a Linux look-alike; runs on Windows, Mac, Linux through Silicon). Resume point: he confirmed the goal; leader asked whether to write the full design doc (docs/superpowers/specs/2026-11-17-ai-computer-design.md). Ideas so far in the vault note NOW block, incl. NVIDIA skills shelf and memory as an OS feature (baseline shows memory is the gain). Draft roadmap docs/ai-computer/plans/2026-11-17-own-machine.md is superseded. Nothing dispatched.
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
