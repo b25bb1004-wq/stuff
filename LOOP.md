@@ -31,7 +31,7 @@
   one review at about 130k, one fix round). Whole job P1 to P8 estimate: 6M to 9M worker tokens over several sessions.
 - Stop rules: fable-loop B4. Any usage-limit warning: stop dispatching, write state here.
 - Tasks P1: T140 door device, T141 atlas, T142 titan door + calls, T143 calliope on atlas, T144 hermes, T145 monolith titan backend.
-- [>] T140 silicon door (haiku)   - [>] T141 atlas (haiku)   - [ ] T142   - [ ] T143   - [ ] T144   - [ ] T145
+- [x] T140 silicon door 73fb8a0   - [>] T141 atlas (haiku)   - [>] T142 (haiku)   - [ ] T143   - [ ] T144   - [ ] T145
 
 ## Goal
 Build all 25 systems in `docs/SPEC.md` as one zero-dependency stack: unique, tested, working
@@ -517,3 +517,4 @@ argo, aurum, pandora, krypton, calliope. P4 pigment, indium, iris, odyssey, heli
 - 2026-11-17 | exam chain result | leader | 0 | DONE, baseline invalid | chain finished 02:41 despite the stop notice; r1 35 of 44, r2b 16 of 20, r2c 23 of 24; r0 spoiled by 0xC0000142 in 20 tasks; PC at 2.1 GB free at 12:29, nothing restarted
 - 2026-11-17 | baseline rerun r0b | leader | 0 | DONE, valid | 33 of 44 raw (memory rescored without notes checks: 4 of 8, all 4 recall tasks fail at the step limit); level 1 35 of 44 (memory 5 of 8); level 2 frozen held-out 12 of 12, memory 8 of 8, recall at 2 to 3 steps; train steps 8.0, 6.7, 5.8; prompt tokens on train 265k, 224k, 211k. Single seed.
 - 2026-11-17 | titan-ai spec + builder check | leader + haiku | 105k | DONE | 9 questions answered in spec section 10
+- 2026-11-17 | T140 silicon door | haiku medium | 160k | PASS | gate rerun by leader; leader added outbox cap 64 + test (guest could grow host memory)
