@@ -200,10 +200,12 @@ impl Editor {
         true
     }
 
+    #[cfg_attr(target_os = "none", allow(dead_code))] // only the host editor calls this
     pub(crate) fn current_node(&self) -> usize {
         self.current
     }
 
+    #[cfg_attr(target_os = "none", allow(dead_code))] // only the host editor calls this
     pub(crate) fn replace_range(&mut self, start: usize, end: usize, inserted: &str) -> bool {
         let deleted = self.buffer.slice(start, end);
         if deleted == inserted {

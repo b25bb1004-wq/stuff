@@ -7,6 +7,9 @@ publish = false
 
 [dependencies]
 aci = { path = "../aci" }
+atlas = { path = "../atlas" }
+
+[target.'cfg(not(target_os = "none"))'.dependencies]
 logos = { path = "../logos" }
 
 [dev-dependencies]

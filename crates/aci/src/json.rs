@@ -1,8 +1,12 @@
 //! A small JSON value: reader (depth and size limited), writer (keys keep their order), and helpers.
 
-use std::borrow::Cow;
-use std::collections::HashSet;
-use std::fmt::{self, Write as _};
+use alloc::borrow::Cow;
+use alloc::collections::BTreeSet;
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::fmt::{self, Write as _};
+#[cfg(not(target_os = "none"))]
 use std::path::Path;
 
 /// Deepest nesting of arrays and objects the reader accepts.
@@ -44,7 +48,7 @@ impl fmt::Display for JsonError {
     }
 }
 
-impl std::error::Error for JsonError {}
+impl core::error::Error for JsonError {}
 
 impl Json {
     /// Read one JSON value. Fails on nesting deeper than 64, input over 8 MiB, duplicate keys,
@@ -128,8 +132,14 @@ impl Json {
     }
 
     /// A path as text with forward slashes, also on Windows.
+    #[cfg(not(target_os = "none"))]
     pub fn path(p: &Path) -> Json {
-        Json::Str(p.to_string_lossy().replace('\\', "/"))
+        Json::path_str(&p.to_string_lossy())
+    }
+
+    /// A path given as text, with forward slashes (the form every target has).
+    pub fn path_str(s: &str) -> Json {
+        Json::Str(s.replace('\\', "/"))
     }
 }
 
@@ -285,7 +295,7 @@ impl Parser<'_> {
     fn object(&mut self) -> Result<Json, JsonError> {
         self.pos += 1;
         let mut pairs: Vec<(String, Json)> = Vec::new();
-        let mut seen: HashSet<String> = HashSet::new();
+        let mut seen: BTreeSet<String> = BTreeSet::new();
         self.skip_ws();
         if self.peek() == Some(b'}') {
             self.pos += 1;
@@ -350,7 +360,7 @@ impl Parser<'_> {
                 self.pos += 1;
             }
             // The run has no quote, backslash or control byte, so it is whole UTF-8 characters.
-            match std::str::from_utf8(&self.b[start..self.pos]) {
+            match core::str::from_utf8(&self.b[start..self.pos]) {
                 Ok(s) => out.push_str(s),
                 Err(_) => return Err(self.error("invalid UTF-8")),
             }
@@ -457,7 +467,7 @@ impl Parser<'_> {
                 return Err(self.error("digit expected in exponent"));
             }
         }
-        let text = std::str::from_utf8(&self.b[start..self.pos])
+        let text = core::str::from_utf8(&self.b[start..self.pos])
             .map_err(|_| self.error("invalid number"))?;
         if let (false, Ok(i)) = (float, text.parse::<i64>()) {
             return Ok(Json::Int(i));

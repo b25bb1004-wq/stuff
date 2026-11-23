@@ -78,6 +78,7 @@ version = "0.1.0"
 dependencies = [
  "aci",
  "assay",
+ "atlas",
  "logos",
 ]
 
@@ -155,6 +156,13 @@ dependencies = [
  "elysium",
  "logos",
  "pigment",
+]
+
+[[package]]
+name = "hermes"
+version = "0.1.0"
+dependencies = [
+ "assay",
 ]
 
 [[package]]

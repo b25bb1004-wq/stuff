@@ -1,6 +1,8 @@
 //! The manifest a tool prints for `--describe`: its commands, arguments and effects (ACI.md, "Manifest").
 
 use crate::json::{obj_vec, Json};
+use alloc::string::String;
+use alloc::{format, vec};
 
 const EFFECTS: [&str; 4] = ["read", "write", "net", "exec"];
 const KINDS: [&str; 5] = ["path", "text", "int", "flag", "choice"];

@@ -1,6 +1,10 @@
 //! The envelope every `--json` run prints, plus paging, the text cap and the flag helpers (ACI.md, "Envelope").
 
 use crate::json::{lossy, obj_vec, Json};
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use alloc::{format, vec};
+#[cfg(not(target_os = "none"))]
 use std::ffi::OsString;
 
 /// Text values are cut at this many bytes.
@@ -147,6 +151,7 @@ pub fn capped(bytes: &[u8]) -> Vec<(String, Json)> {
 }
 
 /// Remove a leading `--json` and report whether it was there. A `--json` later on is left alone.
+#[cfg(not(target_os = "none"))]
 pub fn take_json_flag(args: &mut Vec<OsString>) -> bool {
     if args.first().and_then(|a| a.to_str()) == Some("--json") {
         args.remove(0);
@@ -157,8 +162,24 @@ pub fn take_json_flag(args: &mut Vec<OsString>) -> bool {
 }
 
 /// True when the arguments are exactly `--describe`.
+#[cfg(not(target_os = "none"))]
 pub fn take_describe_flag(args: &[OsString]) -> bool {
     matches!(args, [only] if only.to_str() == Some("--describe"))
+}
+
+/// Text form of `take_json_flag`, for targets whose arguments are already `String`s.
+pub fn take_json_text(args: &mut Vec<String>) -> bool {
+    if args.first().map(String::as_str) == Some("--json") {
+        args.remove(0);
+        true
+    } else {
+        false
+    }
+}
+
+/// Text form of `take_describe_flag`, for targets whose arguments are already `String`s.
+pub fn is_describe_text(args: &[String]) -> bool {
+    matches!(args, [only] if only == "--describe")
 }
 
 /// Check an envelope read from JSON. The first problem found is the error.
@@ -306,5 +327,25 @@ mod tests {
             OsString::from("x")
         ]));
         assert!(!take_describe_flag(&[]));
+    }
+}
+
+#[cfg(test)]
+mod text_flag_tests {
+    use super::*;
+
+    #[test]
+    fn text_flags_match_the_os_string_forms() {
+        let mut a: Vec<String> = vec!["--json".into(), "ls".into()];
+        assert!(take_json_text(&mut a));
+        assert_eq!(a, vec!["ls".to_string()]);
+        let mut b: Vec<String> = vec!["ls".into(), "--json".into()];
+        assert!(!take_json_text(&mut b));
+        assert_eq!(b.len(), 2);
+        assert!(is_describe_text(&["--describe".to_string()]));
+        assert!(!is_describe_text(&[
+            "--describe".to_string(),
+            "x".to_string()
+        ]));
     }
 }

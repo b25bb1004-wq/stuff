@@ -1,9 +1,13 @@
 //! Reading and writing text files without changing their bytes: the line endings, the final
 //! newline and any stray carriage returns are kept as found, and invalid UTF-8 is refused.
 
-use std::fmt;
+use alloc::string::{String, ToString};
+use core::fmt;
+#[cfg(not(target_os = "none"))]
 use std::fs;
+#[cfg(not(target_os = "none"))]
 use std::io::{self, Write};
+#[cfg(not(target_os = "none"))]
 use std::path::Path;
 
 /// Line-ending style of a file as it was read.
@@ -40,7 +44,7 @@ impl fmt::Display for DecodeError {
 
 /// Split file bytes into editor text and the line-ending style to restore on save.
 pub fn decode(bytes: &[u8]) -> Result<(String, Eol), DecodeError> {
-    let s = std::str::from_utf8(bytes).map_err(|e| DecodeError::InvalidUtf8 {
+    let s = core::str::from_utf8(bytes).map_err(|e| DecodeError::InvalidUtf8 {
         at: e.valid_up_to(),
     })?;
     let lf = s.matches('\n').count();
@@ -83,6 +87,7 @@ pub fn style_inserted(text: &str, newline: &str) -> String {
     }
 }
 
+#[cfg(not(target_os = "none"))]
 /// Write `bytes` to `path` through a temporary file in the same directory and a rename, so a
 /// failed save never leaves a half-written file.
 pub fn save_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
@@ -101,6 +106,7 @@ pub fn save_atomic(path: &Path, bytes: &[u8]) -> io::Result<()> {
     result
 }
 
+#[cfg(not(target_os = "none"))]
 fn write_then_rename(tmp: &Path, path: &Path, bytes: &[u8]) -> io::Result<()> {
     let mut f = fs::File::create(tmp)?;
     f.write_all(bytes)?;

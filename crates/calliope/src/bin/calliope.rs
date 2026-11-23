@@ -1,22 +1,27 @@
 //! calliope: the terminal editor (`calliope [FILE]`) and a CLI for linear-time regex grep and
-//! scripted multi-cursor editing (`calliope grep`, `calliope edit`).
+//! scripted multi-cursor editing (`calliope grep`, `calliope edit`). On Titan only the CLI parts
+//! exist; the terminal editor is host-only.
+#![cfg_attr(target_os = "none", no_std, no_main)]
 #![deny(unsafe_code)]
 
+extern crate alloc;
+
+#[cfg(not(target_os = "none"))]
 #[path = "calliope/tty.rs"]
 #[allow(unsafe_code)]
 mod tty;
 
-use std::env;
-use std::ffi::OsString;
-use std::fs;
-use std::io::{self, Read, Write};
-use std::path::{Path, PathBuf};
-use std::process;
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
 
 use aci::envelope::{self, Code, DEFAULT_LIMIT, MAX_LIMIT};
 use aci::json::Json;
 use aci::manifest::{Arg, Command, Effect, Kind, Manifest};
-use calliope::{ansi_changed, file, Buffer, Cursor, Editor, Regex, Screen, Session};
+#[cfg(not(target_os = "none"))]
+use calliope::{ansi_changed, Screen, Session};
+use calliope::{file, Buffer, Cursor, Editor, Regex};
 
 const VERSION_STR: &str = "calliope 0.1.0";
 
@@ -145,37 +150,40 @@ enum CliError {
     Usage(String),
     Op(String),
     SilentFail,
-    /// stdout was closed by the reader (`calliope grep ... | head -1`): stop quietly with exit 0.
-    Closed,
     /// An operation failed (exit 1) with the ACI code it maps to under `--json`.
     Coded(Code, String),
 }
 
-/// A failed stdout write: a closed pipe ends the run quietly, anything else is an error.
-fn stdout_err(e: io::Error) -> CliError {
-    // Windows reports a closed pipe as os error 232 (ERROR_NO_DATA).
-    if e.kind() == io::ErrorKind::BrokenPipe || e.raw_os_error() == Some(232) {
-        CliError::Closed
-    } else {
-        CliError::Op(format!("failed to write stdout: {e}"))
+/// Short text for an atlas error, used in messages.
+fn describe(e: &atlas::Error) -> String {
+    match e {
+        atlas::Error::BadArg => "bad argument".to_string(),
+        atlas::Error::NotFound => "no such file or directory".to_string(),
+        atlas::Error::NoMem => "out of memory".to_string(),
+        atlas::Error::BadFd => "bad file descriptor".to_string(),
+        atlas::Error::Exists => "already exists".to_string(),
+        atlas::Error::NotDir => "not a directory".to_string(),
+        atlas::Error::Busy => "resource busy".to_string(),
+        atlas::Error::TooBig => "data too large".to_string(),
+        atlas::Error::Io(msg) => msg.clone(),
     }
 }
 
 fn read_input(path: &str) -> Result<String, CliError> {
     if path == "-" {
-        let mut buf = String::new();
-        io::stdin()
-            .read_to_string(&mut buf)
-            .map_err(|e| CliError::Op(format!("failed to read stdin: {e}")))?;
-        Ok(buf)
+        let bytes = atlas::io::read_stdin()
+            .map_err(|e| CliError::Op(format!("failed to read stdin: {}", describe(&e))))?;
+        String::from_utf8(bytes).map_err(|_| {
+            CliError::Op("failed to read stdin: stream did not contain valid UTF-8".to_string())
+        })
     } else {
-        fs::read_to_string(path).map_err(|e| {
-            let code = if e.kind() == io::ErrorKind::NotFound {
+        atlas::fs::read_to_string(path).map_err(|e| {
+            let code = if e == atlas::Error::NotFound {
                 Code::NotFound
             } else {
                 Code::Io
             };
-            CliError::Coded(code, format!("failed to read '{path}': {e}"))
+            CliError::Coded(code, format!("failed to read '{path}': {}", describe(&e)))
         })
     }
 }
@@ -211,11 +219,10 @@ fn cmd_grep(args: &[String]) -> Result<(), CliError> {
     let regex = compile_regex(&args[0])?;
 
     let mut matched_any = false;
-    let mut out = io::stdout().lock();
-    for file in &args[1..] {
-        let text = read_input(file)?;
+    for path in &args[1..] {
+        let text = read_input(path)?;
         for (line_no, col, line) in hits(&regex, &text) {
-            writeln!(out, "{file}:{line_no}:{col}: {line}").map_err(stdout_err)?;
+            atlas::outln!("{path}:{line_no}:{col}: {line}");
             matched_any = true;
         }
     }
@@ -331,10 +338,7 @@ struct EditOutcome {
 
 fn cmd_edit(args: &[String]) -> Result<(), CliError> {
     let out = run_edit(args)?;
-    let mut stdout = io::stdout().lock();
-    stdout
-        .write_all(out.buffer.as_bytes())
-        .map_err(stdout_err)?;
+    atlas::io::out(out.buffer.as_bytes());
     Ok(())
 }
 
@@ -421,10 +425,13 @@ fn run_edit(args: &[String]) -> Result<EditOutcome, CliError> {
                 ));
             }
             let text = editor.buffer.text();
-            fs::write(file_path, &text).map_err(|e| {
+            atlas::fs::write(file_path, text.as_bytes()).map_err(|e| {
                 CliError::Coded(
                     Code::Io,
-                    format!("script line {line_no}: failed to save '{file_path}': {e}"),
+                    format!(
+                        "script line {line_no}: failed to save '{file_path}': {}",
+                        describe(&e)
+                    ),
                 )
             })?;
             saved = Some(text);
@@ -443,56 +450,85 @@ fn run_edit(args: &[String]) -> Result<EditOutcome, CliError> {
     })
 }
 
-fn run() -> Result<(), CliError> {
-    let args: Vec<String> = env::args().skip(1).collect();
+/// Text-mode run over the arguments after the program name.
+fn run_text(args: &[String]) -> Result<(), CliError> {
     let Some(first) = args.first() else {
-        // No arguments: the editor on a new buffer when run from a terminal.
-        return if tty::is_terminal() {
-            run_editor(&[])
-        } else {
-            Err(CliError::Usage(
-                "missing subcommand (try --help)".to_string(),
-            ))
-        };
+        return no_subcommand();
     };
     match first.as_str() {
         "--help" | "-h" | "help" => {
-            println!("{}", usage());
+            atlas::outln!("{}", usage());
             Ok(())
         }
         "--version" | "-V" => {
-            println!("{VERSION_STR}");
+            atlas::outln!("{VERSION_STR}");
             Ok(())
         }
         sub => {
             let rest = &args[1..];
             if rest.iter().any(|a| a == "--help" || a == "-h") {
-                println!("{}", usage());
+                atlas::outln!("{}", usage());
                 return Ok(());
             }
             match sub {
                 "grep" => cmd_grep(rest),
                 "edit" => cmd_edit(rest),
-                // A FILE name opens the editor, but only from a terminal: a script that asks
-                // for an unknown subcommand keeps getting the usage error.
-                other if !other.starts_with('-') && tty::is_terminal() => run_editor(&args),
-                other if !other.starts_with('-') && looks_like_file(other) => Err(CliError::Usage(
-                    "the editor needs a terminal (stdin is not a terminal)".to_string(),
-                )),
-                other => Err(CliError::Usage(format!("unknown subcommand '{other}'"))),
+                other => unknown_subcommand(other, args),
             }
         }
     }
 }
 
+/// No arguments: the editor on a new buffer when run from a terminal (host only).
+#[cfg(not(target_os = "none"))]
+fn no_subcommand() -> Result<(), CliError> {
+    if tty::is_terminal() {
+        run_editor(&[])
+    } else {
+        Err(CliError::Usage(
+            "missing subcommand (try --help)".to_string(),
+        ))
+    }
+}
+
+#[cfg(target_os = "none")]
+fn no_subcommand() -> Result<(), CliError> {
+    Err(CliError::Usage(
+        "missing subcommand (try --help)".to_string(),
+    ))
+}
+
+/// A FILE name opens the editor, but only from a terminal: a script that asks for an unknown
+/// subcommand keeps getting the usage error. Titan has no editor at all.
+#[cfg(not(target_os = "none"))]
+fn unknown_subcommand(other: &str, args: &[String]) -> Result<(), CliError> {
+    if !other.starts_with('-') && tty::is_terminal() {
+        run_editor(args)
+    } else if !other.starts_with('-') && looks_like_file(other) {
+        Err(CliError::Usage(
+            "the editor needs a terminal (stdin is not a terminal)".to_string(),
+        ))
+    } else {
+        Err(CliError::Usage(format!("unknown subcommand '{other}'")))
+    }
+}
+
+#[cfg(target_os = "none")]
+fn unknown_subcommand(other: &str, _args: &[String]) -> Result<(), CliError> {
+    Err(CliError::Usage(format!(
+        "unknown or host-only subcommand '{other}'"
+    )))
+}
+
 /// True for an existing path, or a word with a path separator or a dot, such as `notes.txt`.
 fn looks_like_file(word: &str) -> bool {
-    std::path::Path::new(word).exists() || word.contains(['/', '\\', '.'])
+    atlas::fs::exists(word) || word.contains(['/', '\\', '.'])
 }
 
 /// Open the terminal editor on the first of `files` (a new buffer when it does not exist yet).
+#[cfg(not(target_os = "none"))]
 fn run_editor(files: &[String]) -> Result<(), CliError> {
-    let path = files.first().map(PathBuf::from);
+    let path = files.first().map(std::path::PathBuf::from);
     if files.len() > 1 {
         eprintln!(
             "calliope: this version edits one file; ignoring {}",
@@ -500,7 +536,7 @@ fn run_editor(files: &[String]) -> Result<(), CliError> {
         );
     }
     let bytes = match &path {
-        Some(p) if p.exists() => fs::read(p)
+        Some(p) if p.exists() => std::fs::read(p)
             .map_err(|e| CliError::Op(format!("failed to read '{}': {e}", p.display())))?,
         _ => Vec::new(),
     };
@@ -566,7 +602,7 @@ fn failure(e: CliError) -> Failure {
             hint: None,
             exit: 1,
         },
-        CliError::SilentFail | CliError::Closed => Failure {
+        CliError::SilentFail => Failure {
             code: Code::Internal,
             message: "unexpected end of run".into(),
             hint: None,
@@ -644,7 +680,7 @@ fn json_grep(args: &[String]) -> Result<(Json, i32), Failure> {
         .map(|&(file, line, col, line_text)| {
             let (text, cut) = cut_text(line_text, GREP_TEXT_CAP);
             let mut pairs = vec![
-                ("path".to_string(), Json::path(Path::new(file))),
+                ("path".to_string(), Json::path_str(file)),
                 ("line".to_string(), Json::Int(line as i64)),
                 ("col".to_string(), Json::Int(col as i64)),
                 ("text".to_string(), Json::Str(text.into())),
@@ -684,7 +720,7 @@ fn json_edit(args: &[String]) -> Result<(Json, i32), Failure> {
         .as_deref()
         .is_some_and(|saved| saved != out.before);
     let mut pairs = vec![
-        ("path".to_string(), Json::path(Path::new(&args[1]))),
+        ("path".to_string(), Json::path_str(&args[1])),
         ("changed".to_string(), Json::Bool(changed)),
         ("saved".to_string(), Json::Bool(out.saved.is_some())),
         (
@@ -716,51 +752,50 @@ fn run_json(args: &[String]) -> i32 {
             )))),
         ),
     };
-    let exit = match result {
+    match result {
         Ok((data, exit)) => {
-            print!("{}", envelope::ok("calliope", cmd, data));
+            atlas::io::out(envelope::ok("calliope", cmd, data).as_bytes());
             exit
         }
         Err(f) => {
-            eprintln!("calliope: {}", f.message);
-            print!(
-                "{}",
-                envelope::err("calliope", cmd, f.code, &f.message, f.hint.as_deref())
+            atlas::io::err(format!("calliope: {}\n", f.message).as_bytes());
+            atlas::io::out(
+                envelope::err("calliope", cmd, f.code, &f.message, f.hint.as_deref()).as_bytes(),
             );
             f.exit
         }
-    };
-    let _ = io::stdout().flush();
-    exit
+    }
 }
 
-fn main() {
-    let raw: Vec<OsString> = env::args_os().skip(1).collect();
-    if envelope::take_describe_flag(&raw) {
-        println!("{}", MANIFEST.to_json().write());
-        return;
-    }
-    if raw.first().and_then(|a| a.to_str()) == Some("--json") {
-        let rest: Vec<String> = raw[1..]
-            .iter()
-            .map(|a| a.to_string_lossy().into_owned())
-            .collect();
-        process::exit(run_json(&rest));
-    }
-    if let Err(err) = run() {
-        match err {
-            CliError::Usage(msg) => {
-                eprintln!("calliope: {msg}");
-                process::exit(2);
+/// Exit code of a text-mode run. Host: a message on stderr. Titan: an error envelope on stdout.
+fn finish_text(result: Result<(), CliError>) -> i32 {
+    match result {
+        Ok(()) => 0,
+        Err(CliError::SilentFail) => 1,
+        Err(e) => {
+            let f = failure(e);
+            if cfg!(target_os = "none") {
+                let env = envelope::err("calliope", "", f.code, &f.message, f.hint.as_deref());
+                atlas::io::out(env.as_bytes());
+            } else {
+                atlas::io::err(format!("calliope: {}\n", f.message).as_bytes());
             }
-            CliError::Op(msg) | CliError::Coded(_, msg) => {
-                eprintln!("calliope: {msg}");
-                process::exit(1);
-            }
-            CliError::SilentFail => {
-                process::exit(1);
-            }
-            CliError::Closed => process::exit(0),
+            f.exit
         }
     }
 }
+
+/// The program: `--describe`, `--json` runs and text runs, all through atlas.
+fn run() -> i32 {
+    let mut args: Vec<String> = atlas::args::args().into_iter().skip(1).collect();
+    if envelope::is_describe_text(&args) {
+        atlas::outln!("{}", MANIFEST.to_json().write());
+        return 0;
+    }
+    if envelope::take_json_text(&mut args) {
+        return run_json(&args);
+    }
+    finish_text(run_text(&args))
+}
+
+atlas::main!(run);
